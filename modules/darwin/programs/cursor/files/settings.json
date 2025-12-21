@@ -1,0 +1,88 @@
+{
+  // fonts
+  "editor.fontFamily": "Jetbrains Mono",
+  "editor.fontLigatures": true,
+  "editor.codeLensFontFamily": "Jetbrains Mono",
+  "editor.inlayHints.fontFamily": "Jetbrains Mono",
+
+  // editor
+  "editor.accessibilitySupport": "off",
+  "editor.formatOnSave": true,
+  "editor.linkedEditing": true,
+  "editor.smartSelect.selectSubwords": false,
+  "editor.snippetSuggestions": "top",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+
+  // theme
+  "workbench.colorTheme": "Webstorm Darcula 2022",
+  "workbench.iconTheme": "a-file-icon-vscode",
+  "workbench.activityBar.orientation": "vertical",
+  "workbench.editor.enablePreview": false,
+  "window.commandCenter": 1,
+
+  // files
+  "files.autoSave": "afterDelay",
+  "explorer.confirmDragAndDrop": false,
+  "json.format.keepLines": true,
+
+  // terminal
+  "terminal.integrated.env.osx": {
+    "Q_NEW_SESSION": "1"
+  },
+
+  // git
+  "githubPullRequests.pullBranch": "never",
+  "gitlens.graph.minimap.enabled": false,
+
+  // language (javascript/typescript)
+  "eslint.format.enable": true,
+  "eslint.codeActionsOnSave.rules": null,
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  // language (json)
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[jsonl]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  // extensions (metaGo)
+  "metaGo.jumper.commandsToUseSingleTargetChar": null,
+
+  // extensions (database-client)
+  "database-client.autoSync": true,
+
+  // extensions (claude)
+  "claudeCode.preferredLocation": "panel",
+
+  // cursor
+  "cursor.cmdk.autoSelect": false,
+  "cursor.composer.shouldChimeAfterChatFinishes": true,
+  "cursor.diffs.useCharacterLevelDiffs": true,
+
+  // telemetry, update
+  "redhat.telemetry.enabled": false,
+  "security.promptForLocalFileProtocolHandling": false,
+  "update.releaseTrack": "prerelease",
+
+  // extensions (Nix 관리 - 자동 업데이트 비활성화)
+  "extensions.autoUpdate": false,
+  "extensions.autoCheckUpdates": false
+}

@@ -1,0 +1,159 @@
+{
+  "nodes": {
+    "home-manager": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1766282146,
+        "narHash": "sha256-0V/nKU93KdYGi+5LB/MVo355obBJw/2z9b2xS3bPJxY=",
+        "owner": "nix-community",
+        "repo": "home-manager",
+        "rev": "61fcc9de76b88e55578eb5d79fc80f2b236df707",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "home-manager",
+        "type": "github"
+      }
+    },
+    "home-manager-secrets": {
+      "inputs": {
+        "lefthook": "lefthook",
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1744208439,
+        "narHash": "sha256-2Nos2djaufVzcwfJM8cCW5fEW6mQnBVnqJiCoNPFITA=",
+        "owner": "shren207",
+        "repo": "home-manager-secrets",
+        "rev": "c6081807eb971924495860f3be1cd39411be2e7c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "shren207",
+        "repo": "home-manager-secrets",
+        "type": "github"
+      }
+    },
+    "lefthook": {
+      "inputs": {
+        "nixpkgs": [
+          "home-manager-secrets",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1743329920,
+        "narHash": "sha256-rj8R9moulDQ8alim20/0tkip9VfPsTr17aHE+HaauiE=",
+        "owner": "sudosubin",
+        "repo": "lefthook.nix",
+        "rev": "39a1d30c93239a82529965684f1b2aa7b808091b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "sudosubin",
+        "repo": "lefthook.nix",
+        "type": "github"
+      }
+    },
+    "nix-darwin": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1766038392,
+        "narHash": "sha256-ht/GuKaw5NT3M12xM+mkUtkSBVtzjJ8IHIy6R/ncv9g=",
+        "owner": "nix-darwin",
+        "repo": "nix-darwin",
+        "rev": "5fb45ece6129bd7ad8f7310df0ae9c00bae7c562",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-darwin",
+        "repo": "nix-darwin",
+        "type": "github"
+      }
+    },
+    "nix-vscode-extensions": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1766283289,
+        "narHash": "sha256-8yDQJUT5kX6vYwJbuALfp9glIYUI1dxDWT6GpL6mhxA=",
+        "owner": "nix-community",
+        "repo": "nix-vscode-extensions",
+        "rev": "889481b823cd31a17913f31c35865c25c8a8d28b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "nix-vscode-extensions",
+        "type": "github"
+      }
+    },
+    "nixos-config-secret": {
+      "inputs": {
+        "home-manager-secrets": [
+          "home-manager-secrets"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1766454847,
+        "narHash": "sha256-Q5sNrWbRW5wJVuqclQQ7JSFUDe288LZYPX99Ks+utYc=",
+        "ref": "main",
+        "rev": "b40f78eba1ec499356e36a8d6bd9ceae5e0d8349",
+        "shallow": true,
+        "type": "git",
+        "url": "ssh://git@github.com/shren207/nixos-config-secret"
+      },
+      "original": {
+        "ref": "main",
+        "shallow": true,
+        "type": "git",
+        "url": "ssh://git@github.com/shren207/nixos-config-secret"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1766254170,
+        "narHash": "sha256-Svhx9lHB3wvxDu9UtxilofG3PZqKvfwUzarSIvuGO5g=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "cab52b36dca5a5a368f05bd03fca0b543b5b9a3e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "nixos-unstable-small",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "home-manager": "home-manager",
+        "home-manager-secrets": "home-manager-secrets",
+        "nix-darwin": "nix-darwin",
+        "nix-vscode-extensions": "nix-vscode-extensions",
+        "nixos-config-secret": "nixos-config-secret",
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
