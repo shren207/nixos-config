@@ -20,6 +20,9 @@
 - [Home Manager 관련](#home-manager-관련)
   - [home.file의 recursive + executable이 작동하지 않음](#homefile의-recursive--executable이-작동하지-않음)
   - [builtins.toJSON이 한 줄로 생성됨](#builtinstojson이-한-줄로-생성됨)
+- [Git 관련](#git-관련)
+  - [delta가 적용되지 않음](#delta가-적용되지-않음)
+  - [~/.gitconfig과 Home Manager 설정이 충돌함](#gitconfig과-home-manager-설정이-충돌함)
 - [launchd 관련](#launchd-관련)
 - [Cursor 관련](#cursor-관련)
   - [Spotlight에서 Cursor가 2개로 표시됨](#spotlight에서-cursor가-2개로-표시됨)
@@ -297,6 +300,73 @@ in
 **차이점**:
 - `builtins.toJSON`: `{"key1":"value1","key2":true}` (한 줄)
 - `pkgs.formats.json`: 들여쓰기와 줄바꿈이 포함된 readable JSON
+
+---
+
+## Git 관련
+
+### delta가 적용되지 않음
+
+**증상**: `programs.delta.enable = true`를 설정했는데 `git diff`에서 delta가 사용되지 않음
+
+**원인**: `enableGitIntegration`이 명시적으로 설정되지 않음. Home Manager 최신 버전에서는 자동 활성화가 deprecated됨.
+
+**진단**:
+```bash
+# delta 설치 확인
+which delta
+# 예상: /etc/profiles/per-user/<username>/bin/delta
+
+# git pager 설정 확인
+git config --get core.pager
+# 비어있으면 문제
+```
+
+**해결**: `enableGitIntegration = true` 추가
+
+```nix
+# modules/shared/programs/git/default.nix
+programs.delta = {
+  enable = true;
+  enableGitIntegration = true;  # 이 줄이 필수!
+  options = {
+    navigate = true;
+    dark = true;
+  };
+};
+```
+
+> **참고**: `programs.delta`는 `programs.git`과 별도 모듈입니다. 이전에는 `programs.git.delta`였지만, 현재는 분리되었습니다.
+
+### ~/.gitconfig과 Home Manager 설정이 충돌함
+
+**증상**: NixOS로 Git 설정을 관리하는데, 수동 설정(`~/.gitconfig`)이 계속 적용됨
+
+**원인**: Git은 여러 설정 파일을 병합하여 사용합니다:
+
+| 우선순위 | 경로 | 설명 |
+|---------|------|------|
+| 1 | `~/.gitconfig` | 수동 관리 (존재하면 읽음) |
+| 2 | `~/.config/git/config` | Home Manager 관리 |
+| 3 | `.git/config` | 프로젝트별 로컬 |
+
+Home Manager는 XDG 표준 경로(`~/.config/git/config`)를 사용하므로, `~/.gitconfig`이 있으면 두 설정이 병합됩니다.
+
+**해결**: `~/.gitconfig` 삭제
+
+```bash
+# 백업 후 삭제 (권장)
+mv ~/.gitconfig ~/.gitconfig.backup
+
+# 또는 바로 삭제
+rm ~/.gitconfig
+```
+
+**확인**:
+```bash
+# Home Manager가 관리하는 설정만 표시되어야 함
+git config --list --show-origin | grep "\.config/git"
+```
 
 ---
 

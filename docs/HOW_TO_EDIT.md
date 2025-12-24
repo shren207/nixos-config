@@ -119,22 +119,52 @@ python = "3.12"
 
 **파일**: `modules/shared/programs/git/default.nix`
 
+### Git 설정 파일 탐색 순서
+
+Git은 여러 위치에서 설정을 읽습니다:
+
+| 우선순위 | 경로 | 관리 방식 |
+|---------|------|----------|
+| 1 | `~/.gitconfig` | 수동 (사용하지 않음) |
+| 2 | `~/.config/git/config` | **Home Manager** (Nix store 심볼릭 링크) |
+| 3 | `.git/config` | 프로젝트별 로컬 설정 |
+
+> **중요**: Home Manager는 XDG 표준 경로(`~/.config/git/config`)를 사용합니다. `~/.gitconfig`이 있으면 두 설정이 병합되므로, `~/.gitconfig`은 삭제하거나 사용하지 않는 것이 좋습니다.
+
+### 기본 설정
+
 ```nix
 programs.git = {
-  userName = "Your Name";
-  userEmail = "your@email.com";
+  enable = true;
 
-  aliases = {
-    co = "checkout";
-    br = "branch";
-    # 새 alias 추가
-  };
+  settings = {
+    user = {
+      name = "Your Name";
+      email = "your@email.com";
+    };
 
-  extraConfig = {
-    # 추가 설정
+    alias = {
+      s = "status -s";
+      # 새 alias 추가
+    };
   };
 };
 ```
+
+### Delta (Git diff 시각화)
+
+```nix
+programs.delta = {
+  enable = true;
+  enableGitIntegration = true;  # core.pager = delta 설정
+  options = {
+    navigate = true;
+    dark = true;
+  };
+};
+```
+
+> **참고**: `programs.delta`는 `programs.git`과 별도로 설정합니다. `enableGitIntegration = true`가 있어야 Git에서 delta를 pager로 사용합니다.
 
 > **대외비 gitignore**: 회사 프로젝트 브랜치 패턴 등은 Private 저장소(`nixos-config-secret/green/git.nix`)에서 `lib.mkAfter`로 추가됩니다.
 

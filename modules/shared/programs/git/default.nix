@@ -2,6 +2,16 @@
 { config, pkgs, lib, ... }:
 
 {
+  # Delta (git diff 시각화)
+  programs.delta = {
+    enable = true;
+    enableGitIntegration = true;
+    options = {
+      navigate = true;
+      dark = true;
+    };
+  };
+
   programs.git = {
     enable = true;
 
@@ -21,6 +31,7 @@
       init.defaultBranch = "main";
       push.autoSetupRemote = true;
       pull.rebase = false;
+      merge.conflictStyle = "zdiff3";
     };
 
     ignores = [

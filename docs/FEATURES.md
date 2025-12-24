@@ -35,6 +35,7 @@
 | 도구 | 설명 |
 |------|------|
 | `git` | 버전 관리 |
+| `delta` | Git diff 시각화 (구문 강조, side-by-side) |
 | `tmux` | 터미널 멀티플렉서 |
 | `lazygit` | Git TUI |
 | `gh` | GitHub CLI |
