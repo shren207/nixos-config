@@ -137,6 +137,7 @@ nixos-config/
 │   ├── shared/                   # 공유 설정 (macOS/Linux)
 │   │   ├── configuration.nix     # Nix 기본 설정
 │   │   └── programs/
+│   │       ├── broot/            # broot (Modern Linux Tree)
 │   │       ├── git/              # Git 설정
 │   │       ├── shell/            # Zsh/Starship/Atuin/Mise
 │   │       ├── tmux/             # tmux 설정

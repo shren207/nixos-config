@@ -6,6 +6,7 @@
 - [쉘 Alias 추가](#쉘-alias-추가)
 - [쉘 함수 추가](#쉘-함수-추가)
 - [런타임 버전 관리 (mise)](#런타임-버전-관리-mise)
+- [broot 설정 변경](#broot-설정-변경)
 - [Git 설정 변경](#git-설정-변경)
 - [macOS 시스템 설정 변경](#macos-시스템-설정-변경)
 - [Homebrew GUI 앱 추가](#homebrew-gui-앱-추가)
@@ -112,6 +113,71 @@ python = "3.12"
 ```
 
 > **참고**: mise는 `.zshrc`에서 `eval "$(mise activate zsh)"`로 활성화됩니다 (`modules/shared/programs/shell/default.nix`).
+
+---
+
+## broot 설정 변경
+
+**파일**: `modules/shared/programs/broot/default.nix`
+
+broot는 Home Manager의 `programs.broot` 모듈로 선언적으로 관리됩니다.
+
+### 기본 설정
+
+```nix
+programs.broot = {
+  enable = true;
+  enableZshIntegration = true;  # br 함수 자동 생성
+
+  settings = {
+    modal = false;  # vim 모드 비활성화 (기본값)
+  };
+};
+```
+
+### 주요 옵션
+
+| 옵션 | 설명 |
+|------|------|
+| `enableZshIntegration` | `br` 함수 자동 생성 (디렉토리 이동 지원) |
+| `settings.modal` | vim 모드 활성화 (`true`로 설정) |
+| `settings.verbs` | 커스텀 verb 정의 |
+| `settings.skin` | 색상 테마 설정 |
+
+### 커스텀 Verb 추가
+
+```nix
+settings = {
+  verbs = [
+    {
+      invocation = "edit";
+      shortcut = "e";
+      execution = "$EDITOR {file}";
+    }
+    {
+      invocation = "create {subpath}";
+      execution = "$EDITOR {directory}/{subpath}";
+    }
+  ];
+};
+```
+
+### Alias 설정
+
+**파일**: `modules/shared/programs/shell/default.nix`
+
+```nix
+home.shellAliases = {
+  bt = "br -c :pt";   # tree 스타일 출력
+};
+```
+
+> **참고**: `alias tree='broot'`는 기존 tree 명령어와 옵션이 호환되지 않아 권장하지 않습니다. 대신 `bt` alias를 사용하세요.
+
+### 참고 자료
+
+- [broot 공식 문서](https://dystroy.org/broot/)
+- [Home Manager broot 모듈](https://github.com/nix-community/home-manager/blob/master/modules/programs/broot.nix)
 
 ---
 

@@ -31,6 +31,9 @@
 
     # 파일 출력 (bat 사용)
     cat = "bat";
+
+    # broot: tree 스타일 출력
+    bt = "br -c :pt";
   };
 
   # Zsh 설정

@@ -22,6 +22,7 @@
       inputs.nixos-config-secret.homeManagerModules.default
 
       # 공유 프로그램
+      ../shared/programs/broot
       ../shared/programs/git
       ../shared/programs/shell
       ../shared/programs/tmux
@@ -38,6 +39,7 @@
     home.packages = with pkgs; [
       # 파일/검색 도구
       bat
+      broot
       eza
       fd
       fzf
