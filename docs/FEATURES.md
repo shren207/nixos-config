@@ -12,6 +12,7 @@
   - [유틸리티](#유틸리티)
 - [macOS 시스템 설정](#macos-시스템-설정)
 - [GUI 앱 (Homebrew Casks)](#gui-앱-homebrew-casks)
+  - [Cursor 기본 앱 설정](#cursor-기본-앱-설정)
 - [폴더 액션 (launchd)](#폴더-액션-launchd)
 - [Secrets 관리](#secrets-관리)
 
@@ -142,7 +143,7 @@ br -w
 
 | 앱 | 용도 |
 |----|------|
-| Cursor | AI 코드 에디터 |
+| Cursor | AI 코드 에디터 ([상세 설정](#cursor-기본-앱-설정)) |
 | Ghostty | 터미널 |
 | Raycast | 런처 (Spotlight 대체) |
 | Rectangle | 창 관리 |
@@ -153,6 +154,48 @@ br -w
 | Slack | 메신저 |
 | Figma | 디자인 |
 | MonitorControl | 외부 모니터 밝기 조절 |
+
+### Cursor 기본 앱 설정
+
+`modules/darwin/programs/cursor/default.nix`에서 관리됩니다.
+
+텍스트/코드 파일을 더블클릭 시 Xcode 대신 Cursor로 열리도록 `duti`를 사용하여 파일 연결을 설정합니다.
+
+**설정 대상 확장자:**
+
+```
+txt, text, md, mdx, js, jsx, ts, tsx, mjs, cjs,
+json, yaml, yml, toml, css, scss, sass, less, nix,
+sh, bash, zsh, py, rb, go, rs, lua, sql, graphql, gql,
+xml, svg, conf, ini, cfg, env, gitignore, editorconfig, prettierrc, eslintrc
+```
+
+**설정 대상 UTI:**
+
+| UTI | 설명 |
+|-----|------|
+| `public.plain-text` | 일반 텍스트 파일 |
+| `public.source-code` | 소스 코드 파일 |
+| `public.data` | 범용 데이터 파일 |
+
+**동작 방식:**
+
+- Home Manager의 `home.activation`을 사용하여 `darwin-rebuild switch` 시 자동 적용
+- `duti -s <bundle-id> .<ext> all` 명령으로 각 확장자 설정
+- Xcode 업데이트 시에도 `darwin-rebuild switch` 재실행으로 복구 가능
+
+**확인 방법:**
+
+```bash
+# 특정 확장자의 기본 앱 확인
+duti -x txt
+# 예상 출력: Cursor.app
+
+# Bundle ID 확인 (Cursor 업데이트 시)
+mdls -name kMDItemCFBundleIdentifier /Applications/Cursor.app
+```
+
+> **참고**: `.html`, `.htm` 확장자는 Safari가 시스템 수준에서 보호하므로 설정 불가. 자세한 내용은 [TRIAL_AND_ERROR.md](TRIAL_AND_ERROR.md#2024-12-25-duti로-htmlhtm-기본-앱-설정-실패) 참고.
 
 ---
 

@@ -11,6 +11,17 @@ let
   homeDir = config.home.homeDirectory;
   extensionsPath = "${homeDir}/.cursor/extensions";
 
+  # Cursor bundle identifier (macOS 앱 식별자)
+  cursorBundleId = "com.todesktop.230313mzl4w4u92";
+
+  # Cursor로 열 파일 확장자 목록
+  codeExtensions = [
+    "txt" "text" "md" "mdx" "js" "jsx" "ts" "tsx" "mjs" "cjs"
+    "json" "yaml" "yml" "toml" "css" "scss" "sass" "less" "nix"
+    "sh" "bash" "zsh" "py" "rb" "go" "rs" "lua" "sql" "graphql" "gql"
+    "xml" "svg" "conf" "ini" "cfg" "env" "gitignore" "editorconfig" "prettierrc" "eslintrc"
+  ];
+
   # 확장 목록 정의
   cursorExtensions =
     # open-vsx (오픈소스 마켓플레이스): https://open-vsx.org/
@@ -75,6 +86,26 @@ let
   };
 in
 {
+  # duti 패키지 추가 (macOS 파일 연결 CLI 도구)
+  home.packages = [ pkgs.duti ];
+
+  # Cursor를 기본 에디터로 설정
+  home.activation.setCursorAsDefaultEditor = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    echo "Setting Cursor as default editor for code files..."
+
+    # 1. 개별 확장자 설정
+    ${lib.concatMapStringsSep "\n" (ext:
+      "${pkgs.duti}/bin/duti -s ${cursorBundleId} .${ext} all"
+    ) codeExtensions}
+
+    # 2. 범용 UTI(Uniform Type Identifier) 설정
+    ${pkgs.duti}/bin/duti -s ${cursorBundleId} public.plain-text all
+    ${pkgs.duti}/bin/duti -s ${cursorBundleId} public.source-code all
+    ${pkgs.duti}/bin/duti -s ${cursorBundleId} public.data all
+
+    echo "Cursor default settings applied successfully."
+  '';
+
   # programs.vscode 비활성화 (pkgs.code-cursor 설치 방지)
   # Homebrew Cask로만 Cursor 앱 설치
   programs.vscode.enable = lib.mkForce false;

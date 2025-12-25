@@ -4,6 +4,7 @@
 
 ## 목차
 
+- [2024-12-25: duti로 .html/.htm 기본 앱 설정 실패](#2024-12-25-duti로-htmlhtm-기본-앱-설정-실패)
 - [2024-12-24: Anki 애드온 Nix 선언적 관리 시도 (보류)](#2024-12-24-anki-애드온-nix-선언적-관리-시도-보류)
   - [목표](#목표)
   - [시도한 방식들](#시도한-방식들)
@@ -14,6 +15,80 @@
   - [교훈](#교훈)
   - [대상 애드온 목록 (참고용)](#대상-애드온-목록-참고용)
   - [결론](#결론)
+
+---
+
+## 2024-12-25: duti로 .html/.htm 기본 앱 설정 실패
+
+### 배경
+
+macOS에서 텍스트/코드 파일(.txt, .md, .js 등)을 더블클릭 시 Xcode 대신 Cursor로 열리도록 `duti`를 사용하여 설정.
+
+### 시도한 내용
+
+```nix
+codeExtensions = [
+  "txt" "text" "md" "mdx" "js" "jsx" "ts" "tsx" "mjs" "cjs"
+  "json" "yaml" "yml" "toml" "html" "htm" "css" "scss" "sass" "less"
+  # ... 기타 확장자
+];
+
+home.activation.setCursorAsDefaultEditor = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+  ${lib.concatMapStringsSep "\n" (ext:
+    "${pkgs.duti}/bin/duti -s ${cursorBundleId} .${ext} all"
+  ) codeExtensions}
+'';
+```
+
+### 결과
+
+```
+failed to set com.todesktop.230313mzl4w4u92 as handler for public.html (error -54)
+```
+
+- **error -54**: macOS 권한 에러 (`permErr`)
+- `.html`, `.htm` 확장자만 실패, 나머지는 성공
+
+### 원인 분석
+
+1. **Safari가 `public.html` UTI를 시스템 수준에서 선점**
+   - macOS는 Safari를 HTML 파일의 기본 핸들러로 강하게 보호
+   - `duti`가 `public.html` UTI 설정 시도 시 권한 거부됨
+
+2. **duti의 확장자 설정 동작**
+   - `.html` 확장자 설정 시 내부적으로 `public.html` UTI도 함께 설정 시도
+   - UTI 설정 실패 시 에러 출력 (치명적이지 않음)
+
+### 해결 방법
+
+**방법 1: 확장자 목록에서 html/htm 제거 (적용)**
+
+```nix
+codeExtensions = [
+  "txt" "text" "md" "mdx" "js" "jsx" "ts" "tsx" "mjs" "cjs"
+  "json" "yaml" "yml" "toml" "css" "scss" "sass" "less"  # html, htm 제거
+  # ...
+];
+```
+
+**방법 2: Finder에서 수동 설정 (필요시)**
+
+1. `.html` 파일 우클릭 → 정보 가져오기 (Cmd+I)
+2. "다음으로 열기" → Cursor 선택 → "모두 변경" 클릭
+
+### 교훈
+
+1. **macOS Launch Services는 시스템 앱(Safari, Preview 등)을 보호함**
+   - 특정 UTI는 사용자가 변경할 수 없도록 잠겨 있음
+   - CLI 도구로 강제 변경 불가
+
+2. **duti 에러는 치명적이지 않음**
+   - 개별 확장자 설정 실패해도 다른 확장자에 영향 없음
+   - activation 전체가 중단되지 않음
+
+3. **HTML 파일은 브라우저로 여는 것이 macOS 기본 정책**
+   - 개발자 워크플로우와 충돌하는 부분
+   - 필요시 수동 설정으로 대응
 
 ---
 
