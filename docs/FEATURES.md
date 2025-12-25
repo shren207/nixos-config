@@ -13,6 +13,7 @@
 - [macOS 시스템 설정](#macos-시스템-설정)
 - [GUI 앱 (Homebrew Casks)](#gui-앱-homebrew-casks)
   - [Cursor 기본 앱 설정](#cursor-기본-앱-설정)
+  - [Hammerspoon 단축키](#hammerspoon-단축키)
 - [폴더 액션 (launchd)](#폴더-액션-launchd)
 - [Secrets 관리](#secrets-관리)
 
@@ -196,6 +197,34 @@ mdls -name kMDItemCFBundleIdentifier /Applications/Cursor.app
 ```
 
 > **참고**: `.html`, `.htm` 확장자는 Safari가 시스템 수준에서 보호하므로 설정 불가. 자세한 내용은 [TRIAL_AND_ERROR.md](TRIAL_AND_ERROR.md#2024-12-25-duti로-htmlhtm-기본-앱-설정-실패) 참고.
+
+### Hammerspoon 단축키
+
+`modules/darwin/programs/hammerspoon/files/init.lua`에서 관리됩니다.
+
+#### Finder → Ghostty 터미널 열기
+
+| 단축키 | 동작 |
+|--------|------|
+| `Ctrl + Option + Cmd + T` | 현재 Finder 경로에서 Ghostty 터미널 열기 |
+
+**동작 방식:**
+
+| 상황 | 동작 |
+|------|------|
+| Finder에서 실행 | 현재 폴더 경로로 Ghostty 새 창 열기 |
+| Finder 바탕화면에서 실행 | Desktop 경로로 Ghostty 새 창 열기 |
+| 다른 앱에서 실행 | Ghostty 새 창 열기 (기본 경로) |
+| Ghostty 미실행 시 | `open -a Ghostty`로 시작 |
+| Ghostty 실행 중 | `Cmd+N`으로 새 창 + `cd` 명령어 |
+
+**구현 특징:**
+
+- AppleScript로 Finder 현재 경로 가져오기
+- 경로에 특수문자(`[`, `]` 등)나 공백이 있어도 정상 동작 (따옴표 처리)
+- Ghostty 실행 중일 때는 키 입력 시뮬레이션으로 새 창 열기
+
+> **참고**: 구현 과정에서 발생한 문제와 해결 방법은 [TROUBLESHOOTING.md](TROUBLESHOOTING.md#hammerspoon-관련) 참고.
 
 ---
 

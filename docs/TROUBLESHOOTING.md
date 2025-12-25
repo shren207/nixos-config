@@ -24,6 +24,12 @@
   - [delta가 적용되지 않음](#delta가-적용되지-않음)
   - [~/.gitconfig과 Home Manager 설정이 충돌함](#gitconfig과-home-manager-설정이-충돌함)
 - [launchd 관련](#launchd-관련)
+- [Hammerspoon 관련](#hammerspoon-관련)
+  - [Ghostty가 새 인스턴스로 열림 (Dock에 여러 아이콘)](#ghostty가-새-인스턴스로-열림-dock에-여러-아이콘)
+  - [Ghostty +new-window가 macOS에서 동작하지 않음](#ghostty-new-window가-macos에서-동작하지-않음)
+  - [open --args가 이미 실행 중인 앱에 인수 전달 안 됨](#open---args가-이미-실행-중인-앱에-인수-전달-안-됨)
+  - [cd 명령어가 기존 창에 입력됨 (타이밍 문제)](#cd-명령어가-기존-창에-입력됨-타이밍-문제)
+  - [경로에 특수문자가 있으면 zsh 에러 발생](#경로에-특수문자가-있으면-zsh-에러-발생)
 - [Cursor 관련](#cursor-관련)
   - [Spotlight에서 Cursor가 2개로 표시됨](#spotlight에서-cursor가-2개로-표시됨)
   - [Cursor Extensions GUI에서 확장이 0개로 표시됨](#cursor-extensions-gui에서-확장이-0개로-표시됨)
@@ -380,6 +386,133 @@ launchctl list | grep com.green
 
 # 로그 확인
 cat ~/Library/Logs/folder-actions/*.log
+```
+
+---
+
+## Hammerspoon 관련
+
+Finder → Ghostty 터미널 열기 단축키 구현 시 발생한 문제들입니다.
+
+### Ghostty가 새 인스턴스로 열림 (Dock에 여러 아이콘)
+
+**증상**: 단축키로 Ghostty를 열 때마다 Dock에 새로운 Ghostty 아이콘이 생성됨
+
+**원인**: `hs.task.new`로 바이너리를 직접 실행하면 매번 새 인스턴스가 생성됨
+
+```lua
+-- ❌ 새 인스턴스 생성됨
+hs.task.new("/Applications/Ghostty.app/Contents/MacOS/ghostty", nil, args):start()
+```
+
+**해결**: `open` 명령어를 사용하거나, 실행 중인 앱에 키 입력 시뮬레이션 사용
+
+```lua
+-- ✅ 기존 인스턴스 사용
+hs.task.new("/usr/bin/open", nil, {"-a", "Ghostty"}):start()
+
+-- ✅ 또는 키 입력 시뮬레이션
+ghostty:activate()
+hs.eventtap.keyStroke({"cmd"}, "n")  -- 새 창
+```
+
+---
+
+### Ghostty +new-window가 macOS에서 동작하지 않음
+
+**증상**: `ghostty +new-window --working-directory=/path` 실행해도 아무 일도 일어나지 않음
+
+**원인**: Ghostty의 `+new-window` 액션은 **GTK (Linux) 전용**이며 macOS에서는 지원되지 않음
+
+```bash
+$ ghostty +new-window --help
+# ...
+# Only supported on GTK.
+```
+
+**해결**: macOS에서는 다른 방법 사용 필요:
+- Ghostty 미실행 시: `open -a Ghostty --args --working-directory=/path`
+- Ghostty 실행 중: `Cmd+N` 키 입력 + `cd` 명령어 타이핑
+
+---
+
+### open --args가 이미 실행 중인 앱에 인수 전달 안 됨
+
+**증상**: `open -a Ghostty --args --working-directory=/path` 실행해도 Ghostty가 해당 경로에서 열리지 않음
+
+**원인**: macOS의 `open` 명령어는 앱이 이미 실행 중이면 **인수를 전달하지 않고 단순 활성화**만 함
+
+**해결**: Ghostty가 실행 중인지 확인하고 분기 처리
+
+```lua
+local ghostty = hs.application.get("Ghostty")
+
+if ghostty then
+  -- 실행 중: Cmd+N으로 새 창 + cd 명령어
+  ghostty:activate()
+  hs.timer.doAfter(0.2, function()
+    hs.eventtap.keyStroke({"cmd"}, "n")
+    hs.timer.doAfter(0.6, function()
+      hs.eventtap.keyStrokes('cd "' .. path .. '" && clear')
+      hs.eventtap.keyStroke({}, "return")
+    end)
+  end)
+else
+  -- 미실행: open으로 시작
+  hs.task.new("/usr/bin/open", nil, {"-a", "Ghostty", "--args", "--working-directory=" .. path}):start()
+end
+```
+
+---
+
+### cd 명령어가 기존 창에 입력됨 (타이밍 문제)
+
+**증상**: 단축키 실행 시 새 창이 아닌 기존 창에 `cd` 명령어가 입력됨
+
+**원인**: `Cmd+N`으로 새 창이 열리기 전에 `cd` 명령어가 입력됨 (딜레이 부족)
+
+**해결**: 적절한 딜레이 추가
+
+```lua
+-- ❌ 딜레이 부족
+hs.timer.doAfter(0.1, function()
+  hs.eventtap.keyStroke({"cmd"}, "n")
+  hs.timer.doAfter(0.2, function()  -- 너무 짧음
+    hs.eventtap.keyStrokes('cd ...')
+  end)
+end)
+
+-- ✅ 충분한 딜레이
+hs.timer.doAfter(0.2, function()
+  hs.eventtap.keyStroke({"cmd"}, "n")
+  hs.timer.doAfter(0.6, function()  -- 새 창이 완전히 열릴 때까지 대기
+    hs.eventtap.keyStrokes('cd ...')
+  end)
+end)
+```
+
+> **참고**: 딜레이는 시스템 성능에 따라 조정이 필요할 수 있음. 0.6초가 안정적.
+
+---
+
+### 경로에 특수문자가 있으면 zsh 에러 발생
+
+**증상**: `[FA]Get Compressed Video` 같은 폴더에서 실행 시 에러
+
+```
+zsh: no matches found: /Users/green/FolderActions/[FA]Get
+```
+
+**원인**: `[`, `]` 등의 특수문자가 zsh glob 패턴으로 해석됨. 공백도 문제 발생.
+
+**해결**: 경로를 큰따옴표로 감싸기
+
+```lua
+-- ❌ 특수문자/공백 문제
+hs.eventtap.keyStrokes('cd ' .. path .. ' && clear')
+
+-- ✅ 따옴표로 감싸기
+hs.eventtap.keyStrokes('cd "' .. path .. '" && clear')
 ```
 
 ---
