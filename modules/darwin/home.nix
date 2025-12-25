@@ -33,6 +33,7 @@
       ./programs/claude
       ./programs/cursor
       ./programs/folder-actions
+      ./programs/keybindings
     ];
 
     # CLI 도구 패키지

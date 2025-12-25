@@ -11,6 +11,7 @@
   - [미디어 처리](#미디어-처리)
   - [유틸리티](#유틸리티)
 - [macOS 시스템 설정](#macos-시스템-설정)
+  - [키 바인딩 (백틱/원화)](#키-바인딩-백틱원화)
 - [GUI 앱 (Homebrew Casks)](#gui-앱-homebrew-casks)
   - [Cursor 기본 앱 설정](#cursor-기본-앱-설정)
   - [Hammerspoon 단축키](#hammerspoon-단축키)
@@ -135,6 +136,23 @@ br -w
 - 마침표 자동 삽입
 - 따옴표 자동 변환
 - 대시 자동 변환
+
+### 키 바인딩 (백틱/원화)
+
+`modules/darwin/programs/keybindings/`에서 관리됩니다.
+
+한국어 키보드에서 백틱(`) 키 입력 시 원화(₩)가 입력되는 문제를 해결합니다. macOS Cocoa Text System의 `DefaultKeyBinding.dict`를 사용합니다.
+
+| 입력 | 출력 | 설명 |
+|------|------|------|
+| `₩` 키 | `` ` `` | 백틱 입력 (기본 동작 변경) |
+| `Option + 4` | `₩` | 원화 기호 입력 (필요시) |
+
+**설정 파일 위치:** `~/Library/KeyBindings/DefaultKeyBinding.dict`
+
+**참고:**
+- 적용 후 앱 재시작 필요 (일부 앱은 로그아웃/재로그인 필요)
+- 참고 자료: [ttscoff/KeyBindings](https://github.com/ttscoff/KeyBindings)
 
 ---
 
