@@ -84,5 +84,13 @@
 
   // extensions (Nix 관리 - 자동 업데이트 비활성화)
   "extensions.autoUpdate": false,
-  "extensions.autoCheckUpdates": false
+  "extensions.autoCheckUpdates": false,
+  "caseConverter.caseCycle": [
+    "original",
+    "const",
+    "camel",
+    "snake",
+    "kebab",
+    "pascal"
+  ]
 }
