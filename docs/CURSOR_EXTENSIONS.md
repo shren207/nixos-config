@@ -20,12 +20,11 @@
 
 ## 관리 구조
 
-```
-Cursor 앱 설치: Homebrew Cask (homebrew.nix)
-확장 관리:      Nix + home.file (cursor/default.nix)
-설정 파일:      Nix store 심볼릭 링크 (읽기 전용)
-단축키 파일:    mkOutOfStoreSymlink (양방향 수정)
-```
+
+- Cursor 앱 설치(`homebrew.nix`): Homebrew Cask
+- 확장 관리(`extensions.json`):      Nix + home.file (cursor/default.nix)
+- 설정 파일(`settings.json`):      mkOutOfStoreSymlink (양방향 수정)
+- 단축키 파일(`keybindings.json`):    mkOutOfStoreSymlink (양방향 수정)
 
 ---
 
@@ -183,17 +182,12 @@ Cursor가 GUI에 표시하기 위해 필요한 형식:
 - Cursor에서 확장을 수동으로 추가/제거할 수 없음
 - 확장 추가/제거는 반드시 `default.nix` 수정 후 `darwin-rebuild` 실행
 
-### settings.json은 읽기 전용
-
-`home.file`로 관리되므로 Nix store 심볼릭 링크:
-- Cursor 내에서 설정 변경 불가
-- 설정 변경은 `modules/darwin/programs/cursor/files/settings.json` 직접 수정
-
-### keybindings.json은 양방향 수정 가능
+### settings.json, keybindings.json은 양방향 수정 가능
 
 `mkOutOfStoreSymlink`로 관리되므로:
-- Cursor에서 단축키 변경 가능
+- Cursor에서 설정/단축키 변경 가능
 - 변경사항이 `nixos-config`에 바로 반영됨
+- 확장 프로그램이 자동 추가하는 설정도 즉시 저장됨
 
 ### darwin-rebuild 후 Cursor 새로고침 필요
 

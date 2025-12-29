@@ -115,9 +115,10 @@ in
     # 확장 디렉토리 심볼릭 링크 (Nix store에서 관리)
     ".cursor/extensions".source = "${combinedExtensions}/share/vscode/extensions";
 
-    # settings.json - 읽기 전용 (Nix store 심볼릭 링크)
+    # settings.json - 양방향 수정 가능 (nixos-config 직접 참조)
+    # Cursor에서 UI로 설정 변경 시 nixos-config에 바로 반영됨
     "Library/Application Support/Cursor/User/settings.json".source =
-      "${cursorDir}/settings.json";
+      config.lib.file.mkOutOfStoreSymlink "${cursorFilesPath}/settings.json";
 
     # keybindings.json - 양방향 수정 가능 (nixos-config 직접 참조)
     # Cursor에서 UI로 단축키 변경 시 nixos-config에 바로 반영됨
