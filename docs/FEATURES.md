@@ -7,6 +7,7 @@
 - [CLI 도구](#cli-도구)
   - [파일/검색 도구](#파일검색-도구)
   - [개발 도구](#개발-도구)
+    - [Git 설정](#git-설정)
   - [쉘 도구](#쉘-도구)
   - [미디어 처리](#미디어-처리)
   - [유틸리티](#유틸리티)
@@ -70,12 +71,36 @@ br -w
 
 | 도구 | 설명 |
 |------|------|
-| `git` | 버전 관리 |
+| `git` | 버전 관리 ([상세 설정](#git-설정)) |
 | `delta` | Git diff 시각화 (구문 강조, side-by-side) |
 | `tmux` | 터미널 멀티플렉서 |
 | `lazygit` | Git TUI |
 | `gh` | GitHub CLI |
 | `jq` | JSON 처리 |
+
+#### Git 설정
+
+`modules/shared/programs/git/default.nix`에서 관리됩니다.
+
+**Interactive Rebase 역순 표시**
+
+`git rebase -i` 실행 시 Fork GUI처럼 **최신 커밋이 위**, 오래된 커밋이 아래에 표시됩니다.
+
+| CLI (기본) | CLI (적용 후) | Fork GUI |
+|------------|---------------|----------|
+| 오래된 → 최신 (위→아래) | 최신 → 오래된 (위→아래) | 최신 → 오래된 (위→아래) |
+
+**구현 방식:**
+
+- `sequence.editor`에 커스텀 스크립트 설정
+- 편집 전: 커밋 라인을 역순 정렬하여 표시
+- 편집 후: 원래 순서로 복원 (rebase 동작 정상 유지)
+- `pkgs.writeShellScript`로 Nix store에서 스크립트 관리
+
+**주의사항:**
+
+- squash/fixup은 **아래쪽 커밋**이 **위쪽 커밋**으로 합쳐집니다 (Fork GUI와 동일)
+- `git rebase --edit-todo`에서도 역순 표시가 적용됩니다
 
 ### 쉘 도구
 
