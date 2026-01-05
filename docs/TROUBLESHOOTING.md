@@ -23,6 +23,8 @@
 - [Git 관련](#git-관련)
   - [delta가 적용되지 않음](#delta가-적용되지-않음)
   - [~/.gitconfig과 Home Manager 설정이 충돌함](#gitconfig과-home-manager-설정이-충돌함)
+- [tmux 관련](#tmux-관련)
+  - [마우스 휠 스크롤이 쉘 히스토리 탐색으로 동작함](#마우스-휠-스크롤이-쉘-히스토리-탐색으로-동작함)
 - [inshellisense 관련](#inshellisense-관련)
   - [tmux 내부에서 자동완성이 작동하지 않음](#tmux-내부에서-자동완성이-작동하지-않음)
 - [launchd 관련](#launchd-관련)
@@ -375,6 +377,96 @@ rm ~/.gitconfig
 # Home Manager가 관리하는 설정만 표시되어야 함
 git config --list --show-origin | grep "\.config/git"
 ```
+
+---
+
+## tmux 관련
+
+### 마우스 휠 스크롤이 쉘 히스토리 탐색으로 동작함
+
+**증상**: tmux에서 마우스 휠을 위아래로 스크롤하면, 터미널 스크롤이 아닌 쉘 히스토리 탐색(위/아래 화살표 키)이 트리거됨
+
+```bash
+# 마우스 휠 위로 스크롤 시
+❯ (이전 명령어가 나타남)  # 예상: copy-mode 진입 + 스크롤백
+```
+
+**원인**: 두 가지 문제가 복합적으로 발생
+
+1. **Home Manager `programs.tmux`의 기본값 문제**:
+   - `programs.tmux.enable = true`만 설정하면 `mouse = false`가 기본값
+   - `default-terminal = "screen"`이 기본값
+
+2. **WheelDownPane 바인딩 누락**:
+   - tmux 기본 설정에서 `WheelUpPane`은 root 테이블에 있지만 `WheelDownPane`은 없음
+   - 터미널이 alternate screen buffer에서 마우스 휠을 UP/DOWN 화살표 키 시퀀스로 변환
+
+**진단**:
+```bash
+# 마우스 옵션 확인
+tmux show-options -g mouse
+# mouse off  ← 문제
+
+# 마우스 휠 바인딩 확인
+tmux list-keys | grep WheelDownPane
+# root 테이블에 WheelDownPane이 없으면 문제
+```
+
+**해결**: 두 부분 모두 수정 필요
+
+**1. `default.nix`에서 Home Manager 옵션 설정**:
+
+```nix
+# modules/shared/programs/tmux/default.nix
+programs.tmux = {
+  enable = true;
+  mouse = true;                      # 마우스 활성화
+  terminal = "tmux-256color";        # True Color 지원
+};
+```
+
+**2. `tmux.conf`에서 마우스 휠 바인딩 추가**:
+
+```bash
+# modules/shared/programs/tmux/files/tmux.conf
+
+# 터미널별 True Color 지원 활성화
+set -ga terminal-overrides ",xterm*:Tc"
+set -ga terminal-overrides ",*256col*:Tc"
+set -ga terminal-overrides ",xterm-ghostty:Tc"
+
+# 마우스 휠 스크롤 수정
+# - copy-mode 또는 mouse_any_flag 활성화 시: 마우스 이벤트 그대로 전달
+# - alternate_on (vim, less 등): UP/DOWN 키 전송 (프로그램 내 스크롤)
+# - 일반 프롬프트: copy-mode 진입 (스크롤백 탐색)
+
+bind -n WheelUpPane if-shell -F '#{||:#{pane_in_mode},#{mouse_any_flag}}' \
+  'send -M' \
+  'if-shell -F "#{alternate_on}" "send-keys -N 3 Up" "copy-mode -e"'
+
+bind -n WheelDownPane if-shell -F '#{||:#{pane_in_mode},#{mouse_any_flag}}' \
+  'send -M' \
+  'if-shell -F "#{alternate_on}" "send-keys -N 3 Down" "send -M"'
+```
+
+**적용**:
+```bash
+darwin-rebuild switch --flake .
+tmux kill-server  # 서버 재시작 필요
+```
+
+**예상 동작**:
+
+| 상황 | 마우스 휠 위로 | 마우스 휠 아래로 |
+|------|---------------|-----------------|
+| 일반 프롬프트 | copy-mode 진입 + 스크롤백 | 스크롤 |
+| vim, less 등 | 프로그램 내 위로 스크롤 | 프로그램 내 아래로 스크롤 |
+| copy-mode 중 | 5줄씩 위로 | 5줄씩 아래로 |
+
+**주의사항**:
+- `tmux.conf`에서 `set -g mouse on`과 `set -g default-terminal`을 설정해도, Home Manager의 `programs.tmux`가 먼저 기본값을 적용하므로 효과 없음
+- 반드시 `default.nix`에서 `mouse = true`, `terminal = "tmux-256color"`를 설정해야 함
+- `tmux source-file`만으로는 부족하고 `tmux kill-server`로 서버를 완전히 재시작해야 함
 
 ---
 

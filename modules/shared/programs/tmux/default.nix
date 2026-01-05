@@ -7,6 +7,8 @@ in
 {
   programs.tmux = {
     enable = true;
+    mouse = true;
+    terminal = "tmux-256color";
   };
 
   # ~/.tmux/ 디렉토리 전체를 심볼릭 링크로 관리
