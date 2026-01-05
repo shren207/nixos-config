@@ -7,6 +7,11 @@ in
 {
   programs.tmux = {
     enable = true;
+    # Home Manager가 생성하는 ~/.config/tmux/tmux.conf가 먼저 로드되므로,
+    # 사용자 설정을 여기서 source해야 함
+    extraConfig = ''
+      source-file ~/.tmux/tmux.conf
+    '';
   };
 
   # ~/.tmux/ 디렉토리 전체를 심볼릭 링크로 관리
@@ -32,12 +37,9 @@ in
       source = "${tmuxDir}/scripts/find-unused-prefixes.sh";
       executable = true;
     };
-
-    # ~/.tmux.conf에서 ~/.tmux/tmux.conf를 source
-    ".tmux.conf".text = ''
-      # Managed by Home Manager
-      source-file ~/.tmux/tmux.conf
-    '';
+    # NOTE: ~/.tmux.conf는 더 이상 필요없음
+    # programs.tmux.extraConfig에서 ~/.tmux/tmux.conf를 source하므로
+    # XDG 경로(~/.config/tmux/tmux.conf)가 우선 로드됨
   };
 
   # pane-notes 디렉토리 생성 (동적 생성용)
