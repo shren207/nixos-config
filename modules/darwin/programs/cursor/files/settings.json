@@ -19,7 +19,6 @@
   "workbench.colorTheme": "Webstorm Darcula 2022",
   "workbench.iconTheme": "a-file-icon-vscode",
   "workbench.activityBar.orientation": "vertical",
-  "workbench.editor.enablePreview": false,
   "window.commandCenter": 1,
 
   // files
