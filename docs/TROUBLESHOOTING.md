@@ -23,6 +23,8 @@
 - [Git 관련](#git-관련)
   - [delta가 적용되지 않음](#delta가-적용되지-않음)
   - [~/.gitconfig과 Home Manager 설정이 충돌함](#gitconfig과-home-manager-설정이-충돌함)
+- [inshellisense 관련](#inshellisense-관련)
+  - [tmux 내부에서 자동완성이 작동하지 않음](#tmux-내부에서-자동완성이-작동하지-않음)
 - [launchd 관련](#launchd-관련)
 - [Hammerspoon 관련](#hammerspoon-관련)
   - [Ghostty가 새 인스턴스로 열림 (Dock에 여러 아이콘)](#ghostty가-새-인스턴스로-열림-dock에-여러-아이콘)
@@ -373,6 +375,58 @@ rm ~/.gitconfig
 # Home Manager가 관리하는 설정만 표시되어야 함
 git config --list --show-origin | grep "\.config/git"
 ```
+
+---
+
+## inshellisense 관련
+
+### tmux 내부에서 자동완성이 작동하지 않음
+
+**증상**: tmux 외부에서는 inshellisense가 정상 작동하지만, tmux 세션 내부에서는 자동완성 드롭다운이 표시되지 않음
+
+```bash
+# tmux 내부에서 is 실행 시
+❯ is
+inshellisense session [live]  # 세션은 활성화되지만 UI 미표시
+```
+
+**원인**: inshellisense가 `$TMUX`, `$TMUX_PANE` 환경변수를 감지하면 UI 렌더링 방식이 달라집니다.
+
+**관련 이슈**:
+- [Issue #306](https://github.com/microsoft/inshellisense/issues/306): tmux/zellij에서 작동 안 함
+- [Issue #204](https://github.com/microsoft/inshellisense/issues/204): tmux 세션 관련 구조적 한계
+
+**해결**: 이 프로젝트에서는 `TMUX`, `TMUX_PANE` 환경변수를 초기화 시점에 임시로 해제하여 해결했습니다.
+
+`modules/shared/programs/inshellisense/default.nix`:
+
+```nix
+programs.zsh.initContent = lib.mkAfter ''
+  if command -v is >/dev/null 2>&1; then
+    # tmux 내부인 경우 TMUX 관련 환경변수를 임시로 해제
+    if [[ -n "''${TMUX}" ]]; then
+      _IS_TMUX_BACKUP="$TMUX"
+      _IS_TMUX_PANE_BACKUP="''${TMUX_PANE:-}"
+      unset TMUX TMUX_PANE
+    fi
+
+    eval "$(is init zsh)"
+
+    # TMUX 환경변수 복원
+    if [[ -n "''${_IS_TMUX_BACKUP}" ]]; then
+      export TMUX="$_IS_TMUX_BACKUP"
+      [[ -n "''${_IS_TMUX_PANE_BACKUP}" ]] && export TMUX_PANE="$_IS_TMUX_PANE_BACKUP"
+      unset _IS_TMUX_BACKUP _IS_TMUX_PANE_BACKUP
+    fi
+  fi
+'';
+```
+
+**주의사항**:
+- `TMUX`만 해제해서는 해결되지 않음 - `TMUX_PANE`도 함께 해제해야 함
+- 환경변수는 `is init zsh` 실행 순간에만 해제되고 즉시 복원됨
+- tmux 관련 다른 기능(tmux 명령어, 스크립트 등)에는 영향 없음
+- 이 방법은 공식 지원이 아닌 workaround임
 
 ---
 

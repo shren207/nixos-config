@@ -25,9 +25,25 @@
 
   # Zsh 초기화 (반드시 마지막에 실행되어야 함)
   programs.zsh.initContent = lib.mkAfter ''
-    # inshellisense 자동 시작
+    # inshellisense 자동 시작 (tmux 내부에서도 작동하도록 TMUX 관련 변수 우회)
+    # 참고: https://github.com/microsoft/inshellisense/issues/306
     if command -v is >/dev/null 2>&1; then
+      # tmux 내부인 경우 TMUX 관련 환경변수를 임시로 해제
+      if [[ -n "''${TMUX}" ]]; then
+        _IS_TMUX_BACKUP="$TMUX"
+        _IS_TMUX_PANE_BACKUP="''${TMUX_PANE:-}"
+        unset TMUX TMUX_PANE
+      fi
+
+      # inshellisense 초기화
       eval "$(is init zsh)"
+
+      # TMUX 환경변수 복원
+      if [[ -n "''${_IS_TMUX_BACKUP}" ]]; then
+        export TMUX="$_IS_TMUX_BACKUP"
+        [[ -n "''${_IS_TMUX_PANE_BACKUP}" ]] && export TMUX_PANE="$_IS_TMUX_PANE_BACKUP"
+        unset _IS_TMUX_BACKUP _IS_TMUX_PANE_BACKUP
+      fi
     fi
   '';
 }

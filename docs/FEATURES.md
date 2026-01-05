@@ -152,6 +152,15 @@ is doctor
 
 > **참고**: 쉘 시작 시 자동으로 `is init zsh`가 실행되어 활성화됩니다. `lib.mkAfter`를 사용하여 다른 쉘 플러그인보다 나중에 로드됩니다.
 
+**tmux 호환성:**
+
+inshellisense는 기본적으로 tmux 내부에서 작동하지 않는 문제가 있습니다. 이 프로젝트에서는 `TMUX`, `TMUX_PANE` 환경변수를 초기화 시점에 임시로 해제하여 tmux 내외부 모두에서 정상 작동하도록 설정되어 있습니다.
+
+| 환경 | 동작 |
+|------|------|
+| tmux 외부 | 정상 작동 |
+| tmux 내부 | 정상 작동 (환경변수 우회 적용) |
+
 > **주의**: nixpkgs 버전(0.0.1-rc.21)에서는 `useNerdFont` 옵션이 지원되지 않습니다. 자세한 내용은 [TRIAL_AND_ERROR.md](TRIAL_AND_ERROR.md#2025-01-05-inshellisense-usenerdfonttrue-설정-실패)를 참고하세요.
 
 ### 미디어 처리
