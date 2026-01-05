@@ -24,6 +24,7 @@
       # 공유 프로그램
       ../shared/programs/broot
       ../shared/programs/git
+      ../shared/programs/inshellisense
       ../shared/programs/shell
       ../shared/programs/tmux
       ../shared/programs/vim

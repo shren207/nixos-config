@@ -9,6 +9,7 @@
   - [개발 도구](#개발-도구)
     - [Git 설정](#git-설정)
   - [쉘 도구](#쉘-도구)
+    - [inshellisense (IDE 스타일 자동완성)](#inshellisense-ide-스타일-자동완성)
   - [미디어 처리](#미디어-처리)
   - [유틸리티](#유틸리티)
 - [macOS 시스템 설정](#macos-시스템-설정)
@@ -110,6 +111,48 @@ br -w
 | `starship` | 프롬프트 커스터마이징 |
 | `atuin` | 쉘 히스토리 관리/동기화 |
 | `mise` | 런타임 버전 관리 (Node.js, Ruby, Python 등) |
+| `inshellisense` | IDE 스타일 명령줄 자동완성 ([상세 설정](#inshellisense-ide-스타일-자동완성)) |
+
+#### inshellisense (IDE 스타일 자동완성)
+
+`modules/shared/programs/inshellisense/default.nix`에서 관리됩니다.
+
+Microsoft에서 개발한 IDE 스타일 명령줄 자동완성 도구입니다. 600개 이상의 CLI 도구에 대해 인터랙티브 제안을 제공합니다.
+
+**기존 zsh-autosuggestion과의 차이:**
+
+| 항목 | zsh-autosuggestion | inshellisense |
+|------|-------------------|---------------|
+| 제안 방식 | 인라인 회색 텍스트 | IDE 스타일 드롭다운 |
+| 제안 소스 | 히스토리 기반 | 명령어 스펙 기반 (600+개) |
+| 탐색 | 방향키로 히스토리 순환 | Tab/Shift+Tab으로 제안 탐색 |
+| 공존 | 가능 (서로 다른 방식) | 가능 |
+
+**설정된 키바인딩:**
+
+| 동작 | 키 | 기본값 |
+|------|---|--------|
+| 제안 수락 | `Enter` | Tab |
+| 다음 제안 | `Tab` | ↓ |
+| 이전 제안 | `Shift+Tab` | ↑ |
+| 제안 닫기 | `Esc` | Esc |
+
+**사용법:**
+
+```bash
+# 새 터미널 열면 자동 활성화됨
+# 명령어 입력 시 자동완성 드롭다운 표시
+
+git<Space>     # git 서브커맨드 제안
+npm<Space>     # npm 서브커맨드 제안
+
+# 설치 상태 확인
+is doctor
+```
+
+> **참고**: 쉘 시작 시 자동으로 `is init zsh`가 실행되어 활성화됩니다. `lib.mkAfter`를 사용하여 다른 쉘 플러그인보다 나중에 로드됩니다.
+
+> **주의**: nixpkgs 버전(0.0.1-rc.21)에서는 `useNerdFont` 옵션이 지원되지 않습니다. 자세한 내용은 [TRIAL_AND_ERROR.md](TRIAL_AND_ERROR.md#2025-01-05-inshellisense-usenerdfonttrue-설정-실패)를 참고하세요.
 
 ### 미디어 처리
 

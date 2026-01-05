@@ -8,6 +8,7 @@
 - [쉘 함수 추가](#쉘-함수-추가)
 - [런타임 버전 관리 (mise)](#런타임-버전-관리-mise)
 - [broot 설정 변경](#broot-설정-변경)
+- [inshellisense 설정 변경](#inshellisense-설정-변경)
 - [Git 설정 변경](#git-설정-변경)
 - [macOS 시스템 설정 변경](#macos-시스템-설정-변경)
 - [Homebrew GUI 앱 추가](#homebrew-gui-앱-추가)
@@ -230,6 +231,76 @@ home.shellAliases = {
 
 - [broot 공식 문서](https://dystroy.org/broot/)
 - [Home Manager broot 모듈](https://github.com/nix-community/home-manager/blob/master/modules/programs/broot.nix)
+
+---
+
+## inshellisense 설정 변경
+
+**파일**: `modules/shared/programs/inshellisense/default.nix`
+
+inshellisense는 Microsoft에서 개발한 IDE 스타일 명령줄 자동완성 도구입니다.
+
+### 키바인딩 변경
+
+```nix
+xdg.configFile."inshellisense/rc.toml".text = ''
+  [bindings.acceptSuggestion]
+  key = "return"           # Enter로 수락
+
+  [bindings.nextSuggestion]
+  key = "tab"              # Tab으로 다음
+
+  [bindings.previousSuggestion]
+  key = "tab"
+  shift = true             # Shift+Tab으로 이전
+
+  [bindings.dismissSuggestions]
+  key = "escape"           # Esc로 닫기
+'';
+```
+
+### 사용 가능한 키 이름
+
+Node.js keypress 이벤트 이름을 사용합니다:
+
+| 키 | 이름 |
+|---|------|
+| Enter | `return` |
+| Tab | `tab` |
+| Escape | `escape` |
+| 방향키 | `up`, `down`, `left`, `right` |
+| Space | `space` |
+
+### Modifier 키
+
+```toml
+[bindings.nextSuggestion]
+key = "tab"
+shift = true      # Shift 키 조합
+control = true    # Control 키 조합
+```
+
+### 자동 시작 비활성화
+
+자동 시작을 비활성화하려면 zsh initContent를 제거합니다:
+
+```nix
+# 아래 블록을 주석 처리 또는 삭제
+programs.zsh.initContent = lib.mkAfter ''
+  if command -v is >/dev/null 2>&1; then
+    eval "$(is init zsh)"
+  fi
+'';
+```
+
+수동 시작: 터미널에서 `is` 명령어 실행
+
+### 참고 자료
+
+- [inshellisense GitHub](https://github.com/microsoft/inshellisense)
+- [설정 파일 문서](https://github.com/microsoft/inshellisense#configuration)
+
+> **주의**: nixpkgs 버전(0.0.1-rc.21)에서는 `useNerdFont` 옵션이 지원되지 않습니다. 이 옵션을 사용하면 "data must NOT have additional properties" 오류가 발생합니다.
 
 ---
 

@@ -4,6 +4,7 @@
 
 ## 목차
 
+- [2025-01-05: inshellisense useNerdFont=true 설정 실패](#2025-01-05-inshellisense-usenerdfonttrue-설정-실패)
 - [2024-12-25: duti로 .html/.htm 기본 앱 설정 실패](#2024-12-25-duti로-htmlhtm-기본-앱-설정-실패)
 - [2024-12-24: Anki 애드온 Nix 선언적 관리 시도 (보류)](#2024-12-24-anki-애드온-nix-선언적-관리-시도-보류)
   - [목표](#목표)
@@ -15,6 +16,74 @@
   - [교훈](#교훈)
   - [대상 애드온 목록 (참고용)](#대상-애드온-목록-참고용)
   - [결론](#결론)
+
+---
+
+## 2025-01-05: inshellisense useNerdFont=true 설정 실패
+
+### 배경
+
+inshellisense(Microsoft의 IDE 스타일 쉘 자동완성 도구)를 nixos-config에 추가하면서, Nerd Font 아이콘을 사용하도록 `useNerdFont = true` 옵션을 설정.
+
+### 시도한 내용
+
+```toml
+# ~/.config/inshellisense/rc.toml
+useNerdFont = true
+
+[bindings.acceptSuggestion]
+key = "return"
+# ...
+```
+
+### 결과
+
+```
+❯ is
+/Users/glen/.config/inshellisense/rc.toml is invalid: data must NOT have additional properties
+```
+
+inshellisense가 실행되지 않고 설정 파일 유효성 검사 오류 발생.
+
+### 원인 분석
+
+1. **nixpkgs 버전과 최신 버전의 차이**
+   - nixpkgs 버전: `0.0.1-rc.21`
+   - npm 최신 버전에서는 `useNerdFont` 옵션 지원
+   - 구버전에서는 해당 옵션이 스키마에 없어 "additional properties" 오류 발생
+
+2. **관련 이슈**
+   - GitHub Issue: [useNerdFont break inshellisense #365](https://github.com/microsoft/inshellisense/issues/365)
+   - 해당 이슈에서도 비슷한 문제가 보고됨
+
+### 해결 방법
+
+**`useNerdFont` 옵션 제거 (적용)**
+
+```toml
+# useNerdFont = true  # 제거
+
+[bindings.acceptSuggestion]
+key = "return"
+
+[bindings.nextSuggestion]
+key = "tab"
+# ...
+```
+
+### 교훈
+
+1. **nixpkgs 패키지 버전은 npm 최신 버전과 다를 수 있음**
+   - 문서나 GitHub README의 옵션이 nixpkgs 버전에서 지원되지 않을 수 있음
+   - 설정 전 `<패키지> --version`으로 버전 확인 필요
+
+2. **JSON Schema 유효성 검사**
+   - inshellisense는 TOML → JSON 변환 후 JSON Schema로 유효성 검사
+   - `additionalProperties: false` 설정으로 알려지지 않은 속성 차단
+
+3. **대안**
+   - 최신 기능이 필요하면 npm global 설치 고려 (`npm install -g @microsoft/inshellisense`)
+   - nixpkgs 버전 업데이트 대기
 
 ---
 
