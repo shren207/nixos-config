@@ -3,6 +3,7 @@
 ## 목차
 
 - [CLI 패키지 추가/제거](#cli-패키지-추가제거)
+- [폰트 추가/제거 (Nerd Fonts)](#폰트-추가제거-nerd-fonts)
 - [쉘 Alias 추가](#쉘-alias-추가)
 - [쉘 함수 추가](#쉘-함수-추가)
 - [런타임 버전 관리 (mise)](#런타임-버전-관리-mise)
@@ -38,6 +39,57 @@ home.packages = with pkgs; [
   # htop        # ← 주석 처리로 제거
 ];
 ```
+
+---
+
+## 폰트 추가/제거 (Nerd Fonts)
+
+**파일**: `modules/darwin/configuration.nix`
+
+### 폰트 추가
+
+```nix
+fonts.packages = with pkgs.nerd-fonts; [
+  fira-code
+  jetbrains-mono
+  hack              # ← 추가
+  meslo-lg          # ← 추가
+];
+```
+
+### 사용 가능한 폰트 검색
+
+```bash
+# 전체 Nerd Fonts 목록
+nix search nixpkgs nerd-fonts
+
+# 특정 폰트 검색
+nix search nixpkgs nerd-fonts | grep -i "hack"
+```
+
+### 폰트 제거
+
+```nix
+fonts.packages = with pkgs.nerd-fonts; [
+  fira-code
+  # jetbrains-mono  # ← 주석 처리로 제거
+];
+```
+
+### 주요 Nerd Fonts 목록
+
+| 패키지명 | 폰트 이름 |
+|---------|----------|
+| `fira-code` | FiraCode Nerd Font |
+| `jetbrains-mono` | JetBrains Mono Nerd Font |
+| `hack` | Hack Nerd Font |
+| `meslo-lg` | MesloLG Nerd Font |
+| `iosevka` | Iosevka Nerd Font |
+| `cascadia-code` | CaskaydiaCove Nerd Font |
+| `ubuntu-mono` | UbuntuMono Nerd Font |
+| `roboto-mono` | RobotoMono Nerd Font |
+
+> **참고**: NixOS 25.05+에서는 `nerd-fonts.fira-code` 형식을 사용합니다. 구 문법 `(nerdfonts.override { fonts = [...]; })`은 더 이상 지원되지 않습니다.
 
 ---
 

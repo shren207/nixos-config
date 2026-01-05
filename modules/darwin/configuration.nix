@@ -2,6 +2,12 @@
 { config, pkgs, username, ... }:
 
 {
+  # Nerd Fonts 설치 (nix-darwin이 /Library/Fonts/Nix Fonts에 자동 링크)
+  fonts.packages = with pkgs.nerd-fonts; [
+    fira-code
+    jetbrains-mono
+  ];
+
   # Touch ID for sudo
   security.pam.services.sudo_local.touchIdAuth = true;
 
