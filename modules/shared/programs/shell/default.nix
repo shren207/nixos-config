@@ -89,6 +89,11 @@
       if command -v mise >/dev/null 2>&1; then
         eval "$(mise activate zsh)"
       fi
+
+      # tmux 내부에서 clear 시 history buffer도 함께 삭제
+      if [ -n "$TMUX" ]; then
+        alias clear='clear && tmux clear-history'
+      fi
     ''
     ];
   };
