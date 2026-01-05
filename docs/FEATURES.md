@@ -111,57 +111,75 @@ br -w
 | `starship` | 프롬프트 커스터마이징 |
 | `atuin` | 쉘 히스토리 관리/동기화 |
 | `mise` | 런타임 버전 관리 (Node.js, Ruby, Python 등) |
-| `inshellisense` | IDE 스타일 명령줄 자동완성 ([상세 설정](#inshellisense-ide-스타일-자동완성)) |
+| `inshellisense` | IDE 스타일 명령줄 자동완성 (tmux 외부) |
+| `fzf-tab` | 퍼지 검색 자동완성 (tmux 내부) |
 
-#### inshellisense (IDE 스타일 자동완성)
+#### 자동완성 환경별 분기
+
+이 프로젝트는 tmux 환경에 따라 다른 자동완성 도구를 사용합니다:
+
+| 환경 | 도구 | 설명 |
+|------|------|------|
+| tmux 외부 | inshellisense | IDE 스타일 드롭다운, 600+ CLI 스펙 기반 |
+| tmux 내부 | fzf-tab | 퍼지 검색, tmux popup 지원, 파일 미리보기 |
+
+> **배경**: inshellisense는 tmux 내부에서 공식 지원되지 않습니다 ([Issue #204](https://github.com/microsoft/inshellisense/issues/204)). 자세한 내용은 [TRIAL_AND_ERROR.md](TRIAL_AND_ERROR.md#2025-01-05-inshellisense-tmux-호환성-시도-및-포기)를 참고하세요.
+
+#### inshellisense (tmux 외부)
 
 `modules/shared/programs/inshellisense/default.nix`에서 관리됩니다.
 
 Microsoft에서 개발한 IDE 스타일 명령줄 자동완성 도구입니다. 600개 이상의 CLI 도구에 대해 인터랙티브 제안을 제공합니다.
 
-**기존 zsh-autosuggestion과의 차이:**
+**키바인딩:**
 
-| 항목 | zsh-autosuggestion | inshellisense |
-|------|-------------------|---------------|
-| 제안 방식 | 인라인 회색 텍스트 | IDE 스타일 드롭다운 |
-| 제안 소스 | 히스토리 기반 | 명령어 스펙 기반 (600+개) |
-| 탐색 | 방향키로 히스토리 순환 | Tab/Shift+Tab으로 제안 탐색 |
-| 공존 | 가능 (서로 다른 방식) | 가능 |
-
-**설정된 키바인딩:**
-
-| 동작 | 키 | 기본값 |
-|------|---|--------|
-| 제안 수락 | `Enter` | Tab |
-| 다음 제안 | `Tab` | ↓ |
-| 이전 제안 | `Shift+Tab` | ↑ |
-| 제안 닫기 | `Esc` | Esc |
+| 동작 | 키 |
+|------|---|
+| 제안 수락 | `Enter` |
+| 다음 제안 | `Tab` |
+| 이전 제안 | `Shift+Tab` |
+| 제안 닫기 | `Esc` |
 
 **사용법:**
 
 ```bash
-# 새 터미널 열면 자동 활성화됨
-# 명령어 입력 시 자동완성 드롭다운 표시
-
+# tmux 외부에서 새 터미널 열면 자동 활성화됨
 git<Space>     # git 서브커맨드 제안
 npm<Space>     # npm 서브커맨드 제안
-
-# 설치 상태 확인
-is doctor
 ```
 
-> **참고**: 쉘 시작 시 자동으로 `is init zsh`가 실행되어 활성화됩니다. `lib.mkAfter`를 사용하여 다른 쉘 플러그인보다 나중에 로드됩니다.
+> **주의**: nixpkgs 버전(0.0.1-rc.21)에서는 `useNerdFont` 옵션이 지원되지 않습니다.
 
-**tmux 호환성:**
+#### fzf-tab (tmux 내부)
 
-inshellisense는 기본적으로 tmux 내부에서 작동하지 않는 문제가 있습니다. 이 프로젝트에서는 `TMUX`, `TMUX_PANE` 환경변수를 초기화 시점에 임시로 해제하여 tmux 내외부 모두에서 정상 작동하도록 설정되어 있습니다.
+`modules/shared/programs/shell/default.nix`에서 관리됩니다.
 
-| 환경 | 동작 |
-|------|------|
-| tmux 외부 | 정상 작동 |
-| tmux 내부 | 정상 작동 (환경변수 우회 적용) |
+zsh의 기본 완성 메뉴를 fzf 기반 퍼지 검색으로 대체합니다. tmux 3.2+ 팝업 기능을 지원합니다.
 
-> **주의**: nixpkgs 버전(0.0.1-rc.21)에서는 `useNerdFont` 옵션이 지원되지 않습니다. 자세한 내용은 [TRIAL_AND_ERROR.md](TRIAL_AND_ERROR.md#2025-01-05-inshellisense-usenerdfonttrue-설정-실패)를 참고하세요.
+**키바인딩:**
+
+| 동작 | 키 |
+|------|---|
+| 선택 수락 | `Tab` 또는 `Enter` |
+| 계속 탐색 | `/` |
+| 위/아래 이동 | `↑` / `↓` |
+| 취소 | `Esc` |
+
+**미리보기 지원:**
+
+| 명령어 | 미리보기 |
+|--------|----------|
+| `cd <Tab>` | eza로 디렉토리 내용 |
+| `cat <Tab>` | bat으로 파일 내용 |
+| `git checkout <Tab>` | 브랜치별 최근 커밋 |
+
+**사용법:**
+
+```bash
+# tmux 내부에서
+cd <Tab>           # 디렉토리 미리보기와 함께 선택
+git checkout <Tab> # 브랜치 목록 + 커밋 로그 미리보기
+```
 
 ### 미디어 처리
 

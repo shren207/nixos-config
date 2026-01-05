@@ -1,4 +1,4 @@
-# Shell 설정 (zsh, starship, atuin, zoxide, fzf)
+# Shell 설정 (zsh, starship, atuin, zoxide, fzf, fzf-tab)
 { config, pkgs, lib, ... }:
 
 {
@@ -41,6 +41,14 @@
     enable = true;
     autosuggestion.enable = true;
     syntaxHighlighting.enable = true;
+
+    # fzf-tab 플러그인 (tmux 내부에서 자동완성 사용)
+    plugins = [
+      {
+        name = "fzf-tab";
+        src = "${pkgs.zsh-fzf-tab}/share/fzf-tab";
+      }
+    ];
 
     # 히스토리 설정
     history = {
@@ -89,6 +97,26 @@
       if command -v mise >/dev/null 2>&1; then
         eval "$(mise activate zsh)"
       fi
+
+      # === fzf-tab 설정 ===
+      # 기본 키바인딩
+      zstyle ':fzf-tab:*' fzf-bindings 'tab:accept'
+      zstyle ':fzf-tab:*' continuous-trigger '/'
+
+      # tmux 내부: 팝업 사용 (tmux 3.2+)
+      if [[ -n "''${TMUX}" ]]; then
+        zstyle ':fzf-tab:*' fzf-command ftb-tmux-popup
+        zstyle ':fzf-tab:*' popup-min-size 80 12
+      fi
+
+      # 미리보기 설정 (eza, bat 활용)
+      zstyle ':fzf-tab:complete:cd:*' fzf-preview 'eza -1 --color=always $realpath 2>/dev/null || ls -1 $realpath'
+      zstyle ':fzf-tab:complete:cat:*' fzf-preview 'bat --style=numbers --color=always $realpath 2>/dev/null || cat $realpath'
+      zstyle ':fzf-tab:complete:ls:*' fzf-preview 'eza -1 --color=always $realpath 2>/dev/null || ls -1 $realpath'
+
+      # git 명령어 미리보기
+      zstyle ':fzf-tab:complete:git-checkout:*' fzf-preview 'git log --oneline --color=always $word -- 2>/dev/null | head -20'
+      zstyle ':fzf-tab:complete:git-log:*' fzf-preview 'git show --color=always $word 2>/dev/null | head -50'
     ''
     ];
   };

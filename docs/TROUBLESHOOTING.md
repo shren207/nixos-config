@@ -482,43 +482,40 @@ tmux kill-server  # 서버 재시작 필요
 inshellisense session [live]  # 세션은 활성화되지만 UI 미표시
 ```
 
-**원인**: inshellisense가 `$TMUX`, `$TMUX_PANE` 환경변수를 감지하면 UI 렌더링 방식이 달라집니다.
+**원인**: inshellisense는 tmux 환경을 공식적으로 지원하지 않습니다.
 
 **관련 이슈**:
 - [Issue #306](https://github.com/microsoft/inshellisense/issues/306): tmux/zellij에서 작동 안 함
-- [Issue #204](https://github.com/microsoft/inshellisense/issues/204): tmux 세션 관련 구조적 한계
+- [Issue #204](https://github.com/microsoft/inshellisense/issues/204): 개발팀 답변 - "tmux 멀티플렉싱 구조상 완전 지원 불가"
 
-**해결**: 이 프로젝트에서는 `TMUX`, `TMUX_PANE` 환경변수를 초기화 시점에 임시로 해제하여 해결했습니다.
+**해결**: 이 프로젝트에서는 **환경별 분기**를 적용했습니다:
+
+| 환경 | 자동완성 도구 |
+|------|---------------|
+| tmux 외부 | inshellisense |
+| tmux 내부 | fzf-tab |
 
 `modules/shared/programs/inshellisense/default.nix`:
 
 ```nix
 programs.zsh.initContent = lib.mkAfter ''
-  if command -v is >/dev/null 2>&1; then
-    # tmux 내부인 경우 TMUX 관련 환경변수를 임시로 해제
-    if [[ -n "''${TMUX}" ]]; then
-      _IS_TMUX_BACKUP="$TMUX"
-      _IS_TMUX_PANE_BACKUP="''${TMUX_PANE:-}"
-      unset TMUX TMUX_PANE
-    fi
-
+  # inshellisense 자동 시작 (tmux 외부에서만)
+  if [[ -z "''${TMUX}" ]] && command -v is >/dev/null 2>&1; then
     eval "$(is init zsh)"
-
-    # TMUX 환경변수 복원
-    if [[ -n "''${_IS_TMUX_BACKUP}" ]]; then
-      export TMUX="$_IS_TMUX_BACKUP"
-      [[ -n "''${_IS_TMUX_PANE_BACKUP}" ]] && export TMUX_PANE="$_IS_TMUX_PANE_BACKUP"
-      unset _IS_TMUX_BACKUP _IS_TMUX_PANE_BACKUP
-    fi
   fi
 '';
 ```
 
-**주의사항**:
-- `TMUX`만 해제해서는 해결되지 않음 - `TMUX_PANE`도 함께 해제해야 함
-- 환경변수는 `is init zsh` 실행 순간에만 해제되고 즉시 복원됨
-- tmux 관련 다른 기능(tmux 명령어, 스크립트 등)에는 영향 없음
-- 이 방법은 공식 지원이 아닌 workaround임
+`modules/shared/programs/shell/default.nix`에서 fzf-tab 설정:
+
+```nix
+# tmux 내부: 팝업 사용 (tmux 3.2+)
+if [[ -n "''${TMUX}" ]]; then
+  zstyle ':fzf-tab:*' fzf-command ftb-tmux-popup
+fi
+```
+
+> 자세한 시도 과정은 [TRIAL_AND_ERROR.md](TRIAL_AND_ERROR.md#2025-01-05-inshellisense-tmux-호환성-시도-및-포기)를 참고하세요.
 
 ---
 

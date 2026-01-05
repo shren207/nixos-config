@@ -4,6 +4,7 @@
 
 ## 목차
 
+- [2025-01-05: inshellisense tmux 호환성 시도 및 포기](#2025-01-05-inshellisense-tmux-호환성-시도-및-포기)
 - [2025-01-05: inshellisense useNerdFont=true 설정 실패](#2025-01-05-inshellisense-usenerdfonttrue-설정-실패)
 - [2024-12-25: duti로 .html/.htm 기본 앱 설정 실패](#2024-12-25-duti로-htmlhtm-기본-앱-설정-실패)
 - [2024-12-24: Anki 애드온 Nix 선언적 관리 시도 (보류)](#2024-12-24-anki-애드온-nix-선언적-관리-시도-보류)
@@ -16,6 +17,120 @@
   - [교훈](#교훈)
   - [대상 애드온 목록 (참고용)](#대상-애드온-목록-참고용)
   - [결론](#결론)
+
+---
+
+## 2025-01-05: inshellisense tmux 호환성 시도 및 포기
+
+### 배경
+
+inshellisense를 설치한 후 터미널에서는 정상 작동하지만, tmux 세션 내부에서는 자동완성 UI가 표시되지 않는 문제 발생.
+
+### 증상
+
+```bash
+# tmux 외부: 정상 작동
+git <Space>  # IDE 스타일 자동완성 드롭다운 표시됨
+
+# tmux 내부: 작동 안 함
+tmux
+git <Space>  # 자동완성 표시 안 됨
+
+# is 명령어 실행 시
+❯ is
+inshellisense session [live]  # 세션은 활성화되지만 UI 미표시
+```
+
+### 시도한 방법들
+
+#### 시도 1: TMUX 환경변수 해제 (부분 성공)
+
+```bash
+if [[ -n "${TMUX}" ]]; then
+  _IS_TMUX_BACKUP="$TMUX"
+  unset TMUX
+fi
+eval "$(is init zsh)"
+# 복원...
+```
+
+**결과**: 간헐적으로만 작동. 터미널 창이 완전히 새로고침되는 경우에만 작동.
+
+#### 시도 2: TMUX + TMUX_PANE 환경변수 해제 (부분 성공)
+
+```bash
+if [[ -n "${TMUX}" ]]; then
+  _IS_TMUX_BACKUP="$TMUX"
+  _IS_TMUX_PANE_BACKUP="${TMUX_PANE:-}"
+  unset TMUX TMUX_PANE
+fi
+eval "$(is init zsh)"
+# 복원...
+```
+
+**결과**: 여전히 간헐적. "inshellisense session [live]"가 출력되면 작동 안 함.
+
+#### 시도 3: is -s zsh 직접 실행 (실패)
+
+```bash
+if [[ -n "${TMUX}" ]]; then
+  TMUX= TMUX_PANE= is -s zsh
+else
+  is -s zsh
+fi
+exit
+```
+
+**결과**: 완전히 작동하지 않음. 이전보다 악화.
+
+### 원인 분석
+
+1. **inshellisense 개발팀의 공식 답변** ([Issue #204](https://github.com/microsoft/inshellisense/issues/204)):
+   > "tmux는 다중 쉘 멀티플렉싱이므로 하나의 세션으로 여러 프롬프트 지점을 추적하는 것이 구조적으로 불가능"
+
+2. **PTY 중첩 문제**:
+   - tmux 내부에서 inshellisense를 실행하면 중첩 PTY 발생
+   - Terminal → tmux PTY → inshellisense PTY → zsh
+   - UI 렌더링이 제대로 전달되지 않음
+
+3. **TMUX 환경변수 우회의 한계**:
+   - 환경변수를 해제해도 inshellisense 코드에서 TMUX를 직접 감지하지 않음
+   - 문제는 환경변수가 아니라 PTY/터미널 레이어 차원
+
+### 최종 해결책: 환경별 분기
+
+tmux 내부에서 inshellisense를 사용하는 것을 포기하고, 대안으로 fzf-tab을 도입:
+
+| 환경 | 도구 | 설명 |
+|------|------|------|
+| tmux 외부 | inshellisense | IDE 스타일 자동완성 |
+| tmux 내부 | fzf-tab | 퍼지 검색 자동완성, tmux popup 지원 |
+
+```nix
+# inshellisense: tmux 외부에서만 실행
+if [[ -z "${TMUX}" ]] && command -v is >/dev/null 2>&1; then
+  eval "$(is init zsh)"
+fi
+
+# fzf-tab: tmux 내부에서 팝업 사용
+if [[ -n "${TMUX}" ]]; then
+  zstyle ':fzf-tab:*' fzf-command ftb-tmux-popup
+fi
+```
+
+### 교훈
+
+1. **공식 지원 여부 확인 필수**
+   - 도구 도입 전 GitHub Issues에서 환경 호환성 확인
+   - "workaround"는 근본적 해결이 아님
+
+2. **대안 도구 준비**
+   - 하나의 도구가 모든 환경에서 작동하지 않을 수 있음
+   - 환경별 분기로 최적의 사용자 경험 제공
+
+3. **PTY 중첩은 복잡함**
+   - tmux, screen 같은 터미널 멀티플렉서와의 호환성은 별도 고려 필요
+   - 특히 UI 렌더링이 관련된 도구에서 문제 발생 가능성 높음
 
 ---
 
