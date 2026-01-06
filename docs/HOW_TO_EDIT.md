@@ -2,6 +2,7 @@
 
 ## 목차
 
+- [Rebuild vs Update 이해하기](#rebuild-vs-update-이해하기)
 - [CLI 패키지 추가/제거](#cli-패키지-추가제거)
 - [폰트 추가/제거 (Nerd Fonts)](#폰트-추가제거-nerd-fonts)
 - [쉘 Alias 추가](#쉘-alias-추가)
@@ -19,11 +20,121 @@
 
 ---
 
-설정을 수정한 후에는 항상 다음 명령어로 적용합니다:
+## Rebuild vs Update 이해하기
+
+Nix에서 `rebuild`와 `update`는 서로 다른 개념입니다.
+
+### 핵심 차이점
+
+| 명령어 | 하는 일 | flake.lock | 패키지 버전 |
+|--------|---------|------------|-------------|
+| `darwin-rebuild switch` | 설정 파일 변경사항 적용 | 변경 안 함 | 고정된 버전 유지 |
+| `nix flake update` | 의존성(nixpkgs 등) 최신화 | **변경됨** | 최신 버전으로 |
+
+### Rebuild란?
+
+`flake.nix`, `home.nix` 등 **설정 파일의 변경사항을 시스템에 적용**하는 것입니다.
 
 ```bash
-git add <수정한-파일>
+# 설정 파일 수정 후 적용
 darwin-rebuild switch --flake .
+```
+
+- 패키지를 추가/제거하거나 설정을 변경했을 때 사용
+- `flake.lock`에 기록된 버전 그대로 유지
+- 네트워크 요청 최소화 (캐시된 패키지 사용)
+
+### Update란?
+
+`flake.lock`에 기록된 **의존성(nixpkgs, home-manager 등)을 최신 커밋으로 업데이트**하는 것입니다.
+
+```bash
+# 의존성 업데이트 후 적용
+nix flake update
+darwin-rebuild switch --flake .
+```
+
+- nixpkgs가 업데이트되면 그 안의 모든 패키지(neovim, git 등)가 새 버전으로 바뀔 수 있음
+- 네트워크에서 새 버전을 다운로드하므로 시간이 더 걸림
+
+> **참고**: `nix flake update`는 각 패키지의 "최신 릴리스"가 아닌, **nixpkgs 저장소의 최신 커밋**을 가져옵니다. 패키지의 새 버전이 nixpkgs에 반영되기까지 며칠 지연될 수 있습니다.
+
+### 언제 Rebuild만 하면 되는가?
+
+```
+✅ flake.nix, home.nix 등 설정 파일을 수정했을 때
+✅ 새 패키지를 추가했을 때 (예: programs.htop.enable = true)
+✅ 기존 패키지 설정을 변경했을 때
+✅ 다른 기기와 동기화할 때 (git pull 후)
+✅ 현재 설정을 다시 적용하고 싶을 때
+```
+
+### 언제 Update가 필요한가?
+
+```
+✅ 보안 취약점이 발견되어 패치가 필요할 때
+✅ 특정 패키지의 새 기능/버그 수정이 필요할 때
+✅ 주기적인 시스템 업데이트 (예: 월 1회)
+```
+
+### 권장 사용 패턴 (집-회사 동기화)
+
+```bash
+# 집 (메인 기기): 여기서만 update
+nix flake update
+darwin-rebuild switch --flake .
+git add flake.lock && git commit -m "update: flake.lock" && git push
+
+# 회사 (서브 기기): rebuild만 (--offline으로 더 빠르게)
+git pull
+darwin-rebuild switch --flake . --offline
+```
+
+### `--offline` 플래그
+
+네트워크 요청 없이 로컬 캐시만 사용하여 빠르게 빌드합니다.
+
+```bash
+darwin-rebuild switch --flake . --offline
+```
+
+**사용 조건**:
+- `flake.lock`이 이미 동기화되어 있어야 함 (git pull 후)
+- 새 패키지를 추가하지 않았어야 함 (캐시에 없으면 에러)
+
+**장점**: 네트워크 확인 단계를 건너뛰어 빌드 시간 단축
+
+### Update 시 주의사항
+
+```bash
+# 1. update 전에 현재 상태 확인
+git status  # 변경사항 없는지 확인
+
+# 2. update 실행
+nix flake update
+
+# 3. 빌드 테스트 (switch 대신 build로 먼저 테스트)
+darwin-rebuild build --flake .
+
+# 4. 문제 없으면 적용
+darwin-rebuild switch --flake .
+
+# 5. 문제 있으면 롤백
+git checkout flake.lock  # update 취소
+darwin-rebuild switch --flake .  # 이전 버전으로 복구
+```
+
+### 요약
+
+```bash
+# 평소 (설정 변경 후)
+darwin-rebuild switch --flake .
+
+# 빠른 빌드 (캐시만 사용)
+darwin-rebuild switch --flake . --offline
+
+# 패키지 버전 업그레이드 (월 1회 정도)
+nix flake update && darwin-rebuild switch --flake .
 ```
 
 ---
