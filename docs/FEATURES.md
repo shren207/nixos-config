@@ -11,6 +11,9 @@
   - [쉘 도구](#쉘-도구)
   - [미디어 처리](#미디어-처리)
   - [유틸리티](#유틸리티)
+- [Nix 관련](#nix-관련)
+  - [darwin-rebuild Alias](#darwin-rebuild-alias)
+  - [병렬 다운로드 최적화](#병렬-다운로드-최적화)
 - [macOS 시스템 설정](#macos-시스템-설정)
   - [키 바인딩 (백틱/원화)](#키-바인딩-백틱원화)
   - [폰트 관리 (Nerd Fonts)](#폰트-관리-nerd-fonts)
@@ -126,6 +129,87 @@ br -w
 - `curl` - HTTP 클라이언트
 - `unzip` - 압축 해제
 - `htop` - 프로세스 모니터링
+
+---
+
+## Nix 관련
+
+`modules/shared/configuration.nix`와 `modules/shared/programs/shell/default.nix`에서 관리됩니다.
+
+### darwin-rebuild Alias
+
+시스템 설정 적용을 위한 편리한 alias입니다.
+
+| Alias | 명령어 | 용도 |
+|-------|--------|------|
+| `nrs` | `sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config` | 일반 rebuild |
+| `nrs-offline` | `sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config --offline` | 오프라인 rebuild (빠름) |
+
+**사용 시나리오:**
+
+```bash
+# 평소 (설정만 변경, flake.lock 동기화된 상태)
+nrs-offline  # ~10초 완료!
+
+# 새 패키지 추가 또는 flake update 후
+nrs          # 일반 모드 (다운로드 필요)
+```
+
+**`--offline` 플래그의 의미:**
+
+- 네트워크 요청을 하지 않고 로컬 캐시(`/nix/store`)만 사용
+- flake input 버전 확인, substituter 확인 등을 스킵
+- **속도 향상**: 일반 모드 ~3분 → 오프라인 모드 ~10초 (약 18배 빠름)
+
+**주의사항:**
+
+- `nrs-offline`은 캐시에 모든 패키지가 있어야 동작
+- 새 패키지 추가 시에는 `nrs` 사용 필요
+- 집/회사 간 `flake.lock`을 git으로 동기화하면 어디서든 `nrs-offline` 사용 가능
+
+**권장 워크플로우:**
+
+```bash
+# 1. 집에서 flake update 후 push
+nix flake update
+nrs
+git add flake.lock && git commit -m "update flake.lock" && git push
+
+# 2. 회사에서 pull 후 빠른 rebuild
+git pull
+nrs-offline  # 네트워크 요청 없이 빠르게 빌드
+```
+
+### 병렬 다운로드 최적화
+
+패키지 다운로드 속도를 높이기 위한 설정입니다.
+
+**현재 설정:**
+
+```nix
+nix.settings = {
+  max-substitution-jobs = 128;  # 동시 다운로드 수 (기본값: 16)
+  http-connections = 50;        # 동시 HTTP 연결 수 (기본값: 25)
+};
+```
+
+**효과:**
+
+| 설정 | 기본값 | 현재값 | 효과 |
+|------|--------|--------|------|
+| `max-substitution-jobs` | 16 | 128 | 동시에 128개 패키지 다운로드 |
+| `http-connections` | 25 | 50 | HTTP 연결 2배 증가 |
+
+**확인 방법:**
+
+```bash
+nix config show | grep -E "(max-substitution|http-connections)"
+# 출력:
+# http-connections = 50
+# max-substitution-jobs = 128
+```
+
+> **참고**: 공격적인 설정으로 네트워크 대역폭을 많이 사용합니다. 공유 네트워크에서 문제가 되면 값을 낮추세요. 자세한 트러블슈팅은 [TROUBLESHOOTING.md](TROUBLESHOOTING.md#darwin-rebuild-빌드-속도가-느림)를 참고하세요.
 
 ---
 
