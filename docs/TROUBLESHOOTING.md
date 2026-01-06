@@ -5,6 +5,7 @@
 ## 목차
 
 - [Nix 관련](#nix-관련)
+  - [darwin-rebuild 빌드 속도가 느림](#darwin-rebuild-빌드-속도가-느림)
   - [experimental Nix feature 'nix-command' is disabled](#experimental-nix-feature-nix-command-is-disabled)
   - [flake 변경이 인식되지 않음](#flake-변경이-인식되지-않음)
   - [상세 에러 확인](#상세-에러-확인)
@@ -39,6 +40,94 @@
 ---
 
 ## Nix 관련
+
+### darwin-rebuild 빌드 속도가 느림
+
+**증상**: `darwin-rebuild switch` 실행 시 특정 호스트에서 비정상적으로 오래 걸림
+
+```
+# 예시: 동일한 설정인데 호스트마다 속도 차이
+집 맥북 (M1 Max): ~1분
+회사 맥북 (M3 Pro): ~3-5분
+```
+
+**원인 분석**:
+
+`darwin-rebuild`는 다음 단계를 거칩니다:
+
+| 단계 | 설명 | 소요 시간 |
+|------|------|----------|
+| 1. flake input 확인 | GitHub에 접속하여 새 버전 확인 | ~1-2분 |
+| 2. substituter 확인 | cache.nixos.org에서 패키지 확인 | ~30초 |
+| 3. 빌드 | 로컬에서 derivation 빌드 | ~10초 |
+
+대부분의 시간이 **네트워크 I/O**에 소비됩니다 (CPU 사용률이 6% 정도로 매우 낮음).
+
+**진단 방법**:
+
+```bash
+# 1. CPU 사용률 확인 (낮으면 I/O 병목)
+time sudo darwin-rebuild switch --flake .
+# 출력 예: 5.73s user 5.97s system 6% cpu 2:56.01 total
+#          ↑ CPU 시간은 12초, 총 시간은 3분 → I/O 대기가 대부분
+
+# 2. 네트워크 속도 테스트
+curl -o /dev/null -s -w '%{time_total}' https://api.github.com/rate_limit
+curl -o /dev/null -s -w '%{time_total}' https://cache.nixos.org/nix-cache-info
+
+# 3. 캐시 상태 확인
+ls -d /nix/store/*-source 2>/dev/null | wc -l
+```
+
+**해결 방법**:
+
+**방법 1: `--offline` 플래그 사용 (가장 효과적)**
+
+```bash
+# flake.lock이 동기화되어 있고, 새 패키지가 없는 경우
+sudo darwin-rebuild switch --flake . --offline
+
+# 또는 alias 사용
+nrs-offline
+```
+
+- 네트워크 요청 없이 로컬 캐시만 사용
+- **속도**: 3분 → 10초 (약 18배 향상)
+
+**방법 2: 병렬 다운로드 설정 증가**
+
+`modules/shared/configuration.nix`:
+
+```nix
+nix.settings = {
+  max-substitution-jobs = 128;  # 기본값 16
+  http-connections = 50;        # 기본값 25
+};
+```
+
+**방법 3: GitHub 토큰 설정 (rate limit 해제)**
+
+```bash
+mkdir -p ~/.config/nix
+echo 'access-tokens = github.com=ghp_YOUR_TOKEN' >> ~/.config/nix/nix.conf
+```
+
+**권장 워크플로우**:
+
+```bash
+# 1. 한 호스트에서 flake update 후 push
+nix flake update
+nrs  # 또는 sudo darwin-rebuild switch --flake .
+git add flake.lock && git commit -m "update" && git push
+
+# 2. 다른 호스트에서 pull 후 offline rebuild
+git pull
+nrs-offline  # ~10초 완료!
+```
+
+> **참고**: alias 사용법은 [FEATURES.md](FEATURES.md#darwin-rebuild-alias)를 참고하세요.
+
+---
 
 ### experimental Nix feature 'nix-command' is disabled
 

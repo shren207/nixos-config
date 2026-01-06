@@ -34,6 +34,10 @@
 
     # broot: tree 스타일 출력
     bt = "br -c :pt";
+
+    # Nix rebuild
+    nrs = "sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config";
+    nrs-offline = "sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config --offline";
   };
 
   # Zsh 설정

@@ -7,6 +7,10 @@
     settings = {
       experimental-features = [ "nix-command" "flakes" ];
       warn-dirty = false;
+
+      # 병렬 다운로드 최적화
+      max-substitution-jobs = 128;  # 기본값 16 → 128
+      http-connections = 50;        # 기본값 25 → 50
     };
 
     # 스토어 최적화 (auto-optimise-store 대신 사용)
