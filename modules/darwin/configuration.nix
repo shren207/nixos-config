@@ -72,6 +72,23 @@
     };
 
     # 키보드 단축키 설정 (com.apple.symbolichotkeys)
+    #
+    # Symbolic Hotkeys ID 설명:
+    #   - 각 숫자는 macOS 시스템 단축키의 고유 식별자 (Apple 내부 ID)
+    #   - 시스템 환경설정 > 키보드 > 키보드 단축키의 각 항목에 대응
+    #
+    # 현재 시스템의 전체 ID 목록 확인:
+    #   defaults read com.apple.symbolichotkeys AppleSymbolicHotKeys | grep -E '^\s+[0-9]+ ='
+    #
+    # 주요 ID 참조 (비공식, 커뮤니티 문서 기반):
+    #   28-31: 스크린샷 (28=화면→파일, 29=화면→클립보드, 30=선택→파일, 31=선택→클립보드)
+    #   32-34: Mission Control (32=Mission Control, 33=앱 윈도우, 34=데스크탑 보기)
+    #   60-61: 입력 소스 (60=이전, 61=다음)
+    #   64-65: Spotlight (64=검색, 65=Finder 검색)
+    #
+    # parameters 배열: [ ASCII/keyCode, virtualKeyCode, modifierFlags ]
+    #   modifierFlags: Control=262144, Shift=131072, Option=524288, Command=1048576, Fn=8388608
+    #
     CustomUserPreferences."com.apple.symbolichotkeys" = {
       AppleSymbolicHotKeys = {
         # === 스크린샷 설정 ===
@@ -146,5 +163,5 @@
   '';
 
   system.primaryUser = username;
-  system.stateVersion = 6;
+  system.stateVersion = 6; # 마이그레이션 버전 (최초 설치 시점 기준, 변경 금지)
 }
