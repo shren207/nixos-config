@@ -16,6 +16,7 @@
   - [darwin-rebuild Alias](#darwin-rebuild-alias)
   - [병렬 다운로드 최적화](#병렬-다운로드-최적화)
 - [macOS 시스템 설정](#macos-시스템-설정)
+  - [키보드 단축키 (Symbolic Hotkeys)](#키보드-단축키-symbolic-hotkeys)
   - [키 바인딩 (백틱/원화)](#키-바인딩-백틱원화)
   - [폰트 관리 (Nerd Fonts)](#폰트-관리-nerd-fonts)
 - [GUI 앱 (Homebrew Casks)](#gui-앱-homebrew-casks)
@@ -280,7 +281,10 @@ nix config show | grep -E "(max-substitution|http-connections)"
 
 - **KeyRepeat = 1**: 최고 속도 키 반복
 - **InitialKeyRepeat = 15**: 빠른 초기 반복
-- 자연스러운 스크롤 비활성화
+
+### 마우스/트랙패드
+
+- **자연스러운 스크롤 비활성화**: `com.apple.swipescrolldirection = false`
 
 ### 자동 수정 비활성화
 
@@ -289,6 +293,70 @@ nix config show | grep -E "(max-substitution|http-connections)"
 - 마침표 자동 삽입
 - 따옴표 자동 변환
 - 대시 자동 변환
+
+### 키보드 단축키 (Symbolic Hotkeys)
+
+`modules/darwin/configuration.nix`의 `CustomUserPreferences."com.apple.symbolichotkeys"`에서 관리됩니다.
+
+macOS 시스템 키보드 단축키를 nix-darwin으로 선언적으로 관리합니다. `darwin-rebuild switch` 시 `activateSettings -u`로 즉시 적용됩니다.
+
+**스크린샷 설정:**
+
+| ID | 단축키 | 기능 | 상태 |
+|----|--------|------|------|
+| 28 | ⇧⌘3 | 화면 → 파일 | 비활성화 |
+| 29 | ⌃⇧⌘3 | 화면 → 클립보드 | 활성화 |
+| 30 | ⇧⌘4 | 선택 영역 → 파일 | 비활성화 |
+| 31 | ⇧⌘4 | 선택 영역 → 클립보드 | 활성화 |
+| 32 | ⇧⌘5 | 스크린샷 및 기록 옵션 | 활성화 |
+
+**입력 소스 설정:**
+
+| ID | 단축키 | 기능 | 상태 |
+|----|--------|------|------|
+| 60 | ⌃Space | 이전 입력 소스 | 비활성화 |
+| 61 | F18 | 다음 입력 소스 | 활성화 |
+
+> **참고**: Hammerspoon에서 Caps Lock → F18 리매핑을 담당합니다.
+
+**Spotlight 설정:**
+
+| ID | 단축키 | 기능 | 상태 |
+|----|--------|------|------|
+| 64 | ⌘Space | Spotlight 검색 | 비활성화 (Raycast 사용) |
+| 65 | ⌥⌘Space | Finder 검색 윈도우 | 활성화 |
+
+**Mission Control 설정:**
+
+| ID | 단축키 | 기능 | 상태 |
+|----|--------|------|------|
+| 32 | F3 | Mission Control | 활성화 |
+
+**기능 키 설정:**
+
+- `com.apple.keyboard.fnState = true`: F1-F12 키를 표준 기능 키로 사용 (밝기/볼륨 조절 대신)
+
+**Modifier 비트마스크 참조:**
+
+| Modifier | 값 |
+|----------|-----|
+| Shift | 131072 (0x20000) |
+| Control | 262144 (0x40000) |
+| Option | 524288 (0x80000) |
+| Command | 1048576 (0x100000) |
+| Fn | 8388608 (0x800000) |
+
+**설정 확인:**
+
+```bash
+defaults read com.apple.symbolichotkeys AppleSymbolicHotKeys | grep -A 5 '"61"'
+```
+
+**즉시 적용**:
+
+`darwin-rebuild switch` 시 `activateSettings -u`를 실행하여 키보드 단축키가 즉시 반영됩니다. 재시작/로그아웃 불필요.
+
+> **참고**: `activateSettings -u`는 `마우스` > `자연스러운 스크롤` 옵션을 **활성화**시키는 부작용이 있어, 직후에 `defaults write`로 재설정합니다. 자세한 내용은 [TROUBLESHOOTING.md](TROUBLESHOOTING.md#killall-cfprefsd로-인한-스크롤-방향-롤백)를 참고하세요.
 
 ### 키 바인딩 (백틱/원화)
 

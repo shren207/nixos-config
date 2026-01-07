@@ -15,6 +15,7 @@
   - [darwin-rebuild: command not found (설정 적용 후)](#darwin-rebuild-command-not-found-설정-적용-후)
   - [/etc/bashrc, /etc/zshrc 충돌](#etcbashrc-etczshrc-충돌)
   - [primary user does not exist](#primary-user-does-not-exist)
+  - [killall cfprefsd로 인한 스크롤 방향 롤백](#killall-cfprefsd로-인한-스크롤-방향-롤백)
 - [SSH/인증 관련](#ssh인증-관련)
   - [sudo 사용 시 Private 저장소 접근 실패](#sudo-사용-시-private-저장소-접근-실패)
   - [SSH 키 invalid format](#ssh-키-invalid-format)
@@ -275,6 +276,70 @@ Please ensure that `system.primaryUser` is set to the name of an existing user.
    ```bash
    sudo --preserve-env=SSH_AUTH_SOCK nix run nix-darwin -- switch --flake .
    ```
+
+### killall cfprefsd로 인한 스크롤 방향 롤백
+
+**증상**: `darwin-rebuild switch` 후 스크롤 방향이 "자연스러운 스크롤"로 변경됨 (설정은 비활성화했는데)
+
+**원인**: activation script에서 `killall cfprefsd` 실행 시 발생하는 타이밍 문제
+
+```
+1. killall cfprefsd 실행
+   ↓
+2. CFPreferences 데몬 종료 → 모든 사용자 설정 캐시 플러시
+   ↓
+3. 시스템이 자동으로 cfprefsd 재시작
+   ↓
+4. 재시작된 cfprefsd가 plist에서 설정 다시 로드
+   ↓
+5. nix-darwin의 새 설정과 기존 설정 간 타이밍 충돌
+   ↓
+6. 일부 설정(스크롤 방향)이 기본값으로 롤백
+```
+
+**해결**: `activateSettings -u` 실행 후 스크롤 방향을 명시적으로 재설정
+
+```nix
+# ❌ 문제가 되는 코드: activateSettings만 사용
+system.activationScripts.postActivation.text = ''
+  /System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings -u
+'';
+
+# ❌ 더 심각한 문제: killall cfprefsd 사용
+system.activationScripts.postActivation.text = ''
+  killall cfprefsd 2>/dev/null || true  # 모든 설정 캐시 플러시 → 다양한 설정 롤백
+'';
+
+# ✅ 권장: activateSettings 후 스크롤 방향 재설정
+system.activationScripts.postActivation.text = ''
+  # 키보드 단축키 등 설정 즉시 적용
+  /System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings -u
+
+  # activateSettings가 스크롤 방향을 롤백시키므로 명시적으로 재설정
+  defaults write -g com.apple.swipescrolldirection -bool false
+'';
+```
+
+**핵심**:
+- `activateSettings -u`: 키보드 단축키 등 설정을 즉시 반영 (재시작/로그아웃 불필요)
+- 단, 스크롤 방향을 롤백시키는 부작용이 있음
+- 해결: `activateSettings` 직후 `defaults write`로 스크롤 방향 재설정
+- `killall cfprefsd`는 **절대 사용 금지** (더 심각한 문제 유발)
+
+**임시 복구** (이미 발생한 경우):
+
+```bash
+# 스크롤 방향 다시 적용 (자연스러운 스크롤 비활성화)
+defaults write -g com.apple.swipescrolldirection -bool false
+/System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings -u
+```
+
+**영향받는 설정들**:
+
+- 스크롤 방향 (`com.apple.swipescrolldirection`)
+- 기타 NSGlobalDomain 설정들
+
+> **참고**: `activateSettings -u`만으로 키보드 단축키 등 대부분의 설정이 즉시 반영됩니다. `cfprefsd` 재시작은 불필요합니다.
 
 ---
 
