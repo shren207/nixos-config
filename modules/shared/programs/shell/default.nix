@@ -38,6 +38,10 @@
     # Nix rebuild
     nrs = "sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config";
     nrs-offline = "sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config --offline";
+
+    # Hammerspoon CLI
+    hs = "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs";
+    hsr = ''hs -c "hs.reload()"'';
   };
 
   # Zsh 설정

@@ -671,6 +671,78 @@ hs.eventtap.keyStrokes('cd "' .. path .. '" && clear')
 
 ---
 
+### hs CLI 명령어가 작동하지 않음 (IPC 오류)
+
+**증상**: `hs -c 'hs.notify...'` 실행 시 오류 발생
+
+```
+error: can't access Hammerspoon message port Hammerspoon; is it running with the ipc module loaded?
+```
+
+**원인**: `init.lua`에 IPC 모듈이 로드되지 않음
+
+**해결**: `init.lua` 상단에 IPC 모듈 로드 추가
+
+```lua
+-- init.lua 최상단에 추가
+require("hs.ipc")
+```
+
+**추가 문제**: IPC 포트 불안정 (장시간 실행 후)
+
+```
+ipc port is no longer valid (early)
+stack overflow
+```
+
+**해결**: Hammerspoon 재시작
+
+```bash
+pkill Hammerspoon && open -a Hammerspoon
+# 또는
+hsr  # alias 사용 (IPC가 작동할 때만)
+```
+
+**영향**: IPC 모듈이 없으면 `darwin-rebuild` 시 자동 리로드가 작동하지 않음
+
+`modules/darwin/configuration.nix`의 activation script에서 `hs -c "hs.reload()"`를 실행하는데, IPC 모듈이 로드되지 않은 상태에서는 이 명령이 실패합니다 (`|| true`로 무시됨).
+
+```nix
+# darwin-rebuild 시 실행되는 activation script
+/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs -c "hs.reload()" 2>/dev/null || true
+```
+
+**결과**: IPC 모듈 추가 전에는 `nrs` 실행 후에도 Hammerspoon 설정이 자동 리로드되지 않아 수동 리로드가 필요했음. 오랫동안 원인을 모른 채 수동 리로드를 해왔는데, IPC 모듈 누락이 원인이었음.
+
+---
+
+### keyStrokes로 한글 경로 입력 시 깨짐
+
+**증상**: 경로에 한글이 포함되면 `cd` 명령어가 제대로 입력되지 않음
+
+**원인**: `hs.eventtap.keyStrokes`는 글자를 한 자씩 타이핑하므로, 입력 소스 상태에 영향받음
+
+**해결**: 클립보드를 활용한 방식으로 변경
+
+```lua
+-- ❌ keyStrokes 방식 (한글 경로 문제)
+hs.eventtap.keyStrokes('cd "' .. path .. '" && clear')
+
+-- ✅ 클립보드 방식 (한글 경로 안전)
+local prevClipboard = hs.pasteboard.getContents()
+hs.pasteboard.setContents('cd "' .. path .. '" && clear')
+hs.eventtap.keyStroke({"cmd"}, "v")
+hs.eventtap.keyStroke({}, "return")
+-- 클립보드 복원
+hs.timer.doAfter(0.1, function()
+    if prevClipboard then
+        hs.pasteboard.setContents(prevClipboard)
+    end
+end)
+```
+
+---
+
 ## Cursor 관련
 
 ### Spotlight에서 Cursor가 2개로 표시됨

@@ -187,6 +187,8 @@ br -w
 |-------|--------|------|
 | `nrs` | `sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config` | 일반 rebuild |
 | `nrs-offline` | `sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config --offline` | 오프라인 rebuild (빠름) |
+| `hs` | Hammerspoon CLI | Hammerspoon 명령 실행 |
+| `hsr` | `hs -c "hs.reload()"` | Hammerspoon 설정 리로드 |
 
 **사용 시나리오:**
 
@@ -510,7 +512,8 @@ mdls -name kMDItemCFBundleIdentifier /Applications/Cursor.app
 
 - AppleScript로 Finder 현재 경로 가져오기
 - 경로에 특수문자(`[`, `]` 등)나 공백이 있어도 정상 동작 (따옴표 처리)
-- Ghostty 실행 중일 때는 키 입력 시뮬레이션으로 새 창 열기
+- Ghostty 실행 중일 때는 클립보드를 활용한 경로 전달 (한글 경로 문제 방지)
+- IPC 모듈 로드로 CLI에서 `hs` 명령 사용 가능
 
 > **참고**: 구현 과정에서 발생한 문제와 해결 방법은 [TROUBLESHOOTING.md](TROUBLESHOOTING.md#hammerspoon-관련) 참고.
 
