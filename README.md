@@ -188,3 +188,4 @@ nix develop
 | [HOW_TO_EDIT.md](docs/HOW_TO_EDIT.md) | 패키지, 쉘, Git, macOS 설정 수정 방법 |
 | [CURSOR_EXTENSIONS.md](docs/CURSOR_EXTENSIONS.md) | Cursor 확장 프로그램 선언적 관리 |
 | [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | 자주 발생하는 문제 해결 |
+| [TRIAL_AND_ERROR.md](docs/TRIAL_AND_ERROR.md) | 시도했다가 실패한 작업 기록 |
