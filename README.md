@@ -150,7 +150,8 @@ nixos-config/
 │           ├── hammerspoon/      # 키보드 리매핑
 │           ├── claude/           # Claude Code 설정
 │           ├── cursor/           # Cursor IDE 설정
-│           └── folder-actions/   # 폴더 액션 (launchd)
+│           ├── folder-actions/   # 폴더 액션 (launchd)
+│           └── keybindings/      # 키 바인딩 (백틱/원화)
 └── libraries/
     ├── home-manager/             # Home Manager 공유 설정
     └── nixpkgs/                  # nixpkgs overlay

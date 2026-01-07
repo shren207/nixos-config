@@ -187,12 +187,14 @@ fonts.packages = with pkgs.nerd-fonts; [
 ];
 ```
 
-### 주요 Nerd Fonts 목록
+### 추가 가능한 Nerd Fonts 예시
+
+> **현재 설치된 폰트**: `fira-code`, `jetbrains-mono` (2개)
+
+아래 표는 추가로 설치할 수 있는 인기 Nerd Fonts 목록입니다:
 
 | 패키지명 | 폰트 이름 |
 |---------|----------|
-| `fira-code` | FiraCode Nerd Font |
-| `jetbrains-mono` | JetBrains Mono Nerd Font |
 | `hack` | Hack Nerd Font |
 | `meslo-lg` | MesloLG Nerd Font |
 | `iosevka` | Iosevka Nerd Font |
