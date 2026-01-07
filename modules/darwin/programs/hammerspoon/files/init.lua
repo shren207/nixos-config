@@ -119,3 +119,9 @@ local function openGhosttyFromFinder()
 end
 
 hs.hotkey.bind({"ctrl", "alt", "cmd"}, "t", openGhosttyFromFinder)
+
+--------------------------------------------------------------------------------
+-- 설정 로드 완료 알림
+--------------------------------------------------------------------------------
+
+hs.notify.new({title="Hammerspoon", informativeText="✅ 설정(init.lua) 리로드 완료"}):send()
