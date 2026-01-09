@@ -21,9 +21,6 @@ let
         "Bash(rm -rf ~)"
         "Bash(rm -rf ~/*)"
         "Bash(rm -rf /*)"
-        "Base(git reset --hard)"
-        "Base(git pull)"
-        "Base(git push)"
       ];
       additionalDirectories = [ "~/Downloads" "~/Documents" "~/IdeaProjects" ];
     };
@@ -56,7 +53,7 @@ in
   # ~/.claude/ 디렉토리 관리 (선택적 파일만)
   home.file = {
     # 메인 설정 파일
-    ".claude/CLAUDE.md".source = "${claudeDir}/CLAUDE.md";
+    # ".claude/CLAUDE.md".source = "${claudeDir}/CLAUDE.md"; # 현재 user 스코프의 CLAUDE.md 파일은 사용하지 않음
     # settings.json은 동적 경로를 위해 pkgs.formats.json으로 생성 (pretty-printed)
     ".claude/settings.json".source = jsonFormat.generate "claude-settings.json" settingsContent;
     ".claude/mcp-config.json".source = "${claudeDir}/mcp-config.json";
