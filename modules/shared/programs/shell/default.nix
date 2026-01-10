@@ -42,6 +42,9 @@
     # Hammerspoon CLI
     hs = "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs";
     hsr = ''hs -c "hs.reload()"'';
+
+    # 터미널 CSI u 모드 리셋 (문제 발생 시 복구용)
+    reset-term = ''printf "\033[?u\033[<u"'';
   };
 
   # Zsh 설정

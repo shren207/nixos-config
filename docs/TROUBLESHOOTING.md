@@ -37,6 +37,8 @@
   - [Cursor Extensions GUI에서 확장이 0개로 표시됨](#cursor-extensions-gui에서-확장이-0개로-표시됨)
   - ["Extensions have been modified on disk" 경고](#extensions-have-been-modified-on-disk-경고)
   - [Cursor에서 확장 설치/제거가 안 됨](#cursor에서-확장-설치제거가-안-됨)
+- [Ghostty 관련](#ghostty-관련)
+  - [Ctrl+C 입력 시 "5u9;" 같은 문자가 출력됨](#ctrlc-입력-시-5u9-같은-문자가-출력됨)
 
 ---
 
@@ -807,3 +809,83 @@ darwin-rebuild switch --flake .
 ```
 
 > **참고**: Cursor 확장 관리에 대한 자세한 내용은 [CURSOR_EXTENSIONS.md](CURSOR_EXTENSIONS.md)를 참고하세요.
+
+---
+
+## Ghostty 관련
+
+### Ctrl+C 입력 시 "5u9;" 같은 문자가 출력됨
+
+**증상**: Ghostty 터미널에서 Ctrl+C를 누르면 프로세스가 중단되지 않고 `5u9;` 같은 문자가 출력됨. 간헐적으로 발생하며, 새 탭을 열거나 Ghostty를 재시작하면 정상으로 돌아옴.
+
+**원인**: CSI u (Kitty Keyboard Protocol) 이스케이프 시퀀스가 해석되지 않고 raw 문자로 출력됨.
+
+```
+"5u9;" = ESC [ 99 ; 5 u 의 일부
+         ↑    ↑    ↑
+         |    |    └── Ctrl modifier 비트
+         |    └── ASCII 'c' (99)
+         └── CSI u 형식
+```
+
+**근본 원인**: Claude Code 등 일부 CLI 도구가 CSI u 모드를 활성화한 후 비활성화하지 않음. 터미널이 CSI u 모드에 "갇힌" 상태가 됨.
+
+**해결**: 이 프로젝트에서는 다음 설정으로 문제를 해결함:
+
+**1. Ghostty keybind 설정 (핵심)**
+
+`modules/shared/programs/ghostty/default.nix`:
+```nix
+xdg.configFile."ghostty/config".text = ''
+  macos-option-as-alt = left
+  keybind = ctrl+c=text:\x03  # CSI u 모드와 무관하게 legacy 시퀀스 전송
+'';
+```
+
+이 설정은 Ghostty 레벨에서 Ctrl+C를 항상 legacy 시퀀스(`\x03`)로 전송하여, CSI u 모드 상태와 무관하게 정상 동작합니다.
+
+**2. tmux extended-keys 설정 (보완)**
+
+`modules/shared/programs/tmux/files/tmux.conf`:
+```bash
+set -g default-terminal "tmux-256color"
+set -g extended-keys on
+set -s extended-keys on
+set -g extended-keys-format csi-u
+```
+
+tmux 내부에서 CSI u 시퀀스를 올바르게 처리하도록 설정합니다.
+
+**3. 임시 복구 (문제 발생 시)**
+
+이미 CSI u 모드에 갇힌 상태라면:
+
+```bash
+# reset-term alias 사용
+reset-term
+
+# 또는 직접 실행
+printf "\033[?u\033[<u"
+
+# 또는 새 탭 열기/Ghostty 재시작
+```
+
+**진단 방법**:
+
+```bash
+# 키 입력 테스트
+cat -v
+# Ctrl+C 입력 후:
+# - 정상: ^C 출력 후 종료
+# - 문제: 5u9; 또는 유사한 문자 출력
+
+# Ghostty 설정 확인
+cat ~/.config/ghostty/config
+
+# tmux extended-keys 확인 (tmux 내부에서)
+tmux show-options -g extended-keys
+```
+
+**참고**: [Claude Code 2.1.2 업데이트 노트](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md#212)에서 `"Improved Option-as-Meta hint on macOS to show terminal-specific instructions for native CSIu terminals like iTerm2, Kitty, and WezTerm"`라고 언급하여 Claude Code가 CSI u 터미널을 명시적으로 인식하고 사용함을 확인할 수 있습니다.
+
+> **참고**: 터미널 설정에 대한 자세한 내용은 [FEATURES.md](FEATURES.md#터미널-설정)를 참고하세요.

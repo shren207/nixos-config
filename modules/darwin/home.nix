@@ -23,6 +23,7 @@
 
       # 공유 프로그램
       ../shared/programs/broot
+      ../shared/programs/ghostty
       ../shared/programs/git
       ../shared/programs/shell
       ../shared/programs/tmux

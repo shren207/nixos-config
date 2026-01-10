@@ -19,6 +19,9 @@
   - [키보드 단축키 (Symbolic Hotkeys)](#키보드-단축키-symbolic-hotkeys)
   - [키 바인딩 (백틱/원화)](#키-바인딩-백틱원화)
   - [폰트 관리 (Nerd Fonts)](#폰트-관리-nerd-fonts)
+- [터미널 설정](#터미널-설정)
+  - [Ghostty 설정](#ghostty-설정)
+  - [tmux Extended Keys](#tmux-extended-keys)
 - [GUI 앱 (Homebrew Casks)](#gui-앱-homebrew-casks)
   - [Cursor 설정](#cursor-설정)
     - [에디터 탭 라벨 커스터마이징](#에디터-탭-라벨-커스터마이징)
@@ -192,6 +195,7 @@ br -w
 | `nrs-offline` | `sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config --offline` | 오프라인 rebuild (빠름) |
 | `hs` | Hammerspoon CLI | Hammerspoon 명령 실행 |
 | `hsr` | `hs -c "hs.reload()"` | Hammerspoon 설정 리로드 (완료 시 알림 표시) |
+| `reset-term` | `printf "\033[?u\033[<u"` | 터미널 CSI u 모드 리셋 (문제 발생 시 복구) |
 
 **사용 시나리오:**
 
@@ -428,6 +432,68 @@ nix search nixpkgs nerd-fonts
 ```
 
 > **참고**: NixOS 25.05+에서는 `nerd-fonts.fira-code` 형식의 개별 패키지를 사용합니다. 구 문법 `(nerdfonts.override { fonts = [...]; })`은 더 이상 사용되지 않습니다. 자세한 내용은 [Nixpkgs nerd-fonts](https://github.com/NixOS/nixpkgs/tree/master/pkgs/data/fonts/nerd-fonts) 참고.
+
+---
+
+## 터미널 설정
+
+### Ghostty 설정
+
+`modules/shared/programs/ghostty/default.nix`에서 관리됩니다.
+
+Ghostty 터미널 설정을 Home Manager의 `xdg.configFile`을 사용하여 선언적으로 관리합니다.
+
+**현재 설정:**
+
+| 옵션 | 값 | 설명 |
+|------|-----|------|
+| `macos-option-as-alt` | `left` | 왼쪽 Option 키를 Alt로 사용 |
+| `keybind ctrl+c` | `text:\x03` | Ctrl+C를 legacy 시퀀스로 강제 |
+
+**CSI u (Kitty Keyboard Protocol) 문제 해결:**
+
+Claude Code 등 일부 CLI 도구가 CSI u 모드를 활성화한 후 비활성화하지 않는 버그가 있습니다. 이로 인해 Ctrl+C 입력 시 `5u9;` 같은 raw 이스케이프 시퀀스가 출력될 수 있습니다.
+
+`keybind = ctrl+c=text:\x03` 설정으로 Ghostty 레벨에서 Ctrl+C를 항상 legacy 시퀀스(`\x03`)로 전송하여 이 문제를 해결합니다.
+
+**설정 파일 위치:** `~/.config/ghostty/config`
+
+> **참고**: 문제가 발생했을 때 즉시 복구하려면 `reset-term` alias를 사용하세요. 자세한 내용은 [TROUBLESHOOTING.md](TROUBLESHOOTING.md#ctrl+c-입력-시-5u9-같은-문자가-출력됨)를 참고하세요.
+
+### tmux Extended Keys
+
+`modules/shared/programs/tmux/files/tmux.conf`에서 관리됩니다.
+
+tmux에서 CSI u (Kitty Keyboard Protocol)를 지원하도록 extended-keys를 활성화합니다.
+
+**현재 설정:**
+
+```bash
+set -g default-terminal "tmux-256color"
+set -g extended-keys on
+set -s extended-keys on
+set -g extended-keys-format csi-u
+set -as terminal-features 'xterm*:extkeys'
+```
+
+**효과:**
+
+| 설정 | 설명 |
+|------|------|
+| `default-terminal` | `screen-256color` → `tmux-256color`로 변경 (CSI u 지원) |
+| `extended-keys on` | extended keys 활성화 |
+| `extended-keys-format csi-u` | CSI u 형식 사용 |
+| `terminal-features` | xterm 계열에서 extkeys 기능 활성화 |
+
+**터미널 오버라이드:**
+
+```bash
+set -ga terminal-overrides ",xterm-256color:Tc"
+set -ga terminal-overrides ",xterm-ghostty:Tc"
+set -ga terminal-overrides ",tmux-256color:Tc"
+```
+
+Ghostty, xterm-256color, tmux-256color에서 True Color(24-bit) 지원을 활성화합니다.
 
 ---
 
