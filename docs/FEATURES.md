@@ -12,6 +12,10 @@
   - [쉘 도구](#쉘-도구)
   - [미디어 처리](#미디어-처리)
   - [유틸리티](#유틸리티)
+- [Claude Code 설정](#claude-code-설정)
+  - [관리 구조](#claude-code-관리-구조)
+  - [양방향 수정](#양방향-수정)
+  - [플러그인 관리](#플러그인-관리)
 - [Nix 관련](#nix-관련)
   - [darwin-rebuild Alias](#darwin-rebuild-alias)
   - [병렬 다운로드 최적화](#병렬-다운로드-최적화)
@@ -178,6 +182,77 @@ br -w
 - `curl` - HTTP 클라이언트
 - `unzip` - 압축 해제
 - `htop` - 프로세스 모니터링
+
+---
+
+## Claude Code 설정
+
+`modules/darwin/programs/claude/`에서 관리됩니다.
+
+Claude Code CLI 도구의 설정을 Nix로 선언적으로 관리하면서, 런타임 수정(플러그인 설치/삭제, 설정 변경)도 지원합니다.
+
+### Claude Code 관리 구조
+
+| 항목 | 관리 방식 | 설명 |
+|------|----------|------|
+| 앱 설치 | `home.activation` | npm 전역 설치 스크립트 |
+| `settings.json` | `mkOutOfStoreSymlink` | 양방향 수정 가능 |
+| `mcp-config.json` | `mkOutOfStoreSymlink` | 양방향 수정 가능 |
+| hooks | `home.file` | Nix store 심볼릭 링크 |
+| skills/agents | `home.file` | Nix store 심볼릭 링크 |
+
+### 양방향 수정
+
+`settings.json`과 `mcp-config.json`은 `mkOutOfStoreSymlink`를 사용하여 nixos-config 저장소의 실제 파일을 직접 참조합니다.
+
+**심볼릭 링크 구조:**
+
+```
+~/.claude/settings.json
+    ↓ (symlink)
+$HOME/<nixos-config-path>/modules/darwin/programs/claude/files/settings.json
+```
+
+**장점:**
+
+- **Claude Code → nixos-config**: 플러그인 설치, 설정 변경 시 nixos-config에 바로 반영
+- **nixos-config → Claude Code**: 파일 직접 수정 후 즉시 적용 (rebuild 불필요)
+- **버전 관리**: `git diff`로 변경사항 확인 후 커밋 가능
+
+**왜 이 방식인가?**
+
+| 방식 | 플러그인 관리 | 설정 수정 | 문제점 |
+|------|-------------|----------|--------|
+| Nix store 심볼릭 링크 | 불가 | 불가 | 읽기 전용이라 CLI로 플러그인 설치/삭제 불가 |
+| **mkOutOfStoreSymlink** | CLI로 자유롭게 | 양방향 | 없음 |
+
+> **참고**: Cursor의 `settings.json`, `keybindings.json`도 동일한 방식으로 관리됩니다.
+
+### 플러그인 관리
+
+`mkOutOfStoreSymlink` 방식으로 전환 후 플러그인을 CLI로 자유롭게 관리할 수 있습니다.
+
+**플러그인 설치:**
+
+```bash
+claude plugin install <plugin-name>@<marketplace> --scope user
+```
+
+**플러그인 제거:**
+
+```bash
+claude plugin uninstall <plugin-name>@<marketplace> --scope user
+```
+
+**플러그인 목록 확인:**
+
+```bash
+claude plugin list
+```
+
+**UI로 관리:**
+
+Claude Code 내에서 `/plugin` 명령으로 설치된 플러그인을 확인하고 관리할 수 있습니다.
 
 ---
 

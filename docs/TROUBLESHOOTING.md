@@ -37,6 +37,8 @@
   - [Cursor Extensions GUI에서 확장이 0개로 표시됨](#cursor-extensions-gui에서-확장이-0개로-표시됨)
   - ["Extensions have been modified on disk" 경고](#extensions-have-been-modified-on-disk-경고)
   - [Cursor에서 확장 설치/제거가 안 됨](#cursor에서-확장-설치제거가-안-됨)
+- [Claude Code 관련](#claude-code-관련)
+  - [플러그인 설치/삭제가 안 됨 (settings.json 읽기 전용)](#플러그인-설치삭제가-안-됨-settingsjson-읽기-전용)
 - [Ghostty 관련](#ghostty-관련)
   - [Ctrl+C 입력 시 "5u9;" 같은 문자가 출력됨](#ctrlc-입력-시-5u9-같은-문자가-출력됨)
 
@@ -809,6 +811,105 @@ darwin-rebuild switch --flake .
 ```
 
 > **참고**: Cursor 확장 관리에 대한 자세한 내용은 [CURSOR_EXTENSIONS.md](CURSOR_EXTENSIONS.md)를 참고하세요.
+
+---
+
+## Claude Code 관련
+
+### 플러그인 설치/삭제가 안 됨 (settings.json 읽기 전용)
+
+**증상**: `claude plugin uninstall` 명령 실행 시 "Plugin not found" 에러 발생. `/plugin` UI에는 설치된 것으로 표시되지만 삭제 불가.
+
+```bash
+$ claude plugin uninstall feature-dev@claude-plugins-official --scope user
+Plugin not found: feature-dev
+```
+
+**원인**: `~/.claude/settings.json`이 Nix store의 읽기 전용 파일로 심볼릭 링크되어 있음.
+
+```bash
+$ ls -la ~/.claude/settings.json
+lrwxr-xr-x  ... ~/.claude/settings.json -> /nix/store/xxx-claude-settings.json
+
+$ touch ~/.claude/settings.json
+touch: ~/.claude/settings.json: Permission denied
+```
+
+Claude Code는 플러그인 설치/삭제 시 `settings.json`을 수정하려고 하는데, Nix store 파일은 읽기 전용이므로 실패합니다.
+
+**배경**: Claude Code는 런타임에 `settings.json`을 자동으로 업데이트하는 특성이 있습니다:
+
+- 플러그인 설치/삭제
+- CLI에서 설정 변경 (`claude config set ...`)
+- Claude Code 버전 업데이트
+- 기타 다양한 내부 동작
+
+이는 Cursor가 GUI에서 설정 변경 시 `settings.json`을 자동 수정하는 것과 동일한 패턴입니다. 두 앱 모두 Nix의 불변(immutable) 파일 관리 방식과 충돌이 발생하므로 `mkOutOfStoreSymlink`가 필요합니다.
+
+> **참고**: `mcp-config.json`은 Claude Code가 자동 생성하는 파일이 아닙니다. 사용자가 직접 생성/관리하며, `claude -m` 옵션으로 해당 파일을 MCP 설정으로 지정하여 사용합니다.
+
+**해결**: `mkOutOfStoreSymlink`를 사용하여 nixos-config의 실제 파일을 직접 참조하도록 변경.
+
+**1. `files/settings.json` 생성**
+
+기존에 Nix에서 동적 생성하던 내용을 JSON 파일로 분리:
+
+```bash
+# modules/darwin/programs/claude/files/settings.json
+{
+  "cleanupPeriodDays": 7,
+  "alwaysThinkingEnabled": true,
+  ...
+}
+```
+
+**2. `default.nix` 수정**
+
+```nix
+# 변경 전: Nix store 심볼릭 링크 (읽기 전용)
+".claude/settings.json".source = jsonFormat.generate "claude-settings.json" settingsContent;
+
+# 변경 후: mkOutOfStoreSymlink (양방향 수정 가능)
+".claude/settings.json".source =
+  config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/settings.json";
+```
+
+**3. darwin-rebuild 실행**
+
+```bash
+nrs  # 또는 darwin-rebuild switch --flake .
+```
+
+**검증**:
+
+```bash
+# 심볼릭 링크 확인: nixos-config 경로를 가리켜야 함
+$ ls -la ~/.claude/settings.json
+lrwxr-xr-x  ... -> $HOME/<nixos-config-path>/modules/darwin/programs/claude/files/settings.json
+
+# 쓰기 권한 확인
+$ touch ~/.claude/settings.json && echo "✅ 쓰기 가능"
+✅ 쓰기 가능
+
+# 플러그인 설치/삭제 테스트
+$ claude plugin install typescript-lsp@claude-plugins-official --scope user
+✔ Successfully installed plugin: typescript-lsp@claude-plugins-official
+
+$ claude plugin uninstall typescript-lsp@claude-plugins-official --scope user
+✔ Successfully uninstalled plugin: typescript-lsp
+```
+
+**Cursor와의 비교**:
+
+| 항목 | Cursor | Claude Code |
+|------|--------|-------------|
+| 확장/플러그인 관리 | Nix로 선언적 관리 (UI에서 설치 불가) | CLI로 자유롭게 관리 |
+| `settings.json` | `mkOutOfStoreSymlink` (양방향) | `mkOutOfStoreSymlink` (양방향) |
+| 런타임 파일 수정 | GUI 설정 변경, 확장 설정 시 자동 수정 | 플러그인/MCP 설정 시 자동 수정 |
+
+두 앱 모두 `settings.json`의 런타임 수정이 필요하므로 `mkOutOfStoreSymlink`를 사용합니다. 차이점은 확장/플러그인 관리 방식뿐입니다: Cursor는 확장을 Nix로 고정 관리하고, Claude Code는 플러그인을 CLI로 자유롭게 관리합니다.
+
+> **참고**: Claude Code 설정에 대한 자세한 내용은 [FEATURES.md](FEATURES.md#claude-code-설정)를 참고하세요.
 
 ---
 

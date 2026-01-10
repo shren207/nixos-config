@@ -1,0 +1,36 @@
+{
+  "cleanupPeriodDays": 7,
+  "env": {
+    "CLAUDE_CODE_ENABLE_UNIFIED_READ_TOOL": "true",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "true"
+  },
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(rm -rf ~)",
+      "Bash(rm -rf ~/*)",
+      "Bash(rm -rf /*)"
+    ],
+    "additionalDirectories": [
+      "~/Downloads",
+      "~/Documents",
+      "~/IdeaProjects"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/stop-notification.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {},
+  "alwaysThinkingEnabled": true
+}
