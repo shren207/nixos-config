@@ -94,6 +94,20 @@
   ],
 
   /*
+   * JetBrains 스타일 자동완성 (keybindings.json과 연동)
+   *
+   * VS Code 기본: Tab으로 제안 수락, 방향키로 탐색
+   * JetBrains 스타일: Tab으로 탐색, Enter로 수락
+   *
+   * - tabCompletion: Tab 키로 자동완성 기능 활성화
+   * - suggestSelection: 자동완성 목록에서 첫 번째 항목 자동 선택
+   * - acceptSuggestionOnEnter: Enter로 제안 수락 보장
+   */
+  "editor.tabCompletion": "on",
+  "editor.suggestSelection": "first",
+  "editor.acceptSuggestionOnEnter": "on",
+
+  /*
    * workbench.editor.customLabels.patterns
    *
    * VS Code 한계 (Cursor 2.3.33 / VS Code 1.93.0 기준):

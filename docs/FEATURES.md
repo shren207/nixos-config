@@ -22,6 +22,7 @@
 - [GUI 앱 (Homebrew Casks)](#gui-앱-homebrew-casks)
   - [Cursor 설정](#cursor-설정)
     - [에디터 탭 라벨 커스터마이징](#에디터-탭-라벨-커스터마이징)
+    - [JetBrains 스타일 자동완성](#jetbrains-스타일-자동완성)
     - [기본 앱 설정 (duti)](#기본-앱-설정-duti)
   - [Hammerspoon 단축키](#hammerspoon-단축키)
 - [폴더 액션 (launchd)](#폴더-액션-launchd)
@@ -476,6 +477,32 @@ nix search nixpkgs nerd-fonts
 | Pages Router | `index`, `_app`, `_document`, `_error` | `dirname/filename` |
 | 공통 index | `index.ts(x)` | `dirname/index` |
 | 유틸리티 | `hook(s)`, `constant(s)`, `util(s)`, `state(s)`, `type(s)`, `style(s)` | `dirname/filename` |
+
+#### JetBrains 스타일 자동완성
+
+`settings.json`과 `keybindings.json`을 조합하여 JetBrains(IntelliJ) 스타일의 자동완성 탐색을 구현합니다.
+
+**VS Code 기본 vs JetBrains 스타일:**
+
+| 동작 | VS Code 기본 | JetBrains 스타일 |
+|------|-------------|-----------------|
+| 다음 제안으로 이동 | `↓` | `Tab` |
+| 이전 제안으로 이동 | `↑` | `Shift+Tab` |
+| 제안 수락 | `Tab` 또는 `Enter` | `Enter` |
+
+**설정 파일:**
+
+- `settings.json`: 자동완성 동작 설정
+  - `editor.tabCompletion`: Tab 키로 자동완성 기능 활성화
+  - `editor.suggestSelection`: 첫 번째 항목 자동 선택
+  - `editor.acceptSuggestionOnEnter`: Enter로 제안 수락 보장
+
+- `keybindings.json`: 키 바인딩 재정의
+  - `Tab` → `selectNextSuggestion` (자동완성 창이 열려있을 때만)
+  - `Shift+Tab` → `selectPrevSuggestion`
+  - `Enter` → `acceptSelectedSuggestion`
+
+> **참고**: 자동완성 창이 닫혀있을 때는 Tab이 기존 들여쓰기 기능을 그대로 수행합니다.
 
 #### 기본 앱 설정 (duti)
 
