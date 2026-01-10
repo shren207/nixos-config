@@ -91,5 +91,33 @@
     "snake",
     "kebab",
     "pascal"
-  ]
+  ],
+
+  /*
+   * workbench.editor.customLabels.patterns
+   *
+   * VS Code 한계 (Cursor 2.3.33 / VS Code 1.93.0 기준):
+   * - Named Capture Group 미지원 (예: ${app:([^/]+)})
+   * - 정규식 캡처 미지원 (예: $1, $2)
+   * - ** 와일드카드와 ${dirname(N)} 조합 시 예측 불가
+   *   → ${dirname(N)}은 파일 기준 절대 인덱싱이라 경로 깊이에 따라 결과 변동
+   *
+   * 지원되는 변수: ${filename}, ${extname}, ${dirname}, ${dirname(N)}
+   *
+   * 모노레포에서 앱별 동적 추출 불가 → 앱별 명시적 패턴 필요
+   * 상세: docs/TRIAL_AND_ERROR.md 참고
+   */
+  "workbench.editor.customLabels.patterns": {
+    // App Router (Next.js 13+)
+    "**/app/**/{page,layout,loading,error,not-found,template,default}.{ts,tsx,js,jsx}": "${dirname}/${filename}.${extname}",
+
+    // Pages Router (Next.js 12 이하 또는 hybrid)
+    "**/pages/**/{index,_app,_document,_error}.{ts,tsx,js,jsx}": "${dirname}/${filename}.${extname}",
+
+    // 공통 index 파일
+    "**/index.{ts,tsx,js,jsx}": "${dirname}/index.${extname}",
+
+    // 유틸리티 파일들 (폴더명 함께 표시)
+    "**/{hook,hooks,constant,constants,util,utils,state,states,type,types,style,styles}.{ts,tsx,js,jsx}": "${dirname}/${filename}.${extname}"
+  }
 }

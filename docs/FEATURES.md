@@ -20,7 +20,9 @@
   - [키 바인딩 (백틱/원화)](#키-바인딩-백틱원화)
   - [폰트 관리 (Nerd Fonts)](#폰트-관리-nerd-fonts)
 - [GUI 앱 (Homebrew Casks)](#gui-앱-homebrew-casks)
-  - [Cursor 기본 앱 설정](#cursor-기본-앱-설정)
+  - [Cursor 설정](#cursor-설정)
+    - [에디터 탭 라벨 커스터마이징](#에디터-탭-라벨-커스터마이징)
+    - [기본 앱 설정 (duti)](#기본-앱-설정-duti)
   - [Hammerspoon 단축키](#hammerspoon-단축키)
 - [폴더 액션 (launchd)](#폴더-액션-launchd)
 - [Secrets 관리](#secrets-관리)
@@ -446,9 +448,36 @@ nix search nixpkgs nerd-fonts
 | Figma | 디자인 |
 | MonitorControl | 외부 모니터 밝기 조절 |
 
-### Cursor 기본 앱 설정
+### Cursor 설정
 
-`modules/darwin/programs/cursor/default.nix`에서 관리됩니다.
+`modules/darwin/programs/cursor/`에서 관리됩니다.
+
+#### 에디터 탭 라벨 커스터마이징
+
+`settings.json`의 `workbench.editor.customLabels.patterns`를 사용하여 Next.js 프로젝트의 탭 가독성을 개선합니다.
+
+**문제 상황**: Next.js App Router 사용 시 `page.tsx`, `layout.tsx` 등 동일한 파일명이 여러 탭에 열리면 구분이 어려움.
+
+**해결**: 폴더명을 함께 표시하여 어느 라우트의 파일인지 즉시 파악 가능.
+
+| 파일 경로 | Before | After |
+|-----------|--------|-------|
+| `app/dashboard/page.tsx` | `page.tsx` | `dashboard/page.tsx` |
+| `app/auth/loading.tsx` | `loading.tsx` | `auth/loading.tsx` |
+| `pages/api/index.ts` | `index.ts` | `api/index.ts` |
+| `features/cart/hooks.ts` | `hooks.ts` | `cart/hooks.ts` |
+| `lib/api/constants.ts` | `constants.ts` | `api/constants.ts` |
+
+**지원 패턴:**
+
+| 패턴 | 대상 파일 | 표시 형식 |
+|------|----------|----------|
+| App Router | `page`, `layout`, `loading`, `error`, `not-found`, `template`, `default` | `dirname/filename` |
+| Pages Router | `index`, `_app`, `_document`, `_error` | `dirname/filename` |
+| 공통 index | `index.ts(x)` | `dirname/index` |
+| 유틸리티 | `hook(s)`, `constant(s)`, `util(s)`, `state(s)`, `type(s)`, `style(s)` | `dirname/filename` |
+
+#### 기본 앱 설정 (duti)
 
 텍스트/코드 파일을 더블클릭 시 Xcode 대신 Cursor로 열리도록 `duti`를 사용하여 파일 연결을 설정합니다.
 

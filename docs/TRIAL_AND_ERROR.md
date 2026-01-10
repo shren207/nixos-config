@@ -4,6 +4,7 @@
 
 ## 목차
 
+- [2026-01-10: VS Code customLabels에서 동적 앱 이름 추출 실패](#2026-01-10-vs-code-customlabels에서-동적-앱-이름-추출-실패)
 - [2024-12-25: duti로 .html/.htm 기본 앱 설정 실패](#2024-12-25-duti로-htmlhtm-기본-앱-설정-실패)
 - [2024-12-24: Anki 애드온 Nix 선언적 관리 시도 (보류)](#2024-12-24-anki-애드온-nix-선언적-관리-시도-보류)
   - [목표](#목표)
@@ -15,6 +16,91 @@
   - [교훈](#교훈)
   - [대상 애드온 목록 (참고용)](#대상-애드온-목록-참고용)
   - [결론](#결론)
+
+---
+
+## 2026-01-10: VS Code customLabels에서 동적 앱 이름 추출 실패
+
+> 테스트 환경: Cursor 2.3.33 (VS Code 1.93.0 기반)
+
+### 배경
+
+Next.js Page Router + Turbopack 모노레포 구조에서 에디터 탭 레이블을 커스터마이징하려 했음. 여러 앱(`web`, `admin`, `mobile` 등)의 `pages/` 폴더에서 동일한 파일명(`index.tsx`)이 열릴 때 구분하기 어려운 문제.
+
+**목표**: `apps/admin/pages/settings/index.tsx` → `(admin) settings/index.tsx`
+
+### 시도 1: Named Capture Group 문법 (실패)
+
+정규식의 Named Capture Group을 사용하여 앱 이름을 동적으로 추출하려 시도.
+
+```json
+"**/apps/${app:([^/]+)}/pages/**/index.{ts,tsx}": "(${app}) ${dirname}/index.${extname}"
+```
+
+**결과**: 동작하지 않음.
+
+**원인**: VS Code의 `customLabels.patterns`는 Named Capture Group이나 정규식 캡처를 **지원하지 않음**.
+
+### 시도 2: `**` 와일드카드 + `${dirname(N)}` 조합 (실패)
+
+`**` 패턴으로 가변 깊이 경로를 매칭하고, `${dirname(N)}`으로 특정 위치의 폴더명을 추출하려 시도.
+
+```json
+"**/apps/*/pages/**/index.{ts,tsx}": "(${dirname(3)}) ${dirname}/index.${extname}"
+```
+
+**결과**: 앱 이름이 아닌 다른 폴더명이 표시됨.
+
+| 경로 | 기대 결과 | 실제 결과 |
+|------|----------|----------|
+| `apps/admin/pages/settings/index.tsx` | `(admin) settings/index.tsx` | `(apps) settings/index.tsx` |
+| `apps/admin/pages/a/b/index.tsx` | `(admin) b/index.tsx` | `(pages) b/index.tsx` |
+
+**원인**: `${dirname(N)}`은 **파일 기준 절대 인덱싱**이므로, `**`가 매칭하는 경로 깊이에 따라 N번째 폴더가 달라짐.
+
+### VS Code customLabels의 한계
+
+**지원되는 변수 (전부)**:
+
+| 변수 | 설명 |
+|------|------|
+| `${filename}` | 확장자 제외 파일명 |
+| `${extname}` | 확장자 |
+| `${dirname}` | 직접 상위 폴더명 |
+| `${dirname(N)}` | N번째 상위 폴더명 (파일 기준 절대 인덱싱) |
+
+**지원되지 않는 기능**:
+
+- Named Capture Group (`${name:pattern}`)
+- 정규식 캡처 (`$1`, `$2`)
+- 패턴 매칭 위치 기반 변수 추출
+- `**` 와일드카드와 상대적 인덱싱 조합
+
+### 해결 방법 (우회)
+
+앱별로 명시적인 패턴을 작성하는 수밖에 없음.
+
+```json
+"**/apps/web/pages/**/index.{ts,tsx}": "(web) ${dirname}/index.${extname}",
+"**/apps/admin/pages/**/index.{ts,tsx}": "(admin) ${dirname}/index.${extname}",
+"**/apps/mobile/pages/**/index.{ts,tsx}": "(mobile) ${dirname}/index.${extname}"
+```
+
+**단점**: 앱이 추가될 때마다 패턴을 수동으로 추가해야 함.
+
+### 교훈
+
+1. **VS Code customLabels는 단순한 템플릿 치환만 지원**
+   - 정규식 캡처, 동적 변수 추출 등 고급 기능 없음
+   - glob 패턴은 파일 매칭용일 뿐, 값 추출용이 아님
+
+2. **`${dirname(N)}`은 절대 인덱싱**
+   - 파일 위치 기준으로 고정된 깊이만 참조 가능
+   - `**` 와일드카드와 함께 사용하면 예측 불가능한 결과
+
+3. **모노레포에서는 앱별 명시적 패턴이 필요**
+   - 동적으로 앱 이름을 추출하는 방법 없음
+   - 앱 목록이 자주 변경되지 않는다면 수동 관리가 현실적
 
 ---
 
