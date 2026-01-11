@@ -32,5 +32,8 @@
     ]
   },
   "enabledPlugins": {},
-  "alwaysThinkingEnabled": true
+  "alwaysThinkingEnabled": true,
+  "autoUpdatesChannel": "latest",
+  "minimumVersion": "2.1.4",
+  "language": "Korean"
 }
