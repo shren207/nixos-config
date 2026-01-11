@@ -31,9 +31,11 @@
       }
     ]
   },
-  "enabledPlugins": {},
+  "enabledPlugins": {
+    "plugin-dev@claude-plugins-official": true
+  },
+  "language": "Korean",
   "alwaysThinkingEnabled": true,
   "autoUpdatesChannel": "latest",
-  "minimumVersion": "2.1.4",
-  "language": "Korean"
+  "minimumVersion": "2.1.4"
 }

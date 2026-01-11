@@ -16,7 +16,7 @@
   - [관리 구조](#claude-code-관리-구조)
   - [양방향 수정](#양방향-수정)
   - [플러그인 관리](#플러그인-관리)
-  - [공식 마켓플레이스 관리](#공식-마켓플레이스-관리)
+  - [플러그인 주의사항](#플러그인-주의사항)
 - [Nix 관련](#nix-관련)
   - [darwin-rebuild Alias](#darwin-rebuild-alias)
   - [병렬 다운로드 최적화](#병렬-다운로드-최적화)
@@ -257,11 +257,9 @@ claude plugin list
 
 Claude Code 내에서 `/plugin` 명령으로 설치된 플러그인을 확인하고 관리할 수 있습니다.
 
-### 공식 마켓플레이스 관리
+### 플러그인 주의사항
 
-Claude Code의 공식 마켓플레이스(`claude-plugins-official`)를 Nix activation으로 선언적 관리합니다.
-
-**배경 (2026-01-11, Claude Code 2.1.4 기준):**
+**유령 플러그인 문제 (Claude Code 2.1.4 기준):**
 
 Claude Code에서 플러그인을 활성화/비활성화하면 `settings.json`의 `enabledPlugins` 섹션에 자동으로 기록됩니다:
 
@@ -271,7 +269,7 @@ Claude Code에서 플러그인을 활성화/비활성화하면 `settings.json`�
 }
 ```
 
-그러나 CLI 명령어(`claude plugin uninstall`)를 사용하지 않고 사용자가 직접 `settings.json`에서 해당 프로퍼티를 삭제하면, **플러그인 동기화 문제**가 발생합니다:
+그러나 CLI 명령어(`claude plugin uninstall`)를 사용하지 않고 사용자가 직접 `settings.json`에서 해당 프로퍼티를 삭제하면, **유령 플러그인(ghost plugin) 문제**가 발생합니다:
 
 | 상태 | 증상 |
 |------|------|
@@ -279,14 +277,38 @@ Claude Code에서 플러그인을 활성화/비활성화하면 `settings.json`�
 | 설정 변경 | 활성화/비활성화 토글 불가 |
 | 플러그인 기능 | 동작하지 않음 |
 
-이 문제를 해결하려면 **마켓플레이스 재설치**가 유일한 방법입니다:
+**해결 방법:**
+
+마켓플레이스 재설치로는 해결되지 않습니다. 유일한 방법은 `settings.json`에 유령 플러그인을 다시 명시한 후 CLI로 제거하는 것입니다:
+
+1. `settings.json`의 `enabledPlugins`에 유령 플러그인 추가:
+   ```json
+   "enabledPlugins": {
+     "ghost-plugin-name@marketplace": true
+   }
+   ```
+
+2. Claude Code CLI로 플러그인 제거:
+   ```bash
+   claude plugin uninstall ghost-plugin-name@marketplace --scope user
+   ```
+
+> **참고**: 자세한 내용은 [TRIAL_AND_ERROR.md](TRIAL_AND_ERROR.md#2026-01-11-claude-code-유령-플러그인-해결) 참고.
+
+**권장 사항:**
+
+플러그인 설치/제거는 반드시 CLI 명령어를 사용하세요:
 
 ```bash
-claude plugin marketplace remove claude-plugins-official
+# 마켓플레이스 추가
 claude plugin marketplace add anthropics/claude-plugins-official
-```
 
-이러한 동기화 문제를 방지하고 재현 가능한 환경을 유지하기 위해, Nix activation으로 마켓플레이스를 선언적으로 관리합니다.
+# 플러그인 설치
+claude plugin install plugin-name@marketplace --scope user
+
+# 플러그인 제거
+claude plugin uninstall plugin-name@marketplace --scope user
+```
 
 **Anthropic 마켓플레이스 현황 (2026-01-11 기준):**
 
@@ -296,29 +318,6 @@ claude plugin marketplace add anthropics/claude-plugins-official
 | `anthropics/claude-plugins-official` | 유지보수 O |
 
 > **참고**: 공식 문서는 [Official Anthropic Marketplace](https://code.claude.com/docs/en/discover-plugins#official-anthropic-marketplace)를 참고하세요.
-
-**자동 동작 (`darwin-rebuild switch` 시):**
-
-| 상황             | 동작                         |
-| ---------------- | ---------------------------- |
-| 디렉토리 없음    | SSH로 GitHub 클론 (자동 설치) |
-| 정상 Git 저장소  | 스킵 (idempotent)            |
-| 손상된 저장소    | 제거 후 재설치               |
-
-**수동 명령어 (필요시):**
-
-```bash
-# 제거
-claude plugin marketplace remove claude-plugins-official
-
-# 설치
-claude plugin marketplace add anthropics/claude-plugins-official
-
-# 업데이트
-claude plugin marketplace update claude-plugins-official
-```
-
-> **주의**: SSH agent가 non-interactive 환경에서 실행되지 않으면 자동 설치가 실패합니다. 이 경우 터미널에서 수동으로 `claude plugin marketplace add anthropics/claude-plugins-official` 명령을 실행하세요.
 
 ### Private 플러그인
 

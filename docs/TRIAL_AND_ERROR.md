@@ -4,6 +4,7 @@
 
 ## 목차
 
+- [2026-01-11: Claude Code 유령 플러그인 해결](#2026-01-11-claude-code-유령-플러그인-해결)
 - [2026-01-10: cat → bat alias 제거 (호환성 문제)](#2026-01-10-cat--bat-alias-제거-호환성-문제)
 - [2026-01-10: VS Code customLabels에서 동적 앱 이름 추출 실패](#2026-01-10-vs-code-customlabels에서-동적-앱-이름-추출-실패)
 - [2024-12-25: duti로 .html/.htm 기본 앱 설정 실패](#2024-12-25-duti로-htmlhtm-기본-앱-설정-실패)
@@ -17,6 +18,69 @@
   - [교훈](#교훈)
   - [대상 애드온 목록 (참고용)](#대상-애드온-목록-참고용)
   - [결론](#결론)
+
+---
+
+## 2026-01-11: Claude Code 유령 플러그인 해결
+
+> 테스트 환경: Claude Code 2.1.4, macOS
+
+### 배경
+
+`settings.json`의 `enabledPlugins`에서 플러그인 프로퍼티를 직접 삭제하면 **유령 플러그인(ghost plugin)** 문제가 발생:
+
+| 상태 | 증상 |
+|------|------|
+| `/plugin` 명령 | 플러그인이 "설치됨"으로 표시 |
+| 설정 변경 | 활성화/비활성화 토글 불가 |
+| 플러그인 기능 | 동작하지 않음 |
+
+### 시도 1: 마켓플레이스 재설치 (실패)
+
+```bash
+claude plugin marketplace remove claude-plugins-official
+claude plugin marketplace add anthropics/claude-plugins-official
+```
+
+**결과**: ❌ 유령 플러그인 여전히 존재
+
+마켓플레이스를 재설치해도 기존 `enabledPlugins` 상태와의 동기화 문제는 해결되지 않음.
+
+### 해결: settings.json에 유령 플러그인 직접 명시
+
+**원리**: Claude Code가 플러그인을 인식하려면 `enabledPlugins`에 해당 플러그인이 존재해야 함. 유령 상태에서는 CLI도 플러그인을 찾지 못함.
+
+**해결 순서**:
+
+1. `settings.json`에 유령 플러그인을 다시 명시:
+   ```json
+   "enabledPlugins": {
+     "ghost-plugin-name@marketplace": true
+   }
+   ```
+
+2. Claude Code 재시작 (또는 `/plugin` 명령으로 확인)
+
+3. CLI로 플러그인 제거:
+   ```bash
+   claude plugin uninstall ghost-plugin-name@marketplace --scope user
+   ```
+
+4. 정상적으로 제거됨 확인
+
+### 교훈
+
+1. **플러그인 제거는 반드시 CLI 사용**
+   - `settings.json` 직접 편집으로 플러그인을 삭제하면 동기화 문제 발생
+   - `claude plugin uninstall` 명령 사용 필수
+
+2. **유령 플러그인 복구 방법**
+   - `settings.json`에 유령 플러그인을 다시 추가하여 Claude Code가 인식하게 만든 후 CLI로 제거
+   - 마켓플레이스 재설치로는 해결 불가
+
+3. **Nix 선언적 관리 시 주의**
+   - `mkOutOfStoreSymlink`로 `settings.json` 관리 시, 직접 편집이 가능하므로 실수 가능
+   - 플러그인 관련 변경은 항상 Claude Code CLI 사용 권장
 
 ---
 
