@@ -16,6 +16,24 @@ remapper:register()
 
 local inputEnglish = "com.apple.keylayout.ABC"
 
+-- 앱 감지 헬퍼
+local terminalBundleIDs = {
+    ["com.mitchellh.ghostty"] = true,
+    ["com.apple.Terminal"] = true,
+    ["dev.warp.Warp-Stable"] = true,
+    ["com.googlecode.iterm2"] = true,
+}
+
+local function isTerminalApp()
+    local app = hs.application.frontmostApplication()
+    return app and terminalBundleIDs[app:bundleID()] or false
+end
+
+local function isGhostty()
+    local app = hs.application.frontmostApplication()
+    return app and app:bundleID() == "com.mitchellh.ghostty"
+end
+
 -- 공통 함수: 영어로 전환 후 키 전달 (재귀 방지 포함)
 local function convertToEngAndSendKey(bind, mods, key)
     if hs.keycodes.currentSourceID() ~= inputEnglish then
@@ -44,11 +62,51 @@ command_shift_space_bind = hs.hotkey.bind({'cmd', 'shift'}, 'space', function()
     command_shift_space_bind:enable()
 end)
 
--- Ctrl + B → 영어 전환 후 tmux prefix 전달
+-- Ctrl + B → 영어 전환 후 tmux prefix 전달 (전역)
 local ctrl_b_bind
 ctrl_b_bind = hs.hotkey.bind({'ctrl'}, 'b', function()
     convertToEngAndSendKey(ctrl_b_bind, {'ctrl'}, 'b')
 end)
+
+--------------------------------------------------------------------------------
+-- Ghostty 전용: Ctrl 키 조합 (CSI u 모드 우회)
+-- Claude Code 2.1.0+ 에서 한글 입력소스일 때 Ctrl 단축키가 동작하지 않는 문제 해결
+--------------------------------------------------------------------------------
+
+local ghosttyCtrlKeys = {'c', 'u', 'k', 'w', 'a', 'e', 'l', 'f'}
+
+for _, key in ipairs(ghosttyCtrlKeys) do
+    local bind
+    bind = hs.hotkey.bind({'ctrl'}, key, function()
+        if isGhostty() then
+            convertToEngAndSendKey(bind, {'ctrl'}, key)
+        else
+            bind:disable()
+            hs.eventtap.keyStroke({'ctrl'}, key)
+            bind:enable()
+        end
+    end)
+end
+
+--------------------------------------------------------------------------------
+-- 모든 터미널: Option 키 조합 (한글 입력소스 문제 해결)
+-- Opt+B/F (단어 이동)가 한글 입력소스에서 동작하지 않는 문제 해결
+--------------------------------------------------------------------------------
+
+local terminalOptKeys = {'b', 'f'}
+
+for _, key in ipairs(terminalOptKeys) do
+    local bind
+    bind = hs.hotkey.bind({'alt'}, key, function()
+        if isTerminalApp() then
+            convertToEngAndSendKey(bind, {'alt'}, key)
+        else
+            bind:disable()
+            hs.eventtap.keyStroke({'alt'}, key)
+            bind:enable()
+        end
+    end)
+end
 
 --------------------------------------------------------------------------------
 -- Finder → Ghostty 터미널 열기 (Ctrl + Option + Cmd + T)

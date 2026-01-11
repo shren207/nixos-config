@@ -32,6 +32,8 @@
     - [JetBrains 스타일 자동완성](#jetbrains-스타일-자동완성)
     - [기본 앱 설정 (duti)](#기본-앱-설정-duti)
   - [Hammerspoon 단축키](#hammerspoon-단축키)
+    - [터미널 Ctrl/Opt 단축키 (한글 입력소스 문제 해결)](#터미널-ctrlopt-단축키-한글-입력소스-문제-해결)
+    - [Finder → Ghostty 터미널 열기](#finder--ghostty-터미널-열기)
 - [폴더 액션 (launchd)](#폴더-액션-launchd)
 - [Secrets 관리](#secrets-관리)
 
@@ -523,17 +525,10 @@ Ghostty 터미널 설정을 Home Manager의 `xdg.configFile`을 사용하여 선
 | 옵션 | 값 | 설명 |
 |------|-----|------|
 | `macos-option-as-alt` | `left` | 왼쪽 Option 키를 Alt로 사용 |
-| `keybind ctrl+c` | `text:\x03` | Ctrl+C를 legacy 시퀀스로 강제 |
-
-**CSI u (Kitty Keyboard Protocol) 문제 해결:**
-
-Claude Code 등 일부 CLI 도구가 CSI u 모드를 활성화한 후 비활성화하지 않는 버그가 있습니다. 이로 인해 Ctrl+C 입력 시 `5u9;` 같은 raw 이스케이프 시퀀스가 출력될 수 있습니다.
-
-`keybind = ctrl+c=text:\x03` 설정으로 Ghostty 레벨에서 Ctrl+C를 항상 legacy 시퀀스(`\x03`)로 전송하여 이 문제를 해결합니다.
 
 **설정 파일 위치:** `~/.config/ghostty/config`
 
-> **참고**: 문제가 발생했을 때 즉시 복구하려면 `reset-term` alias를 사용하세요. 자세한 내용은 [TROUBLESHOOTING.md](TROUBLESHOOTING.md#ctrl+c-입력-시-5u9-같은-문자가-출력됨)를 참고하세요.
+> **참고**: Ghostty keybind 설정(`keybind = ctrl+c=text:\x03`)은 Claude Code 2.1.0 ~ 2.1.4 버전의 CSI u 모드에서 우회됩니다. 이 버전들에서 Ctrl/Opt 단축키 문제는 **Hammerspoon**에서 처리합니다. 자세한 내용은 [Hammerspoon 단축키](#hammerspoon-단축키)를 참고하세요. (추후 버전에서 해결될 수 있음)
 
 ### tmux Extended Keys
 
@@ -688,6 +683,49 @@ mdls -name kMDItemCFBundleIdentifier /Applications/Cursor.app
 ### Hammerspoon 단축키
 
 `modules/darwin/programs/hammerspoon/files/init.lua`에서 관리됩니다.
+
+#### 터미널 Ctrl/Opt 단축키 (한글 입력소스 문제 해결)
+
+Claude Code 2.1.0+에서 한글 입력소스일 때 Ctrl/Opt 단축키가 동작하지 않는 문제를 Hammerspoon에서 시스템 레벨로 해결합니다.
+
+**문제 원인:**
+- Claude Code가 enhanced keyboard 모드(CSI u)를 활성화
+- 한글 입력소스에서 Ctrl/Opt+알파벳 키가 다르게 처리됨
+- Ghostty keybind 설정도 CSI u 모드에서 우회됨
+
+**해결 방식:** Hammerspoon이 시스템 레벨에서 키 입력을 가로채서 영어로 전환 후 키 전달
+
+**Ghostty 전용 (Ctrl 키):**
+
+| 단축키 | 기능 |
+|--------|------|
+| `Ctrl+C` | 프로세스 종료 (SIGINT) |
+| `Ctrl+U` | 줄 삭제 |
+| `Ctrl+K` | 커서 뒤 삭제 |
+| `Ctrl+W` | 단어 삭제 |
+| `Ctrl+A` | 줄 처음으로 |
+| `Ctrl+E` | 줄 끝으로 |
+| `Ctrl+L` | 화면 지우기 |
+| `Ctrl+F` | 앞으로 이동 |
+
+> Ghostty 외 앱에서는 원래 동작을 유지합니다 (예: VS Code에서 Ctrl+C는 복사).
+
+**모든 터미널 앱 (Opt 키):**
+
+| 단축키 | 기능 |
+|--------|------|
+| `Opt+B` | 단어 뒤로 이동 |
+| `Opt+F` | 단어 앞으로 이동 |
+
+> 터미널 앱: Ghostty, Terminal.app, Warp, iTerm2
+
+**전역 (모든 앱):**
+
+| 단축키 | 기능 |
+|--------|------|
+| `Ctrl+B` | tmux prefix (영어 전환 후 전달) |
+
+> **참고**: 자세한 트러블슈팅은 [TROUBLESHOOTING.md](TROUBLESHOOTING.md#한글-입력소스에서-ctrlopt-단축키가-동작하지-않음)를 참고하세요.
 
 #### Finder → Ghostty 터미널 열기
 

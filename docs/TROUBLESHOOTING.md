@@ -40,6 +40,7 @@
 - [Claude Code 관련](#claude-code-관련)
   - [플러그인 설치/삭제가 안 됨 (settings.json 읽기 전용)](#플러그인-설치삭제가-안-됨-settingsjson-읽기-전용)
 - [Ghostty 관련](#ghostty-관련)
+  - [한글 입력소스에서 Ctrl/Opt 단축키가 동작하지 않음](#한글-입력소스에서-ctrlopt-단축키가-동작하지-않음)
   - [Ctrl+C 입력 시 "5u9;" 같은 문자가 출력됨](#ctrlc-입력-시-5u9-같은-문자가-출력됨)
 
 ---
@@ -915,6 +916,95 @@ $ claude plugin uninstall typescript-lsp@claude-plugins-official --scope user
 
 ## Ghostty 관련
 
+### 한글 입력소스에서 Ctrl/Opt 단축키가 동작하지 않음
+
+**증상**: Claude Code 2.1.0+ 사용 시, 한글 입력소스에서 Ctrl+C, Ctrl+U, Opt+B 등의 단축키가 동작하지 않음. 영문 입력소스로 전환하면 정상 동작.
+
+**원인**: Claude Code 2.1.0이 enhanced keyboard 모드(CSI u)를 적극 활용하면서 발생하는 문제입니다.
+
+| 환경 | Ctrl 단축키 | Opt+B/F |
+|------|------------|---------|
+| Terminal.app | ✅ 입력소스 무관 | ❌ 한글일 때 문제 |
+| Ghostty + Claude Code | ❌ 영문일 때만 | ❌ 영문일 때만 |
+
+**왜 Ghostty keybind로 해결 안 되는가?**
+
+```
+[일반 CLI 앱] (cat, vim 등)
+Ghostty keybind → legacy 시퀀스 전송 → 정상 동작 ✓
+
+[Claude Code 2.1.0+]
+Claude Code가 enhanced keyboard 모드 활성화 → Ghostty keybind 우회됨 ✗
+```
+
+`cat -v`에서는 한글 입력소스에서도 `^C`가 정상 출력되지만, Claude Code에서는 동작하지 않습니다.
+
+**해결**: Hammerspoon에서 시스템 레벨로 처리
+
+Hammerspoon이 키 입력을 **시스템 레벨**에서 가로채서 영어로 전환 후 키를 다시 전달합니다. Claude Code보다 먼저 처리되므로 확실히 동작합니다.
+
+**설정 파일**: `modules/darwin/programs/hammerspoon/files/init.lua`
+
+```lua
+-- Ghostty 전용: Ctrl 키 조합
+local ghosttyCtrlKeys = {'c', 'u', 'k', 'w', 'a', 'e', 'l', 'f'}
+
+for _, key in ipairs(ghosttyCtrlKeys) do
+    local bind
+    bind = hs.hotkey.bind({'ctrl'}, key, function()
+        if isGhostty() then
+            convertToEngAndSendKey(bind, {'ctrl'}, key)
+        else
+            bind:disable()
+            hs.eventtap.keyStroke({'ctrl'}, key)
+            bind:enable()
+        end
+    end)
+end
+
+-- 모든 터미널: Opt 키 조합
+local terminalOptKeys = {'b', 'f'}
+
+for _, key in ipairs(terminalOptKeys) do
+    local bind
+    bind = hs.hotkey.bind({'alt'}, key, function()
+        if isTerminalApp() then
+            convertToEngAndSendKey(bind, {'alt'}, key)
+        else
+            bind:disable()
+            hs.eventtap.keyStroke({'alt'}, key)
+            bind:enable()
+        end
+    end)
+end
+```
+
+**검증**:
+
+```bash
+# Hammerspoon 콘솔에서 확인
+hs -c 'print(hs.application.frontmostApplication():bundleID())'
+# 예상: com.mitchellh.ghostty
+
+# Ghostty에서 한글 입력소스로 테스트
+# 1. claude 실행
+# 2. Ctrl+C → 정상 중단되어야 함
+# 3. Ctrl+U → 줄 삭제되어야 함
+# 4. Opt+B/F → 단어 이동되어야 함
+```
+
+**주의사항**:
+
+| 항목 | 설명 |
+|------|------|
+| Ghostty 외 앱 | Ctrl 키는 원래 동작 유지 (VS Code에서 Ctrl+C는 복사) |
+| 터미널 외 앱 | Opt 키는 원래 동작 유지 (브라우저에서 특수문자 입력) |
+| 입력소스 전환 | 메뉴바 아이콘이 잠깐 깜빡일 수 있음 (기능 문제 없음) |
+
+> **참고**: 터미널 단축키에 대한 자세한 내용은 [FEATURES.md](FEATURES.md#터미널-ctrlopt-단축키-한글-입력소스-문제-해결)를 참고하세요.
+
+---
+
 ### Ctrl+C 입력 시 "5u9;" 같은 문자가 출력됨
 
 **증상**: Ghostty 터미널에서 Ctrl+C를 누르면 프로세스가 중단되지 않고 `5u9;` 같은 문자가 출력됨. 간헐적으로 발생하며, 새 탭을 열거나 Ghostty를 재시작하면 정상으로 돌아옴.
@@ -931,35 +1021,11 @@ $ claude plugin uninstall typescript-lsp@claude-plugins-official --scope user
 
 **근본 원인**: Claude Code 등 일부 CLI 도구가 CSI u 모드를 활성화한 후 비활성화하지 않음. 터미널이 CSI u 모드에 "갇힌" 상태가 됨.
 
-**해결**: 이 프로젝트에서는 다음 설정으로 문제를 해결함:
+**해결**:
 
-**1. Ghostty keybind 설정 (핵심)**
+이 프로젝트에서는 **Hammerspoon**으로 해결합니다. 자세한 내용은 [한글 입력소스에서 Ctrl/Opt 단축키가 동작하지 않음](#한글-입력소스에서-ctrlopt-단축키가-동작하지-않음)을 참고하세요.
 
-`modules/shared/programs/ghostty/default.nix`:
-```nix
-xdg.configFile."ghostty/config".text = ''
-  macos-option-as-alt = left
-  keybind = ctrl+c=text:\x03  # CSI u 모드와 무관하게 legacy 시퀀스 전송
-'';
-```
-
-이 설정은 Ghostty 레벨에서 Ctrl+C를 항상 legacy 시퀀스(`\x03`)로 전송하여, CSI u 모드 상태와 무관하게 정상 동작합니다.
-
-**2. tmux extended-keys 설정 (보완)**
-
-`modules/shared/programs/tmux/files/tmux.conf`:
-```bash
-set -g default-terminal "tmux-256color"
-set -g extended-keys on
-set -s extended-keys on
-set -g extended-keys-format csi-u
-```
-
-tmux 내부에서 CSI u 시퀀스를 올바르게 처리하도록 설정합니다.
-
-**3. 임시 복구 (문제 발생 시)**
-
-이미 CSI u 모드에 갇힌 상태라면:
+**임시 복구** (CSI u 모드에 갇힌 경우):
 
 ```bash
 # reset-term alias 사용
@@ -970,23 +1036,5 @@ printf "\033[?u\033[<u"
 
 # 또는 새 탭 열기/Ghostty 재시작
 ```
-
-**진단 방법**:
-
-```bash
-# 키 입력 테스트
-cat -v
-# Ctrl+C 입력 후:
-# - 정상: ^C 출력 후 종료
-# - 문제: 5u9; 또는 유사한 문자 출력
-
-# Ghostty 설정 확인
-cat ~/.config/ghostty/config
-
-# tmux extended-keys 확인 (tmux 내부에서)
-tmux show-options -g extended-keys
-```
-
-**참고**: [Claude Code 2.1.2 업데이트 노트](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md#212)에서 `"Improved Option-as-Meta hint on macOS to show terminal-specific instructions for native CSIu terminals like iTerm2, Kitty, and WezTerm"`라고 언급하여 Claude Code가 CSI u 터미널을 명시적으로 인식하고 사용함을 확인할 수 있습니다.
 
 > **참고**: 터미널 설정에 대한 자세한 내용은 [FEATURES.md](FEATURES.md#터미널-설정)를 참고하세요.
