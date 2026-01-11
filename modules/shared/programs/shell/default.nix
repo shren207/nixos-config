@@ -20,9 +20,8 @@
 
   # Shell aliases
   home.shellAliases = {
-    # Claude Code
-    claude-d = "claude --dangerously-skip-permissions";
-    claude-d-mcp = "claude-d --mcp-config $HOME/.claude/mcp-config.json";
+    # Claude Code (기본적으로 --dangerously-skip-permissions 사용)
+    claude = "command claude --dangerously-skip-permissions";
 
     # 파일 목록 (eza 사용)
     l = "eza -l";
