@@ -16,6 +16,7 @@
 - [폴더 액션 추가](#폴더-액션-추가)
 - [Secrets 추가](#secrets-추가)
 - [대외비 설정 추가](#대외비-설정-추가-쉘-함수-gitignore-등)
+- [Claude Code Private 플러그인 추가](#claude-code-private-플러그인-추가)
 - [VSCode(Cursor) 확장 프로그램 관리](#vscodecursor-확장-프로그램-관리)
 
 ---
@@ -596,6 +597,38 @@ cd ~/IdeaProjects/nixos-config
 nix flake update nixos-config-secret
 darwin-rebuild switch --flake .
 ```
+
+---
+
+## Claude Code Private 플러그인 추가
+
+프로젝트 전용 Claude Code 플러그인(commands, skills)을 Private 저장소에서 관리합니다.
+
+### 기본 워크플로우
+
+```bash
+# 1. Private 저장소에서 플러그인 생성/수정
+cd ~/IdeaProjects/nixos-config-secret
+# plugins/ 디렉토리에서 작업...
+
+# 2. 커밋 & 푸시
+git add . && git commit -m "feat: add plugin" && git push
+
+# 3. Public 저장소에서 적용
+cd ~/IdeaProjects/nixos-config
+nix flake update nixos-config-secret
+sudo darwin-rebuild switch --flake .
+```
+
+### 핵심 포인트
+
+| 항목 | 설명 |
+|------|------|
+| 위치 | `nixos-config-secret/plugins/` |
+| 수정 반영 | symlink이므로 즉시 적용 (darwin-rebuild 불필요) |
+| 동기화 | git pull → nix flake update → darwin-rebuild |
+
+> **상세 가이드**: 플러그인 구조, Nix 모듈 등록, 상세 예시는 `nixos-config-secret/README.md`를 참고하세요.
 
 ---
 
