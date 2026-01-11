@@ -43,29 +43,29 @@
 
 ### 파일/검색 도구
 
-| 도구 | 대체 | 설명 |
-|------|------|------|
-| `bat` | - | 구문 강조가 있는 파일 뷰어 |
-| `broot` | tree | 인터랙티브 트리 탐색기 (퍼지 검색, Git 통합) |
-| `eza` | ls | 아이콘, Git 상태 표시 |
-| `fd` | find | 빠른 파일 검색 |
-| `fzf` | - | 퍼지 파인더 |
-| `ripgrep` | grep | 빠른 텍스트 검색 |
-| `zoxide` | cd | 스마트 디렉토리 점프 |
+| 도구      | 대체 | 설명                                         |
+| --------- | ---- | -------------------------------------------- |
+| `bat`     | -    | 구문 강조가 있는 파일 뷰어                   |
+| `broot`   | tree | 인터랙티브 트리 탐색기 (퍼지 검색, Git 통합) |
+| `eza`     | ls   | 아이콘, Git 상태 표시                        |
+| `fd`      | find | 빠른 파일 검색                               |
+| `fzf`     | -    | 퍼지 파인더                                  |
+| `ripgrep` | grep | 빠른 텍스트 검색                             |
+| `zoxide`  | cd   | 스마트 디렉토리 점프                         |
 
 #### broot (Modern Linux Tree)
 
 기존 `tree`와 다른 철학의 인터랙티브 파일 탐색기입니다.
 
-| 특성 | tree | broot |
-|------|------|-------|
-| 출력 방식 | 정적 출력 (전체 덤프) | 동적/인터랙티브 |
-| 대규모 디렉토리 | 수십~수백 페이지 | 화면에 맞게 요약 |
-| 검색 | 불가 | 실시간 퍼지 검색, 정규식 |
-| 파일 작업 | 불가 | 복사, 이동, 삭제, 생성 |
-| Git 통합 | 없음 | :gf, :gs 명령으로 상태 확인 |
-| 미리보기 | 없음 | Ctrl+→로 파일 미리보기 |
-| 디스크 분석 | 없음 | -w 옵션으로 용량 시각화 |
+| 특성            | tree                  | broot                       |
+| --------------- | --------------------- | --------------------------- |
+| 출력 방식       | 정적 출력 (전체 덤프) | 동적/인터랙티브             |
+| 대규모 디렉토리 | 수십~수백 페이지      | 화면에 맞게 요약            |
+| 검색            | 불가                  | 실시간 퍼지 검색, 정규식    |
+| 파일 작업       | 불가                  | 복사, 이동, 삭제, 생성      |
+| Git 통합        | 없음                  | :gf, :gs 명령으로 상태 확인 |
+| 미리보기        | 없음                  | Ctrl+→로 파일 미리보기      |
+| 디스크 분석     | 없음                  | -w 옵션으로 용량 시각화     |
 
 **사용법:**
 
@@ -87,14 +87,14 @@ br -w
 
 ### 개발 도구
 
-| 도구 | 설명 |
-|------|------|
-| `git` | 버전 관리 ([상세 설정](#git-설정)) |
-| `delta` | Git diff 시각화 (구문 강조, side-by-side) |
-| `tmux` | 터미널 멀티플렉서 |
-| `lazygit` | Git TUI |
-| `gh` | GitHub CLI |
-| `jq` | JSON 처리 |
+| 도구      | 설명                                      |
+| --------- | ----------------------------------------- |
+| `git`     | 버전 관리 ([상세 설정](#git-설정))        |
+| `delta`   | Git diff 시각화 (구문 강조, side-by-side) |
+| `tmux`    | 터미널 멀티플렉서                         |
+| `lazygit` | Git TUI                                   |
+| `gh`      | GitHub CLI                                |
+| `jq`      | JSON 처리                                 |
 
 #### Git 설정
 
@@ -104,8 +104,8 @@ br -w
 
 `git rebase -i` 실행 시 Fork GUI처럼 **최신 커밋이 위**, 오래된 커밋이 아래에 표시됩니다.
 
-| CLI (기본) | CLI (적용 후) | Fork GUI |
-|------------|---------------|----------|
+| CLI (기본)              | CLI (적용 후)           | Fork GUI                |
+| ----------------------- | ----------------------- | ----------------------- |
 | 오래된 → 최신 (위→아래) | 최신 → 오래된 (위→아래) | 최신 → 오래된 (위→아래) |
 
 **구현 방식:**
@@ -126,28 +126,28 @@ br -w
 
 **기본 단축키** (prefix = `Ctrl+b`):
 
-| 단축키 | 기능 |
-|--------|------|
-| `prefix + r` | 설정 리로드 |
+| 단축키       | 기능                             |
+| ------------ | -------------------------------- |
+| `prefix + r` | 설정 리로드                      |
 | `prefix + a` | 도움말 (사용 가능한 단축키 표시) |
-| `prefix + s` | 세션 선택 |
-| `prefix + ,` | 창 이름 변경 |
-| `prefix + $` | 세션 이름 변경 |
-| `prefix + P` | Pane 제목 설정 |
+| `prefix + s` | 세션 선택                        |
+| `prefix + ,` | 창 이름 변경                     |
+| `prefix + $` | 세션 이름 변경                   |
+| `prefix + P` | Pane 제목 설정                   |
 
 **Pane Notepad 기능:**
 
 각 pane마다 독립적인 노트를 관리할 수 있습니다.
 
-| 단축키 | 기능 |
-|--------|------|
-| `prefix + n` | 노트 편집 |
+| 단축키       | 기능                        |
+| ------------ | --------------------------- |
+| `prefix + n` | 노트 편집                   |
 | `prefix + y` | 클립보드 내용을 노트에 추가 |
-| `prefix + v` | 노트 읽기 전용 보기 |
-| `prefix + u` | 노트의 URL 열기 |
-| `prefix + N` | 새 노트 생성 (제목 입력) |
-| `prefix + K` | 기존 노트 연결 |
-| `prefix + V` | 노트 미리보기 |
+| `prefix + v` | 노트 읽기 전용 보기         |
+| `prefix + u` | 노트의 URL 열기             |
+| `prefix + N` | 새 노트 생성 (제목 입력)    |
+| `prefix + K` | 기존 노트 연결              |
+| `prefix + V` | 노트 미리보기               |
 
 **Pane 상태 표시:**
 
@@ -163,21 +163,21 @@ br -w
 
 ### 쉘 도구
 
-| 도구 | 설명 |
-|------|------|
-| `starship` | 프롬프트 커스터마이징 |
-| `atuin` | 쉘 히스토리 관리/동기화 |
-| `mise` | 런타임 버전 관리 (Node.js, Ruby, Python 등) |
+| 도구       | 설명                                        |
+| ---------- | ------------------------------------------- |
+| `starship` | 프롬프트 커스터마이징                       |
+| `atuin`    | 쉘 히스토리 관리/동기화                     |
+| `mise`     | 런타임 버전 관리 (Node.js, Ruby, Python 등) |
 
 ### 미디어 처리
 
 폴더 액션에서 사용됩니다.
 
-| 도구 | 설명 |
-|------|------|
-| `ffmpeg` | 비디오/오디오 변환 |
-| `imagemagick` | 이미지 처리 |
-| `rar` | RAR 압축 |
+| 도구          | 설명               |
+| ------------- | ------------------ |
+| `ffmpeg`      | 비디오/오디오 변환 |
+| `imagemagick` | 이미지 처리        |
+| `rar`         | RAR 압축           |
 
 ### 유틸리티
 
@@ -195,13 +195,13 @@ Claude Code CLI 도구의 설정을 Nix로 선언적으로 관리하면서, 런�
 
 ### Claude Code 관리 구조
 
-| 항목 | 관리 방식 | 설명 |
-|------|----------|------|
-| 앱 설치 | `home.activation` | npm 전역 설치 스크립트 |
-| `settings.json` | `mkOutOfStoreSymlink` | 양방향 수정 가능 |
-| `mcp-config.json` | `mkOutOfStoreSymlink` | 양방향 수정 가능 |
-| hooks | `home.file` | Nix store 심볼릭 링크 |
-| skills/agents | `home.file` | Nix store 심볼릭 링크 |
+| 항목              | 관리 방식             | 설명                   |
+| ----------------- | --------------------- | ---------------------- |
+| 앱 설치           | `home.activation`     | npm 전역 설치 스크립트 |
+| `settings.json`   | `mkOutOfStoreSymlink` | 양방향 수정 가능       |
+| `mcp-config.json` | `mkOutOfStoreSymlink` | 양방향 수정 가능       |
+| hooks             | `home.file`           | Nix store 심볼릭 링크  |
+| skills/agents     | `home.file`           | Nix store 심볼릭 링크  |
 
 ### 양방향 수정
 
@@ -223,10 +223,10 @@ $HOME/<nixos-config-path>/modules/darwin/programs/claude/files/settings.json
 
 **왜 이 방식인가?**
 
-| 방식 | 플러그인 관리 | 설정 수정 | 문제점 |
-|------|-------------|----------|--------|
-| Nix store 심볼릭 링크 | 불가 | 불가 | 읽기 전용이라 CLI로 플러그인 설치/삭제 불가 |
-| **mkOutOfStoreSymlink** | CLI로 자유롭게 | 양방향 | 없음 |
+| 방식                    | 플러그인 관리  | 설정 수정 | 문제점                                      |
+| ----------------------- | -------------- | --------- | ------------------------------------------- |
+| Nix store 심볼릭 링크   | 불가           | 불가      | 읽기 전용이라 CLI로 플러그인 설치/삭제 불가 |
+| **mkOutOfStoreSymlink** | CLI로 자유롭게 | 양방향    | 없음                                        |
 
 > **참고**: Cursor의 `settings.json`, `keybindings.json`도 동일한 방식으로 관리됩니다.
 
@@ -256,6 +256,28 @@ claude plugin list
 
 Claude Code 내에서 `/plugin` 명령으로 설치된 플러그인을 확인하고 관리할 수 있습니다.
 
+### Private 플러그인
+
+프로젝트 전용 commands/skills는 Private 저장소(`nixos-config-secret`)에서 별도 플러그인으로 관리합니다.
+
+**특징:**
+
+| 항목      | 설명                                          |
+| --------- | --------------------------------------------- |
+| 위치      | `nixos-config-secret/plugins/`                |
+| 설치 방식 | Home Manager activation으로 symlink 자동 생성 |
+| 수정 반영 | 즉시 (darwin-rebuild 불필요)                  |
+| 동기화    | git pull → nix flake update → darwin-rebuild  |
+
+**장점:**
+
+- **대외비 분리**: Public 저장소에 노출되지 않음
+- **즉시 반영**: symlink이므로 파일 수정 시 바로 적용
+- **선언적 관리**: Nix로 자동 설치, 멀티머신 동기화
+- **프로젝트별 적용**: 특정 프로젝트에서만 플러그인 활성화
+
+> **참고**: Private 플러그인 상세 내용 및 추가 방법은 `nixos-config-secret/README.md`를 참고하세요.
+
 ---
 
 ## Nix 관련
@@ -266,13 +288,13 @@ Claude Code 내에서 `/plugin` 명령으로 설치된 플러그인을 확인하
 
 시스템 설정 적용을 위한 편리한 alias입니다.
 
-| Alias | 명령어 | 용도 |
-|-------|--------|------|
-| `nrs` | `sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config` | 일반 rebuild |
-| `nrs-offline` | `sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config --offline` | 오프라인 rebuild (빠름) |
-| `hs` | Hammerspoon CLI | Hammerspoon 명령 실행 |
-| `hsr` | `hs -c "hs.reload()"` | Hammerspoon 설정 리로드 (완료 시 알림 표시) |
-| `reset-term` | `printf "\033[?u\033[<u"` | 터미널 CSI u 모드 리셋 (문제 발생 시 복구) |
+| Alias         | 명령어                                                                     | 용도                                        |
+| ------------- | -------------------------------------------------------------------------- | ------------------------------------------- |
+| `nrs`         | `sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config`           | 일반 rebuild                                |
+| `nrs-offline` | `sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config --offline` | 오프라인 rebuild (빠름)                     |
+| `hs`          | Hammerspoon CLI                                                            | Hammerspoon 명령 실행                       |
+| `hsr`         | `hs -c "hs.reload()"`                                                      | Hammerspoon 설정 리로드 (완료 시 알림 표시) |
+| `reset-term`  | `printf "\033[?u\033[<u"`                                                  | 터미널 CSI u 모드 리셋 (문제 발생 시 복구)  |
 
 **사용 시나리오:**
 
@@ -324,10 +346,10 @@ nix.settings = {
 
 **효과:**
 
-| 설정 | 기본값 | 현재값 | 효과 |
-|------|--------|--------|------|
-| `max-substitution-jobs` | 16 | 128 | 동시에 128개 패키지 다운로드 |
-| `http-connections` | 25 | 50 | HTTP 연결 2배 증가 |
+| 설정                    | 기본값 | 현재값 | 효과                         |
+| ----------------------- | ------ | ------ | ---------------------------- |
+| `max-substitution-jobs` | 16     | 128    | 동시에 128개 패키지 다운로드 |
+| `http-connections`      | 25     | 50     | HTTP 연결 2배 증가           |
 
 **확인 방법:**
 
@@ -388,35 +410,35 @@ macOS 시스템 키보드 단축키를 nix-darwin으로 선언적으로 관리�
 
 **스크린샷 설정:**
 
-| ID | 단축키 | 기능 | 상태 |
-|----|--------|------|------|
-| 28 | ⇧⌘3 | 화면 → 파일 | 비활성화 |
-| 29 | ⌃⇧⌘3 | 화면 → 클립보드 | 활성화 |
-| 30 | ⇧⌘4 | 선택 영역 → 파일 | 비활성화 |
-| 31 | ⇧⌘4 | 선택 영역 → 클립보드 | 활성화 |
-| 32 | ⇧⌘5 | 스크린샷 및 기록 옵션 | 활성화 |
+| ID  | 단축키 | 기능                  | 상태     |
+| --- | ------ | --------------------- | -------- |
+| 28  | ⇧⌘3    | 화면 → 파일           | 비활성화 |
+| 29  | ⌃⇧⌘3   | 화면 → 클립보드       | 활성화   |
+| 30  | ⇧⌘4    | 선택 영역 → 파일      | 비활성화 |
+| 31  | ⇧⌘4    | 선택 영역 → 클립보드  | 활성화   |
+| 32  | ⇧⌘5    | 스크린샷 및 기록 옵션 | 활성화   |
 
 **입력 소스 설정:**
 
-| ID | 단축키 | 기능 | 상태 |
-|----|--------|------|------|
-| 60 | ⌃Space | 이전 입력 소스 | 비활성화 |
-| 61 | F18 | 다음 입력 소스 | 활성화 |
+| ID  | 단축키 | 기능           | 상태     |
+| --- | ------ | -------------- | -------- |
+| 60  | ⌃Space | 이전 입력 소스 | 비활성화 |
+| 61  | F18    | 다음 입력 소스 | 활성화   |
 
 > **참고**: Hammerspoon에서 Caps Lock → F18 리매핑을 담당합니다.
 
 **Spotlight 설정:**
 
-| ID | 단축키 | 기능 | 상태 |
-|----|--------|------|------|
-| 64 | ⌘Space | Spotlight 검색 | 비활성화 (Raycast 사용) |
-| 65 | ⌥⌘Space | Finder 검색 윈도우 | 활성화 |
+| ID  | 단축키  | 기능               | 상태                    |
+| --- | ------- | ------------------ | ----------------------- |
+| 64  | ⌘Space  | Spotlight 검색     | 비활성화 (Raycast 사용) |
+| 65  | ⌥⌘Space | Finder 검색 윈도우 | 활성화                  |
 
 **Mission Control 설정:**
 
-| ID | 단축키 | 기능 | 상태 |
-|----|--------|------|------|
-| 32 | F3 | Mission Control | 활성화 |
+| ID  | 단축키 | 기능            | 상태   |
+| --- | ------ | --------------- | ------ |
+| 32  | F3     | Mission Control | 활성화 |
 
 **기능 키 설정:**
 
@@ -424,13 +446,13 @@ macOS 시스템 키보드 단축키를 nix-darwin으로 선언적으로 관리�
 
 **Modifier 비트마스크 참조:**
 
-| Modifier | 값 |
-|----------|-----|
-| Shift | 131072 (0x20000) |
-| Control | 262144 (0x40000) |
-| Option | 524288 (0x80000) |
-| Command | 1048576 (0x100000) |
-| Fn | 8388608 (0x800000) |
+| Modifier | 값                 |
+| -------- | ------------------ |
+| Shift    | 131072 (0x20000)   |
+| Control  | 262144 (0x40000)   |
+| Option   | 524288 (0x80000)   |
+| Command  | 1048576 (0x100000) |
+| Fn       | 8388608 (0x800000) |
 
 **설정 확인:**
 
@@ -450,14 +472,15 @@ defaults read com.apple.symbolichotkeys AppleSymbolicHotKeys | grep -A 5 '"61"'
 
 한국어 키보드에서 백틱(`) 키 입력 시 원화(₩)가 입력되는 문제를 해결합니다. macOS Cocoa Text System의 `DefaultKeyBinding.dict`를 사용합니다.
 
-| 입력 | 출력 | 설명 |
-|------|------|------|
-| `₩` 키 | `` ` `` | 백틱 입력 (기본 동작 변경) |
-| `Option + 4` | `₩` | 원화 기호 입력 (필요시) |
+| 입력         | 출력    | 설명                       |
+| ------------ | ------- | -------------------------- |
+| `₩` 키       | `` ` `` | 백틱 입력 (기본 동작 변경) |
+| `Option + 4` | `₩`     | 원화 기호 입력 (필요시)    |
 
 **설정 파일 위치:** `~/Library/KeyBindings/DefaultKeyBinding.dict`
 
 **참고:**
+
 - 적용 후 앱 재시작 필요 (일부 앱은 로그아웃/재로그인 필요)
 - 참고 자료: [ttscoff/KeyBindings](https://github.com/ttscoff/KeyBindings)
 
@@ -469,23 +492,24 @@ nix-darwin의 `fonts.packages` 옵션을 사용하여 Nerd Fonts를 선언적으
 
 **현재 설치된 폰트:**
 
-| 폰트 | 패키지명 | 용도 |
-|------|---------|------|
-| FiraCode Nerd Font | `nerd-fonts.fira-code` | 터미널/에디터용 프로그래밍 폰트 |
+| 폰트                     | 패키지명                    | 용도                            |
+| ------------------------ | --------------------------- | ------------------------------- |
+| FiraCode Nerd Font       | `nerd-fonts.fira-code`      | 터미널/에디터용 프로그래밍 폰트 |
 | JetBrains Mono Nerd Font | `nerd-fonts.jetbrains-mono` | 터미널/에디터용 프로그래밍 폰트 |
 
 **Nerd Fonts vs 일반 폰트:**
 
-| 항목 | 일반 프로그래밍 폰트 | Nerd Font 버전 |
-|------|---------------------|----------------|
-| 기본 문자 | ✓ | ✓ |
-| 리가처 (ligatures) | 폰트에 따라 다름 | 원본 폰트와 동일 |
-| 아이콘 글리프 | ✗ | ✓ (Devicons, Font Awesome, Powerline 등 9,000+개) |
-| 용도 | 일반 코딩 | 터미널/에디터에서 아이콘 표시 필요 시 |
+| 항목               | 일반 프로그래밍 폰트 | Nerd Font 버전                                    |
+| ------------------ | -------------------- | ------------------------------------------------- |
+| 기본 문자          | ✓                    | ✓                                                 |
+| 리가처 (ligatures) | 폰트에 따라 다름     | 원본 폰트와 동일                                  |
+| 아이콘 글리프      | ✗                    | ✓ (Devicons, Font Awesome, Powerline 등 9,000+개) |
+| 용도               | 일반 코딩            | 터미널/에디터에서 아이콘 표시 필요 시             |
 
 > Nerd Fonts는 기존 프로그래밍 폰트(FiraCode, JetBrains Mono, Hack 등)에 아이콘 글리프를 패치한 버전입니다.
 
 **Nerd Fonts가 필요한 경우:**
+
 - 터미널 프롬프트(Starship)에서 Git 브랜치 아이콘, 폴더 아이콘 등 표시
 - 파일 탐색기(eza, broot)에서 파일 타입별 아이콘 표시
 - Neovim/VS Code 플러그인에서 아이콘 사용 시
@@ -522,8 +546,8 @@ Ghostty 터미널 설정을 Home Manager의 `xdg.configFile`을 사용하여 선
 
 **현재 설정:**
 
-| 옵션 | 값 | 설명 |
-|------|-----|------|
+| 옵션                  | 값     | 설명                        |
+| --------------------- | ------ | --------------------------- |
 | `macos-option-as-alt` | `left` | 왼쪽 Option 키를 Alt로 사용 |
 
 **설정 파일 위치:** `~/.config/ghostty/config`
@@ -548,12 +572,12 @@ set -as terminal-features 'xterm*:extkeys'
 
 **효과:**
 
-| 설정 | 설명 |
-|------|------|
-| `default-terminal` | `screen-256color` → `tmux-256color`로 변경 (CSI u 지원) |
-| `extended-keys on` | extended keys 활성화 |
-| `extended-keys-format csi-u` | CSI u 형식 사용 |
-| `terminal-features` | xterm 계열에서 extkeys 기능 활성화 |
+| 설정                         | 설명                                                    |
+| ---------------------------- | ------------------------------------------------------- |
+| `default-terminal`           | `screen-256color` → `tmux-256color`로 변경 (CSI u 지원) |
+| `extended-keys on`           | extended keys 활성화                                    |
+| `extended-keys-format csi-u` | CSI u 형식 사용                                         |
+| `terminal-features`          | xterm 계열에서 extkeys 기능 활성화                      |
 
 **터미널 오버라이드:**
 
@@ -571,19 +595,19 @@ Ghostty, xterm-256color, tmux-256color에서 True Color(24-bit) 지원을 활성
 
 `modules/darwin/programs/homebrew.nix`에서 관리됩니다.
 
-| 앱 | 용도 |
-|----|------|
-| Cursor | AI 코드 에디터 ([상세 설정](#cursor-기본-앱-설정)) |
-| Ghostty | 터미널 |
-| Raycast | 런처 (Spotlight 대체) |
-| Rectangle | 창 관리 |
-| Hammerspoon | 키보드 리매핑/자동화 |
-| Homerow | 키보드 네비게이션 |
-| Docker | 컨테이너 |
-| Fork | Git GUI |
-| Slack | 메신저 |
-| Figma | 디자인 |
-| MonitorControl | 외부 모니터 밝기 조절 |
+| 앱             | 용도                                               |
+| -------------- | -------------------------------------------------- |
+| Cursor         | AI 코드 에디터 ([상세 설정](#cursor-기본-앱-설정)) |
+| Ghostty        | 터미널                                             |
+| Raycast        | 런처 (Spotlight 대체)                              |
+| Rectangle      | 창 관리                                            |
+| Hammerspoon    | 키보드 리매핑/자동화                               |
+| Homerow        | 키보드 네비게이션                                  |
+| Docker         | 컨테이너                                           |
+| Fork           | Git GUI                                            |
+| Slack          | 메신저                                             |
+| Figma          | 디자인                                             |
+| MonitorControl | 외부 모니터 밝기 조절                              |
 
 ### Cursor 설정
 
@@ -597,22 +621,22 @@ Ghostty, xterm-256color, tmux-256color에서 True Color(24-bit) 지원을 활성
 
 **해결**: 폴더명을 함께 표시하여 어느 라우트의 파일인지 즉시 파악 가능.
 
-| 파일 경로 | Before | After |
-|-----------|--------|-------|
-| `app/dashboard/page.tsx` | `page.tsx` | `dashboard/page.tsx` |
-| `app/auth/loading.tsx` | `loading.tsx` | `auth/loading.tsx` |
-| `pages/api/index.ts` | `index.ts` | `api/index.ts` |
-| `features/cart/hooks.ts` | `hooks.ts` | `cart/hooks.ts` |
-| `lib/api/constants.ts` | `constants.ts` | `api/constants.ts` |
+| 파일 경로                | Before         | After                |
+| ------------------------ | -------------- | -------------------- |
+| `app/dashboard/page.tsx` | `page.tsx`     | `dashboard/page.tsx` |
+| `app/auth/loading.tsx`   | `loading.tsx`  | `auth/loading.tsx`   |
+| `pages/api/index.ts`     | `index.ts`     | `api/index.ts`       |
+| `features/cart/hooks.ts` | `hooks.ts`     | `cart/hooks.ts`      |
+| `lib/api/constants.ts`   | `constants.ts` | `api/constants.ts`   |
 
 **지원 패턴:**
 
-| 패턴 | 대상 파일 | 표시 형식 |
-|------|----------|----------|
-| App Router | `page`, `layout`, `loading`, `error`, `not-found`, `template`, `default` | `dirname/filename` |
-| Pages Router | `index`, `_app`, `_document`, `_error` | `dirname/filename` |
-| 공통 index | `index.ts(x)` | `dirname/index` |
-| 유틸리티 | `hook(s)`, `constant(s)`, `util(s)`, `state(s)`, `type(s)`, `style(s)` | `dirname/filename` |
+| 패턴         | 대상 파일                                                                | 표시 형식          |
+| ------------ | ------------------------------------------------------------------------ | ------------------ |
+| App Router   | `page`, `layout`, `loading`, `error`, `not-found`, `template`, `default` | `dirname/filename` |
+| Pages Router | `index`, `_app`, `_document`, `_error`                                   | `dirname/filename` |
+| 공통 index   | `index.ts(x)`                                                            | `dirname/index`    |
+| 유틸리티     | `hook(s)`, `constant(s)`, `util(s)`, `state(s)`, `type(s)`, `style(s)`   | `dirname/filename` |
 
 #### JetBrains 스타일 자동완성
 
@@ -620,15 +644,16 @@ Ghostty, xterm-256color, tmux-256color에서 True Color(24-bit) 지원을 활성
 
 **VS Code 기본 vs JetBrains 스타일:**
 
-| 동작 | VS Code 기본 | JetBrains 스타일 |
-|------|-------------|-----------------|
-| 다음 제안으로 이동 | `↓` | `Tab` |
-| 이전 제안으로 이동 | `↑` | `Shift+Tab` |
-| 제안 수락 | `Tab` 또는 `Enter` | `Enter` |
+| 동작               | VS Code 기본       | JetBrains 스타일 |
+| ------------------ | ------------------ | ---------------- |
+| 다음 제안으로 이동 | `↓`                | `Tab`            |
+| 이전 제안으로 이동 | `↑`                | `Shift+Tab`      |
+| 제안 수락          | `Tab` 또는 `Enter` | `Enter`          |
 
 **설정 파일:**
 
 - `settings.json`: 자동완성 동작 설정
+
   - `editor.tabCompletion`: Tab 키로 자동완성 기능 활성화
   - `editor.suggestSelection`: 첫 번째 항목 자동 선택
   - `editor.acceptSuggestionOnEnter`: Enter로 제안 수락 보장
@@ -655,11 +680,11 @@ xml, svg, conf, ini, cfg, env, gitignore, editorconfig, prettierrc, eslintrc
 
 **설정 대상 UTI:**
 
-| UTI | 설명 |
-|-----|------|
-| `public.plain-text` | 일반 텍스트 파일 |
-| `public.source-code` | 소스 코드 파일 |
-| `public.data` | 범용 데이터 파일 |
+| UTI                  | 설명             |
+| -------------------- | ---------------- |
+| `public.plain-text`  | 일반 텍스트 파일 |
+| `public.source-code` | 소스 코드 파일   |
+| `public.data`        | 범용 데이터 파일 |
 
 **동작 방식:**
 
@@ -689,6 +714,7 @@ mdls -name kMDItemCFBundleIdentifier /Applications/Cursor.app
 Claude Code 2.1.0+에서 한글 입력소스일 때 Ctrl/Opt 단축키가 동작하지 않는 문제를 Hammerspoon에서 시스템 레벨로 해결합니다.
 
 **문제 원인:**
+
 - Claude Code가 enhanced keyboard 모드(CSI u)를 활성화
 - 한글 입력소스에서 Ctrl/Opt+알파벳 키가 다르게 처리됨
 - Ghostty keybind 설정도 CSI u 모드에서 우회됨
@@ -697,51 +723,51 @@ Claude Code 2.1.0+에서 한글 입력소스일 때 Ctrl/Opt 단축키가 동작
 
 **Ghostty 전용 (Ctrl 키):**
 
-| 단축키 | 기능 |
-|--------|------|
+| 단축키   | 기능                   |
+| -------- | ---------------------- |
 | `Ctrl+C` | 프로세스 종료 (SIGINT) |
-| `Ctrl+U` | 줄 삭제 |
-| `Ctrl+K` | 커서 뒤 삭제 |
-| `Ctrl+W` | 단어 삭제 |
-| `Ctrl+A` | 줄 처음으로 |
-| `Ctrl+E` | 줄 끝으로 |
-| `Ctrl+L` | 화면 지우기 |
-| `Ctrl+F` | 앞으로 이동 |
+| `Ctrl+U` | 줄 삭제                |
+| `Ctrl+K` | 커서 뒤 삭제           |
+| `Ctrl+W` | 단어 삭제              |
+| `Ctrl+A` | 줄 처음으로            |
+| `Ctrl+E` | 줄 끝으로              |
+| `Ctrl+L` | 화면 지우기            |
+| `Ctrl+F` | 앞으로 이동            |
 
 > Ghostty 외 앱에서는 원래 동작을 유지합니다 (예: VS Code에서 Ctrl+C는 복사).
 
 **모든 터미널 앱 (Opt 키):**
 
-| 단축키 | 기능 |
-|--------|------|
-| `Opt+B` | 단어 뒤로 이동 |
+| 단축키  | 기능             |
+| ------- | ---------------- |
+| `Opt+B` | 단어 뒤로 이동   |
 | `Opt+F` | 단어 앞으로 이동 |
 
 > 터미널 앱: Ghostty, Terminal.app, Warp, iTerm2
 
 **전역 (모든 앱):**
 
-| 단축키 | 기능 |
-|--------|------|
+| 단축키   | 기능                            |
+| -------- | ------------------------------- |
 | `Ctrl+B` | tmux prefix (영어 전환 후 전달) |
 
 > **참고**: 자세한 트러블슈팅은 [TROUBLESHOOTING.md](TROUBLESHOOTING.md#한글-입력소스에서-ctrlopt-단축키가-동작하지-않음)를 참고하세요.
 
 #### Finder → Ghostty 터미널 열기
 
-| 단축키 | 동작 |
-|--------|------|
+| 단축키                    | 동작                                     |
+| ------------------------- | ---------------------------------------- |
 | `Ctrl + Option + Cmd + T` | 현재 Finder 경로에서 Ghostty 터미널 열기 |
 
 **동작 방식:**
 
-| 상황 | 동작 |
-|------|------|
-| Finder에서 실행 | 현재 폴더 경로로 Ghostty 새 창 열기 |
-| Finder 바탕화면에서 실행 | Desktop 경로로 Ghostty 새 창 열기 |
-| 다른 앱에서 실행 | Ghostty 새 창 열기 (기본 경로) |
-| Ghostty 미실행 시 | `open -a Ghostty`로 시작 |
-| Ghostty 실행 중 | `Cmd+N`으로 새 창 + `cd` 명령어 |
+| 상황                     | 동작                                |
+| ------------------------ | ----------------------------------- |
+| Finder에서 실행          | 현재 폴더 경로로 Ghostty 새 창 열기 |
+| Finder 바탕화면에서 실행 | Desktop 경로로 Ghostty 새 창 열기   |
+| 다른 앱에서 실행         | Ghostty 새 창 열기 (기본 경로)      |
+| Ghostty 미실행 시        | `open -a Ghostty`로 시작            |
+| Ghostty 실행 중          | `Cmd+N`으로 새 창 + `cd` 명령어     |
 
 **구현 특징:**
 
@@ -761,12 +787,12 @@ Claude Code 2.1.0+에서 한글 입력소스일 때 Ctrl/Opt 단축키가 동작
 
 macOS launchd의 WatchPaths를 사용하여 특정 폴더를 감시하고, 파일이 추가되면 자동으로 스크립트를 실행합니다.
 
-| 감시 폴더 | 기능 |
-|----------|------|
-| `~/FolderActions/compress-rar/` | RAR 압축 + SHA-256 체크섬 가이드 생성 |
-| `~/FolderActions/compress-video/` | H.265 (HEVC) 비디오 압축 |
-| `~/FolderActions/rename-asset/` | 타임스탬프 기반 파일명 변경 |
-| `~/FolderActions/convert-video-to-gif/` | GIF 변환 (15fps, 480px) |
+| 감시 폴더                               | 기능                                  |
+| --------------------------------------- | ------------------------------------- |
+| `~/FolderActions/compress-rar/`         | RAR 압축 + SHA-256 체크섬 가이드 생성 |
+| `~/FolderActions/compress-video/`       | H.265 (HEVC) 비디오 압축              |
+| `~/FolderActions/rename-asset/`         | 타임스탬프 기반 파일명 변경           |
+| `~/FolderActions/convert-video-to-gif/` | GIF 변환 (15fps, 480px)               |
 
 ### 사용 방법
 
@@ -807,12 +833,12 @@ nixos-config-secret/
 
 ### 관리 대상
 
-| 파일 | 내용 | 암호화 |
-|------|------|--------|
-| `secrets.nix` | API 키, credentials | O (age) |
-| `git.nix` | 회사 프로젝트 브랜치 패턴 | X |
-| `shell.nix` | 회사 전용 쉘 함수 | X |
-| `tmux.nix` | 회사 관련 링크 | X |
+| 파일          | 내용                      | 암호화  |
+| ------------- | ------------------------- | ------- |
+| `secrets.nix` | API 키, credentials       | O (age) |
+| `git.nix`     | 회사 프로젝트 브랜치 패턴 | X       |
+| `shell.nix`   | 회사 전용 쉘 함수         | X       |
+| `tmux.nix`    | 회사 관련 링크            | X       |
 
 ### 장점
 
