@@ -33,16 +33,12 @@ in
     ".claude/agents/document-task.md".source = "${claudeDir}/agents/document-task.md";
 
     # Commands (slash commands)
-    ".claude/commands/catchup-legacy.md".source = "${claudeDir}/commands/catchup-legacy.md";
+    # ".claude/commands/catchup-legacy.md".source = "${claudeDir}/commands/catchup-legacy.md";
     ".claude/commands/catchup.md".source = "${claudeDir}/commands/catchup.md";
 
     # Skills
     ".claude/skills/document-task" = {
       source = "${claudeDir}/skills/document-task";
-      recursive = true;
-    };
-    ".claude/skills/skill-creator" = {
-      source = "${claudeDir}/skills/skill-creator";
       recursive = true;
     };
 
