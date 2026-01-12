@@ -885,7 +885,7 @@ nixos-config-secret/
 ├── green/                    # 공통 설정 (사용자/호스트 무관)
 │   ├── default.nix           # 모듈 진입점 (imports)
 │   ├── secrets.nix           # pushover credentials (암호화)
-│   ├── git.nix               # 대외비 gitignore 패턴
+│   ├── git.nix               # zfw worktree 디렉토리 패턴 (__wt__*)
 │   ├── shell.nix             # 대외비 쉘 함수
 │   ├── tmux.nix              # 대외비 pane-note 링크
 │   └── secrets/
@@ -899,7 +899,7 @@ nixos-config-secret/
 | 파일          | 내용                      | 암호화  |
 | ------------- | ------------------------- | ------- |
 | `secrets.nix` | API 키, credentials       | O (age) |
-| `git.nix`     | 회사 프로젝트 브랜치 패턴 | X       |
+| `git.nix`     | zfw worktree 디렉토리 패턴 (__wt__*) | X       |
 | `shell.nix`   | 회사 전용 쉘 함수         | X       |
 | `tmux.nix`    | 회사 관련 링크            | X       |
 

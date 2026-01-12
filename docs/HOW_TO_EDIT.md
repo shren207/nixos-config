@@ -398,7 +398,7 @@ programs.delta = {
 
 > **참고**: `programs.delta`는 `programs.git`과 별도로 설정합니다. `enableGitIntegration = true`가 있어야 Git에서 delta를 pager로 사용합니다.
 
-> **대외비 gitignore**: 회사 프로젝트 브랜치 패턴 등은 Private 저장소(`nixos-config-secret/green/git.nix`)에서 `lib.mkAfter`로 추가됩니다.
+> **대외비 gitignore**: zfw worktree 디렉토리 패턴 (`__wt__*`) 등은 Private 저장소(`nixos-config-secret/green/git.nix`)에서 `lib.mkAfter`로 추가됩니다.
 
 ---
 
