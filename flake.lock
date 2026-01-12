@@ -112,10 +112,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1768196017,
-        "narHash": "sha256-xFHj3oIFftX9Uh6B3MftCfE9Tgjuy3iFvY63ancY5+M=",
+        "lastModified": 1768206932,
+        "narHash": "sha256-LUCDcJ/KBmYPC3BKRd0FI2GWvplOg6xhG5H+m07zvbg=",
         "ref": "main",
-        "rev": "e1c9fb5651bbddce2ec50995263e8de156d564e9",
+        "rev": "3c8079cbae0c12587e8f553adc3eaadf728f35d4",
         "shallow": true,
         "type": "git",
         "url": "ssh://git@github.com/shren207/nixos-config-secret"
