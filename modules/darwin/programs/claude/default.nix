@@ -33,7 +33,6 @@ in
     ".claude/agents/document-task.md".source = "${claudeDir}/agents/document-task.md";
 
     # Commands (slash commands)
-    # ".claude/commands/catchup-legacy.md".source = "${claudeDir}/commands/catchup-legacy.md";
     ".claude/commands/catchup.md".source = "${claudeDir}/commands/catchup.md";
 
     # Skills
