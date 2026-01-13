@@ -45,6 +45,7 @@
 - [Atuin 관련](#atuin-관련)
   - [atuin status가 404 오류 반환](#atuin-status가-404-오류-반환)
   - [Encryption key 불일치로 동기화 실패](#encryption-key-불일치로-동기화-실패)
+  - [Atuin daemon이 sync를 수행하지 않음 (좀비 상태)](#atuin-daemon이-sync를-수행하지-않음-좀비-상태)
 
 ---
 
@@ -1143,3 +1144,66 @@ cp ~/.local/share/atuin/key ~/.local/share/atuin/key.backup-$(date +%Y%m%d)
 ```
 
 > **참고**: Atuin 모니터링 시스템에 대한 자세한 내용은 [FEATURES.md](FEATURES.md#atuin-모니터링-시스템)를 참고하세요. 구현 과정에서의 시행착오는 [TRIAL_AND_ERROR.md](TRIAL_AND_ERROR.md#2026-01-13-atuin-동기화-모니터링-시스템-구현-시행착오)를 참고하세요.
+
+---
+
+### Atuin daemon이 sync를 수행하지 않음 (좀비 상태)
+
+> **발생 시점**: 2026-01-14
+
+**증상**: daemon 프로세스는 실행 중이지만 동기화가 수행되지 않음. 메뉴바에 "동기화 지연"이 표시됨.
+
+```bash
+# daemon이 실행 중인지 확인
+ps aux | grep "atuin daemon"
+# 결과: 프로세스가 있음
+
+# 하지만 동기화가 안 됨
+awd
+# 결과: 동기화 지연 (수십~수백 분 초과)
+```
+
+**원인**: daemon이 "좀비" 상태에 빠짐. 프로세스는 살아있지만 내부적으로 sync를 수행하지 않음. 정확한 원인은 파악되지 않았으나, 다음과 같은 상황에서 발생할 수 있음:
+
+- 장시간 네트워크 연결 불안정
+- 시스템 슬립/웨이크 후 복구 실패
+- 서버 측 일시적 장애 후 재연결 실패
+
+**해결**:
+
+**자동 해결 (권장)**
+
+watchdog 스크립트가 자동으로 daemon을 재시작합니다. 10분마다 상태를 체크하고, 5분 이상 동기화가 안 되면:
+
+1. daemon 재시작 (`launchctl kickstart -k`)
+2. 강제 sync 실행 (`atuin sync`)
+3. 상태 확인 후 알림 전송
+
+대부분의 경우 자동 복구됩니다.
+
+**수동 해결** (자동 복구 실패 시)
+
+```bash
+# daemon 수동 재시작
+launchctl kickstart -k gui/$(id -u)/com.green.atuin-daemon
+
+# sync 강제 실행
+atuin sync
+
+# 상태 확인
+awd
+```
+
+**진단 방법**:
+
+```bash
+# launchd 서비스 상태 확인
+launchctl print gui/$(id -u)/com.green.atuin-daemon
+
+# 확인할 항목:
+# - state = running (프로세스 상태)
+# - runs = N (재시작 횟수, 너무 높으면 문제)
+# - last exit code = 0 (정상 종료)
+```
+
+> **참고**: 자동 복구 기능은 watchdog 스크립트에서 제공합니다. 자세한 내용은 [FEATURES.md](FEATURES.md#atuin-동기화-모니터링)를 참고하세요.

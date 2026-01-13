@@ -94,11 +94,41 @@ LAST_SYNC_KST=$(date -r "$LAST_SYNC_EPOCH" "+%Y-%m-%d %H:%M:%S")
 DIFF_MINUTES=$(( (CURRENT_EPOCH - LAST_SYNC_EPOCH) / 60 ))
 echo "Last sync: $LAST_SYNC_KST KST ($DIFF_MINUTES minutes ago)"
 
-# 임계값 초과 시 알림 (분 단위)
+# 임계값 초과 시 daemon 재시작 시도
 if [[ $DIFF_MINUTES -ge $THRESHOLD_MINUTES ]]; then
     echo "Warning: Atuin sync is stale ($DIFF_MINUTES minutes)"
     update_menubar "warning"
-    send_alert "🐢⚠️ Atuin 동기화 경고" "${DIFF_MINUTES}분 동안 동기화되지 않음 [$HOSTNAME]" "true"
+
+    # daemon 재시작 시도
+    echo "Attempting to restart atuin daemon..."
+    if launchctl kickstart -k "gui/$(id -u)/com.green.atuin-daemon" 2>/dev/null; then
+        echo "Daemon restart requested"
+        sleep 3
+    else
+        echo "Warning: Failed to restart daemon via launchctl"
+    fi
+
+    # 재시작 후 sync 강제 실행
+    echo "Forcing sync..."
+    atuin sync 2>/dev/null || echo "Warning: sync command failed"
+    sleep 2
+
+    # 재시작 후 상태 확인
+    DOCTOR_OUTPUT_AFTER=$(atuin doctor 2>&1)
+    LAST_SYNC_AFTER=$(echo "$DOCTOR_OUTPUT_AFTER" | grep -o '"last_sync": "[^"]*"' | cut -d'"' -f4)
+    LAST_SYNC_CLEAN_AFTER=$(echo "$LAST_SYNC_AFTER" | sed 's/\.[0-9]*//; s/ +00:00:00//')
+    LAST_SYNC_EPOCH_AFTER=$(TZ=UTC date -j -f "%Y-%m-%d %H:%M:%S" "$LAST_SYNC_CLEAN_AFTER" "+%s" 2>/dev/null || echo "0")
+    CURRENT_EPOCH_AFTER=$(date "+%s")
+    DIFF_MINUTES_AFTER=$(( (CURRENT_EPOCH_AFTER - LAST_SYNC_EPOCH_AFTER) / 60 ))
+
+    if [[ $DIFF_MINUTES_AFTER -lt $THRESHOLD_MINUTES ]]; then
+        echo "OK: Daemon restart fixed the sync issue ($DIFF_MINUTES_AFTER minutes ago)"
+        update_menubar "ok"
+        send_alert "🐢✅ Atuin 복구됨" "daemon 재시작으로 동기화 복구됨 [$HOSTNAME]" "false"
+    else
+        echo "Error: Sync still stale after daemon restart ($DIFF_MINUTES_AFTER minutes)"
+        send_alert "🐢❌ Atuin 동기화 실패" "daemon 재시작 후에도 ${DIFF_MINUTES_AFTER}분 동안 동기화 안됨 [$HOSTNAME]" "true"
+    fi
 else
     echo "OK: Sync is within threshold ($DIFF_MINUTES < $THRESHOLD_MINUTES minutes)"
     update_menubar "ok"

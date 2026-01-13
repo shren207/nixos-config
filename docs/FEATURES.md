@@ -204,8 +204,32 @@ atuin daemon (백그라운드)
 | 컴포넌트 | 역할 |
 | ---- | ---- |
 | atuin daemon | 백그라운드에서 60초마다 자동 동기화 |
-| atuin-watchdog.sh | 10분마다 상태 체크, 지연 시 Pushover 알림 |
+| atuin-watchdog.sh | 10분마다 상태 체크, 지연 시 daemon 자동 재시작 + 알림 |
 | Hammerspoon 메뉴바 | 🐢 아이콘으로 상태 표시, 1분마다 갱신 |
+
+**자동 복구 기능:**
+
+watchdog이 동기화 지연(5분 초과)을 감지하면 자동으로 문제 해결을 시도합니다:
+
+```
+동기화 지연 감지
+    │
+    ├──▶ 1. daemon 재시작 (launchctl kickstart -k)
+    │         └── 3초 대기
+    │
+    ├──▶ 2. 강제 sync 실행 (atuin sync)
+    │         └── 2초 대기
+    │
+    └──▶ 3. 상태 재확인
+              │
+              ├── 복구됨 → ✅ 복구 알림 (Pushover는 생략)
+              └── 여전히 실패 → ❌ 에러 알림 (Pushover 전송)
+```
+
+| 상황 | 알림 |
+| ---- | ---- |
+| 자동 복구 성공 | "🐢✅ Atuin 복구됨" (macOS 알림만) |
+| 자동 복구 실패 | "🐢❌ Atuin 동기화 실패" (Pushover 포함) |
 
 **메뉴바:**
 
