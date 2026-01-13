@@ -42,6 +42,9 @@
 - [Ghostty 관련](#ghostty-관련)
   - [한글 입력소스에서 Ctrl/Opt 단축키가 동작하지 않음](#한글-입력소스에서-ctrlopt-단축키가-동작하지-않음)
   - [Ctrl+C 입력 시 "5u9;" 같은 문자가 출력됨](#ctrlc-입력-시-5u9-같은-문자가-출력됨)
+- [Atuin 관련](#atuin-관련)
+  - [atuin status가 404 오류 반환](#atuin-status가-404-오류-반환)
+  - [Encryption key 불일치로 동기화 실패](#encryption-key-불일치로-동기화-실패)
 
 ---
 
@@ -1038,3 +1041,102 @@ printf "\033[?u\033[<u"
 ```
 
 > **참고**: 터미널 설정에 대한 자세한 내용은 [FEATURES.md](FEATURES.md#터미널-설정)를 참고하세요.
+
+---
+
+## Atuin 관련
+
+### atuin status가 404 오류 반환
+
+> **발생 시점**: 2026-01-13 / atuin 18.10.0, 18.11.0 모두 동일
+
+**증상**: `atuin status` 명령 실행 시 404 오류 발생. `atuin sync`는 정상 작동.
+
+```
+Error: There was an error with the atuin sync service: Status 404.
+If the problem persists, contact the host
+
+Location:
+    .../api_client.rs:186:9
+```
+
+**원인**: Atuin 클라우드 서버(`api.atuin.sh`)가 **Sync v1 API를 비활성화**했기 때문입니다.
+
+소스 코드 분석 결과 (`crates/atuin-server/src/router.rs`):
+
+```rust
+// Sync v1 routes - can be disabled in favor of record-based sync
+if settings.sync_v1_enabled {
+    routes = routes
+        .route("/sync/status", get(handlers::status::status))
+        // ... 다른 v1 라우트들
+}
+```
+
+`/sync/status` 엔드포인트는 `sync_v1_enabled = true`일 때만 활성화됩니다. Atuin 클라우드 서버에서 이 설정을 비활성화하면서 404가 반환됩니다.
+
+**영향 범위**:
+
+| 명령어 | 사용 API | 상태 |
+|--------|----------|------|
+| `atuin sync` | v2 (`/api/v0/*`) | ✅ 정상 |
+| `atuin doctor` | 로컬 파일 | ✅ 정상 |
+| `atuin status` | v1 (`/sync/status`) | ❌ 404 |
+
+**해결**: 클라이언트에서 해결할 수 없음. Atuin 팀의 업데이트 필요.
+
+**현재 상태**: `atuin status`는 정보 표시용이므로 **실제 동기화 기능에 영향 없음**. 무시해도 됩니다.
+
+**모니터링 스크립트**: `~/.local/bin/atuin-sync-monitor.sh`는 `last_sync_time` 파일을 사용하므로 정상 작동합니다.
+
+```bash
+# 동기화 상태 확인 (status 대신)
+atuin doctor 2>&1 | grep -A5 '"sync"'
+
+# 또는 직접 확인
+cat ~/.local/share/atuin/last_sync_time
+```
+
+---
+
+### Encryption key 불일치로 동기화 실패
+
+**증상**: `atuin sync` 실행 시 key 불일치 오류 발생
+
+```
+Error: attempting to decrypt with incorrect key.
+currently using k4.lid.XXX..., expecting k4.lid.YYY...
+```
+
+**원인**: 서버에 저장된 히스토리가 다른 encryption key로 암호화되어 있음. 주로 다음 상황에서 발생:
+
+1. 새 계정 생성 시 새 key가 자동 생성됨
+2. 다른 기기에서 다른 key를 사용 중
+3. key 파일을 백업하지 않고 재설치
+
+**해결**:
+
+**방법 1: 기존 key 복원** (기존 히스토리 유지)
+```bash
+# 백업된 key가 있는 경우
+cp ~/.local/share/atuin/key.backup ~/.local/share/atuin/key
+atuin sync
+```
+
+**방법 2: 완전히 새로 시작** (히스토리 포기)
+```bash
+# 모든 atuin 데이터 삭제
+rm -rf ~/.local/share/atuin
+
+# 새 계정 등록
+atuin register -u <username> -e <email>
+```
+
+**예방**: key 파일을 안전하게 백업하거나, nixos-config-secret으로 관리
+
+```bash
+# key 백업
+cp ~/.local/share/atuin/key ~/.local/share/atuin/key.backup-$(date +%Y%m%d)
+```
+
+> **참고**: Atuin 동기화 모니터링에 대한 자세한 내용은 `modules/darwin/programs/atuin/default.nix`를 참고하세요.

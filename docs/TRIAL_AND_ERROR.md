@@ -4,6 +4,7 @@
 
 ## 목차
 
+- [2026-01-13: Atuin 계정 마이그레이션 실패](#2026-01-13-atuin-계정-마이그레이션-실패)
 - [2026-01-11: Claude Code 유령 플러그인 해결](#2026-01-11-claude-code-유령-플러그인-해결)
 - [2026-01-10: cat → bat alias 제거 (호환성 문제)](#2026-01-10-cat--bat-alias-제거-호환성-문제)
 - [2026-01-10: VS Code customLabels에서 동적 앱 이름 추출 실패](#2026-01-10-vs-code-customlabels에서-동적-앱-이름-추출-실패)
@@ -18,6 +19,145 @@
   - [교훈](#교훈)
   - [대상 애드온 목록 (참고용)](#대상-애드온-목록-참고용)
   - [결론](#결론)
+
+---
+
+## 2026-01-13: Atuin 계정 마이그레이션 실패
+
+> 테스트 환경: atuin 18.10.0 (nixpkgs), 18.11.0 (GitHub 릴리스), macOS Apple Silicon
+
+### 목표
+
+1. 기존 계정(glen)에서 새 계정(greenhead)으로 마이그레이션
+2. 62,000개 이상의 히스토리 보존
+3. 동기화 모니터링 시스템 구축
+
+### 초기 상태
+
+```bash
+$ cat ~/.local/share/atuin/last_sync_time
+2025-09-26T04:11:39.71577ZZ  # 약 4개월 전!
+
+$ atuin status
+Error: There was an error with the atuin sync service: Status 404.
+```
+
+- `atuin sync`는 "Sync complete!" 출력하지만 실제로 동기화 안 됨
+- `last_sync_time` 업데이트 안 됨
+
+### 시도 과정
+
+#### 1단계: 새 계정 생성 시도
+
+```bash
+# 백업
+cp ~/.local/share/atuin/{history.db,key,records.db} ~/.local/share/atuin/*.backup-20260113
+
+# 로그아웃 후 새 계정 등록
+atuin logout
+atuin register -u greenhead -e <email>
+```
+
+**문제**: 새 계정으로 로그인해도 `atuin status`에서 동일한 404 오류
+
+#### 2단계: 데이터 초기화 및 재시도
+
+```bash
+rm -f ~/.local/share/atuin/{history.db,key,session,host_id,records.db,...}
+atuin login -u greenhead
+```
+
+**문제**: 서버에서 기존 히스토리 다운로드 시 encryption key 불일치
+
+```
+Error: attempting to decrypt with incorrect key.
+currently using k4.lid.XXX..., expecting k4.lid.YYY...
+```
+
+#### 3단계: 백업 key 복원 시도
+
+```bash
+cp ~/.local/share/atuin/key.backup-20260113 ~/.local/share/atuin/key
+atuin sync
+```
+
+**결과**:
+- 서버에 두 개의 호스트 존재 (기존 + 새로 생성)
+- 각 호스트가 다른 key로 암호화된 데이터 보유
+- 어떤 key를 사용해도 일부 데이터 복호화 실패
+
+#### 4단계: 버전 업그레이드 시도
+
+```bash
+# 18.11.0 직접 다운로드
+curl -sLO https://github.com/atuinsh/atuin/releases/download/v18.11.0/atuin-aarch64-apple-darwin.tar.gz
+./atuin-aarch64-apple-darwin/atuin status
+```
+
+**결과**: 동일한 404 오류. 클라이언트 버전 문제가 아님.
+
+#### 5단계: 소스 코드 분석
+
+```bash
+git clone https://github.com/atuinsh/atuin.git ~/IdeaProjects/atuin-source
+```
+
+**발견** (`crates/atuin-server/src/router.rs`):
+
+```rust
+// Sync v1 routes - can be disabled in favor of record-based sync
+if settings.sync_v1_enabled {
+    routes = routes
+        .route("/sync/status", get(handlers::status::status))
+        // ...
+}
+```
+
+**근본 원인**: Atuin 클라우드 서버(`api.atuin.sh`)가 Sync v1을 비활성화함
+- `/sync/status` 엔드포인트가 더 이상 존재하지 않음
+- `atuin status`는 v1 API를 사용하므로 404 반환
+- `atuin sync`는 v2 API (`/api/v0/*`)를 사용하므로 정상 작동
+
+### 최종 결과
+
+| 항목 | 결과 |
+|------|------|
+| 계정 마이그레이션 | ❌ 포기 (key 충돌 해결 불가) |
+| 기존 히스토리 보존 | ❌ 손실 (백업 파일 삭제됨) |
+| 동기화 모니터링 | ✅ 구현 완료 |
+| `atuin status` 404 | ⚠️ 서버 측 문제, 해결 불가 |
+
+### 교훈
+
+1. **백업은 여러 곳에**: 작업 중에 백업 파일이 삭제됨. 별도 경로에도 백업 필요.
+
+2. **Encryption key는 신중하게**:
+   - 새 계정 로그인 시 새 key가 자동 생성됨
+   - 기존 key를 사용하려면 로그인 프롬프트에서 입력 필요
+   - key가 다르면 서버 데이터 복호화 불가
+
+3. **404 오류의 다양한 원인**:
+   - 처음에는 세션/인증 문제로 추정
+   - 실제로는 서버 API 비활성화 (Sync v1 deprecated)
+
+4. **소스 코드 분석의 중요성**:
+   - 에러 메시지만으로는 원인 파악 어려움
+   - 실제 서버/클라이언트 코드를 읽어야 정확한 원인 발견
+
+### 관련 파일
+
+| 파일 | 설명 |
+|------|------|
+| `modules/darwin/programs/atuin/default.nix` | launchd 에이전트 설정 |
+| `modules/darwin/programs/atuin/files/atuin-sync-monitor.sh` | 모니터링 스크립트 |
+| `docs/TROUBLESHOOTING.md` | Atuin 섹션 |
+| `docs/ATUIN_ACCOUNT_MIGRATION.md` | 마이그레이션 가이드 (미완성) |
+
+### 향후 계획
+
+- [ ] Atuin GitHub에 이슈 제출 (status 404 문제)
+- [ ] 집 맥북에서 동일한 설정 적용
+- [ ] 기존 히스토리는 포기, 새로 시작
 
 ---
 

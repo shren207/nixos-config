@@ -10,6 +10,7 @@
     - [Git 설정](#git-설정)
     - [tmux 단축키](#tmux-단축키)
   - [쉘 도구](#쉘-도구)
+    - [Atuin 동기화 모니터링](#atuin-동기화-모니터링)
   - [미디어 처리](#미디어-처리)
   - [유틸리티](#유틸리티)
 - [Claude Code 설정](#claude-code-설정)
@@ -169,6 +170,59 @@ br -w
 | `starship` | 프롬프트 커스터마이징                       |
 | `atuin`    | 쉘 히스토리 관리/동기화                     |
 | `mise`     | 런타임 버전 관리 (Node.js, Ruby, Python 등) |
+
+#### Atuin 동기화 모니터링
+
+`modules/darwin/programs/atuin/`에서 관리됩니다.
+
+Atuin 클라우드 동기화 상태를 모니터링하고, 동기화 실패 시 알림을 전송합니다.
+
+**기능:**
+
+| 기능 | 설명 |
+| ---- | ---- |
+| 자동 동기화 체크 | 1시간마다 launchd가 스크립트 실행 |
+| 동기화 시도 | `atuin sync` 자동 실행 |
+| 알림 전송 | 24시간 이상 동기화 안 되면 알림 |
+| 로그 로테이션 | 30일 이상 된 로그 자동 삭제 |
+
+**알림 채널:**
+
+| 상태 | macOS 알림 | Hammerspoon | Pushover |
+| ---- | ---------- | ----------- | -------- |
+| 동기화 성공 | ✅ | ✅ | ❌ (스팸 방지) |
+| 동기화 실패 | ✅ | ✅ | ✅ |
+| 테스트 모드 | ✅ | ✅ | ✅ |
+
+**설정 변수** (`default.nix`):
+
+```nix
+syncCheckInterval = 3600;      # 1시간 (초)
+syncThresholdHours = 24;       # 24시간 이상 동기화 안 되면 알림
+logRetentionDays = 30;         # 로그 보관 기간
+```
+
+**Alias:**
+
+| Alias | 명령어 | 설명 |
+| ----- | ------ | ---- |
+| `asm` | `~/.local/bin/atuin-sync-monitor.sh` | 수동 실행 |
+| `asm-test` | `... --test` | 테스트 모드 (알림 없으면 hs/pushover 확인) |
+| `asm-log` | `tail -f ~/Library/Logs/atuin/...` | 로그 확인 |
+
+**기타 CLI:**
+
+```bash
+# launchd 상태 확인
+launchctl list | grep atuin
+```
+
+**launchd 에이전트:**
+
+- Label: `com.green.atuin-sync-monitor`
+- 로그: `~/Library/Logs/atuin/sync-monitor.log`
+
+> **참고**: `atuin status` 명령이 404 오류를 반환하는 것은 Atuin 클라우드 서버가 Sync v1 API를 비활성화했기 때문입니다. `atuin sync`는 v2 API를 사용하므로 정상 동작합니다. 자세한 내용은 [TROUBLESHOOTING.md](TROUBLESHOOTING.md#atuin-status가-404-오류-반환)를 참고하세요.
 
 ### 미디어 처리
 

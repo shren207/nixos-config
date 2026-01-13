@@ -30,6 +30,7 @@
       ../shared/programs/vim
 
       # macOS 전용
+      ./programs/atuin
       ./programs/hammerspoon
       ./programs/claude
       ./programs/cursor
