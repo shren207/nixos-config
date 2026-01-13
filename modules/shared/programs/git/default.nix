@@ -97,6 +97,25 @@ in
       pull.rebase = false;
       merge.conflictStyle = "zdiff3";
 
+      # Rerere (REuse REcorded REsolution)
+      # 병합 충돌 해결을 자동화하는 기능
+      #
+      # 역할:
+      #   - 수동으로 해결한 충돌 패턴을 기록
+      #   - 동일한 충돌 발생 시 자동으로 이전 해결책 적용
+      #   - 반복적인 rebase/merge 작업에서 유용
+      #
+      # 관련 명령어:
+      #   - git rerere status    : 현재 기록된 충돌 상태 확인
+      #   - git rerere diff      : 기록된 해결책과 현재 상태 비교
+      #   - git rerere remaining : 아직 해결되지 않은 충돌 목록
+      #   - git rerere gc        : 오래된 기록 정리
+      #
+      # 기록 초기화:
+      #   - 전체 초기화: rm -rf .git/rr-cache
+      #   - 특정 항목 제거: rm -rf .git/rr-cache/<conflict-id>
+      rerere.enabled = true;
+
       # Rebase 역순 표시 설정
       sequence.editor = "${rebaseReverseEditor}";
     };
