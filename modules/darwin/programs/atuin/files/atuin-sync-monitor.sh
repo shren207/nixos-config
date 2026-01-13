@@ -60,13 +60,25 @@ send_alert() {
     fi
 }
 
+# 메뉴바 상태 업데이트 함수
+update_menubar() {
+    local status="$1"
+    if command -v hs >/dev/null 2>&1; then
+        hs -c "if atuinMenubar then atuinMenubar:setStatus('$status') end" 2>/dev/null || true
+    fi
+}
+
 echo "=== Atuin Sync Monitor ==="
 echo "Time: $(date '+%Y-%m-%d %H:%M:%S')"
 echo "Host: $HOSTNAME"
 
+# 메뉴바에 동기화 중 표시
+update_menubar "syncing"
+
 # 네트워크 연결 확인
 if ! ping -c 1 -t 3 api.atuin.sh >/dev/null 2>&1; then
     echo "Network unreachable, skipping check"
+    update_menubar "error"
     send_alert "🐢 Atuin 모니터" "네트워크 연결 불가 [$HOSTNAME]" "true"
     exit 0
 fi
@@ -79,6 +91,7 @@ if command -v atuin >/dev/null 2>&1; then
         echo "$SYNC_RESULT"
     else
         echo "Sync failed: $SYNC_RESULT"
+        update_menubar "error"
         send_alert "🐢❌ Atuin 동기화 실패" "동기화 오류 발생 [$HOSTNAME]" "true"
         exit 1
     fi
@@ -87,6 +100,7 @@ fi
 # last_sync_time 확인
 if [[ ! -f "$LAST_SYNC_FILE" ]]; then
     echo "Warning: last_sync_time file not found"
+    update_menubar "error"
     send_alert "🐢 Atuin 모니터" "last_sync_time 파일 없음 [$HOSTNAME]" "true"
     exit 0
 fi
@@ -100,6 +114,7 @@ CURRENT_EPOCH=$(date "+%s")
 
 if [[ "$LAST_SYNC_EPOCH" == "0" ]]; then
     echo "Error: Failed to parse last_sync_time: $LAST_SYNC_RAW"
+    update_menubar "error"
     send_alert "🐢❌ Atuin 모니터 오류" "last_sync_time 파싱 실패 [$HOSTNAME]" "true"
     exit 1
 fi
@@ -112,6 +127,7 @@ echo "Last sync: $LAST_SYNC_KST KST ($DIFF_HOURS hours / $DIFF_MINUTES minutes a
 
 # 테스트 모드면 무조건 알림
 if [[ "$TEST_MODE" == "true" ]]; then
+    update_menubar "ok"
     send_alert "🐢🧪 Atuin 테스트" "테스트 알림 - 마지막 동기화: ${DIFF_MINUTES}분 전 [$HOSTNAME]" "false"
     echo "Test alert sent"
     exit 0
@@ -120,9 +136,11 @@ fi
 # 임계값 초과 시 알림
 if [[ $DIFF_HOURS -ge $THRESHOLD_HOURS ]]; then
     echo "Warning: Atuin sync is stale ($DIFF_HOURS hours)"
+    update_menubar "warning"
     send_alert "🐢⚠️ Atuin 동기화 경고" "${DIFF_HOURS}시간 동안 동기화되지 않음 [$HOSTNAME]" "true"
 else
     echo "OK: Sync is within threshold ($DIFF_HOURS < $THRESHOLD_HOURS hours)"
+    update_menubar "ok"
     # 성공 알림은 Hammerspoon으로만 (Pushover는 에러일 때만)
     if command -v hs >/dev/null 2>&1; then
         hs -c "hs.notify.new({title='🐢✅ Atuin 동기화 OK', informativeText='마지막 동기화: ${DIFF_MINUTES}분 전'}):send()" 2>/dev/null || true
