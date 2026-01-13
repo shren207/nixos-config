@@ -120,6 +120,15 @@
       style = "compact";
       inline_height = 9;
       show_help = false;
+      # Sync v2 활성화 (record-based sync)
+      sync = {
+        records = true;
+      };
+      # Daemon 모드 (백그라운드에서 주기적 sync)
+      daemon = {
+        enabled = true;
+        sync_frequency = 60;  # daemon의 sync 주기 (초 단위)
+      };
     };
   };
 

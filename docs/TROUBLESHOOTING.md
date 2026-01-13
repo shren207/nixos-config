@@ -1080,22 +1080,25 @@ if settings.sync_v1_enabled {
 | 명령어 | 사용 API | 상태 |
 |--------|----------|------|
 | `atuin sync` | v2 (`/api/v0/*`) | ✅ 정상 |
-| `atuin doctor` | 로컬 파일 | ✅ 정상 |
+| `atuin doctor` | 로컬 + 서버 | ✅ 정상 |
 | `atuin status` | v1 (`/sync/status`) | ❌ 404 |
 
 **해결**: 클라이언트에서 해결할 수 없음. Atuin 팀의 업데이트 필요.
 
 **현재 상태**: `atuin status`는 정보 표시용이므로 **실제 동기화 기능에 영향 없음**. 무시해도 됩니다.
 
-**모니터링 스크립트**: `~/.local/bin/atuin-sync-monitor.sh`는 `last_sync_time` 파일을 사용하므로 정상 작동합니다.
+**동기화 상태 확인 방법**:
 
 ```bash
-# 동기화 상태 확인 (status 대신)
-atuin doctor 2>&1 | grep -A5 '"sync"'
+# atuin doctor 사용 (권장)
+atuin doctor 2>&1 | grep -o '"last_sync": "[^"]*"'
+# 예: "last_sync": "2026-01-13 8:12:42.22629 +00:00:00"
 
-# 또는 직접 확인
-cat ~/.local/share/atuin/last_sync_time
+# watchdog 스크립트 수동 실행
+awd
 ```
+
+> **주의**: `~/.local/share/atuin/last_sync_time` 파일은 레거시 sync v1용이며, 현재 버전에서는 업데이트되지 않습니다. `atuin doctor`의 `last_sync` 값을 사용하세요.
 
 ---
 
@@ -1139,4 +1142,4 @@ atuin register -u <username> -e <email>
 cp ~/.local/share/atuin/key ~/.local/share/atuin/key.backup-$(date +%Y%m%d)
 ```
 
-> **참고**: Atuin 동기화 모니터링에 대한 자세한 내용은 `modules/darwin/programs/atuin/default.nix`를 참고하세요.
+> **참고**: Atuin 모니터링 시스템에 대한 자세한 내용은 [FEATURES.md](FEATURES.md#atuin-모니터링-시스템)를 참고하세요. 구현 과정에서의 시행착오는 [TRIAL_AND_ERROR.md](TRIAL_AND_ERROR.md#2026-01-13-atuin-동기화-모니터링-시스템-구현-시행착오)를 참고하세요.

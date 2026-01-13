@@ -171,73 +171,106 @@ br -w
 | `atuin`    | 쉘 히스토리 관리/동기화                     |
 | `mise`     | 런타임 버전 관리 (Node.js, Ruby, Python 등) |
 
-#### Atuin 동기화 모니터링
+#### Atuin 모니터링 시스템
+
+> **테스트 버전**: atuin 18.10.0
 
 `modules/darwin/programs/atuin/`에서 관리됩니다.
 
-Atuin 클라우드 동기화 상태를 모니터링하고, 동기화 실패 시 알림을 전송합니다.
+Atuin 동기화 상태를 모니터링하고, 동기화 지연 시 알림을 전송합니다.
+
+**아키텍처:**
+
+```
+atuin daemon (백그라운드)
+    │
+    └──▶ 60초마다 auto sync 실행
+              │
+              └──▶ atuin 내부 last_sync 업데이트
+                        │
+            ┌───────────┴───────────┐
+            ▼                       ▼
+    atuin-watchdog.sh         Hammerspoon
+    (10분마다 launchd)        (1분마다 타이머)
+            │                       │
+            └───────────┬───────────┘
+                        ▼
+                atuin doctor
+                (last_sync 조회)
+```
 
 **기능:**
 
-| 기능 | 설명 |
+| 컴포넌트 | 역할 |
 | ---- | ---- |
-| 메뉴바 아이콘 | 🐢 상주하며 상태별 아이콘 표시 |
-| 자동 동기화 체크 | 1시간마다 launchd가 스크립트 실행 |
-| 동기화 시도 | `atuin sync` 자동 실행 |
-| 알림 전송 | 24시간 이상 동기화 안 되면 알림 |
-| 로그 로테이션 | 30일 이상 된 로그 자동 삭제 |
+| atuin daemon | 백그라운드에서 60초마다 자동 동기화 |
+| atuin-watchdog.sh | 10분마다 상태 체크, 지연 시 Pushover 알림 |
+| Hammerspoon 메뉴바 | 🐢 아이콘으로 상태 표시, 1분마다 갱신 |
 
-**메뉴바 아이콘:**
+**메뉴바:**
 
-| 상태 | 아이콘 | 조건 |
-| ---- | ------ | ---- |
-| 정상 | 🐢 | 24시간 이내 동기화됨 |
-| 동기화 중 | 🐢🔄 | 스크립트 실행 중 |
-| 경고 | 🐢⚠️ | 24시간 초과 |
-| 에러 | 🐢❌ | 동기화 실패 |
+| 항목 | 설명 |
+| ---- | ---- |
+| 아이콘 | 🐢 (항상 고정) |
+| 상태 문장 | ✅ 정상 / ⚠️ 경고 / ❌ 에러 |
+| 정보 표시 | 마지막 동기화, 히스토리 개수, 설정값 |
 
-클릭 시 메뉴:
-- 마지막 동기화 시간, 히스토리 개수 표시
-- 지금 동기화, 테스트 알림 발송
-- 로그 보기, 설정 폴더 열기
+클릭 시 메뉴 예시:
+```
+🐢
+├─ ✅ 정상 (마지막 동기화: 1분 전)
+├─ ─────────────
+├─ 마지막 동기화: 2026-01-13 17:42:42 (1분 전)
+├─ 히스토리: 63개
+├─ ─────────────
+├─ Auto Sync 주기: 1분마다
+├─ 상태 체크 주기: 10분마다
+└─ 동기화 경고 임계값: 5분
+```
+
+**상태 판단 기준:**
+
+| 상태 | 조건 | 표시 |
+| ---- | ---- | ---- |
+| 정상 | 5분 이내 동기화됨 | ✅ 정상 (마지막 동기화: N분 전) |
+| 경고 | 5분 초과 | ⚠️ 동기화 지연 (N분 초과) |
+| 에러 | 파일 없음/파싱 실패 | ❌ 오류 발생 |
 
 **알림 채널:**
 
 | 상태 | macOS 알림 | Hammerspoon | Pushover |
 | ---- | ---------- | ----------- | -------- |
-| 동기화 성공 | ✅ | ✅ | ❌ (스팸 방지) |
-| 동기화 실패 | ✅ | ✅ | ✅ |
-| 테스트 모드 | ✅ | ✅ | ✅ |
+| 정상 | ❌ | 메뉴바만 | ❌ |
+| 경고/에러 | ✅ | ✅ | ✅ |
 
-**설정 변수** (`default.nix`):
+**설정값** (`default.nix`에서 중앙 관리):
 
 ```nix
-syncCheckInterval = 3600;      # 1시간 (초)
-syncThresholdHours = 24;       # 24시간 이상 동기화 안 되면 알림
-logRetentionDays = 30;         # 로그 보관 기간
+syncCheckInterval = 600;        # 10분 (초) - watchdog 실행 주기
+syncThresholdMinutes = 5;       # 5분 - 경고 임계값
 ```
+
+> **참고**: atuin 자체의 `sync_frequency`는 `~/.config/atuin/config.toml`에서 관리됩니다 (기본 60초).
 
 **Alias:**
 
 | Alias | 명령어 | 설명 |
 | ----- | ------ | ---- |
-| `asm` | `~/.local/bin/atuin-sync-monitor.sh` | 수동 실행 |
-| `asm-test` | `... --test` | 테스트 모드 (알림 없으면 hs/pushover 확인) |
-| `asm-log` | `tail -f ~/Library/Logs/atuin/...` | 로그 확인 |
+| `awd` | `~/.local/bin/atuin-watchdog.sh` | 수동 실행 |
 
-**기타 CLI:**
+**launchd 에이전트:**
+
+| Label | 역할 |
+| ----- | ---- |
+| `com.green.atuin-daemon` | atuin daemon (백그라운드 sync) |
+| `com.green.atuin-watchdog` | 상태 체크 + 알림 |
 
 ```bash
 # launchd 상태 확인
 launchctl list | grep atuin
 ```
 
-**launchd 에이전트:**
-
-- Label: `com.green.atuin-sync-monitor`
-- 로그: `~/Library/Logs/atuin/sync-monitor.log`
-
-> **참고**: `atuin status` 명령이 404 오류를 반환하는 것은 Atuin 클라우드 서버가 Sync v1 API를 비활성화했기 때문입니다. `atuin sync`는 v2 API를 사용하므로 정상 동작합니다. 자세한 내용은 [TROUBLESHOOTING.md](TROUBLESHOOTING.md#atuin-status가-404-오류-반환)를 참고하세요.
+> **중요**: `atuin status`는 404 오류를 반환하지만 이는 Atuin 서버가 Sync v1 API를 비활성화했기 때문입니다. 실제 동기화(`atuin sync`)와 모니터링 시스템은 정상 동작합니다. 자세한 내용은 [TROUBLESHOOTING.md](TROUBLESHOOTING.md#atuin-status가-404-오류-반환)를 참고하세요.
 
 ### 미디어 처리
 

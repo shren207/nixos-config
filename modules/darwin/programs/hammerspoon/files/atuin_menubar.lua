@@ -5,20 +5,11 @@
 
 local M = {}
 
--- 설정
-local lastSyncFile = os.getenv("HOME") .. "/.local/share/atuin/last_sync_time"
+-- 파일 경로
 local historyDbFile = os.getenv("HOME") .. "/.local/share/atuin/history.db"
-local logFile = os.getenv("HOME") .. "/Library/Logs/atuin/sync-monitor.log"
-local scriptPath = os.getenv("HOME") .. "/.local/bin/atuin-sync-monitor.sh"
-local thresholdHours = 24
-
--- 상태별 아이콘
-local icons = {
-    ok = "🐢",
-    syncing = "🐢🔄",
-    warning = "🐢⚠️",
-    error = "🐢❌"
-}
+local monitorConfigFile = os.getenv("HOME") .. "/.config/atuin-monitor/config.json"
+local atuinConfigFile = os.getenv("HOME") .. "/.config/atuin/config.toml"
+local atuinPath = "/etc/profiles/per-user/" .. os.getenv("USER") .. "/bin/atuin"
 
 -- 내부 상태
 local menubar = nil
@@ -28,8 +19,15 @@ local lastSyncEpoch = nil
 local syncingTimeout = nil
 local updateTimer = nil
 
+-- 설정값 (loadConfig에서 로드)
+local config = {
+    syncCheckInterval = 600,
+    syncThresholdMinutes = 5
+}
+local atuinSyncFrequency = "알 수 없음"
+
 --------------------------------------------------------------------------------
--- 유틸리티 함수
+-- 설정 파일 읽기
 --------------------------------------------------------------------------------
 
 -- 파일 읽기
@@ -41,11 +39,54 @@ local function readFile(path)
     return content
 end
 
--- ISO 8601 UTC 시간을 epoch로 변환
-local function parseISOTime(isoString)
-    if not isoString then return nil end
-    -- "2026-01-13T05:06:16.759844Z" 형식
-    local year, month, day, hour, min, sec = isoString:match("(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)")
+-- JSON 설정 파일 읽기 (nix에서 생성)
+local function loadMonitorConfig()
+    local content = readFile(monitorConfigFile)
+    if not content then return nil end
+    local success, result = pcall(function() return hs.json.decode(content) end)
+    if success then return result end
+    return nil
+end
+
+-- atuin config.toml에서 sync_frequency 읽기
+local function getAtuinSyncFrequency()
+    local content = readFile(atuinConfigFile)
+    if not content then return "알 수 없음" end
+
+    local freq = content:match('sync_frequency%s*=%s*"([^"]+)"')
+    if freq then
+        -- "1m" → "1분마다", "30s" → "30초마다" 변환
+        local num, unit = freq:match("(%d+)(%a)")
+        if num and unit then
+            if unit == "m" then return num .. "분마다"
+            elseif unit == "s" then return num .. "초마다"
+            elseif unit == "h" then return num .. "시간마다"
+            end
+        end
+    end
+    return "알 수 없음"
+end
+
+-- 설정 로드
+local function loadConfig()
+    local loaded = loadMonitorConfig()
+    if loaded then
+        config = loaded
+    end
+    atuinSyncFrequency = getAtuinSyncFrequency()
+end
+
+--------------------------------------------------------------------------------
+-- 유틸리티 함수
+--------------------------------------------------------------------------------
+
+-- atuin doctor의 last_sync 시간을 epoch로 변환
+-- 형식: "2026-01-13 8:12:42.22629 +00:00:00"
+local function parseAtuinLastSync(lastSyncStr)
+    if not lastSyncStr then return nil end
+
+    -- "2026-01-13 8:12:42.22629 +00:00:00" → "2026-01-13 8:12:42"
+    local year, month, day, hour, min, sec = lastSyncStr:match("(%d+)-(%d+)-(%d+) (%d+):(%d+):(%d+)")
     if not year then return nil end
 
     -- UTC 시간을 epoch로 변환
@@ -98,6 +139,15 @@ local function getHistoryCount()
     return nil
 end
 
+-- 시간 간격을 한국어로 변환
+local function formatInterval(seconds)
+    if seconds >= 3600 then
+        return string.format("%d시간마다", seconds / 3600)
+    else
+        return string.format("%d분마다", seconds / 60)
+    end
+end
+
 --------------------------------------------------------------------------------
 -- 상태 관리
 --------------------------------------------------------------------------------
@@ -111,32 +161,54 @@ function M:setStatus(status)
     end
 
     if status == "syncing" then
-        -- 5분 후 자동 복구 (스크립트 비정상 종료 대비)
+        -- 5분 후 자동 복구 (비정상 종료 대비)
         syncingTimeout = hs.timer.doAfter(300, function()
-            self:updateFromFile()
+            self:updateFromDoctor()
         end)
     end
 
     currentStatus = status
+    -- 아이콘은 항상 🐢로 고정
     if menubar then
-        menubar:setTitle(icons[status] or icons.ok)
+        menubar:setTitle("🐢")
     end
 end
 
--- 파일에서 상태 업데이트
-function M:updateFromFile()
-    local content = readFile(lastSyncFile)
-    if not content then
+-- 상태 문장 생성
+function M:getStatusText()
+    if currentStatus == "ok" then
+        return "✅ 정상 (마지막 동기화: " .. getRelativeTime(lastSyncEpoch) .. ")"
+    elseif currentStatus == "syncing" then
+        return "🔄 동기화 중..."
+    elseif currentStatus == "warning" then
+        local minutes = math.floor((os.time() - (lastSyncEpoch or 0)) / 60)
+        return "⚠️ 동기화 지연 (" .. minutes .. "분 초과)"
+    else
+        return "❌ 오류 발생"
+    end
+end
+
+-- atuin doctor에서 last_sync 값을 읽어 상태 업데이트
+function M:updateFromDoctor()
+    local output, status = hs.execute(atuinPath .. " doctor 2>&1")
+    if not status or not output then
         self:setStatus("error")
         lastSyncTime = nil
         lastSyncEpoch = nil
         return
     end
 
-    -- 시간 파싱
-    content = content:gsub("%s+", "")  -- 공백 제거
-    lastSyncEpoch = parseISOTime(content)
+    -- JSON에서 last_sync 추출: "last_sync": "2026-01-13 8:12:42.22629 +00:00:00"
+    local lastSyncStr = output:match('"last_sync":%s*"([^"]+)"')
+    if not lastSyncStr then
+        self:setStatus("error")
+        lastSyncTime = nil
+        lastSyncEpoch = nil
+        return
+    end
 
+    -- epoch로 변환
+    lastSyncEpoch = parseAtuinLastSync(lastSyncStr)
     if not lastSyncEpoch then
         self:setStatus("error")
         lastSyncTime = nil
@@ -146,11 +218,11 @@ function M:updateFromFile()
     -- KST로 변환하여 저장
     lastSyncTime = os.date("%Y-%m-%d %H:%M:%S", lastSyncEpoch)
 
-    -- 임계값 체크
+    -- 임계값 체크 (분 단위)
     local now = os.time()
-    local diffHours = (now - lastSyncEpoch) / 3600
+    local diffMinutes = (now - lastSyncEpoch) / 60
 
-    if diffHours >= thresholdHours then
+    if diffMinutes >= config.syncThresholdMinutes then
         self:setStatus("warning")
     else
         self:setStatus("ok")
@@ -171,62 +243,19 @@ end
 
 function M:buildMenu()
     local historyCount = getHistoryCount()
-    local historyText = historyCount and string.format("히스토리: %s개", hs.styledtext.new(tostring(historyCount)):getString()) or "히스토리: 확인 불가"
 
     return {
+        -- 상태 문장 (최상단)
+        { title = self:getStatusText(), disabled = true },
+        { title = "-" },
+        -- 동기화 정보
         { title = "마지막 동기화: " .. self:getLastSyncText(), disabled = true },
         { title = "히스토리: " .. (historyCount and string.format("%d개", historyCount) or "확인 불가"), disabled = true },
         { title = "-" },
-        { title = "지금 동기화", fn = function()
-            self:setStatus("syncing")
-            hs.task.new("/bin/bash", function(exitCode, stdOut, stdErr)
-                self:updateFromFile()
-                -- 완료 알림 직접 발송
-                if exitCode == 0 then
-                    hs.notify.new({title="🐢✅ Atuin 동기화 OK", informativeText="마지막 동기화: " .. self:getLastSyncText()}):send()
-                else
-                    hs.notify.new({title="🐢❌ Atuin 동기화 실패", informativeText="오류가 발생했습니다."}):send()
-                end
-            end, {"-c", scriptPath}):start()
-        end },
-        { title = "테스트 알림 발송", fn = function()
-            -- Hammerspoon 알림 직접 발송
-            hs.notify.new({title="🐢🧪 Atuin 테스트", informativeText="테스트 알림 - 마지막 동기화: " .. self:getLastSyncText()}):send()
-            -- 스크립트도 실행 (Pushover 등)
-            hs.task.new("/bin/bash", function() end, {"-c", scriptPath .. " --test"}):start()
-        end },
-        { title = "-" },
-        { title = "로그 보기", fn = function()
-            if hs.fs.attributes(logFile) then
-                hs.execute("open -a Console " .. logFile)
-            else
-                hs.notify.new({title="🐢 Atuin", informativeText="로그 파일이 아직 없습니다.\n먼저 '지금 동기화'를 실행하세요."}):send()
-            end
-        end },
-        { title = "로그 보기 (터미널)", fn = function()
-            if not hs.fs.attributes(logFile) then
-                hs.notify.new({title="🐢 Atuin", informativeText="로그 파일이 아직 없습니다.\n먼저 '지금 동기화'를 실행하세요."}):send()
-                return
-            end
-            hs.execute("open -a Ghostty")
-            hs.timer.doAfter(0.5, function()
-                hs.eventtap.keyStroke({}, "return")
-                hs.timer.doAfter(0.1, function()
-                    local prevClipboard = hs.pasteboard.getContents()
-                    hs.pasteboard.setContents("tail -f " .. logFile)
-                    hs.eventtap.keyStroke({"cmd"}, "v")
-                    hs.eventtap.keyStroke({}, "return")
-                    hs.timer.doAfter(0.1, function()
-                        if prevClipboard then
-                            hs.pasteboard.setContents(prevClipboard)
-                        end
-                    end)
-                end)
-            end)
-        end },
-        { title = "설정 폴더 열기", fn = function()
-            hs.execute("open ~/IdeaProjects/nixos-config/modules/darwin/programs/atuin/")
-        end },
+        -- 설정값 (설정 파일에서 읽어옴)
+        { title = "Auto Sync 주기: " .. atuinSyncFrequency, disabled = true },
+        { title = "상태 체크 주기: " .. formatInterval(config.syncCheckInterval), disabled = true },
+        { title = "동기화 경고 임계값: " .. config.syncThresholdMinutes .. "분", disabled = true },
     }
 end
 
@@ -235,6 +264,9 @@ end
 --------------------------------------------------------------------------------
 
 function M:init()
+    -- 설정 로드
+    loadConfig()
+
     -- 메뉴바 생성
     menubar = hs.menubar.new()
     if not menubar then
@@ -246,13 +278,13 @@ function M:init()
     menubar:setMenu(function() return self:buildMenu() end)
 
     -- 초기 상태 설정
-    self:updateFromFile()
+    self:updateFromDoctor()
 
     -- 1분마다 자동 업데이트
     updateTimer = hs.timer.doEvery(60, function()
         -- syncing 상태가 아닐 때만 업데이트
         if currentStatus ~= "syncing" then
-            self:updateFromFile()
+            self:updateFromDoctor()
         end
     end)
 

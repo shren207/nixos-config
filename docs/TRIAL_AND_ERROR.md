@@ -4,6 +4,7 @@
 
 ## 목차
 
+- [2026-01-13: Atuin 동기화 모니터링 시스템 구현 시행착오](#2026-01-13-atuin-동기화-모니터링-시스템-구현-시행착오)
 - [2026-01-13: Atuin 계정 마이그레이션 실패](#2026-01-13-atuin-계정-마이그레이션-실패)
 - [2026-01-11: Claude Code 유령 플러그인 해결](#2026-01-11-claude-code-유령-플러그인-해결)
 - [2026-01-10: cat → bat alias 제거 (호환성 문제)](#2026-01-10-cat--bat-alias-제거-호환성-문제)
@@ -19,6 +20,199 @@
   - [교훈](#교훈)
   - [대상 애드온 목록 (참고용)](#대상-애드온-목록-참고용)
   - [결론](#결론)
+
+---
+
+## 2026-01-13: Atuin 동기화 모니터링 시스템 구현 시행착오
+
+> **테스트 환경**: atuin 18.10.0, macOS (Apple Silicon)
+>
+> Atuin 동기화 상태를 모니터링하는 시스템을 구현하면서 발견한 중요한 사실들과 시행착오를 기록합니다.
+
+### 목표
+
+1. Hammerspoon 메뉴바에 🐢 아이콘으로 동기화 상태 표시
+2. 동기화 지연 시 알림 전송 (Pushover, macOS 알림)
+3. 설정값 중앙 관리 (하드코딩 제거)
+
+### 시행착오 1: `last_sync_time` 파일이 업데이트되지 않음
+
+**초기 구현**: `~/.local/share/atuin/last_sync_time` 파일의 내용을 파싱하여 마지막 동기화 시간 확인
+
+**문제**: `atuin sync`를 실행해도 `last_sync_time` 파일이 업데이트되지 않음
+
+```bash
+# sync 전
+$ cat ~/.local/share/atuin/last_sync_time
+2026-01-13T07:26:31.004161Z
+
+# sync 후 (변화 없음!)
+$ atuin sync
+0/0 up/down to record store
+Sync complete! 53 items in history database
+
+$ cat ~/.local/share/atuin/last_sync_time
+2026-01-13T07:26:31.004161Z  # 동일
+```
+
+**원인**: atuin 18.x부터 **record-based sync (v2)**를 사용하면서 `last_sync_time` 파일은 더 이상 업데이트되지 않음. 이 파일은 레거시 sync v1용.
+
+### 시행착오 2: `records.db` mtime도 업데이트되지 않음
+
+**두 번째 시도**: `records.db` 파일의 수정 시간(mtime)을 사용
+
+**문제**: `atuin sync` 실행 시 동기화할 데이터가 없으면 (0/0 up/down) 파일이 수정되지 않음
+
+```bash
+$ ls -la ~/.local/share/atuin/records.db
+.rw-------@ 94k glen 13 Jan 16:54  # mtime 고정
+
+$ atuin sync
+0/0 up/down to record store
+Sync complete!
+
+$ ls -la ~/.local/share/atuin/records.db
+.rw-------@ 94k glen 13 Jan 16:54  # 변화 없음
+```
+
+**원인**: 데이터베이스 파일은 실제 데이터 변경이 있을 때만 수정됨.
+
+### 최종 해결: `atuin doctor`의 `last_sync` 값 사용
+
+**세 번째 시도**: `atuin doctor` 명령의 JSON 출력에서 `last_sync` 값 추출
+
+```bash
+$ atuin doctor 2>&1 | grep -o '"last_sync": "[^"]*"'
+"last_sync": "2026-01-13 8:12:42.22629 +00:00:00"
+```
+
+이 값은 atuin 내부에서 관리되며, sync가 실행될 때마다 정확하게 업데이트됨.
+
+**구현**:
+
+```lua
+-- Lua (Hammerspoon)
+local output = hs.execute("atuin doctor 2>&1")
+local lastSyncStr = output:match('"last_sync":%s*"([^"]+)"')
+```
+
+```bash
+# Bash (watchdog 스크립트)
+LAST_SYNC_RAW=$(atuin doctor 2>&1 | grep -o '"last_sync": "[^"]*"' | cut -d'"' -f4)
+```
+
+### 시행착오 3: `auto_sync`가 백그라운드 주기 동기화가 아님
+
+**오해**: `sync_frequency = "1m"` 설정이 1분마다 자동으로 백그라운드 sync를 실행한다고 생각
+
+**실제 동작**: `auto_sync`는 **터미널에서 명령어를 실행한 후**에만 동작
+
+```
+# 잘못된 이해
+sync_frequency = "1m"  → 1분마다 백그라운드 sync? ❌
+
+# 실제 동작
+sync_frequency = "1m"  → 명령어 실행 후, 마지막 sync로부터 1분이 지났으면 sync 시도 ✅
+```
+
+**결과**: 터미널을 사용하지 않으면 sync가 발생하지 않음 → 3분 전이 마지막 동기화인 이유
+
+### 해결: daemon 모드 활성화
+
+`~/.config/atuin/config.toml`에 daemon 설정 추가:
+
+```toml
+[sync]
+records = true  # sync v2 활성화
+
+[daemon]
+enabled = true
+sync_frequency = 60  # 초 단위 (문자열 "1m"이 아님!)
+```
+
+그리고 `atuin daemon`을 launchd로 자동 시작:
+
+```nix
+launchd.agents.atuin-daemon = {
+  enable = true;
+  config = {
+    Label = "com.green.atuin-daemon";
+    ProgramArguments = [ ".../atuin" "daemon" ];
+    RunAtLoad = true;
+    KeepAlive = true;
+  };
+};
+```
+
+### 시행착오 4: 하드코딩된 설정값
+
+**문제**: 설정값이 여러 파일에 중복 정의됨
+
+```lua
+-- atuin_menubar.lua
+local syncThresholdHours = 24
+local logRetentionDays = 30
+```
+
+```nix
+-- default.nix
+syncThresholdHours = 24;
+logRetentionDays = 30;
+```
+
+**해결**: Single Source of Truth 패턴 적용
+
+```
+default.nix (설정값 정의)
+    │
+    ├──▶ JSON 파일 생성 → Hammerspoon에서 읽기
+    │
+    └──▶ 환경변수 → watchdog 스크립트에서 읽기
+```
+
+### 시행착오 5: Hammerspoon에서 atuin 못 찾음
+
+**문제**: 메뉴바에서 "지금 동기화" 버튼을 눌러도 로그에 "Attempting sync..." 메시지가 없음
+
+**원인**: Hammerspoon의 PATH에 atuin 경로가 없음
+
+```lua
+-- 스크립트의 PATH
+/run/current-system/sw/bin
+$HOME/.nix-profile/bin
+/opt/homebrew/bin
+...
+
+-- atuin 실제 경로 (누락!)
+/etc/profiles/per-user/glen/bin/atuin
+```
+
+**해결**: PATH에 per-user 경로 추가
+
+```bash
+export PATH="/etc/profiles/per-user/$USER/bin:..."
+```
+
+### 최종 구현 결과
+
+| 항목 | 초기 | 최종 |
+|------|------|------|
+| sync 상태 소스 | `last_sync_time` 파일 | `atuin doctor` 출력 |
+| 임계값 | 24시간 | 5분 |
+| 상태 체크 주기 | 1시간 | 10분 |
+| 백그라운드 sync | 없음 | daemon 모드 (60초) |
+| 설정 관리 | 하드코딩 | JSON + 환경변수 |
+| 스크립트 이름 | `atuin-sync-monitor` | `atuin-watchdog` |
+
+### 교훈
+
+1. **공식 문서만으로는 부족함**: atuin의 `auto_sync`, `sync_frequency` 동작 방식은 문서에 명확히 설명되어 있지 않음. 실제 테스트와 소스 코드 분석이 필요.
+
+2. **레거시 vs 현재**: `last_sync_time` 같은 파일이 존재해도 현재 버전에서 사용되는지 확인 필요. atuin은 sync v1 → v2로 전환하면서 많은 내부 구조가 변경됨.
+
+3. **단일 소스 원칙**: 설정값이 여러 곳에 분산되면 디버깅이 어려움. 처음부터 중앙 관리 설계 권장.
+
+4. **PATH 문제**: Nix 환경에서 Hammerspoon, launchd 등 외부 실행 환경은 쉘과 다른 PATH를 가짐. 명시적으로 설정 필요.
 
 ---
 

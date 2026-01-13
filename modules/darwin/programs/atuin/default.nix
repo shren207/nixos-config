@@ -4,45 +4,57 @@ let
   homeDir = config.home.homeDirectory;
   atuinFilesPath = "${toString ./.}/files";
 
-  # 모니터링 설정 (중앙 관리)
-  syncCheckInterval = 3600;      # 1시간 (초)
-  syncThresholdHours = 24;       # 24시간 이상 동기화 안 되면 알림
-  logRetentionDays = 30;         # 로그 보관 기간
+  # 모니터링 설정 (Single Source of Truth)
+  syncCheckInterval = 600;        # 10분 (초) - 상태 체크 주기
+  syncThresholdMinutes = 5;       # 5분 이상 동기화 안 되면 경고
+
+  # Hammerspoon용 JSON 설정 파일
+  monitorConfigJson = builtins.toJSON {
+    inherit syncCheckInterval syncThresholdMinutes;
+  };
 in
 {
-  # 로그 디렉토리 생성
-  home.activation.createAtuinLogDir = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    mkdir -p "${homeDir}/Library/Logs/atuin"
-  '';
+  # JSON 설정 파일 (Hammerspoon에서 읽기)
+  home.file.".config/atuin-monitor/config.json".text = monitorConfigJson;
 
-  # 모니터링 스크립트 배포
-  home.file.".local/bin/atuin-sync-monitor.sh" = {
-    source = "${atuinFilesPath}/atuin-sync-monitor.sh";
+  # Watchdog 스크립트 배포
+  home.file.".local/bin/atuin-watchdog.sh" = {
+    source = "${atuinFilesPath}/atuin-watchdog.sh";
     executable = true;
   };
 
-  # launchd 에이전트
-  launchd.agents.atuin-sync-monitor = {
+  # launchd 에이전트: atuin daemon (백그라운드 sync)
+  launchd.agents.atuin-daemon = {
     enable = true;
     config = {
-      Label = "com.green.atuin-sync-monitor";
-      ProgramArguments = [ "${homeDir}/.local/bin/atuin-sync-monitor.sh" ];
-      StartInterval = syncCheckInterval;
-      StandardOutPath = "${homeDir}/Library/Logs/atuin/sync-monitor.log";
-      StandardErrorPath = "${homeDir}/Library/Logs/atuin/sync-monitor.error.log";
+      Label = "com.green.atuin-daemon";
+      ProgramArguments = [ "/etc/profiles/per-user/${config.home.username}/bin/atuin" "daemon" ];
+      RunAtLoad = true;
+      KeepAlive = true;
       EnvironmentVariables = {
-        PATH = "/run/current-system/sw/bin:${homeDir}/.nix-profile/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin";
+        PATH = "/etc/profiles/per-user/${config.home.username}/bin:/run/current-system/sw/bin:${homeDir}/.nix-profile/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin";
         HOME = homeDir;
-        ATUIN_SYNC_THRESHOLD_HOURS = toString syncThresholdHours;
-        ATUIN_LOG_RETENTION_DAYS = toString logRetentionDays;
       };
     };
   };
 
-  # Atuin 모니터링 alias (macOS 전용)
+  # launchd 에이전트: Watchdog (동기화 상태 감시 + 알림)
+  launchd.agents.atuin-watchdog = {
+    enable = true;
+    config = {
+      Label = "com.green.atuin-watchdog";
+      ProgramArguments = [ "${homeDir}/.local/bin/atuin-watchdog.sh" ];
+      StartInterval = syncCheckInterval;
+      EnvironmentVariables = {
+        PATH = "/etc/profiles/per-user/${config.home.username}/bin:/run/current-system/sw/bin:${homeDir}/.nix-profile/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin";
+        HOME = homeDir;
+        ATUIN_SYNC_THRESHOLD_MINUTES = toString syncThresholdMinutes;
+      };
+    };
+  };
+
+  # Atuin watchdog alias (macOS 전용)
   home.shellAliases = {
-    asm = "~/.local/bin/atuin-sync-monitor.sh";              # 수동 실행
-    asm-test = "~/.local/bin/atuin-sync-monitor.sh --test";  # 테스트 (알림 없으면 hs/pushover 확인)
-    asm-log = "tail -f ~/Library/Logs/atuin/sync-monitor.log";  # 로그 확인
+    awd = "~/.local/bin/atuin-watchdog.sh";
   };
 }
