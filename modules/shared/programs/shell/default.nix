@@ -120,15 +120,21 @@
       style = "compact";
       inline_height = 9;
       show_help = false;
+
+      # 네트워크 타임아웃 설정 (회사 환경 등에서 무한 대기 방지)
+      network_timeout = 30;          # 서버 요청 최대 대기 (초)
+      network_connect_timeout = 5;   # 연결 수립 대기 (초)
+      local_timeout = 5;             # SQLite 연결 대기 (초)
+
       # Sync v2 활성화 (record-based sync)
       sync = {
         records = true;
       };
-      # Daemon 모드 (백그라운드에서 주기적 sync)
-      daemon = {
-        enabled = true;
-        sync_frequency = 60;  # daemon의 sync 주기 (초 단위)
-      };
+      # Daemon 모드 비활성화 (불안정하므로 launchd로 대체)
+      # daemon = {
+      #   enabled = true;
+      #   sync_frequency = 60;
+      # };
     };
   };
 

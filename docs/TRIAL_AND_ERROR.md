@@ -780,3 +780,305 @@ modules/darwin/programs/anki/
 ### 결론
 
 Anki 애드온의 Nix 선언적 관리는 **현실적으로 어려움**. AnkiWeb에서 직접 관리하는 것이 가장 안정적.
+
+---
+
+## 2026-01-14: Atuin Watchdog 개선 및 Daemon 비활성화
+
+### 배경
+
+회사 환경에서 atuin daemon 재시작 후에도 동기화 지연이 지속되는 문제 발생. 원인 파악 및 해결 과정 기록.
+
+### 타임라인 (사실 기반)
+
+| 시점 | 커밋 | 내용 |
+|------|------|------|
+| 2026-01-13 17:55 | b44bea2 | daemon 모드 활성화, atuin doctor 사용 시작 |
+| 2026-01-14 08:54 | fb8de27 | "동기화 지연 (1948분 초과)" 문제 발견, daemon 자동 복구 기능 추가 |
+| 2026-01-14 11:00경 | 이번 세션 | daemon 여전히 불안정, CLI sync로 완전 대체 결정 |
+
+**주목할 점**: b44bea2에서 daemon을 활성화한 후 약 15시간 만에 1948분(32시간) 동기화 지연이 발견됨. 이는 **daemon이 활성화 직후부터 정상 동작하지 않았을 가능성**을 시사함.
+
+### 핵심 발견: daemon sync vs CLI sync의 차이
+
+소스코드 분석을 통해 중요한 차이점 발견:
+
+**daemon sync** (`atuin-daemon/src/server/sync.rs:85`):
+```rust
+// sync 성공 후 save_sync_time() 호출
+tokio::task::spawn_blocking(Settings::save_sync_time).await??;
+```
+
+**CLI sync (v2)** (`crates/atuin/src/command/client/sync.rs`):
+```rust
+pub async fn run(...) -> Result<()> {
+    if settings.sync.records {
+        // v2 경로: save_sync_time() 호출 없음
+        sync::sync(&settings, &db).await?;
+    } else {
+        // v1 경로: save_sync_time() 있음
+        atuin_client::sync::sync(&settings, false, &db).await?;
+    }
+}
+```
+
+**결론**:
+- daemon이 정상 동작하면 `last_sync_time` 파일이 업데이트됨
+- CLI sync (v2)는 `save_sync_time()`을 호출하지 않음 (버그로 추정되나 확실하지 않음)
+
+### 이전 커밋(b44bea2)이 동작했던 이유에 대한 분석
+
+**사실**:
+- b44bea2 커밋에서는 daemon 모드를 활성화하고, `atuin doctor`의 `last_sync` 값을 사용
+- daemon sync 코드에는 `save_sync_time()` 호출이 존재함
+
+**추측**:
+- daemon이 정상 동작했다면 `save_sync_time()`이 호출되어 `last_sync_time` 파일이 업데이트되었을 것
+- 하지만 fb8de27 커밋(활성화 후 약 15시간)에서 1948분 지연이 발견된 것으로 보아, **daemon이 처음부터 정상 동작하지 않았을 가능성**이 높음
+- "정상 동작 후 문제 발생"이 아니라 "활성화 직후부터 문제 발생"이었을 수 있음
+
+### 관찰된 daemon 불안정 증상
+
+**확인된 사실** (이번 세션에서 직접 확인):
+
+```bash
+$ launchctl print gui/$(id -u)/com.green.atuin-daemon
+runs = 218
+last exit code = 1
+```
+
+- daemon이 218번 재시작됨
+- 마지막 종료 코드가 1 (에러)
+
+**추측되는 원인** (확인되지 않음):
+- 네트워크 연결 불안정 시 복구 실패
+- 시스템 슬립/웨이크 후 복구 실패
+- 서버 측 일시적 장애 후 재연결 실패
+- atuin daemon 자체의 experimental 특성으로 인한 불안정
+
+**참고**: atuin 공식 문서에서 daemon을 "experimental" 기능으로 분류하고 있음. maintainer도 불안정하다고 언급한 적 있음 (정확한 출처 필요).
+
+### 문제 1: Watchdog이 에러를 무시함
+
+**증상**: watchdog이 sync 실패를 감지하지 못함
+
+**원인**: 기존 코드가 에러를 무시
+
+```bash
+# 기존 코드
+atuin sync 2>/dev/null || echo "Warning: sync command failed"
+```
+
+**해결**: 에러 로깅 및 상세 출력 추가
+
+```bash
+sync_output=$(atuin sync 2>&1)
+sync_exit_code=$?
+if [[ $sync_exit_code -ne 0 ]]; then
+    log_error "Sync failed (exit code: $sync_exit_code)"
+    log_error "Sync output: $sync_output"
+fi
+```
+
+### 문제 2: 네트워크 문제와 daemon 문제 구분 불가
+
+**증상**: 네트워크가 안 되는데 daemon을 재시작하려고 시도
+
+**해결**: sync 시도 전 네트워크 확인 추가
+
+```bash
+check_network_connectivity() {
+    # DNS 확인
+    if ! host "$ATUIN_SYNC_SERVER" >/dev/null 2>&1; then
+        log_error "DNS resolution failed"
+        return 1
+    fi
+
+    # HTTPS 연결 확인
+    http_code=$(curl -s -o /dev/null -w "%{http_code}" \
+        --connect-timeout 5 "https://$ATUIN_SYNC_SERVER")
+
+    if [[ "$http_code" == "000" ]]; then
+        log_error "No response from server"
+        return 1
+    fi
+
+    return 0
+}
+```
+
+### 문제 3: Atuin daemon 불안정
+
+**증상**: daemon이 exit code 1로 218번 재시작됨
+
+```bash
+$ launchctl print gui/$(id -u)/com.green.atuin-daemon
+runs = 218
+last exit code = 1
+```
+
+**원인 분석**:
+- atuin daemon은 아직 experimental 기능
+- maintainer도 불안정하다고 언급
+- 장시간 실행 시 좀비 상태로 전환
+
+**해결**: daemon 비활성화, launchd로 주기적 sync 실행
+
+```nix
+# daemon 비활성화 (config.toml)
+# daemon = { enabled = true; ... }  # 주석 처리
+
+# launchd로 2분마다 sync
+launchd.agents.atuin-sync = {
+  config = {
+    ProgramArguments = [ "/bin/bash" "-c" "atuin sync && ..." ];
+    StartInterval = 120;
+  };
+};
+```
+
+### 문제 4: CLI sync (v2)가 last_sync_time 미업데이트
+
+**증상**: `atuin sync` 성공해도 `last_sync_time` 파일이 업데이트되지 않음
+
+**원인**: atuin 소스코드 분석 결과, sync.records = true (v2) 경로에서 `save_sync_time()` 미호출
+
+```rust
+// crates/atuin/src/command/client/sync.rs
+pub async fn run(...) -> Result<()> {
+    if settings.sync.records {
+        sync::sync(&settings, &db).await?;  // save_sync_time() 없음!
+    } else {
+        atuin_client::sync::sync(...).await?;  // save_sync_time() 있음
+    }
+}
+```
+
+**해결**: launchd에서 sync 성공 후 직접 파일 업데이트
+
+```bash
+atuin sync && printf '%s' "$(date -u +'%Y-%m-%dT%H:%M:%S.000000Z')" > ~/.local/share/atuin/last_sync_time
+```
+
+### 문제 5: last_sync_time 파일 형식 오류
+
+**증상**: `atuin doctor`가 "no last sync" 반환
+
+**원인**: 줄바꿈 문자가 포함되면 파싱 실패
+
+```bash
+# 잘못된 방식
+echo "2026-01-14T02:45:00.000000Z" > last_sync_time  # 줄바꿈 포함!
+
+# 올바른 방식
+printf '%s' "2026-01-14T02:45:00.000000Z" > last_sync_time  # 줄바꿈 없음
+```
+
+### 문제 6: launchd 에이전트가 즉시 실행되지 않음
+
+**증상**: `StartInterval = 120` 설정 시 첫 interval이 지난 후에야 실행됨
+
+**해결**: `RunAtLoad = true` 추가
+
+```nix
+launchd.agents.atuin-sync = {
+  config = {
+    RunAtLoad = true;      # 로드 시 바로 첫 실행
+    StartInterval = 120;   # 이후 2분마다
+  };
+};
+```
+
+### 교훈
+
+1. **에러를 무시하지 말 것**
+   - `2>/dev/null`은 디버깅을 불가능하게 만듦
+   - 에러 출력을 로그 파일에 기록하는 것이 필수
+
+2. **네트워크 문제 우선 확인**
+   - 앱 문제인지 네트워크 문제인지 구분 필요
+   - sync 실패 시 무조건 daemon/앱 재시작이 아닌, 네트워크 확인 선행
+
+3. **experimental 기능에 대한 대비**
+   - "experimental"로 표시된 기능은 실제로 불안정할 수 있음
+   - 대안(fallback)을 미리 마련해두는 것이 좋음
+   - 이번 경우: daemon 대신 launchd + CLI sync 조합으로 대체
+
+4. **소스코드 분석의 중요성**
+   - 문서만으로는 동작을 확신할 수 없음
+   - `save_sync_time()` 미호출 같은 미묘한 차이는 소스코드에서만 확인 가능
+   - 버그인지 의도된 동작인지 판단하려면 소스코드 분석 필수
+
+5. **파일 형식의 엄격함**
+   - 줄바꿈 하나가 파싱 실패 유발 (`echo` vs `printf '%s'`)
+   - 시간 형식, 타임존 등 정확히 맞춰야 함
+
+6. **launchd 동작 이해**
+   - `StartInterval`만으로는 즉시 실행 안 됨
+   - `RunAtLoad = true` 추가해야 로드 시 첫 실행
+
+7. **커밋 메시지와 타임라인의 중요성**
+   - fb8de27 커밋 메시지에 "1948분 동기화 지연"이 기록됨
+   - 이 정보로 "daemon이 처음부터 문제였다"는 것을 역추적할 수 있었음
+   - 문제 상황을 커밋 메시지에 상세히 기록하는 것이 나중에 도움이 됨
+
+### 최종 아키텍처
+
+```
+launchd
+├── com.green.atuin-sync      # 2분마다: atuin sync + last_sync_time 업데이트
+└── com.green.atuin-watchdog  # 10분마다: 네트워크 확인 + 상태 체크 + 복구 + 알림
+```
+
+**왜 이 구조인가:**
+- daemon은 불안정 → launchd의 `StartInterval`로 주기적 sync 대체
+- CLI sync (v2)는 `last_sync_time` 미업데이트 → launchd에서 직접 파일 업데이트
+- watchdog은 상태 체크 + 복구 전담 (sync 자체는 담당하지 않음)
+
+### 발견한 atuin 동작 특성
+
+> **주의**: 아래 내용이 "버그"인지 "의도된 동작"인지는 확인되지 않음. upstream에 확인 필요.
+
+#### 1. CLI sync (v2)에서 save_sync_time() 미호출
+
+**관찰된 현상**:
+- `atuin sync` 명령이 성공해도 `~/.local/share/atuin/last_sync_time` 파일이 업데이트되지 않음
+- `atuin doctor`의 `last_sync` 값이 갱신되지 않음
+
+**소스코드 위치**: `crates/atuin/src/command/client/sync.rs`
+
+**비교**:
+| 경로 | save_sync_time() 호출 |
+|------|----------------------|
+| daemon sync | ✅ 있음 (`atuin-daemon/src/server/sync.rs:85`) |
+| CLI sync (v1) | ✅ 있음 |
+| CLI sync (v2) | ❌ 없음 |
+
+**추측**: v2로 전환하면서 누락된 것으로 보이나, 의도적일 수도 있음.
+
+#### 2. daemon 불안정
+
+**관찰된 현상**:
+- launchd에서 218번 재시작됨 (runs = 218)
+- exit code 1로 반복 종료
+- 프로세스는 실행 중이지만 sync를 수행하지 않는 "좀비" 상태 발생
+
+**추측되는 원인** (확인되지 않음):
+- experimental 기능의 특성
+- 네트워크/슬립/서버 장애 시 복구 실패
+
+**atuin 문서 참고**: daemon은 "experimental" 기능으로 분류됨.
+
+### 향후 고려사항
+
+1. **atuin upstream 이슈 확인/보고**
+   - CLI sync (v2)의 `save_sync_time()` 미호출이 버그인지 확인
+   - daemon 불안정 관련 기존 이슈가 있는지 확인
+
+2. **daemon 안정화 시 재검토**
+   - atuin 버전 업그레이드 시 daemon 안정성 재평가
+   - 안정화되면 daemon으로 복귀 가능 (더 효율적)
+
+3. **모니터링 로그 주기적 확인**
+   - `~/.local/share/atuin/watchdog.log` 확인
+   - 새로운 패턴의 문제 발생 시 조기 발견

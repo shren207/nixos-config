@@ -45,7 +45,9 @@
 - [Atuin 관련](#atuin-관련)
   - [atuin status가 404 오류 반환](#atuin-status가-404-오류-반환)
   - [Encryption key 불일치로 동기화 실패](#encryption-key-불일치로-동기화-실패)
-  - [Atuin daemon이 sync를 수행하지 않음 (좀비 상태)](#atuin-daemon이-sync를-수행하지-않음-좀비-상태)
+  - [Atuin daemon 불안정 (deprecated)](#atuin-daemon-불안정-deprecated)
+  - [CLI sync (v2)가 last_sync_time 파일 미업데이트](#cli-sync-v2가-last_sync_time-파일-미업데이트)
+  - [네트워크 문제로 sync 실패](#네트워크-문제로-sync-실패)
 
 ---
 
@@ -1099,7 +1101,7 @@ atuin doctor 2>&1 | grep -o '"last_sync": "[^"]*"'
 awd
 ```
 
-> **주의**: `~/.local/share/atuin/last_sync_time` 파일은 레거시 sync v1용이며, 현재 버전에서는 업데이트되지 않습니다. `atuin doctor`의 `last_sync` 값을 사용하세요.
+> **주의**: atuin CLI sync (v2)는 `last_sync_time` 파일을 업데이트하지 않는 버그가 있습니다. 현재 설정에서는 launchd의 `com.green.atuin-sync` 에이전트가 sync 성공 후 직접 파일을 업데이트합니다. 자세한 내용은 [CLI sync (v2)가 last_sync_time 파일 미업데이트](#cli-sync-v2가-last_sync_time-파일-미업데이트)를 참고하세요.
 
 ---
 
@@ -1147,63 +1149,130 @@ cp ~/.local/share/atuin/key ~/.local/share/atuin/key.backup-$(date +%Y%m%d)
 
 ---
 
-### Atuin daemon이 sync를 수행하지 않음 (좀비 상태)
+### Atuin daemon 불안정 (deprecated)
+
+> **발생 시점**: 2026-01-14
+> **해결**: daemon 비활성화, launchd로 대체
+
+**증상**: daemon 프로세스가 불안정하게 동작. exit code 1로 반복 종료되거나, 실행 중이지만 sync를 수행하지 않음.
+
+```bash
+# launchd 상태 확인
+launchctl print gui/$(id -u)/com.green.atuin-daemon
+# 결과: runs = 218, last exit code = 1  ← 218번 재시작, 에러로 종료
+```
+
+**원인**: atuin daemon은 아직 experimental 기능으로, 다음과 같은 문제가 있음:
+
+- 장시간 실행 시 좀비 상태로 전환
+- 네트워크 연결 불안정 시 복구 실패
+- 시스템 슬립/웨이크 후 복구 실패
+- CLI sync (v2)와 달리 save_sync_time() 호출 로직이 있으나 실제로 동작하지 않는 경우 있음
+
+**해결**: daemon 대신 launchd로 주기적 sync 실행
+
+```nix
+# modules/darwin/programs/atuin/default.nix
+launchd.agents.atuin-sync = {
+  enable = true;
+  config = {
+    Label = "com.green.atuin-sync";
+    ProgramArguments = [
+      "/bin/bash" "-c"
+      "atuin sync && printf '%s' \"$(date -u +'%Y-%m-%dT%H:%M:%S.000000Z')\" > ~/.local/share/atuin/last_sync_time"
+    ];
+    RunAtLoad = true;
+    StartInterval = 120;  # 2분마다
+  };
+};
+```
+
+**현재 상태**:
+
+| 에이전트 | 상태 | 역할 |
+| -------- | ---- | ---- |
+| `com.green.atuin-daemon` | 삭제됨 | - |
+| `com.green.atuin-sync` | 활성화 | 2분마다 sync |
+| `com.green.atuin-watchdog` | 활성화 | 10분마다 상태 체크 |
+
+---
+
+### CLI sync (v2)가 last_sync_time 파일 미업데이트
+
+> **발생 시점**: 2026-01-14
+> **상태**: atuin 버그, 우회 적용
+
+**증상**: `atuin sync` 명령이 성공해도 `~/.local/share/atuin/last_sync_time` 파일이 업데이트되지 않음.
+
+```bash
+$ cat ~/.local/share/atuin/last_sync_time
+2026-01-13T12:57:07.715542Z  # 어제 시간
+
+$ atuin sync
+0/0 up/down to record store
+Sync complete! 51888 items in history database, force: false
+
+$ cat ~/.local/share/atuin/last_sync_time
+2026-01-13T12:57:07.715542Z  # 여전히 어제 시간!
+```
+
+**원인**: atuin 소스코드 분석 결과, CLI sync (v2)에서 `save_sync_time()` 함수가 호출되지 않음.
+
+```rust
+// crates/atuin/src/command/client/sync.rs
+// sync.records = true (v2) 경로에서 save_sync_time() 미호출
+pub async fn run(...) -> Result<()> {
+    if settings.sync.records {
+        // v2 sync - save_sync_time() 없음!
+        sync::sync(&settings, &db).await?;
+    } else {
+        // v1 sync - save_sync_time() 있음
+        atuin_client::sync::sync(&settings, false, &db).await?;
+    }
+}
+```
+
+**해결**: launchd에서 sync 성공 후 직접 파일 업데이트
+
+```bash
+atuin sync && printf '%s' "$(date -u +'%Y-%m-%dT%H:%M:%S.000000Z')" > ~/.local/share/atuin/last_sync_time
+```
+
+**주의사항**:
+
+- 줄바꿈 없이 작성해야 함 (`echo` 대신 `printf '%s'`)
+- UTC 시간으로 작성해야 함 (`date -u`)
+- 형식: `YYYY-MM-DDTHH:MM:SS.000000Z`
+
+---
+
+### 네트워크 문제로 sync 실패
 
 > **발생 시점**: 2026-01-14
 
-**증상**: daemon 프로세스는 실행 중이지만 동기화가 수행되지 않음. 메뉴바에 "동기화 지연"이 표시됨.
+**증상**: 회사 네트워크 등에서 sync가 실패하지만 원인을 알 수 없음.
+
+**원인**: 기존 watchdog이 에러를 무시(`2>/dev/null`)하고, 네트워크 상태를 확인하지 않았음.
+
+**해결**: watchdog에 네트워크 확인 및 로깅 추가
 
 ```bash
-# daemon이 실행 중인지 확인
-ps aux | grep "atuin daemon"
-# 결과: 프로세스가 있음
+# 네트워크 확인 (DNS + HTTPS)
+host api.atuin.sh
+curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 https://api.atuin.sh
 
-# 하지만 동기화가 안 됨
-awd
-# 결과: 동기화 지연 (수십~수백 분 초과)
+# 로그 확인
+tail -f ~/.local/share/atuin/watchdog.log
 ```
 
-**원인**: daemon이 "좀비" 상태에 빠짐. 프로세스는 살아있지만 내부적으로 sync를 수행하지 않음. 정확한 원인은 파악되지 않았으나, 다음과 같은 상황에서 발생할 수 있음:
+**로그 파일**: `~/.local/share/atuin/watchdog.log`
 
-- 장시간 네트워크 연결 불안정
-- 시스템 슬립/웨이크 후 복구 실패
-- 서버 측 일시적 장애 후 재연결 실패
-
-**해결**:
-
-**자동 해결 (권장)**
-
-watchdog 스크립트가 자동으로 daemon을 재시작합니다. 10분마다 상태를 체크하고, 5분 이상 동기화가 안 되면:
-
-1. daemon 재시작 (`launchctl kickstart -k`)
-2. 강제 sync 실행 (`atuin sync`)
-3. 상태 확인 후 알림 전송
-
-대부분의 경우 자동 복구됩니다.
-
-**수동 해결** (자동 복구 실패 시)
-
-```bash
-# daemon 수동 재시작
-launchctl kickstart -k gui/$(id -u)/com.green.atuin-daemon
-
-# sync 강제 실행
-atuin sync
-
-# 상태 확인
-awd
+```
+[2026-01-14 11:29:51] [INFO] === Atuin Watchdog ===
+[2026-01-14 11:29:51] [INFO] Host: work-MacBookPro
+[2026-01-14 11:29:51] [INFO] Checking network to api.atuin.sh...
+[2026-01-14 11:29:51] [ERROR] DNS resolution failed for api.atuin.sh
+[2026-01-14 11:29:51] [ERROR] Network issue detected - skipping recovery
 ```
 
-**진단 방법**:
-
-```bash
-# launchd 서비스 상태 확인
-launchctl print gui/$(id -u)/com.green.atuin-daemon
-
-# 확인할 항목:
-# - state = running (프로세스 상태)
-# - runs = N (재시작 횟수, 너무 높으면 문제)
-# - last exit code = 0 (정상 종료)
-```
-
-> **참고**: 자동 복구 기능은 watchdog 스크립트에서 제공합니다. 자세한 내용은 [FEATURES.md](FEATURES.md#atuin-동기화-모니터링)를 참고하세요.
+> **참고**: 자동 복구 기능에 대한 자세한 내용은 [FEATURES.md](FEATURES.md#atuin-모니터링-시스템)를 참고하세요.
