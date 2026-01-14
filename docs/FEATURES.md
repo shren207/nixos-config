@@ -451,13 +451,26 @@ claude plugin uninstall plugin-name@marketplace --scope user
 
 시스템 설정 적용을 위한 편리한 alias입니다.
 
-| Alias         | 명령어                                                                     | 용도                                        |
-| ------------- | -------------------------------------------------------------------------- | ------------------------------------------- |
-| `nrs`         | `sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config`           | 일반 rebuild                                |
-| `nrs-offline` | `sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config --offline` | 오프라인 rebuild (빠름)                     |
-| `hs`          | Hammerspoon CLI                                                            | Hammerspoon 명령 실행                       |
-| `hsr`         | `hs -c "hs.reload()"`                                                      | Hammerspoon 설정 리로드 (완료 시 알림 표시) |
-| `reset-term`  | `printf "\033[?u\033[<u"`                                                  | 터미널 CSI u 모드 리셋 (문제 발생 시 복구)  |
+| Alias         | 용도                                        |
+| ------------- | ------------------------------------------- |
+| `nrs`         | 일반 rebuild (launchd 정리 + Hammerspoon 재시작 포함) |
+| `nrs-offline` | 오프라인 rebuild (빠름, 동일한 안전 조치 포함) |
+| `hs`          | Hammerspoon CLI                             |
+| `hsr`         | Hammerspoon 설정 리로드 (완료 시 알림 표시) |
+| `reset-term`  | 터미널 CSI u 모드 리셋 (문제 발생 시 복구)  |
+
+**`nrs` / `nrs-offline` 동작 흐름:**
+
+```
+1. 🧹 launchd 에이전트 정리 (setupLaunchAgents 멈춤 방지)
+   └── com.green.* 에이전트 bootout + plist 삭제
+
+2. 🔨 darwin-rebuild switch 실행
+   └── --offline 플래그 (nrs-offline만)
+
+3. 🔄 Hammerspoon 완전 재시작 (HOME 오염 방지)
+   └── killall → sleep 1 → open -a Hammerspoon
+```
 
 **사용 시나리오:**
 
@@ -474,6 +487,15 @@ nrs          # 일반 모드 (다운로드 필요)
 - 네트워크 요청을 하지 않고 로컬 캐시(`/nix/store`)만 사용
 - flake input 버전 확인, substituter 확인 등을 스킵
 - **속도 향상**: 일반 모드 ~3분 → 오프라인 모드 ~10초 (약 18배 빠름)
+
+**자동 예방 조치:**
+
+| 문제 | 예방 방법 |
+|------|----------|
+| `setupLaunchAgents`에서 멈춤 | rebuild 전 launchd 에이전트 정리 |
+| Hammerspoon HOME이 `/var/root`로 오염 | rebuild 후 Hammerspoon 완전 재시작 |
+
+> **참고**: 문제 상세 내용은 [TROUBLESHOOTING.md](TROUBLESHOOTING.md#darwin-rebuild-시-setuplaunchagents에서-멈춤)를 참고하세요.
 
 **주의사항:**
 

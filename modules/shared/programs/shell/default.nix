@@ -31,9 +31,38 @@
     # broot: tree 스타일 출력
     bt = "br -c :pt";
 
-    # Nix rebuild
-    nrs = "sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config";
-    nrs-offline = "sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config --offline";
+    # Nix rebuild (launchd 에이전트 정리 + Hammerspoon 재시작 포함)
+    # 문제 예방: setupLaunchAgents 멈춤, Hammerspoon HOME 오염
+    nrs = ''
+      echo "🧹 Cleaning up launchd agents..." && \
+      launchctl bootout gui/$(id -u)/com.green.atuin-watchdog 2>/dev/null; \
+      launchctl bootout gui/$(id -u)/com.green.folder-action.compress-rar 2>/dev/null; \
+      launchctl bootout gui/$(id -u)/com.green.folder-action.compress-video 2>/dev/null; \
+      launchctl bootout gui/$(id -u)/com.green.folder-action.convert-video-to-gif 2>/dev/null; \
+      launchctl bootout gui/$(id -u)/com.green.folder-action.rename-asset 2>/dev/null; \
+      rm -f ~/Library/LaunchAgents/com.green.*.plist && \
+      sleep 1 && \
+      echo "🔨 Running darwin-rebuild..." && \
+      sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config && \
+      echo "🔄 Restarting Hammerspoon..." && \
+      killall Hammerspoon 2>/dev/null; sleep 1; open -a Hammerspoon && \
+      echo "✅ Done!"
+    '';
+    nrs-offline = ''
+      echo "🧹 Cleaning up launchd agents..." && \
+      launchctl bootout gui/$(id -u)/com.green.atuin-watchdog 2>/dev/null; \
+      launchctl bootout gui/$(id -u)/com.green.folder-action.compress-rar 2>/dev/null; \
+      launchctl bootout gui/$(id -u)/com.green.folder-action.compress-video 2>/dev/null; \
+      launchctl bootout gui/$(id -u)/com.green.folder-action.convert-video-to-gif 2>/dev/null; \
+      launchctl bootout gui/$(id -u)/com.green.folder-action.rename-asset 2>/dev/null; \
+      rm -f ~/Library/LaunchAgents/com.green.*.plist && \
+      sleep 1 && \
+      echo "🔨 Running darwin-rebuild (offline)..." && \
+      sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config --offline && \
+      echo "🔄 Restarting Hammerspoon..." && \
+      killall Hammerspoon 2>/dev/null; sleep 1; open -a Hammerspoon && \
+      echo "✅ Done!"
+    '';
 
     # Hammerspoon CLI
     hs = "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs";

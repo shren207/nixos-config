@@ -26,6 +26,8 @@
   - [delta가 적용되지 않음](#delta가-적용되지-않음)
   - [~/.gitconfig과 Home Manager 설정이 충돌함](#gitconfig과-home-manager-설정이-충돌함)
 - [launchd 관련](#launchd-관련)
+  - [darwin-rebuild 시 setupLaunchAgents에서 멈춤](#darwin-rebuild-시-setuplaunchagents에서-멈춤)
+  - [darwin-rebuild 후 Hammerspoon HOME이 /var/root로 인식](#darwin-rebuild-후-hammerspoon-home이-varroot로-인식)
 - [Hammerspoon 관련](#hammerspoon-관련)
   - [Ghostty가 새 인스턴스로 열림 (Dock에 여러 아이콘)](#ghostty가-새-인스턴스로-열림-dock에-여러-아이콘)
   - [Ghostty +new-window가 macOS에서 동작하지 않음](#ghostty-new-window가-macos에서-동작하지-않음)
@@ -551,6 +553,109 @@ launchctl list | grep com.green
 
 # 로그 확인
 cat ~/Library/Logs/folder-actions/*.log
+```
+
+### darwin-rebuild 시 setupLaunchAgents에서 멈춤
+
+> **발생 시점**: 2026-01-14
+
+**증상**: `sudo darwin-rebuild switch --flake .` 실행 시 `Activating setupLaunchAgents` 단계에서 무한 대기.
+
+```
+Activating setCursorAsDefaultEditor
+Setting Cursor as default editor for code files...
+Cursor default settings applied successfully.
+Activating setupLaunchAgents
+← 여기서 멈춤
+```
+
+**원인**: Home Manager의 `setupLaunchAgents`가 launchd 에이전트를 reload할 때 발생하는 문제입니다.
+
+| 원인 | 설명 |
+|------|------|
+| **launchd 상태 충돌** | 이전 darwin-rebuild가 중단(Ctrl+C)된 후 에이전트가 불완전한 상태로 남음 |
+| **sudo GUI 도메인 접근** | sudo로 실행 시 UID가 0이 되어 `gui/501` 도메인 접근에 문제 발생 |
+| **타이밍 문제** | `launchctl bootout` 후 내부 상태 정리가 완료되기 전에 재시도 |
+
+**Home Manager의 setupLaunchAgents 동작**:
+
+```bash
+# 각 에이전트에 대해 순차 실행
+/bin/launchctl bootout "gui/$UID/$agentName"  # 에이전트 중지
+sleep 1                                        # 1초 대기
+/bin/launchctl bootstrap "gui/$UID" "$dstPath" # 에이전트 시작
+```
+
+**해결**:
+
+```bash
+# 1. 멈춘 darwin-rebuild를 Ctrl+C로 중단
+
+# 2. 에이전트 수동 정리 (sudo 없이 실행!)
+launchctl bootout gui/$(id -u)/com.green.atuin-watchdog 2>/dev/null
+launchctl bootout gui/$(id -u)/com.green.folder-action.compress-rar 2>/dev/null
+launchctl bootout gui/$(id -u)/com.green.folder-action.compress-video 2>/dev/null
+launchctl bootout gui/$(id -u)/com.green.folder-action.convert-video-to-gif 2>/dev/null
+launchctl bootout gui/$(id -u)/com.green.folder-action.rename-asset 2>/dev/null
+
+# 3. plist 파일 삭제
+rm -f ~/Library/LaunchAgents/com.green.*.plist
+
+# 4. 2-3초 대기 후 재시도
+sleep 3
+sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config
+```
+
+**예방**: `nrs` alias 사용 시 자동으로 에이전트를 정리합니다. 자세한 내용은 [FEATURES.md](FEATURES.md#darwin-rebuild-alias)를 참고하세요.
+
+---
+
+### darwin-rebuild 후 Hammerspoon HOME이 /var/root로 인식
+
+> **발생 시점**: 2026-01-14
+
+**증상**: darwin-rebuild 완료 후 Atuin menubar가 "오류 발생" 상태 표시. Hammerspoon이 watchdog 스크립트 실행 실패.
+
+```lua
+-- Hammerspoon 콘솔에서 확인
+hs -c 'return hs.execute(os.getenv("HOME") .. "/.local/bin/atuin-watchdog.sh --status 2>&1")'
+-- 결과: sh: /var/root/.local/bin/atuin-watchdog.sh: Permission denied
+```
+
+**원인**: `sudo darwin-rebuild` 실행 중 Hammerspoon이 IPC를 통해 reload되면 환경변수가 오염됩니다.
+
+```
+sudo darwin-rebuild switch
+   ↓
+activation script에서 hs -c "hs.reload()" 실행
+   ↓
+Hammerspoon이 sudo 환경에서 reload됨
+   ↓
+os.getenv("HOME") = "/var/root" (root의 HOME)
+   ↓
+watchdog 스크립트 경로가 /var/root/.local/bin/...로 잘못 해석됨
+```
+
+**해결**: Hammerspoon 완전 재시작
+
+```bash
+# 방법 1: 메뉴바에서 Quit 후 재실행
+# Hammerspoon 아이콘 → Quit Hammerspoon → Spotlight에서 다시 실행
+
+# 방법 2: 터미널에서
+killall Hammerspoon && open -a Hammerspoon
+```
+
+**예방**: `nrs` alias 사용 시 darwin-rebuild 완료 후 자동으로 Hammerspoon을 재시작합니다.
+
+```nix
+# modules/shared/shell/zsh/aliases.nix
+nrs = ''
+  # ... 에이전트 정리 ...
+  sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config
+  # Hammerspoon 완전 재시작 (환경변수 오염 방지)
+  killall Hammerspoon 2>/dev/null; sleep 1; open -a Hammerspoon
+'';
 ```
 
 ---
