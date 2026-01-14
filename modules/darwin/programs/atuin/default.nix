@@ -5,20 +5,13 @@ let
   atuinFilesPath = "${toString ./.}/files";
 
   # 모니터링 설정 (Single Source of Truth)
-  syncInterval = 120;             # 2분 (초) - launchd sync 주기
+  # 참고: 실제 sync는 atuin 내장 auto_sync가 담당 (sync_frequency = 1m)
   syncCheckInterval = 600;        # 10분 (초) - watchdog 상태 체크 주기
   syncThresholdMinutes = 5;       # 5분 이상 동기화 안 되면 경고
 
-  # 복구 설정
-  maxRetryCount = 3;              # 최대 재시도 횟수
-  initialBackoffSeconds = 5;      # 초기 백오프 (초)
-  daemonStartupWait = 5;          # 에이전트 재시작 대기 (초)
-  networkCheckTimeout = 5;        # 네트워크 체크 타임아웃 (초)
-  atuinSyncServer = "api.atuin.sh";  # sync 서버
-
   # Hammerspoon용 JSON 설정 파일
   monitorConfigJson = builtins.toJSON {
-    inherit syncInterval syncCheckInterval syncThresholdMinutes;
+    inherit syncCheckInterval syncThresholdMinutes;
   };
 in
 {
@@ -31,28 +24,8 @@ in
     executable = true;
   };
 
-  # launchd 에이전트: 주기적 sync (daemon 대체)
-  # daemon은 아직 experimental이므로 launchd로 주기적 sync 실행
-  # 참고: atuin CLI sync (v2)가 last_sync_time을 업데이트하지 않는 버그가 있어서
-  # bash -c로 sync 후 파일을 직접 업데이트
-  launchd.agents.atuin-sync = {
-    enable = true;
-    config = {
-      Label = "com.green.atuin-sync";
-      ProgramArguments = [
-        "/bin/bash" "-c"
-        "atuin sync && printf '%s' \"$(date -u +'%Y-%m-%dT%H:%M:%S.000000Z')\" > ~/.local/share/atuin/last_sync_time"
-      ];
-      RunAtLoad = true;           # 로드 시 바로 첫 실행
-      StartInterval = syncInterval; # 이후 주기적 sync
-      EnvironmentVariables = {
-        PATH = "/etc/profiles/per-user/${config.home.username}/bin:/run/current-system/sw/bin:${homeDir}/.nix-profile/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin";
-        HOME = homeDir;
-      };
-    };
-  };
-
   # launchd 에이전트: Watchdog (동기화 상태 감시 + 알림)
+  # 참고: sync 자체는 atuin 내장 auto_sync가 담당하므로, watchdog은 모니터링만 수행
   launchd.agents.atuin-watchdog = {
     enable = true;
     config = {
@@ -63,12 +36,6 @@ in
         PATH = "/etc/profiles/per-user/${config.home.username}/bin:/run/current-system/sw/bin:${homeDir}/.nix-profile/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin";
         HOME = homeDir;
         ATUIN_SYNC_THRESHOLD_MINUTES = toString syncThresholdMinutes;
-        # 복구 설정
-        ATUIN_MAX_RETRY_COUNT = toString maxRetryCount;
-        ATUIN_INITIAL_BACKOFF = toString initialBackoffSeconds;
-        ATUIN_DAEMON_STARTUP_WAIT = toString daemonStartupWait;
-        ATUIN_NETWORK_CHECK_TIMEOUT = toString networkCheckTimeout;
-        ATUIN_SYNC_SERVER = atuinSyncServer;
       };
     };
   };

@@ -177,80 +177,34 @@ br -w
 
 `modules/darwin/programs/atuin/`에서 관리됩니다.
 
-Atuin 동기화 상태를 모니터링하고, 동기화 지연 시 자동 복구 및 알림을 전송합니다.
+Atuin 동기화 상태를 모니터링하고, 동기화 지연 시 알림을 전송합니다.
 
 **아키텍처:**
 
 ```
-동기화 트리거
+auto_sync (atuin 내장)
     │
-    ├──▶ auto_sync (터미널 명령 실행 시)
-    │         │
-    │         ├──▶ sync_frequency (1분) 간격으로 자동 sync
-    │         └──▶ save_sync_time() 호출 → last_sync_time 업데이트
+    └──▶ 터미널 명령 실행 시 sync_frequency (1분) 간격으로 자동 sync
+
+Hammerspoon 메뉴바 (1분마다)
     │
-    ├──▶ com.green.atuin-sync (launchd, 2분마다)
-    │         │
-    │         ├──▶ 터미널 미사용 시 백업 sync
-    │         └──▶ atuin sync + last_sync_time 직접 업데이트
+    └──▶ 🐢 아이콘 상태 업데이트
+
+com.green.atuin-watchdog (launchd, 10분마다)
     │
-    ├──▶ com.green.atuin-watchdog (launchd, 10분마다)
-    │         │
-    │         ├──▶ 네트워크 연결 확인 (DNS + HTTPS)
-    │         ├──▶ 동기화 상태 점검
-    │         └──▶ 지연 시 자동 복구 + 알림
-    │
-    └──▶ Hammerspoon 메뉴바 (1분마다)
-              │
-              └──▶ 🐢 아이콘 상태 업데이트
+    ├──▶ 동기화 상태 점검
+    └──▶ 지연 시 알림 전송
 ```
 
-> **참고**: atuin daemon은 experimental 기능으로 불안정하여 비활성화했습니다.
-> - **터미널 사용 시**: atuin의 내장 auto_sync가 `sync_frequency` (1분) 간격으로 sync 수행
-> - **터미널 미사용 시**: launchd가 2분마다 `atuin sync` 실행 (백업)
+> **참고**: 동기화는 atuin 내장 `auto_sync`가 담당합니다. watchdog은 모니터링 + 알림만 수행합니다.
 
 **기능:**
 
 | 컴포넌트 | 역할 |
 | ---- | ---- |
 | auto_sync (atuin 내장) | 터미널 명령 실행 시 sync_frequency (1분) 간격으로 자동 sync |
-| com.green.atuin-sync | 2분마다 백업 sync 실행 + last_sync_time 업데이트 |
-| com.green.atuin-watchdog | 10분마다 상태 체크, 네트워크 확인, 자동 복구 + 알림 |
+| com.green.atuin-watchdog | 10분마다 상태 체크 + 알림 |
 | Hammerspoon 메뉴바 | 🐢 아이콘으로 상태 표시, 1분마다 갱신 |
-
-**sync 방식 비교:**
-
-| 방식 | 트리거 | save_sync_time() | 용도 |
-| ---- | ---- | ---- | ---- |
-| auto_sync | 터미널 명령 실행 후 | ✅ 호출 | 주 동기화 방식 |
-| launchd sync | 2분마다 (StartInterval) | ❌ 미호출 (직접 업데이트) | 터미널 미사용 시 백업 |
-
-> **중요**: CLI `atuin sync` 명령은 `save_sync_time()`을 호출하지 않는 버그(또는 의도된 동작)가 있어서, launchd에서 sync 성공 후 직접 `last_sync_time` 파일을 업데이트합니다.
-
-**자동 복구 기능:**
-
-watchdog이 동기화 지연(5분 초과)을 감지하면 다단계 복구를 시도합니다:
-
-```
-동기화 지연 감지 (5분 초과)
-    │
-    ├──▶ 1. 네트워크 연결 확인 (DNS + HTTPS)
-    │         └── 실패 시 → 네트워크 오류 알림, 종료
-    │
-    ├──▶ 2. sync 재시도 (지수 백오프: 5초→10초→20초, 최대 3회)
-    │         └── 성공 시 → ✅ 복구 알림, 종료
-    │
-    ├──▶ 3. sync 실패 시 → launchctl로 sync 에이전트 재시작
-    │         └── 5초 대기 후 다시 sync 재시도
-    │
-    └──▶ 4. 모든 시도 실패 → ❌ 에러 알림 (Pushover 포함)
-```
-
-| 상황 | 알림 |
-| ---- | ---- |
-| 네트워크 문제 | "🐢⚠️ Atuin 네트워크 오류" (Pushover 포함) |
-| 자동 복구 성공 | "🐢✅ Atuin 복구됨" (macOS 알림만) |
-| 모든 시도 실패 | "🐢❌ Atuin 동기화 실패" (Pushover 포함) |
 
 **메뉴바:**
 
@@ -268,12 +222,9 @@ watchdog이 동기화 지연(5분 초과)을 감지하면 다단계 복구를 �
 ├─ 마지막 동기화: 2026-01-13 17:42:42 (1분 전)
 ├─ 히스토리: 63개
 ├─ ─────────────
-├─ Auto Sync 주기: 2분마다       ← launchd sync 주기 (백업용)
 ├─ 상태 체크 주기: 10분마다
 └─ 동기화 경고 임계값: 5분
 ```
-
-> **참고**: 메뉴의 "Auto Sync 주기"는 launchd의 백업 sync 주기를 표시합니다. 실제로는 터미널 사용 시 atuin 내장 auto_sync가 `sync_frequency` (1분) 간격으로 더 자주 sync합니다.
 
 **상태 판단 기준:**
 
@@ -283,25 +234,18 @@ watchdog이 동기화 지연(5분 초과)을 감지하면 다단계 복구를 �
 | 경고 | 5분 초과 | ⚠️ 동기화 지연 (N분 초과) |
 | 에러 | 파일 없음/파싱 실패 | ❌ 오류 발생 |
 
-**알림 채널:**
+**알림:**
 
-| 상태 | macOS 알림 | Hammerspoon | Pushover |
-| ---- | ---------- | ----------- | -------- |
-| 정상 | ❌ | 메뉴바만 | ❌ |
-| 경고/에러 | ✅ | ✅ | ✅ |
+| 상황 | 알림 |
+| ---- | ---- |
+| 5분~30분 지연 | macOS 알림 + Hammerspoon |
+| 30분 초과 | macOS 알림 + Hammerspoon + Pushover |
 
 **설정값** (`default.nix`에서 중앙 관리):
 
 ```nix
-# 모니터링 설정
 syncCheckInterval = 600;        # 10분 (초) - watchdog 실행 주기
 syncThresholdMinutes = 5;       # 5분 - 경고 임계값
-
-# 복구 설정
-maxRetryCount = 3;              # 최대 재시도 횟수
-initialBackoffSeconds = 5;      # 초기 백오프 (초)
-daemonStartupWait = 5;          # 에이전트 재시작 대기 (초)
-networkCheckTimeout = 5;        # 네트워크 체크 타임아웃 (초)
 ```
 
 **Alias:**
@@ -309,13 +253,6 @@ networkCheckTimeout = 5;        # 네트워크 체크 타임아웃 (초)
 | Alias | 명령어 | 설명 |
 | ----- | ------ | ---- |
 | `awd` | `~/.local/bin/atuin-watchdog.sh` | 수동 실행 |
-
-**launchd 에이전트:**
-
-| Label | 역할 | 주기 |
-| ----- | ---- | ---- |
-| `com.green.atuin-sync` | sync 실행 + last_sync_time 업데이트 | 2분 |
-| `com.green.atuin-watchdog` | 상태 체크 + 자동 복구 + 알림 | 10분 |
 
 ```bash
 # launchd 상태 확인
@@ -330,8 +267,6 @@ tail -f ~/.local/share/atuin/watchdog.log
 | 문제 | 설명 | 상태 |
 | ---- | ---- | ---- |
 | `atuin status` 404 | Atuin 서버가 Sync v1 API 비활성화 | 무시해도 됨 |
-| CLI sync (v2)가 last_sync_time 미업데이트 | atuin 버그, launchd에서 직접 업데이트 | 우회 적용 |
-| daemon 불안정 | experimental 기능, launchd로 대체 | 해결됨 |
 
 > **참고**: 자세한 트러블슈팅은 [TROUBLESHOOTING.md](TROUBLESHOOTING.md#atuin-관련)를 참고하세요.
 

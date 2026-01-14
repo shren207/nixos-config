@@ -1175,3 +1175,193 @@ launchd에서 `atuin sync` 실행 후 직접 파일을 업데이트하는 workar
 3. **모니터링 로그 주기적 확인**
    - `~/.local/share/atuin/watchdog.log` 확인
    - 새로운 패턴의 문제 발생 시 조기 발견
+
+---
+
+## 2026-01-14: Atuin 모니터링 시스템 대청소
+
+### 배경: 왜 이렇게 복잡해졌나?
+
+이 섹션은 atuin 동기화 문제 해결 과정에서 시스템이 어떻게 복잡해졌고, 왜 대청소가 필요했는지 기록합니다.
+
+### 전체 히스토리 (시간순)
+
+#### 1단계: v1 API 시절 (문제 없음)
+
+- atuin을 처음 사용하기 시작
+- v1 API로 정상적으로 집 <-> 회사 간 히스토리 동기화
+- 별다른 설정 없이 기본값으로 동작
+
+#### 2단계: 동기화 실패 시작 (원인 모름)
+
+**증상**:
+- 어느 날부터 집 <-> 회사 맥북 간 히스토리 공유가 안 됨
+- `atuin status`가 404 오류 반환
+
+**당시 추측** (잘못됨):
+- "서버 문제인가?"
+- "네트워크 문제인가?"
+- "daemon을 사용하면 해결될까?"
+
+**실제 원인** (나중에 파악):
+- Atuin 서버가 v1 API를 deprecated하고 v2로 전환
+- 내 설정에 `sync.records = true` (v2 활성화)가 없었음
+- 단순히 이 한 줄만 추가하면 해결됐을 문제
+
+#### 3단계: daemon 활성화 시도 (2026-01-13)
+
+**시도한 것**:
+```nix
+daemon = {
+  enabled = true;
+  sync_frequency = 60;
+};
+```
+
+**결과**:
+- 처음에는 동작하는 것처럼 보임
+- 하지만 15시간 후 "1948분 동기화 지연" 발견
+- daemon이 처음부터 정상 동작하지 않았을 가능성 높음
+
+#### 4단계: watchdog + 자동 복구 추가 (2026-01-14 오전)
+
+**시도한 것**:
+- daemon 상태 모니터링
+- 동기화 지연 시 daemon 자동 재시작
+- 네트워크 확인 로직
+- 지수 백오프 재시도 (5초 → 10초 → 20초)
+
+**결과**:
+- 여전히 문제 해결 안 됨
+- daemon이 218번 재시작되는 것 확인 (runs = 218, exit code = 1)
+
+#### 5단계: daemon 포기, CLI sync로 대체 (2026-01-14 오전)
+
+**시도한 것**:
+- daemon 비활성화
+- launchd로 2분마다 `atuin sync` 실행
+- CLI sync가 `last_sync_time`을 업데이트하지 않는 버그 발견
+- workaround: sync 성공 후 직접 파일 업데이트
+
+**결과**:
+- 동작은 하지만 시스템이 매우 복잡해짐
+
+#### 6단계: 핵심 발견 - auto_sync의 존재 (2026-01-14 오후)
+
+**발견**:
+- atuin에는 내장 `auto_sync` 기능이 있음
+- 터미널에서 명령 실행 시 `sync_frequency` 간격으로 자동 sync
+- **history end의 auto_sync는 `save_sync_time()`을 호출함!**
+
+**소스코드 증거** (`crates/atuin/src/command/client/history.rs:460-462`):
+```rust
+if settings.sync.records {
+    let (_, downloaded) = record::sync::sync(settings, &store).await?;
+    Settings::save_sync_time()?;  // ← 여기서 호출!
+}
+```
+
+**깨달음**:
+- 우리가 만든 launchd sync는 불필요했음
+- auto_sync가 이미 모든 것을 처리하고 있었음
+- 단지 `sync.records = true`만 추가하면 됐음
+
+#### 7단계: 대청소 (2026-01-14 오후)
+
+**제거한 것**:
+- `launchd.agents.atuin-sync` (불필요)
+- watchdog의 복구 로직 (auto_sync가 담당)
+- 복잡한 설정들 (maxRetryCount, initialBackoffSeconds, networkCheckTimeout 등)
+
+**남긴 것**:
+- `sync.records = true` (v2 sync 활성화) - **근본 해결책**
+- `auto_sync = true` (기본값)
+- watchdog (상태 체크 + 알림만)
+- Hammerspoon 메뉴바 (상태 표시)
+
+### 코드 변화량
+
+| 파일 | 변경 전 | 변경 후 | 감소 |
+|------|--------|--------|------|
+| default.nix | 80줄 | 47줄 | -33줄 |
+| atuin-watchdog.sh | 311줄 | 155줄 | -156줄 |
+| atuin_menubar.lua | 297줄 | 273줄 | -24줄 |
+| **총계** | 688줄 | 475줄 | **-213줄 (31% 감소)** |
+
+### 최종 아키텍처 (단순화됨)
+
+```
+auto_sync (atuin 내장)
+    └── 터미널 명령 실행 시 1분 간격으로 자동 sync
+
+Hammerspoon 메뉴바
+    └── 1분마다 상태 표시 업데이트
+
+watchdog (launchd, 10분마다)
+    └── 상태 체크 + 지연 시 알림
+```
+
+### 핵심 교훈
+
+#### 1. 근본 원인을 찾아라
+
+**잘못된 접근**:
+- "동기화가 안 된다" → "daemon을 써보자" → "daemon이 불안정하다" → "watchdog으로 복구하자" → "CLI sync로 대체하자"
+
+**올바른 접근**:
+- "동기화가 안 된다" → "왜?" → "v1 API가 deprecated됐다" → "`sync.records = true` 추가" → 끝
+
+**교훈**: 문제의 근본 원인을 파악하지 않고 증상만 치료하면 시스템이 불필요하게 복잡해진다.
+
+#### 2. 기존 기능을 먼저 확인하라
+
+**잘못된 접근**:
+- "sync가 필요하다" → "launchd로 주기적 sync를 만들자"
+
+**올바른 접근**:
+- "sync가 필요하다" → "atuin에 이미 auto_sync가 있나?" → "있다!" → "그럼 그걸 쓰자"
+
+**교훈**: 새로운 기능을 추가하기 전에 기존 도구가 이미 제공하는 기능을 확인하라.
+
+#### 3. 단순함을 유지하라
+
+**복잡했던 구조**:
+```
+daemon (불안정) + launchd sync (백업) + watchdog (복구) + 메뉴바
+```
+
+**단순해진 구조**:
+```
+auto_sync (내장) + watchdog (모니터링) + 메뉴바
+```
+
+**교훈**: 복잡한 해결책은 대개 문제를 제대로 이해하지 못했다는 신호다.
+
+#### 4. 문서를 읽어라
+
+이번 문제의 해결책은 atuin 공식 문서에 있었다:
+- https://docs.atuin.sh/cli/sync-v2/ → `sync.records = true`
+- https://docs.atuin.sh/reference/sync/ → auto_sync 설명
+
+**교훈**: 문제가 발생하면 공식 문서를 먼저 확인하라.
+
+#### 5. 소스코드를 읽어라
+
+문서만으로 불충분할 때:
+- CLI sync vs history end의 `save_sync_time()` 호출 차이
+- 이런 미묘한 동작 차이는 소스코드에서만 확인 가능
+
+**교훈**: 도구의 정확한 동작을 알고 싶다면 소스코드를 읽어라.
+
+### 이 경험에서 배운 것
+
+1. **v1 → v2 마이그레이션 문서 확인**: API 버전 변경 시 마이그레이션 가이드 확인 필수
+2. **experimental 기능 주의**: daemon은 experimental로 표시됨, 프로덕션에서 주의
+3. **auto_sync의 존재**: atuin은 이미 auto_sync를 제공, 별도 sync 스케줄러 불필요
+4. **sync 경로별 동작 차이**: CLI sync와 history end의 동작이 다름 (버그일 수 있음)
+
+### 향후 참고사항
+
+1. **atuin 업그레이드 시**: 릴리즈 노트 확인, 특히 sync 관련 변경사항
+2. **동기화 문제 발생 시**: 먼저 `sync.records` 설정 확인
+3. **daemon 사용 고려 시**: experimental 상태 확인, 안정화되면 재검토 가능

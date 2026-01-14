@@ -111,30 +111,26 @@
   };
 
   # Atuin 히스토리
+  # 동기화: auto_sync가 터미널 명령 실행 시 sync_frequency 간격으로 자동 sync
+  # 모니터링: modules/darwin/programs/atuin/에서 watchdog + Hammerspoon 메뉴바 제공
   programs.atuin = {
     enable = true;
     settings = {
-      auto_sync = true;
-      update_check = false;
-      sync_frequency = "1m";
-      style = "compact";
-      inline_height = 9;
-      show_help = false;
+      # 동기화 설정
+      auto_sync = true;              # 명령 실행 후 자동 sync
+      sync_frequency = "1m";         # auto_sync 최소 간격
+      sync.records = true;           # Sync v2 (record-based sync) 활성화
 
-      # 네트워크 타임아웃 설정 (회사 환경 등에서 무한 대기 방지)
+      # 네트워크 타임아웃
       network_timeout = 30;          # 서버 요청 최대 대기 (초)
       network_connect_timeout = 5;   # 연결 수립 대기 (초)
       local_timeout = 5;             # SQLite 연결 대기 (초)
 
-      # Sync v2 활성화 (record-based sync)
-      sync = {
-        records = true;
-      };
-      # Daemon 모드 비활성화 (불안정하므로 launchd로 대체)
-      # daemon = {
-      #   enabled = true;
-      #   sync_frequency = 60;
-      # };
+      # UI 설정
+      style = "compact";
+      inline_height = 9;
+      show_help = false;
+      update_check = false;
     };
   };
 

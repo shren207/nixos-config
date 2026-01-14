@@ -1,6 +1,7 @@
 --------------------------------------------------------------------------------
 -- Atuin 동기화 상태 메뉴바 표시
 -- 메뉴바에 거북이 아이콘으로 동기화 상태를 표시하고, 클릭 시 메뉴 제공
+-- 참고: 실제 sync는 atuin 내장 auto_sync가 담당 (sync_frequency = 1m)
 --------------------------------------------------------------------------------
 
 local M = {}
@@ -15,12 +16,10 @@ local menubar = nil
 local currentStatus = "ok"
 local lastSyncTime = nil
 local lastSyncEpoch = nil
-local syncingTimeout = nil
 local updateTimer = nil
 
 -- 설정값 (loadConfig에서 로드)
 local config = {
-    syncInterval = 120,           -- launchd sync 주기 (초)
     syncCheckInterval = 600,      -- watchdog 상태 체크 주기 (초)
     syncThresholdMinutes = 5      -- 경고 임계값 (분)
 }
@@ -133,19 +132,6 @@ end
 
 -- 상태 설정 (외부에서 호출 가능)
 function M:setStatus(status)
-    -- syncing 타임아웃 처리
-    if syncingTimeout then
-        syncingTimeout:stop()
-        syncingTimeout = nil
-    end
-
-    if status == "syncing" then
-        -- 5분 후 자동 복구 (비정상 종료 대비)
-        syncingTimeout = hs.timer.doAfter(300, function()
-            self:updateFromDoctor()
-        end)
-    end
-
     currentStatus = status
     -- 아이콘은 항상 🐢로 고정
     if menubar then
@@ -157,8 +143,6 @@ end
 function M:getStatusText()
     if currentStatus == "ok" then
         return "✅ 정상 (마지막 동기화: " .. getRelativeTime(lastSyncEpoch) .. ")"
-    elseif currentStatus == "syncing" then
-        return "🔄 동기화 중..."
     elseif currentStatus == "warning" then
         local minutes = math.floor((os.time() - (lastSyncEpoch or 0)) / 60)
         return "⚠️ 동기화 지연 (" .. minutes .. "분 초과)"
@@ -179,7 +163,7 @@ function M:updateFromDoctor()
 
     -- JSON에서 last_sync 추출: "last_sync": "2026-01-13 8:12:42.22629 +00:00:00"
     local lastSyncStr = output:match('"last_sync":%s*"([^"]+)"')
-    if not lastSyncStr then
+    if not lastSyncStr or lastSyncStr == "no last sync" then
         self:setStatus("error")
         lastSyncTime = nil
         lastSyncEpoch = nil
@@ -231,8 +215,7 @@ function M:buildMenu()
         { title = "마지막 동기화: " .. self:getLastSyncText(), disabled = true },
         { title = "히스토리: " .. (historyCount and string.format("%d개", historyCount) or "확인 불가"), disabled = true },
         { title = "-" },
-        -- 설정값 (nix config에서 읽어옴)
-        { title = "Auto Sync 주기: " .. formatInterval(config.syncInterval), disabled = true },
+        -- 설정값
         { title = "상태 체크 주기: " .. formatInterval(config.syncCheckInterval), disabled = true },
         { title = "동기화 경고 임계값: " .. config.syncThresholdMinutes .. "분", disabled = true },
     }
@@ -261,10 +244,7 @@ function M:init()
 
     -- 1분마다 자동 업데이트
     updateTimer = hs.timer.doEvery(60, function()
-        -- syncing 상태가 아닐 때만 업데이트
-        if currentStatus ~= "syncing" then
-            self:updateFromDoctor()
-        end
+        self:updateFromDoctor()
     end)
 
     return self
@@ -275,10 +255,6 @@ function M:destroy()
     if updateTimer then
         updateTimer:stop()
         updateTimer = nil
-    end
-    if syncingTimeout then
-        syncingTimeout:stop()
-        syncingTimeout = nil
     end
     if menubar then
         menubar:delete()
