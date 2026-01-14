@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# darwin-rebuild wrapper script
+# 문제 예방: setupLaunchAgents 멈춤, Hammerspoon HOME 오염
+#
+# 사용법:
+#   nrs.sh           # 일반 rebuild
+#   nrs.sh --offline # 오프라인 rebuild (빠름)
+
+set -euo pipefail
+
+FLAKE_PATH="$HOME/IdeaProjects/nixos-config"
+OFFLINE_FLAG=""
+
+# 인수 파싱
+if [[ "${1:-}" == "--offline" ]]; then
+    OFFLINE_FLAG="--offline"
+fi
+
+# 색상 정의
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+log_info() { echo -e "${GREEN}$1${NC}"; }
+log_warn() { echo -e "${YELLOW}$1${NC}"; }
+log_error() { echo -e "${RED}$1${NC}"; }
+
+#───────────────────────────────────────────────────────────────────────────────
+# 1단계: launchd 에이전트 정리
+#───────────────────────────────────────────────────────────────────────────────
+cleanup_launchd_agents() {
+    log_info "🧹 Cleaning up launchd agents..."
+
+    local uid cleaned=0 failed=0 exit_code
+    uid=$(id -u)
+
+    # 동적으로 com.green.* 에이전트 찾아서 정리
+    while IFS= read -r agent; do
+        [[ -z "$agent" ]] && continue
+
+        if launchctl bootout "gui/${uid}/${agent}" 2>/dev/null; then
+            ((cleaned++))
+        else
+            # 에이전트가 이미 없는 경우는 무시, 다른 에러는 기록
+            exit_code=$?
+            if [[ $exit_code -ne 3 ]]; then  # 3 = No such process (정상)
+                log_warn "  ⚠️  Failed to bootout: $agent (exit: $exit_code)"
+                ((failed++))
+            fi
+        fi
+    done < <(launchctl list 2>/dev/null | awk '/com\.green\./ {print $3}')
+
+    # plist 파일 삭제
+    local plist_count
+    plist_count=$(find ~/Library/LaunchAgents -name 'com.green.*.plist' 2>/dev/null | wc -l | tr -d ' ')
+
+    if [[ "$plist_count" -gt 0 ]]; then
+        rm -f ~/Library/LaunchAgents/com.green.*.plist
+        log_info "  ✓ Removed $plist_count plist file(s)"
+    fi
+
+    if [[ $cleaned -gt 0 ]]; then
+        log_info "  ✓ Cleaned up $cleaned agent(s)"
+    fi
+
+    # launchd 내부 상태 정리 대기
+    sleep 1
+}
+
+#───────────────────────────────────────────────────────────────────────────────
+# 2단계: darwin-rebuild 실행
+#───────────────────────────────────────────────────────────────────────────────
+run_darwin_rebuild() {
+    if [[ -n "$OFFLINE_FLAG" ]]; then
+        log_info "🔨 Running darwin-rebuild (offline)..."
+    else
+        log_info "🔨 Running darwin-rebuild..."
+    fi
+
+    # shellcheck disable=SC2086
+    sudo darwin-rebuild switch --flake "$FLAKE_PATH" $OFFLINE_FLAG
+}
+
+#───────────────────────────────────────────────────────────────────────────────
+# 3단계: Hammerspoon 재시작
+#───────────────────────────────────────────────────────────────────────────────
+restart_hammerspoon() {
+    log_info "🔄 Restarting Hammerspoon..."
+
+    # Hammerspoon이 실행 중인 경우에만 재시작
+    if pgrep -x "Hammerspoon" > /dev/null; then
+        killall Hammerspoon 2>/dev/null || true
+        sleep 1
+    fi
+
+    open -a Hammerspoon
+    log_info "  ✓ Hammerspoon restarted"
+}
+
+#───────────────────────────────────────────────────────────────────────────────
+# 메인
+#───────────────────────────────────────────────────────────────────────────────
+main() {
+    echo ""
+    cleanup_launchd_agents
+    run_darwin_rebuild
+    restart_hammerspoon
+    echo ""
+    log_info "✅ Done!"
+}
+
+main

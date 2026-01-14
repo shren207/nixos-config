@@ -1,7 +1,17 @@
 # Shell 설정 (zsh, starship, atuin, zoxide, fzf)
 { config, pkgs, lib, ... }:
 
+let
+  # 스크립트 디렉토리 (nixos-config 루트 기준)
+  scriptsDir = ../../../../scripts;
+in
 {
+  # nrs.sh 스크립트 설치
+  home.file.".local/bin/nrs.sh" = {
+    source = "${scriptsDir}/nrs.sh";
+    executable = true;
+  };
+
   # 환경 변수
   home.sessionVariables = {
     # iCloud Drive 경로
@@ -32,37 +42,9 @@
     bt = "br -c :pt";
 
     # Nix rebuild (launchd 에이전트 정리 + Hammerspoon 재시작 포함)
-    # 문제 예방: setupLaunchAgents 멈춤, Hammerspoon HOME 오염
-    nrs = ''
-      echo "🧹 Cleaning up launchd agents..." && \
-      launchctl bootout gui/$(id -u)/com.green.atuin-watchdog 2>/dev/null; \
-      launchctl bootout gui/$(id -u)/com.green.folder-action.compress-rar 2>/dev/null; \
-      launchctl bootout gui/$(id -u)/com.green.folder-action.compress-video 2>/dev/null; \
-      launchctl bootout gui/$(id -u)/com.green.folder-action.convert-video-to-gif 2>/dev/null; \
-      launchctl bootout gui/$(id -u)/com.green.folder-action.rename-asset 2>/dev/null; \
-      rm -f ~/Library/LaunchAgents/com.green.*.plist && \
-      sleep 1 && \
-      echo "🔨 Running darwin-rebuild..." && \
-      sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config && \
-      echo "🔄 Restarting Hammerspoon..." && \
-      killall Hammerspoon 2>/dev/null; sleep 1; open -a Hammerspoon && \
-      echo "✅ Done!"
-    '';
-    nrs-offline = ''
-      echo "🧹 Cleaning up launchd agents..." && \
-      launchctl bootout gui/$(id -u)/com.green.atuin-watchdog 2>/dev/null; \
-      launchctl bootout gui/$(id -u)/com.green.folder-action.compress-rar 2>/dev/null; \
-      launchctl bootout gui/$(id -u)/com.green.folder-action.compress-video 2>/dev/null; \
-      launchctl bootout gui/$(id -u)/com.green.folder-action.convert-video-to-gif 2>/dev/null; \
-      launchctl bootout gui/$(id -u)/com.green.folder-action.rename-asset 2>/dev/null; \
-      rm -f ~/Library/LaunchAgents/com.green.*.plist && \
-      sleep 1 && \
-      echo "🔨 Running darwin-rebuild (offline)..." && \
-      sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config --offline && \
-      echo "🔄 Restarting Hammerspoon..." && \
-      killall Hammerspoon 2>/dev/null; sleep 1; open -a Hammerspoon && \
-      echo "✅ Done!"
-    '';
+    # 스크립트: scripts/nrs.sh
+    nrs = "~/.local/bin/nrs.sh";
+    nrs-offline = "~/.local/bin/nrs.sh --offline";
 
     # Hammerspoon CLI
     hs = "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs";

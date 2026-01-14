@@ -648,14 +648,15 @@ killall Hammerspoon && open -a Hammerspoon
 
 **예방**: `nrs` alias 사용 시 darwin-rebuild 완료 후 자동으로 Hammerspoon을 재시작합니다.
 
-```nix
-# modules/shared/shell/zsh/aliases.nix
-nrs = ''
-  # ... 에이전트 정리 ...
-  sudo darwin-rebuild switch --flake ~/IdeaProjects/nixos-config
-  # Hammerspoon 완전 재시작 (환경변수 오염 방지)
-  killall Hammerspoon 2>/dev/null; sleep 1; open -a Hammerspoon
-'';
+```bash
+# scripts/nrs.sh (일부)
+restart_hammerspoon() {
+    if pgrep -x "Hammerspoon" > /dev/null; then
+        killall Hammerspoon 2>/dev/null || true
+        sleep 1
+    fi
+    open -a Hammerspoon
+}
 ```
 
 ---

@@ -463,7 +463,7 @@ claude plugin uninstall plugin-name@marketplace --scope user
 
 ```
 1. 🧹 launchd 에이전트 정리 (setupLaunchAgents 멈춤 방지)
-   └── com.green.* 에이전트 bootout + plist 삭제
+   └── com.green.* 에이전트 동적 탐색 → bootout + plist 삭제
 
 2. 🔨 darwin-rebuild switch 실행
    └── --offline 플래그 (nrs-offline만)
@@ -471,6 +471,14 @@ claude plugin uninstall plugin-name@marketplace --scope user
 3. 🔄 Hammerspoon 완전 재시작 (HOME 오염 방지)
    └── killall → sleep 1 → open -a Hammerspoon
 ```
+
+**구현:**
+
+- 스크립트: `scripts/nrs.sh`
+- 설치 위치: `~/.local/bin/nrs.sh`
+- alias: `nrs` → `~/.local/bin/nrs.sh`, `nrs-offline` → `~/.local/bin/nrs.sh --offline`
+
+에이전트 목록은 하드코딩하지 않고 `launchctl list | grep com.green`으로 동적 탐색합니다.
 
 **사용 시나리오:**
 
