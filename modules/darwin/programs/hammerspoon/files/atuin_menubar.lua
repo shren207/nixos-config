@@ -218,6 +218,9 @@ function M:buildMenu()
         -- 설정값
         { title = "상태 체크 주기: " .. formatInterval(config.syncCheckInterval), disabled = true },
         { title = "동기화 경고 임계값: " .. config.syncThresholdMinutes .. "분", disabled = true },
+        { title = "-" },
+        -- 팁
+        { title = "💡 터미널에서 명령 실행 시 자동 동기화 (1분 간격)", disabled = true },
     }
 end
 
