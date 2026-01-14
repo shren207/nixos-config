@@ -16,7 +16,12 @@ local menubar = nil
 local currentStatus = "ok"
 local lastSyncTime = nil
 local lastSyncEpoch = nil
+local lastCmdTime = nil
+local lastCmdEpoch = nil
 local updateTimer = nil
+
+-- watchdog 스크립트 경로
+local watchdogPath = os.getenv("HOME") .. "/.local/bin/atuin-watchdog.sh"
 
 -- 설정값 (loadConfig에서 로드)
 local config = {
@@ -57,33 +62,6 @@ end
 --------------------------------------------------------------------------------
 -- 유틸리티 함수
 --------------------------------------------------------------------------------
-
--- atuin doctor의 last_sync 시간을 epoch로 변환
--- 형식: "2026-01-13 8:12:42.22629 +00:00:00"
-local function parseAtuinLastSync(lastSyncStr)
-    if not lastSyncStr then return nil end
-
-    -- "2026-01-13 8:12:42.22629 +00:00:00" → "2026-01-13 8:12:42"
-    local year, month, day, hour, min, sec = lastSyncStr:match("(%d+)-(%d+)-(%d+) (%d+):(%d+):(%d+)")
-    if not year then return nil end
-
-    -- UTC 시간을 epoch로 변환
-    local utcTime = os.time({
-        year = tonumber(year),
-        month = tonumber(month),
-        day = tonumber(day),
-        hour = tonumber(hour),
-        min = tonumber(min),
-        sec = tonumber(sec)
-    })
-
-    -- os.time은 로컬 시간으로 해석하므로 UTC 오프셋 보정
-    local localTime = os.time()
-    local utcNow = os.time(os.date("!*t", localTime))
-    local offset = localTime - utcNow
-
-    return utcTime + offset
-end
 
 -- 상대 시간 텍스트 생성
 local function getRelativeTime(epoch)
@@ -142,53 +120,57 @@ end
 -- 상태 문장 생성
 function M:getStatusText()
     if currentStatus == "ok" then
-        return "✅ 정상 (마지막 동기화: " .. getRelativeTime(lastSyncEpoch) .. ")"
+        return "✅ 정상"
     elseif currentStatus == "warning" then
-        local minutes = math.floor((os.time() - (lastSyncEpoch or 0)) / 60)
-        return "⚠️ 동기화 지연 (" .. minutes .. "분 초과)"
+        -- 새 로직: 마지막 CLI 입력 후 N분 미동기화
+        if lastCmdEpoch and lastSyncEpoch then
+            local diffMinutes = math.floor((lastCmdEpoch - lastSyncEpoch) / 60)
+            return "⚠️ 동기화 지연 (CLI 입력 후 " .. diffMinutes .. "분 미동기화)"
+        else
+            return "⚠️ 동기화 지연"
+        end
     else
         return "❌ 오류 발생"
     end
 end
 
--- atuin doctor에서 last_sync 값을 읽어 상태 업데이트
-function M:updateFromDoctor()
-    local output, status = hs.execute(atuinPath .. " doctor 2>&1")
+-- watchdog.sh --status 호출하여 상태 업데이트 (Single Source of Truth)
+function M:updateFromWatchdog()
+    local output, status = hs.execute(watchdogPath .. " --status 2>/dev/null")
     if not status or not output then
         self:setStatus("error")
         lastSyncTime = nil
         lastSyncEpoch = nil
+        lastCmdTime = nil
+        lastCmdEpoch = nil
         return
     end
 
-    -- JSON에서 last_sync 추출: "last_sync": "2026-01-13 8:12:42.22629 +00:00:00"
-    local lastSyncStr = output:match('"last_sync":%s*"([^"]+)"')
-    if not lastSyncStr or lastSyncStr == "no last sync" then
+    -- JSON 파싱
+    local success, data = pcall(function() return hs.json.decode(output) end)
+    if not success or not data then
         self:setStatus("error")
-        lastSyncTime = nil
-        lastSyncEpoch = nil
         return
     end
 
-    -- epoch로 변환
-    lastSyncEpoch = parseAtuinLastSync(lastSyncStr)
-    if not lastSyncEpoch then
-        self:setStatus("error")
-        lastSyncTime = nil
-        return
-    end
+    -- 상태 설정
+    self:setStatus(data.status or "error")
 
-    -- KST로 변환하여 저장
-    lastSyncTime = os.date("%Y-%m-%d %H:%M:%S", lastSyncEpoch)
-
-    -- 임계값 체크 (분 단위)
-    local now = os.time()
-    local diffMinutes = (now - lastSyncEpoch) / 60
-
-    if diffMinutes >= config.syncThresholdMinutes then
-        self:setStatus("warning")
+    -- epoch 값 저장
+    if data.lastSyncEpoch and data.lastSyncEpoch > 0 then
+        lastSyncEpoch = data.lastSyncEpoch
+        lastSyncTime = os.date("%Y-%m-%d %H:%M:%S", lastSyncEpoch)
     else
-        self:setStatus("ok")
+        lastSyncEpoch = nil
+        lastSyncTime = nil
+    end
+
+    if data.lastCmdEpoch and data.lastCmdEpoch > 0 then
+        lastCmdEpoch = data.lastCmdEpoch
+        lastCmdTime = os.date("%Y-%m-%d %H:%M:%S", lastCmdEpoch)
+    else
+        lastCmdEpoch = nil
+        lastCmdTime = nil
     end
 end
 
@@ -198,6 +180,14 @@ function M:getLastSyncText()
         return "동기화 기록 없음"
     end
     return lastSyncTime .. " (" .. getRelativeTime(lastSyncEpoch) .. ")"
+end
+
+-- 마지막 CLI 커맨드 입력 텍스트 생성
+function M:getLastCmdText()
+    if not lastCmdTime then
+        return "기록 없음"
+    end
+    return lastCmdTime .. " (" .. getRelativeTime(lastCmdEpoch) .. ")"
 end
 
 --------------------------------------------------------------------------------
@@ -211,7 +201,8 @@ function M:buildMenu()
         -- 상태 문장 (최상단)
         { title = self:getStatusText(), disabled = true },
         { title = "-" },
-        -- 동기화 정보
+        -- 시간 정보
+        { title = "마지막 CLI 커맨드 입력: " .. self:getLastCmdText(), disabled = true },
         { title = "마지막 동기화: " .. self:getLastSyncText(), disabled = true },
         { title = "히스토리: " .. (historyCount and string.format("%d개", historyCount) or "확인 불가"), disabled = true },
         { title = "-" },
@@ -243,11 +234,11 @@ function M:init()
     menubar:setMenu(function() return self:buildMenu() end)
 
     -- 초기 상태 설정
-    self:updateFromDoctor()
+    self:updateFromWatchdog()
 
     -- 1분마다 자동 업데이트
     updateTimer = hs.timer.doEvery(60, function()
-        self:updateFromDoctor()
+        self:updateFromWatchdog()
     end)
 
     return self
