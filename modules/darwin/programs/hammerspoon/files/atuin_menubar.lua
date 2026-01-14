@@ -8,7 +8,6 @@ local M = {}
 -- 파일 경로
 local historyDbFile = os.getenv("HOME") .. "/.local/share/atuin/history.db"
 local monitorConfigFile = os.getenv("HOME") .. "/.config/atuin-monitor/config.json"
-local atuinConfigFile = os.getenv("HOME") .. "/.config/atuin/config.toml"
 local atuinPath = "/etc/profiles/per-user/" .. os.getenv("USER") .. "/bin/atuin"
 
 -- 내부 상태
@@ -21,10 +20,10 @@ local updateTimer = nil
 
 -- 설정값 (loadConfig에서 로드)
 local config = {
-    syncCheckInterval = 600,
-    syncThresholdMinutes = 5
+    syncInterval = 120,           -- launchd sync 주기 (초)
+    syncCheckInterval = 600,      -- watchdog 상태 체크 주기 (초)
+    syncThresholdMinutes = 5      -- 경고 임계값 (분)
 }
-local atuinSyncFrequency = "알 수 없음"
 
 --------------------------------------------------------------------------------
 -- 설정 파일 읽기
@@ -48,32 +47,12 @@ local function loadMonitorConfig()
     return nil
 end
 
--- atuin config.toml에서 sync_frequency 읽기
-local function getAtuinSyncFrequency()
-    local content = readFile(atuinConfigFile)
-    if not content then return "알 수 없음" end
-
-    local freq = content:match('sync_frequency%s*=%s*"([^"]+)"')
-    if freq then
-        -- "1m" → "1분마다", "30s" → "30초마다" 변환
-        local num, unit = freq:match("(%d+)(%a)")
-        if num and unit then
-            if unit == "m" then return num .. "분마다"
-            elseif unit == "s" then return num .. "초마다"
-            elseif unit == "h" then return num .. "시간마다"
-            end
-        end
-    end
-    return "알 수 없음"
-end
-
 -- 설정 로드
 local function loadConfig()
     local loaded = loadMonitorConfig()
     if loaded then
         config = loaded
     end
-    atuinSyncFrequency = getAtuinSyncFrequency()
 end
 
 --------------------------------------------------------------------------------
@@ -252,8 +231,8 @@ function M:buildMenu()
         { title = "마지막 동기화: " .. self:getLastSyncText(), disabled = true },
         { title = "히스토리: " .. (historyCount and string.format("%d개", historyCount) or "확인 불가"), disabled = true },
         { title = "-" },
-        -- 설정값 (설정 파일에서 읽어옴)
-        { title = "Auto Sync 주기: " .. atuinSyncFrequency, disabled = true },
+        -- 설정값 (nix config에서 읽어옴)
+        { title = "Auto Sync 주기: " .. formatInterval(config.syncInterval), disabled = true },
         { title = "상태 체크 주기: " .. formatInterval(config.syncCheckInterval), disabled = true },
         { title = "동기화 경고 임계값: " .. config.syncThresholdMinutes .. "분", disabled = true },
     }

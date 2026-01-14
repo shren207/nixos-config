@@ -5,19 +5,20 @@ let
   atuinFilesPath = "${toString ./.}/files";
 
   # 모니터링 설정 (Single Source of Truth)
-  syncCheckInterval = 600;        # 10분 (초) - 상태 체크 주기
+  syncInterval = 120;             # 2분 (초) - launchd sync 주기
+  syncCheckInterval = 600;        # 10분 (초) - watchdog 상태 체크 주기
   syncThresholdMinutes = 5;       # 5분 이상 동기화 안 되면 경고
 
   # 복구 설정
   maxRetryCount = 3;              # 최대 재시도 횟수
   initialBackoffSeconds = 5;      # 초기 백오프 (초)
-  daemonStartupWait = 5;          # daemon 시작 대기 (초)
+  daemonStartupWait = 5;          # 에이전트 재시작 대기 (초)
   networkCheckTimeout = 5;        # 네트워크 체크 타임아웃 (초)
   atuinSyncServer = "api.atuin.sh";  # sync 서버
 
   # Hammerspoon용 JSON 설정 파일
   monitorConfigJson = builtins.toJSON {
-    inherit syncCheckInterval syncThresholdMinutes;
+    inherit syncInterval syncCheckInterval syncThresholdMinutes;
   };
 in
 {
@@ -42,8 +43,8 @@ in
         "/bin/bash" "-c"
         "atuin sync && printf '%s' \"$(date -u +'%Y-%m-%dT%H:%M:%S.000000Z')\" > ~/.local/share/atuin/last_sync_time"
       ];
-      RunAtLoad = true;     # 로드 시 바로 첫 실행
-      StartInterval = 120;  # 이후 2분마다 sync
+      RunAtLoad = true;           # 로드 시 바로 첫 실행
+      StartInterval = syncInterval; # 이후 주기적 sync
       EnvironmentVariables = {
         PATH = "/etc/profiles/per-user/${config.home.username}/bin:/run/current-system/sw/bin:${homeDir}/.nix-profile/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin";
         HOME = homeDir;

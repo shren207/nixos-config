@@ -1039,22 +1039,115 @@ launchd
 
 > **주의**: 아래 내용이 "버그"인지 "의도된 동작"인지는 확인되지 않음. upstream에 확인 필요.
 
-#### 1. CLI sync (v2)에서 save_sync_time() 미호출
+#### 1. sync 경로별 save_sync_time() 호출 여부 (중요!)
 
-**관찰된 현상**:
-- `atuin sync` 명령이 성공해도 `~/.local/share/atuin/last_sync_time` 파일이 업데이트되지 않음
-- `atuin doctor`의 `last_sync` 값이 갱신되지 않음
+atuin에는 여러 sync 경로가 존재하며, 각각 `save_sync_time()` 호출 여부가 다름.
 
-**소스코드 위치**: `crates/atuin/src/command/client/sync.rs`
+**전체 비교표**:
 
-**비교**:
-| 경로 | save_sync_time() 호출 |
-|------|----------------------|
-| daemon sync | ✅ 있음 (`atuin-daemon/src/server/sync.rs:85`) |
-| CLI sync (v1) | ✅ 있음 |
-| CLI sync (v2) | ❌ 없음 |
+| sync 경로 | save_sync_time() | 소스코드 위치 | 트리거 |
+|-----------|------------------|---------------|--------|
+| CLI `atuin sync` (v2) | ❌ 미호출 | `crates/atuin/src/command/client/sync.rs` | 수동 실행, launchd 등 |
+| CLI `atuin sync` (v1) | ✅ 호출 | 동일 파일, v1 경로 | (레거시) |
+| history end (auto_sync) | ✅ 호출 | `crates/atuin/src/command/client/history.rs:460-462` | 터미널 명령 실행 후 |
+| daemon sync | ✅ 호출 | `atuin-daemon/src/server/sync.rs:85` | daemon 내부 스케줄러 |
 
-**추측**: v2로 전환하면서 누락된 것으로 보이나, 의도적일 수도 있음.
+**핵심 발견 (2026-01-14 추가 분석)**:
+
+처음에는 "CLI sync (v2)가 save_sync_time()을 호출하지 않는다"는 것만 파악했으나, 추가 분석 결과 **history end의 auto_sync는 save_sync_time()을 호출한다**는 것을 발견함.
+
+**소스코드 증거** (`crates/atuin/src/command/client/history.rs:457-462`):
+
+```rust
+if settings.should_sync()? {
+    #[cfg(feature = "sync")]
+    {
+        if settings.sync.records {
+            let (_, downloaded) = record::sync::sync(settings, &store).await?;
+            Settings::save_sync_time()?;  // <-- 여기서 호출!
+
+            crate::sync::build(settings, &store, db, Some(&downloaded)).await?;
+        } else {
+            // v1 경로
+        }
+    }
+}
+```
+
+**CLI sync (v2)와의 비교** (`crates/atuin/src/command/client/sync.rs`):
+
+```rust
+pub async fn run(...) -> Result<()> {
+    if settings.sync.records {
+        sync::sync(&settings, &db).await?;  // save_sync_time() 없음!
+    } else {
+        atuin_client::sync::sync(&settings, false, &db).await?;
+    }
+}
+```
+
+**실제 테스트 결과** (2026-01-14 12:19):
+
+```bash
+$ cat ~/.local/share/atuin/last_sync_time
+2026-01-14T03:18:46.000000Z
+
+$ atuin sync
+Uploading 1 records to 019bb5a9bc45768099cfb54cf73beb4a/history
+2/0 up/down to record store
+Sync complete! 51976 items in history database, force: false
+
+$ cat ~/.local/share/atuin/last_sync_time
+2026-01-14T03:18:46.000000Z  # 변경 없음!
+```
+
+CLI `atuin sync` 실행 전후로 파일이 변경되지 않음. 반면, 터미널에서 일반 명령어를 실행하면 auto_sync가 트리거되어 파일이 업데이트됨.
+
+**auto_sync 동작 방식**:
+
+1. 터미널에서 명령 실행 (예: `ls`, `git status` 등)
+2. atuin이 history end 처리
+3. `should_sync()` 체크: 마지막 sync 이후 `sync_frequency` (기본 1분) 지났는가?
+4. 조건 충족 시 sync 실행 + `save_sync_time()` 호출
+5. `last_sync_time` 파일 업데이트
+
+**`should_sync()` 함수** (`crates/atuin-client/src/settings.rs:629-645`):
+
+```rust
+pub fn should_sync(&self) -> Result<bool> {
+    if !self.auto_sync || !PathBuf::from(self.session_path.as_str()).exists() {
+        return Ok(false);
+    }
+
+    if self.sync_frequency == "0" {
+        return Ok(true);
+    }
+
+    match parse_duration(self.sync_frequency.as_str()) {
+        Ok(d) => {
+            let d = time::Duration::try_from(d)?;
+            Ok(OffsetDateTime::now_utc() - Settings::last_sync()? >= d)
+        }
+        Err(e) => Err(eyre!("failed to check sync: {}", e)),
+    }
+}
+```
+
+**시사점**:
+
+1. **터미널 사용 시**: auto_sync가 `sync_frequency` 간격으로 sync + save_sync_time() 호출
+2. **터미널 미사용 시**: auto_sync 트리거 안 됨 → launchd의 주기적 sync 필요
+3. **launchd의 CLI sync**: save_sync_time() 미호출 → 직접 파일 업데이트 workaround 필요
+
+**결론**:
+
+launchd에서 `atuin sync` 실행 후 직접 파일을 업데이트하는 workaround는:
+- 터미널 사용 시: 불필요 (auto_sync가 처리)
+- 터미널 미사용 시: 필요 (CLI sync가 파일 미업데이트)
+
+따라서 현재 설정 (launchd에서 sync + 파일 업데이트)은 **터미널 미사용 시를 위한 백업**으로 유효함.
+
+**추측**: CLI sync (v2)에서 save_sync_time() 미호출은 버그일 가능성이 높음. history end 경로에서는 호출하면서 CLI 경로에서만 누락된 것은 일관성이 없음.
 
 #### 2. daemon 불안정
 

@@ -182,13 +182,19 @@ Atuin 동기화 상태를 모니터링하고, 동기화 지연 시 자동 복구
 **아키텍처:**
 
 ```
-launchd (시스템 레벨 스케줄링)
+동기화 트리거
     │
-    ├──▶ com.green.atuin-sync (2분마다)
+    ├──▶ auto_sync (터미널 명령 실행 시)
     │         │
-    │         └──▶ atuin sync + last_sync_time 업데이트
+    │         ├──▶ sync_frequency (1분) 간격으로 자동 sync
+    │         └──▶ save_sync_time() 호출 → last_sync_time 업데이트
     │
-    ├──▶ com.green.atuin-watchdog (10분마다)
+    ├──▶ com.green.atuin-sync (launchd, 2분마다)
+    │         │
+    │         ├──▶ 터미널 미사용 시 백업 sync
+    │         └──▶ atuin sync + last_sync_time 직접 업데이트
+    │
+    ├──▶ com.green.atuin-watchdog (launchd, 10분마다)
     │         │
     │         ├──▶ 네트워크 연결 확인 (DNS + HTTPS)
     │         ├──▶ 동기화 상태 점검
@@ -199,15 +205,27 @@ launchd (시스템 레벨 스케줄링)
               └──▶ 🐢 아이콘 상태 업데이트
 ```
 
-> **참고**: atuin daemon은 experimental 기능으로 불안정하여 비활성화했습니다. 대신 launchd로 2분마다 `atuin sync`를 실행합니다.
+> **참고**: atuin daemon은 experimental 기능으로 불안정하여 비활성화했습니다.
+> - **터미널 사용 시**: atuin의 내장 auto_sync가 `sync_frequency` (1분) 간격으로 sync 수행
+> - **터미널 미사용 시**: launchd가 2분마다 `atuin sync` 실행 (백업)
 
 **기능:**
 
 | 컴포넌트 | 역할 |
 | ---- | ---- |
-| com.green.atuin-sync | 2분마다 sync 실행 + last_sync_time 업데이트 |
+| auto_sync (atuin 내장) | 터미널 명령 실행 시 sync_frequency (1분) 간격으로 자동 sync |
+| com.green.atuin-sync | 2분마다 백업 sync 실행 + last_sync_time 업데이트 |
 | com.green.atuin-watchdog | 10분마다 상태 체크, 네트워크 확인, 자동 복구 + 알림 |
 | Hammerspoon 메뉴바 | 🐢 아이콘으로 상태 표시, 1분마다 갱신 |
+
+**sync 방식 비교:**
+
+| 방식 | 트리거 | save_sync_time() | 용도 |
+| ---- | ---- | ---- | ---- |
+| auto_sync | 터미널 명령 실행 후 | ✅ 호출 | 주 동기화 방식 |
+| launchd sync | 2분마다 (StartInterval) | ❌ 미호출 (직접 업데이트) | 터미널 미사용 시 백업 |
+
+> **중요**: CLI `atuin sync` 명령은 `save_sync_time()`을 호출하지 않는 버그(또는 의도된 동작)가 있어서, launchd에서 sync 성공 후 직접 `last_sync_time` 파일을 업데이트합니다.
 
 **자동 복구 기능:**
 
@@ -250,10 +268,12 @@ watchdog이 동기화 지연(5분 초과)을 감지하면 다단계 복구를 �
 ├─ 마지막 동기화: 2026-01-13 17:42:42 (1분 전)
 ├─ 히스토리: 63개
 ├─ ─────────────
-├─ Auto Sync 주기: 1분마다
+├─ Auto Sync 주기: 2분마다       ← launchd sync 주기 (백업용)
 ├─ 상태 체크 주기: 10분마다
 └─ 동기화 경고 임계값: 5분
 ```
+
+> **참고**: 메뉴의 "Auto Sync 주기"는 launchd의 백업 sync 주기를 표시합니다. 실제로는 터미널 사용 시 atuin 내장 auto_sync가 `sync_frequency` (1분) 간격으로 더 자주 sync합니다.
 
 **상태 판단 기준:**
 
