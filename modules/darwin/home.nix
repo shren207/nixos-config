@@ -36,6 +36,7 @@
       ./programs/cursor
       ./programs/folder-actions
       ./programs/keybindings
+      ./programs/ssh
     ];
 
     # CLI 도구 패키지

@@ -358,6 +358,88 @@ defaults write -g com.apple.swipescrolldirection -bool false
 
 ## SSH/인증 관련
 
+### 재부팅 후 SSH 키가 ssh-agent에 로드되지 않음
+
+> **발생 시점**: 2026-01-15
+> **해결**: launchd agent + nrs.sh 자동 로드
+
+**증상**: 재부팅 후 `nrs` 또는 `darwin-rebuild switch` 실행 시 private repo fetch 실패.
+
+```
+error: Failed to fetch git repository ssh://git@github.com/shren207/nixos-config-secret : git@github.com: Permission denied (publickey).
+```
+
+**원인**: macOS의 `ssh-agent`는 재부팅 시 SSH 키를 자동으로 로드하지 않습니다.
+
+```bash
+# 재부팅 후 확인
+$ ssh-add -l
+The agent has no identities.  # ← 키가 없음!
+
+# 일반 ssh 명령은 작동 (macOS Keychain 직접 참조)
+$ ssh -T git@github.com
+Hi shren207! You've successfully authenticated...
+```
+
+nix-daemon은 별도 프로세스로 실행되어 Keychain에 직접 접근하지 못하고, `ssh-agent`만 사용합니다.
+
+**해결**: 두 가지 방법으로 자동화
+
+1. **launchd agent** (`com.green.ssh-add-keys`): 로그인 시 자동으로 `ssh-add` 실행
+2. **nrs.sh**: darwin-rebuild 전에 키 로드 여부 확인
+
+**설정 파일**: `modules/darwin/programs/ssh/default.nix`
+
+```nix
+# launchd agent - 로그인 시 SSH 키 자동 로드
+launchd.agents.ssh-add-keys = {
+  enable = true;
+  config = {
+    Label = "com.green.ssh-add-keys";
+    ProgramArguments = [ "${sshAddScript}" ];
+    RunAtLoad = true;
+    EnvironmentVariables = { HOME = homeDir; };
+  };
+};
+```
+
+**확인 방법**:
+
+```bash
+# SSH agent에 키 로드 확인
+ssh-add -l
+
+# launchd agent 상태 확인
+launchctl list | grep ssh-add
+
+# 로그 확인
+cat ~/Library/Logs/ssh-add-keys.log
+```
+
+**왜 이전에는 문제가 없었나?**
+
+이 문제는 2026-01-15에 처음 발견되었지만, `nixos-config-secret` (private repo)은 2025-12-21 initial commit부터 사용 중이었습니다. 이전에 문제가 없었던 이유로 추정되는 시나리오:
+
+| 가능성 | 설명 |
+|--------|------|
+| 캐시된 버전 사용 | `flake.lock`에 저장된 버전으로 빌드, fresh fetch 불필요 |
+| 이미 키가 로드된 상태 | 다른 SSH 작업(git push 등) 후 nrs 실행 |
+| 첫 재부팅 직후 테스트 | 이번이 처음으로 "재부팅 → 즉시 nrs" 시나리오 |
+| `--offline` 주로 사용 | fetch 없이 로컬 캐시만 사용 |
+
+macOS의 `AddKeysToAgent yes` 설정은 SSH를 **처음 사용할 때** 키를 agent에 로드합니다. 이전에는 nrs 전에 우연히 SSH를 사용하는 작업을 했을 가능성이 높습니다:
+
+```
+이전: 재부팅 → (git fetch 등) → SSH 키 자동 로드 → nrs 실행 ✅
+이번: 재부팅 → 바로 nrs 실행 → SSH 키 없음 ❌
+```
+
+**결론**: 원인 진단은 정확하며, 문제는 "우연히 회피"되었을 가능성이 높습니다. 현재 해결책(launchd agent + nrs.sh)은 이러한 우연에 의존하지 않고 명시적으로 키 로드를 보장합니다.
+
+> **참고**: SSH 설정에 대한 자세한 내용은 [FEATURES.md](FEATURES.md#ssh-키-자동-로드)를 참고하세요.
+
+---
+
 ### sudo 사용 시 Private 저장소 접근 실패
 
 **에러 메시지**:

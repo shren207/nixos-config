@@ -19,6 +19,7 @@
   - [플러그인 관리](#플러그인-관리)
   - [플러그인 주의사항](#플러그인-주의사항)
 - [Nix 관련](#nix-관련)
+  - [SSH 키 자동 로드](#ssh-키-자동-로드)
   - [darwin-rebuild Alias](#darwin-rebuild-alias)
   - [병렬 다운로드 최적화](#병렬-다운로드-최적화)
 - [macOS 시스템 설정](#macos-시스템-설정)
@@ -447,6 +448,56 @@ claude plugin uninstall plugin-name@marketplace --scope user
 
 `modules/shared/configuration.nix`와 `modules/shared/programs/shell/default.nix`에서 관리됩니다.
 
+### SSH 키 자동 로드
+
+`modules/darwin/programs/ssh/`에서 관리됩니다.
+
+Private 저장소(`nixos-config-secret`)를 SSH로 fetch하기 위해 SSH 키가 `ssh-agent`에 로드되어 있어야 합니다. 이 설정은 재부팅 후에도 자동으로 키를 로드합니다.
+
+**아키텍처:**
+
+```
+macOS 로그인
+    │
+    ├──▶ com.green.ssh-add-keys (launchd agent)
+    │       └──▶ ssh-add ~/.ssh/id_ed25519
+    │
+    └──▶ 터미널에서 nrs 실행
+            └──▶ ensure_ssh_key_loaded() (키 로드 확인)
+                    └──▶ darwin-rebuild switch
+```
+
+**컴포넌트:**
+
+| 컴포넌트 | 역할 |
+| -------- | ---- |
+| `programs.ssh` | `~/.ssh/config` 생성 (AddKeysToAgent, IdentityFile) |
+| `launchd.agents.ssh-add-keys` | 로그인 시 SSH 키 자동 로드 |
+| `nrs.sh` | darwin-rebuild 전 키 로드 확인 |
+
+**생성되는 `~/.ssh/config`:**
+
+```
+Host *
+  IdentityFile /Users/glen/.ssh/id_ed25519
+  AddKeysToAgent yes
+```
+
+**확인 방법:**
+
+```bash
+# SSH agent에 키 로드 확인
+ssh-add -l
+
+# launchd agent 상태 확인
+launchctl list | grep ssh-add
+
+# 로그 확인
+cat ~/Library/Logs/ssh-add-keys.log
+```
+
+> **참고**: 자세한 트러블슈팅은 [TROUBLESHOOTING.md](TROUBLESHOOTING.md#재부팅-후-ssh-키가-ssh-agent에-로드되지-않음)를 참고하세요.
+
 ### darwin-rebuild Alias
 
 시스템 설정 적용을 위한 편리한 alias입니다.
@@ -462,6 +513,9 @@ claude plugin uninstall plugin-name@marketplace --scope user
 **`nrs` / `nrs-offline` 동작 흐름:**
 
 ```
+0. 🔑 SSH 키 로드 확인 (private repo fetch 보장)
+   └── ssh-add -l로 확인 → 없으면 ssh-add 실행
+
 1. 🧹 launchd 에이전트 정리 (setupLaunchAgents 멈춤 방지)
    └── com.green.* 에이전트 동적 탐색 → bootout + plist 삭제
 
