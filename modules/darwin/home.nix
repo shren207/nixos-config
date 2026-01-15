@@ -55,6 +55,7 @@
       lazygit
       gh
       git
+      shellcheck
 
       # 쉘 도구
       starship

@@ -701,9 +701,26 @@ bash -x ~/IdeaProjects/nixos-config/scripts/nrs.sh
    # 주의: ((++var)) 사용 필수. ((var++))는 var=0일 때 exit code 1 반환 → set -e로 스크립트 종료됨
    ```
 
-2. ShellCheck 사용 (정적 분석 도구):
+2. ShellCheck 사용 (정적 분석 도구, `home.nix`에 기본 설치됨):
    ```bash
+   # 단일 스크립트 검사
    shellcheck scripts/nrs.sh
+
+   # 프로젝트 내 모든 쉘 스크립트 검사
+   shellcheck scripts/*.sh
+   ```
+
+   **ShellCheck 한계**: `((var++))` + `set -e` 문제는 shellcheck가 **감지하지 못합니다**. 이처럼 미묘한 edge case는 shellcheck로 잡을 수 없으므로, 주석과 문서화가 여전히 중요합니다.
+
+   ```bash
+   # shellcheck가 감지하는 것들
+   - SC2086: 따옴표 없는 변수 (word splitting 위험)
+   - SC2164: cd 실패 시 처리 없음
+   - SC2034: 사용되지 않는 변수
+
+   # shellcheck가 감지하지 못하는 것들
+   - ((var++))의 set -e 문제 (이 문서에서 다룬 버그)
+   - 논리적 오류, 비즈니스 로직 버그
    ```
 
 **추가 함정 - Nix store 심볼릭 링크**:
