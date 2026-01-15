@@ -46,17 +46,18 @@ cleanup_launchd_agents() {
     uid=$(id -u)
 
     # 동적으로 com.green.* 에이전트 찾아서 정리
+    # 주의: ((++var)) 사용 필수. ((var++))는 var=0일 때 exit code 1 반환 → set -e로 스크립트 종료됨
     while IFS= read -r agent; do
         [[ -z "$agent" ]] && continue
 
         if launchctl bootout "gui/${uid}/${agent}" 2>/dev/null; then
-            ((cleaned++))
+            ((++cleaned))
         else
             # 에이전트가 이미 없는 경우는 무시, 다른 에러는 기록
             exit_code=$?
             if [[ $exit_code -ne 3 ]]; then  # 3 = No such process (정상)
                 log_warn "  ⚠️  Failed to bootout: $agent (exit: $exit_code)"
-                ((failed++))
+                ((++failed))
             fi
         fi
     done < <(launchctl list 2>/dev/null | awk '/com\.green\./ {print $3}')

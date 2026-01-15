@@ -26,6 +26,7 @@
   - [delta가 적용되지 않음](#delta가-적용되지-않음)
   - [~/.gitconfig과 Home Manager 설정이 충돌함](#gitconfig과-home-manager-설정이-충돌함)
 - [launchd 관련](#launchd-관련)
+  - [nrs 실행 시 빌드 없이 즉시 종료됨](#nrs-실행-시-빌드-없이-즉시-종료됨)
   - [darwin-rebuild 시 setupLaunchAgents에서 멈춤](#darwin-rebuild-시-setuplaunchagents에서-멈춤)
   - [darwin-rebuild 후 Hammerspoon HOME이 /var/root로 인식](#darwin-rebuild-후-hammerspoon-home이-varroot로-인식)
 - [Hammerspoon 관련](#hammerspoon-관련)
@@ -626,6 +627,112 @@ git config --list --show-origin | grep "\.config/git"
 ---
 
 ## launchd 관련
+
+### nrs 실행 시 빌드 없이 즉시 종료됨
+
+> **발생 시점**: 2026-01-15
+
+**증상**: `nrs` 명령 실행 시 SSH 키 로딩과 launchd 에이전트 정리 메시지만 출력되고, `darwin-rebuild`가 실행되지 않고 즉시 종료됨.
+
+```
+❯ nrs
+
+🔑 Loading SSH key...
+Identity added: /Users/glen/.ssh/id_ed25519 (greenhead-home-mac-2025-10)
+🧹 Cleaning up launchd agents...
+
+❯   ← 빌드 없이 즉시 프롬프트 복귀
+```
+
+**원인**: `set -e`와 bash 산술 연산 `(( ))` 조합의 함정.
+
+```bash
+set -euo pipefail  # -e: 명령이 실패하면 즉시 종료
+
+local cleaned=0
+# ...
+((cleaned++))  # ❌ cleaned=0일 때 exit code 1 반환 → 스크립트 종료
+```
+
+bash에서 `((expression))`의 exit code는 표현식의 **평가 결과**에 따라 결정됩니다:
+
+| 표현식 | 평가 결과 | Exit code |
+|--------|----------|-----------|
+| `((0))` | false | 1 |
+| `((1))` | true | 0 |
+| `((var++))` (var=0) | 0 (증가 전 값) | 1 |
+| `((++var))` (var=0) | 1 (증가 후 값) | 0 |
+
+`((var++))`는 **후위 증가**로, 증가 전 값(0)을 반환합니다. `set -e` 환경에서 exit code 1은 스크립트를 즉시 종료시킵니다.
+
+**진단 방법**:
+
+```bash
+# 디버그 모드로 실행하여 어디서 멈추는지 확인
+bash -x ~/IdeaProjects/nixos-config/scripts/nrs.sh
+
+# 출력 예시 (문제 발생 시):
+# + ((cleaned++))
+# ← 여기서 스크립트 종료
+```
+
+**해결**: 전위 증가 `((++var))` 사용
+
+```bash
+# ❌ 문제: 후위 증가 (증가 전 값 반환)
+((cleaned++))   # cleaned=0일 때 exit code 1
+
+# ✅ 해결: 전위 증가 (증가 후 값 반환)
+((++cleaned))   # cleaned=0일 때 exit code 0
+```
+
+**대안적 해결책들**:
+
+| 방법 | 예시 | 설명 |
+|------|------|------|
+| 전위 증가 | `((++var))` | 증가 후 값 반환 (권장) |
+| 명령 대체 | `var=$((var + 1))` | exit code 문제 없음 |
+| `\|\| true` | `((var++)) \|\| true` | 실패 무시 |
+
+**예방**:
+
+1. 스크립트에 주석 추가:
+   ```bash
+   # 주의: ((++var)) 사용 필수. ((var++))는 var=0일 때 exit code 1 반환 → set -e로 스크립트 종료됨
+   ```
+
+2. ShellCheck 사용 (정적 분석 도구):
+   ```bash
+   shellcheck scripts/nrs.sh
+   ```
+
+**추가 함정 - Nix store 심볼릭 링크**:
+
+`nrs`가 alias로 정의된 경우, 소스 파일과 실제 실행 파일이 다를 수 있습니다.
+
+```bash
+# alias 확인
+type nrs
+# nrs is an alias for ~/.local/bin/nrs.sh
+
+# 심볼릭 링크 확인
+ls -la ~/.local/bin/nrs.sh
+# -> /nix/store/xxx-home-manager-files/.local/bin/nrs.sh (이전 빌드 버전)
+```
+
+소스 파일(`~/IdeaProjects/nixos-config/scripts/nrs.sh`)을 수정해도, `darwin-rebuild`를 실행하기 전까지는 실제 실행 파일(Nix store)에 반영되지 않습니다.
+
+**해결**: 수정된 소스 스크립트를 직접 실행
+
+```bash
+# alias 대신 소스 파일 직접 실행
+bash ~/IdeaProjects/nixos-config/scripts/nrs.sh
+
+# 빌드 완료 후에는 alias 정상 사용 가능
+nrs
+```
+
+---
 
 ### launchd 에이전트 상태 확인
 
