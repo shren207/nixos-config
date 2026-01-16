@@ -5,6 +5,13 @@
 # 사용법:
 #   nrs.sh           # 일반 rebuild
 #   nrs.sh --offline # 오프라인 rebuild (빠름)
+#
+# 소스 참조 방식:
+#   - nrs, nrs-offline 모두 flake.lock에 잠긴 remote Git URL에서 소스를 참조함
+#   - 로컬 경로(path:...)가 아닌 SSH URL(git+ssh://...)을 사용하므로 로컬 파일 직접 참조 없음
+#   - --offline 플래그는 "다운로드를 건너뛰고 Nix store 캐시만 사용"하는 것이지,
+#     로컬 경로로 전환하는 것이 아님
+#   - 새 input 버전을 반영하려면 먼저 `nix flake update <input>`으로 flake.lock 업데이트 필요
 
 set -euo pipefail
 

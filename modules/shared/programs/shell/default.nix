@@ -43,6 +43,8 @@ in
 
     # Nix rebuild (launchd 에이전트 정리 + Hammerspoon 재시작 포함)
     # 스크립트: scripts/nrs.sh
+    # 소스 참조: 두 명령 모두 flake.lock에 잠긴 remote Git URL 사용 (로컬 경로 아님)
+    # --offline: 다운로드 없이 Nix store 캐시만 사용 (로컬 경로 전환이 아님)
     nrs = "~/.local/bin/nrs.sh";
     nrs-offline = "~/.local/bin/nrs.sh --offline";
 
