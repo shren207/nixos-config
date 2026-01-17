@@ -71,6 +71,9 @@
       unzip
       jq
       htop
+
+      # Nix 도구
+      nvd  # nix closure 버전 비교 (업데이트 미리보기용)
     ];
 
     home.stateVersion = "25.05";

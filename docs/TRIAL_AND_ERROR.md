@@ -5,6 +5,7 @@
 ## 목차
 
 - [2026-01-17: rip (프로세스 종료 CLI) Flake input 추가 실패](#2026-01-17-rip-프로세스-종료-cli-flake-input-추가-실패)
+  - [후속 문제: nix flake update로 의도치 않은 전체 업데이트](#후속-문제-nix-flake-update로-의도치-않은-전체-업데이트)
 - [2026-01-13: Atuin 동기화 모니터링 시스템 구현 시행착오](#2026-01-13-atuin-동기화-모니터링-시스템-구현-시행착오)
 - [2026-01-13: Atuin 계정 마이그레이션 실패](#2026-01-13-atuin-계정-마이그레이션-실패)
 - [2026-01-11: Claude Code 유령 플러그인 해결](#2026-01-11-claude-code-유령-플러그인-해결)
@@ -105,6 +106,81 @@ for migration instructions
 ### 결론
 
 rip은 현재 최신 nixpkgs와 호환되지 않아 Nix로 관리하지 않기로 결정. 필요 시 Homebrew(`brew install cesarferreira/tap/rip`) 또는 Cargo(`cargo install rip-cli`)로 설치.
+
+### 후속 문제: nix flake update로 의도치 않은 전체 업데이트
+
+#### 상황
+
+- rip input 롤백 과정에서 `nix flake update` 실행
+- **의도**: rip만 제거
+- **결과**: 4개 inputs 전부 업데이트 (nixpkgs, home-manager, nix-darwin, nix-vscode-extensions)
+
+#### 원인
+
+- `nix flake update`는 **모든** inputs를 최신으로 갱신하는 명령어
+- rip만 제거하려면 다른 방법을 사용했어야 함
+
+#### 올바른 방법
+
+**특정 input만 업데이트:**
+
+```bash
+nix flake update <input-name>              # Nix 2.19+
+nix flake lock --update-input <input-name> # 구버전 호환
+```
+
+**input 제거 (flake.nix에서 삭제 후):**
+
+```bash
+nix flake lock  # update가 아님! lock만 재생성
+```
+
+#### nix-darwin에서 변경사항 미리 확인하는 방법
+
+```bash
+# 1. 빌드만 수행 (적용 안 함)
+darwin-rebuild build --flake .
+
+# 2. nvd로 비교 (권장)
+nvd diff /run/current-system ./result
+
+# 3. 상세 분석 (크기 포함)
+nix store diff-closures /run/current-system ./result
+```
+
+#### nvd vs nix store diff-closures 비교
+
+**nvd (nix-visualize-diff)** - 권장:
+
+| 항목 | 내용 |
+|------|------|
+| **역할** | Nix closure의 패키지 버전 변경을 시각화 |
+| **설치** | `pkgs.nvd` (nixpkgs 포함) |
+| **출력** | `[U*] firefox: 84.0.1 → 84.0.2` 형식, 색상 강조 |
+| **장점** | 인간 중심 UX, 핵심 변경만 표시, 가독성 우수 |
+| **단점** | 외부 도구 설치 필요, 크기 정보 없음 |
+
+**nix store diff-closures**:
+
+| 항목 | 내용 |
+|------|------|
+| **역할** | 두 closure 간 모든 차이 표시 (크기 포함) |
+| **설치** | 불필요 (Nix 2.4+ 기본 제공) |
+| **출력** | `dolphin: 20.08.1 → 20.08.2, +13.9 KiB` |
+| **장점** | 기본 제공, 상세 정보, 스크립팅 친화적 |
+| **단점** | 장황한 출력, 가독성 낮음 |
+
+**추천**: 일반 사용은 nvd, 상세 분석은 nix store diff-closures
+
+#### 교훈
+
+1. `nix flake update`는 **모든** inputs를 최신으로 갱신
+2. 특정 input만 조작하려면 `nix flake lock` 또는 `nix flake update <name>` 사용
+3. 업데이트 전 `darwin-rebuild build` + `nvd diff`로 변경사항 미리 확인
+4. flake.lock 변경 시 사용자 동의 필수
+
+> **참고**: 이번 업데이트는 nvd 설치 전이라 사전 확인 없이 진행됨.
+> nvd는 이번 커밋에서 추가하여 **다음 업데이트부터** 활용 예정.
 
 ---
 
