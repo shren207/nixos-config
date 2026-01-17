@@ -69,7 +69,7 @@
           };
         in
         {
-          "yunnogduui-MacBookPro" = mkDarwinHost "green" "personal";
+          "greenhead-MacBookPro" = mkDarwinHost "green" "personal";
           "work-MacBookPro" = mkDarwinHost "glen" "work";
         };
 

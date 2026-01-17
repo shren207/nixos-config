@@ -309,7 +309,7 @@ nixos-config/
 
       # 호스트별 설정 (기존 + 신규)
       darwinHosts = {
-        "yunnogduui-MacBookPro" = {
+        "greenhead-MacBookPro" = {
           username = "green";
           hostType = "personal";
           nixosConfigPath = "/Users/green/IdeaProjects/nixos-config";
@@ -995,7 +995,7 @@ in
   # SSH 공개키 (nixos-config-secret에서 관리 권장)
   users.users.${username}.openssh.authorizedKeys.keys = [
     # Mac의 ~/.ssh/id_ed25519.pub 내용
-    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... green@yunnogduui-MacBookPro"
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... green@greenhead-MacBookPro"
   ];
 
   # HDD 마운트 (기존 데이터 유지)
