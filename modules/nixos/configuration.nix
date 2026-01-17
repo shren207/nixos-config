@@ -74,6 +74,9 @@
   # Zsh 활성화
   programs.zsh.enable = true;
 
+  # wheel 그룹 sudo 비밀번호 생략 (SSH 키 인증 + Tailscale 보안)
+  security.sudo.wheelNeedsPassword = false;
+
   # 동적 링크 바이너리 지원 (Claude Code 등)
   programs.nix-ld.enable = true;
 
