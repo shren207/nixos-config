@@ -34,6 +34,9 @@
 
   # 패키지 (모바일 개발 최적화)
   home.packages = with pkgs; [
+    # Terminfo (Ghostty SSH 접속 지원)
+    ghostty
+
     # CLI 도구
     bat
     curl
