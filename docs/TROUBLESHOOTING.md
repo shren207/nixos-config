@@ -64,6 +64,9 @@
   - [동적 링크 바이너리 실행 불가 (nix-ld)](#동적-링크-바이너리-실행-불가-nix-ld)
   - [한글이 ■로 표시됨 (locale 미설정)](#한글이-로-표시됨-locale-미설정)
   - [Mac에서 MiniPC SSH 접속 실패 (Tailscale 만료)](#mac에서-minipc-ssh-접속-실패-tailscale-만료)
+  - [sudo에서 SSH 키 인증 실패 (SSH_AUTH_SOCK)](#sudo에서-ssh-키-인증-실패-ssh_auth_sock)
+  - [SSH에서 sudo 비밀번호 입력 불가](#ssh에서-sudo-비밀번호-입력-불가)
+  - [Ghostty SSH 접속 시 unknown terminal type](#ghostty-ssh-접속-시-unknown-terminal-type)
 
 ---
 
@@ -2124,3 +2127,145 @@ greenhead@greenhead-minipc:~$  # 성공!
 ```
 
 **예방**: Tailscale 키 만료 전에 갱신하거나, 자동 갱신 설정 확인.
+
+---
+
+### sudo에서 SSH 키 인증 실패 (SSH_AUTH_SOCK)
+
+> **발생 시점**: 2026-01-18 (MiniPC NixOS 설정)
+
+**증상**: SSH 키가 ssh-agent에 로드되어 있고 `ssh -T git@github.com`은 성공하지만, `sudo nixos-rebuild`에서 private 저장소 접근 실패.
+
+```bash
+$ ssh -T git@github.com
+Hi shren207! You've successfully authenticated...
+
+$ sudo nixos-rebuild switch --flake .#greenhead-minipc
+error: Failed to fetch git repository ssh://git@github.com/user/private-repo
+git@github.com: Permission denied (publickey).
+```
+
+**원인**: `sudo`는 root 사용자로 명령을 실행하므로, 현재 사용자의 `SSH_AUTH_SOCK` 환경변수를 상속받지 않습니다.
+
+```
+일반 사용자 → ssh-agent (SSH_AUTH_SOCK 설정됨)
+     ↓
+   sudo → root 사용자 (SSH_AUTH_SOCK 없음) → SSH 키 접근 불가
+```
+
+**해결**: `SSH_AUTH_SOCK` 환경변수를 sudo에 전달
+
+```bash
+sudo SSH_AUTH_SOCK=$SSH_AUTH_SOCK nixos-rebuild switch --flake .#greenhead-minipc
+```
+
+**대안**: sudoers에서 환경변수 유지 설정 (NixOS)
+
+```nix
+# configuration.nix
+security.sudo.extraConfig = ''
+  Defaults env_keep += "SSH_AUTH_SOCK"
+'';
+```
+
+**참고**: 이 문제는 private 저장소를 flake input으로 사용할 때만 발생합니다. public 저장소만 사용하면 SSH 인증이 필요 없습니다.
+
+---
+
+### SSH에서 sudo 비밀번호 입력 불가
+
+> **발생 시점**: 2026-01-18 (MiniPC NixOS 설정)
+
+**증상**: Mac에서 SSH로 MiniPC에 접속 후 sudo 명령 실행 시 비밀번호 입력 불가.
+
+```bash
+$ ssh minipc "sudo nixos-rebuild switch --flake .#greenhead-minipc"
+sudo: a terminal is required to read the password; either use ssh's -t option or configure an askpass helper
+```
+
+**원인**: 비인터랙티브 SSH 세션에서는 sudo가 비밀번호를 입력받을 TTY가 없습니다.
+
+**해결**: NixOS에서 wheel 그룹에 NOPASSWD 설정
+
+```nix
+# modules/nixos/configuration.nix
+security.sudo.wheelNeedsPassword = false;
+```
+
+**보안 고려사항**:
+
+| 우려 | 실제 상황 |
+|------|-----------|
+| 설정이 public repo에 노출됨 | 정책 설정일 뿐, 민감 정보 아님 |
+| 누구나 sudo 가능? | Tailscale + SSH 키 인증 필요 |
+| 비밀번호 없이 위험하지 않나? | 이미 SSH 키로 인증됨, 추가 비밀번호는 중복 |
+
+**보안 레이어 구조**:
+```
+외부 인터넷
+     ↓ (Tailscale VPN 필요)
+Tailscale 네트워크
+     ↓ (SSH 키 인증 필요)
+MiniPC SSH 접속
+     ↓ (NOPASSWD)
+sudo 실행
+```
+
+공격자가 sudo 설정을 알아도 Tailscale 네트워크 접근 + SSH 개인키가 없으면 무의미합니다.
+
+**참고**: 많은 NixOS 사용자들이 public dotfiles에 이 설정을 사용합니다.
+
+---
+
+### Ghostty SSH 접속 시 unknown terminal type
+
+> **발생 시점**: 2026-01-18 (MiniPC NixOS 설정)
+
+**증상**: Ghostty 터미널에서 SSH로 MiniPC 접속 시 터미널 타입 에러 및 레이아웃 깨짐.
+
+```bash
+$ ssh minipc
+$ clear
+'xterm-ghostty': unknown terminal type.
+```
+
+터미널 레이아웃, 커서 위치가 모두 깨지는 현상 발생.
+
+**원인**: MiniPC (NixOS)에 Ghostty의 terminfo가 설치되지 않음.
+
+| Mac (Ghostty) | MiniPC (NixOS) |
+|---------------|----------------|
+| TERM=xterm-ghostty 전송 | terminfo 없음 → 에러 |
+
+**해결 1 (임시)**: SSH 접속 시 TERM 변경
+
+```bash
+TERM=xterm-256color ssh minipc
+```
+
+**해결 2 (영구)**: MiniPC에 ghostty 패키지 설치
+
+```nix
+# modules/nixos/home.nix
+home.packages = with pkgs; [
+  ghostty  # terminfo 포함
+  # ...
+];
+```
+
+```bash
+$ sudo nixos-rebuild switch --flake .#greenhead-minipc
+# ghostty-1.2.3 설치됨 (terminfo 포함)
+```
+
+**확인**:
+
+```bash
+$ ssh minipc
+$ clear
+# 정상 작동, 레이아웃 깨지지 않음
+$ infocmp xterm-ghostty
+# terminfo 정보 출력됨
+```
+
+**참고**: Ghostty는 GUI 앱이지만 terminfo만 필요한 경우에도 전체 패키지를 설치해야 합니다. 서버에서 GUI는 사용하지 않지만 terminfo는 SSH 접속에 필요합니다.
