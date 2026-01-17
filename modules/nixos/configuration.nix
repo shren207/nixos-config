@@ -74,6 +74,9 @@
   # Zsh 활성화
   programs.zsh.enable = true;
 
+  # 동적 링크 바이너리 지원 (Claude Code 등)
+  programs.nix-ld.enable = true;
+
   # 프로그램 모듈 임포트
   imports = [
     ./programs/tailscale.nix
