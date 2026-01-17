@@ -97,11 +97,17 @@ preview_changes() {
     fi
 
     # shellcheck disable=SC2086
-    sudo darwin-rebuild build --flake "$FLAKE_PATH" $OFFLINE_FLAG
+    if ! sudo darwin-rebuild build --flake "$FLAKE_PATH" $OFFLINE_FLAG; then
+        log_error "❌ Build failed!"
+        exit 1
+    fi
 
     echo ""
     log_info "📋 Changes to be applied:"
-    nvd diff /run/current-system ./result
+    # nvd diff는 동일 결과 시 non-zero 반환 가능
+    if ! nvd diff /run/current-system ./result; then
+        log_warn "⚠️  nvd diff returned non-zero (possibly identical results)"
+    fi
     echo ""
 }
 
@@ -153,6 +159,22 @@ restart_hammerspoon() {
 }
 
 #───────────────────────────────────────────────────────────────────────────────
+# 6단계: 빌드 아티팩트 정리
+#───────────────────────────────────────────────────────────────────────────────
+cleanup_build_artifacts() {
+    log_info "🧹 Cleaning up build artifacts..."
+
+    local count
+    count=$(find "$FLAKE_PATH" -maxdepth 1 -name 'result*' -type l 2>/dev/null | wc -l | tr -d ' ')
+
+    if [[ "$count" -gt 0 ]]; then
+        # result는 sudo darwin-rebuild로 생성되어 root 소유. 그렇기 때문에 삭제할 때도 root 권한이 필요함
+        sudo rm -f "$FLAKE_PATH"/result*
+        log_info "  ✓ Removed $count result symlink(s)"
+    fi
+}
+
+#───────────────────────────────────────────────────────────────────────────────
 # 메인
 #───────────────────────────────────────────────────────────────────────────────
 main() {
@@ -166,6 +188,7 @@ main() {
     confirm_apply
     run_darwin_rebuild
     restart_hammerspoon
+    cleanup_build_artifacts
     echo ""
     log_info "✅ Done!"
 }

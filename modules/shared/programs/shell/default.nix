@@ -6,9 +6,19 @@ let
   scriptsDir = ../../../../scripts;
 in
 {
-  # nrs.sh 스크립트 설치
+  # Nix 시스템 관리 스크립트 설치
   home.file.".local/bin/nrs.sh" = {
     source = "${scriptsDir}/nrs.sh";
+    executable = true;
+  };
+
+  home.file.".local/bin/nrp.sh" = {
+    source = "${scriptsDir}/nrp.sh";
+    executable = true;
+  };
+
+  home.file.".local/bin/nrh.sh" = {
+    source = "${scriptsDir}/nrh.sh";
     executable = true;
   };
 
@@ -42,12 +52,14 @@ in
     bt = "br -c :pt";
 
     # Nix 시스템 관리
-    # 스크립트: scripts/nrs.sh
+    # 스크립트: scripts/nrs.sh, nrp.sh, nrh.sh
     # 소스 참조: 모두 flake.lock에 잠긴 remote Git URL 사용 (로컬 경로 아님)
     nrs = "~/.local/bin/nrs.sh";                    # 빌드 미리보기 + 확인 후 적용
     nrs-offline = "~/.local/bin/nrs.sh --offline";  # 오프라인 빌드
-    nrp = "(cd ~/IdeaProjects/nixos-config && sudo darwin-rebuild build --flake . && echo '📋 Preview:' && nvd diff /run/current-system ./result)";  # 미리보기만 (적용 안 함)
-    nrh = "nvd history -p /nix/var/nix/profiles/system";  # 시스템 세대 히스토리
+    nrp = "~/.local/bin/nrp.sh";                    # 미리보기만 (적용 안 함)
+    nrp-offline = "~/.local/bin/nrp.sh --offline";  # 오프라인 미리보기
+    nrh = "~/.local/bin/nrh.sh";                    # 최근 10개 세대 히스토리
+    nrh-all = "~/.local/bin/nrh.sh --all";          # 전체 세대 히스토리 (느림)
 
     # Hammerspoon CLI
     hs = "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs";

@@ -504,8 +504,13 @@ cat ~/Library/Logs/ssh-add-keys.log
 
 | Alias         | 용도                                        |
 | ------------- | ------------------------------------------- |
-| `nrs`         | 일반 rebuild (launchd 정리 + Hammerspoon 재시작 포함) |
+| `nrs`         | 일반 rebuild (미리보기 + 확인 + 적용) |
 | `nrs-offline` | 오프라인 rebuild (빠름, 동일한 안전 조치 포함) |
+| `nrp`         | 미리보기만 (적용 안 함) |
+| `nrp-offline` | 오프라인 미리보기 |
+| `nrh`         | 최근 10개 세대 히스토리 (빠름) |
+| `nrh -n 20`   | 최근 20개 세대 히스토리 |
+| `nrh -a`      | 전체 세대 히스토리 (느림) |
 | `hs`          | Hammerspoon CLI                             |
 | `hsr`         | Hammerspoon 설정 리로드 (완료 시 알림 표시) |
 | `reset-term`  | 터미널 CSI u 모드 리셋 (문제 발생 시 복구)  |
@@ -519,17 +524,25 @@ cat ~/Library/Logs/ssh-add-keys.log
 1. 🧹 launchd 에이전트 정리 (setupLaunchAgents 멈춤 방지)
    └── com.green.* 에이전트 동적 탐색 → bootout + plist 삭제
 
-2. 🔨 darwin-rebuild switch 실행
+2. 🔨 darwin-rebuild build + nvd diff (미리보기)
+   └── 빌드 실패 시 즉시 종료 (에러 처리)
+
+3. ❓ 사용자 확인 ("Apply these changes? [Y/n]")
+
+4. 🔨 darwin-rebuild switch 실행
    └── --offline 플래그 (nrs-offline만)
 
-3. 🔄 Hammerspoon 완전 재시작 (HOME 오염 방지)
+5. 🔄 Hammerspoon 완전 재시작 (HOME 오염 방지)
    └── killall → sleep 1 → open -a Hammerspoon
+
+6. 🧹 빌드 아티팩트 정리
+   └── ./result* 심볼릭 링크 삭제
 ```
 
 **구현:**
 
-- 스크립트: `scripts/nrs.sh`
-- 설치 위치: `~/.local/bin/nrs.sh`
+- 스크립트: `scripts/nrs.sh`, `scripts/nrp.sh`, `scripts/nrh.sh`
+- 설치 위치: `~/.local/bin/nrs.sh`, `~/.local/bin/nrp.sh`, `~/.local/bin/nrh.sh`
 - alias: `nrs` → `~/.local/bin/nrs.sh`, `nrs-offline` → `~/.local/bin/nrs.sh --offline`
 
 에이전트 목록은 하드코딩하지 않고 `launchctl list | grep com.green`으로 동적 탐색합니다.
@@ -597,9 +610,17 @@ nixos-config-secret = {
 | 명령어 | 설명 |
 |--------|------|
 | `nrp` | 빌드 후 변경사항 미리보기 (적용 안 함) |
-| `nrh` | 시스템 세대별 변경 이력 확인 |
+| `nrp-offline` | 오프라인 미리보기 |
+| `nrh` | 최근 10개 세대 히스토리 (기본) |
+| `nrh -n 5` | 최근 5개 세대 히스토리 |
+| `nrh -a` | 전체 세대 히스토리 (느림) |
 
 > **참고**: `nrs` 실행 시에도 빌드 후 변경사항을 보여주고 확인을 요청합니다.
+
+**`nrh` 옵션:**
+- `-n, --limit N`: 최근 N개 세대만 조회 (기본: 10)
+- `-a, --all`: 전체 세대 조회 (세대가 많으면 느림)
+- `-h, --help`: 도움말
 
 **출력 예시:**
 
