@@ -53,6 +53,17 @@
   - [Atuin daemon 불안정 (deprecated)](#atuin-daemon-불안정-deprecated)
   - [CLI sync (v2)가 last_sync_time 파일 미업데이트](#cli-sync-v2가-last_sync_time-파일-미업데이트)
   - [네트워크 문제로 sync 실패](#네트워크-문제로-sync-실패)
+- [NixOS 관련](#nixos-관련)
+  - [nixos-install 시 GitHub flake 캐시 문제](#nixos-install-시-github-flake-캐시-문제)
+  - [설치 환경에서 Private 저장소 접근 실패](#설치-환경에서-private-저장소-접근-실패)
+  - [disko.nix와 hardware-configuration.nix fileSystems 충돌](#diskonix와-hardware-configurationnix-filesystems-충돌)
+  - [SSH 키 등록 시 fingerprint 불일치 (O vs 0 오타)](#ssh-키-등록-시-fingerprint-불일치-o-vs-0-오타)
+  - [git commit 시 Author identity unknown](#git-commit-시-author-identity-unknown)
+  - [첫 로그인 시 zsh-newuser-install 화면](#첫-로그인-시-zsh-newuser-install-화면)
+  - [Claude Code 설치 실패 (curl 미설치)](#claude-code-설치-실패-curl-미설치)
+  - [동적 링크 바이너리 실행 불가 (nix-ld)](#동적-링크-바이너리-실행-불가-nix-ld)
+  - [한글이 ■로 표시됨 (locale 미설정)](#한글이-로-표시됨-locale-미설정)
+  - [Mac에서 MiniPC SSH 접속 실패 (Tailscale 만료)](#mac에서-minipc-ssh-접속-실패-tailscale-만료)
 
 ---
 
@@ -1700,3 +1711,416 @@ tail -f ~/.local/share/atuin/watchdog.log
 ```
 
 > **참고**: 자동 복구 기능에 대한 자세한 내용은 [FEATURES.md](FEATURES.md#atuin-모니터링-시스템)를 참고하세요.
+
+---
+
+## NixOS 관련
+
+### nixos-install 시 GitHub flake 캐시 문제
+
+> **발생 시점**: 2026-01-17 (MiniPC NixOS 설치)
+
+**증상**: `flake.nix`를 수정하고 GitHub에 push한 후 `nixos-install --flake github:user/repo#host`를 실행해도 이전 버전이 사용됨.
+
+```bash
+$ nixos-install --flake github:shren207/nixos-config#greenhead-minipc
+# 에러: 방금 수정한 내용이 반영되지 않음
+```
+
+**원인**: GitHub의 flake 참조는 캐싱됩니다. `--refresh` 옵션이 `nixos-install`에는 없습니다.
+
+**해결**: 로컬에 clone해서 설치
+
+```bash
+# GitHub URL 대신 로컬 clone 사용
+git clone https://github.com/user/nixos-config.git /tmp/nixos-config
+nixos-install --flake /tmp/nixos-config#hostname
+```
+
+**왜 발생하는가?**
+
+| 방식 | 캐싱 | 해결책 |
+|------|------|--------|
+| `github:user/repo` | GitHub API 캐시 | 로컬 clone 사용 |
+| `/tmp/nixos-config` | 없음 (로컬) | 최신 상태 보장 |
+
+> **참고**: `nix build`나 `nix develop`에서는 `--refresh` 옵션으로 캐시를 무시할 수 있지만, `nixos-install`은 이 옵션을 지원하지 않습니다.
+
+---
+
+### 설치 환경에서 Private 저장소 접근 실패
+
+> **발생 시점**: 2026-01-17 (MiniPC NixOS 설치)
+
+**증상**: `nixos-install` 실행 시 private 저장소 fetch 실패.
+
+```
+error: Failed to fetch git repository ssh://git@github.com/user/private-repo
+git@github.com: Permission denied (publickey).
+fatal: Could not read from remote repository.
+```
+
+**원인**: NixOS 설치 환경(live USB)에는 SSH 키가 없어서 private 저장소에 접근할 수 없습니다.
+
+**해결**: 설치 시에는 private 저장소 의존성을 임시로 제거
+
+**1. flake.nix에서 private input 주석 처리**
+
+```nix
+# 변경 전
+private-repo = {
+  url = "git+ssh://git@github.com/user/private-repo";
+};
+
+# 변경 후 (설치용)
+# private-repo = {
+#   url = "git+ssh://git@github.com/user/private-repo";
+# };
+```
+
+**2. home.nix에서 해당 import 주석 처리**
+
+```nix
+imports = [
+  # inputs.private-repo.homeManagerModules.default  # 설치 후 활성화
+];
+```
+
+**3. 설치 완료 후 SSH 키 설정하고 다시 활성화**
+
+```bash
+# MiniPC에서 SSH 키 생성
+ssh-keygen -t ed25519 -C "user@minipc"
+cat ~/.ssh/id_ed25519.pub
+# → GitHub에 등록
+
+# 주석 해제 후 rebuild
+sudo nixos-rebuild switch --flake .#hostname
+```
+
+**예방**: 설치 환경에서도 접근 가능한 public 저장소와 private 저장소를 분리하여 관리합니다.
+
+---
+
+### disko.nix와 hardware-configuration.nix fileSystems 충돌
+
+> **발생 시점**: 2026-01-17 (MiniPC NixOS 설치)
+
+**증상**: `nixos-rebuild switch` 실행 시 fileSystems 충돌 에러.
+
+```
+error: The option `fileSystems."/".device` has conflicting definition values:
+- In `module.nix': "/dev/disk/by-partlabel/disk-nvme-root"
+- In `hardware-configuration.nix': "/dev/disk/by-uuid/xxx"
+```
+
+**원인**: disko.nix가 파티션과 마운트를 관리하는데, `nixos-generate-config`로 생성된 hardware-configuration.nix에도 동일한 fileSystems 정의가 있어서 충돌.
+
+**해결**: hardware-configuration.nix에서 disko가 관리하는 항목 제거
+
+```nix
+# 변경 전 (hardware-configuration.nix)
+fileSystems."/" = { device = "/dev/disk/by-uuid/xxx"; fsType = "ext4"; };
+fileSystems."/boot" = { device = "/dev/disk/by-uuid/yyy"; fsType = "vfat"; };
+swapDevices = [ { device = "/dev/disk/by-uuid/zzz"; } ];
+fileSystems."/mnt/data" = { device = "/dev/disk/by-uuid/aaa"; fsType = "ext4"; };  # HDD
+
+# 변경 후
+# fileSystems."/" and "/boot" are managed by disko.nix
+# swapDevices are managed by disko.nix
+
+# HDD mount (disko가 관리하지 않는 것만 유지)
+fileSystems."/mnt/data" = { device = "/dev/disk/by-uuid/aaa"; fsType = "ext4"; };
+```
+
+**핵심 원칙**:
+
+| 항목 | 관리 주체 | hardware-configuration.nix |
+|------|-----------|---------------------------|
+| `/` (root) | disko.nix | 제거 |
+| `/boot` (ESP) | disko.nix | 제거 |
+| swap | disko.nix | 제거 |
+| `/mnt/data` (추가 디스크) | hardware-configuration.nix | 유지 |
+
+---
+
+### SSH 키 등록 시 fingerprint 불일치 (O vs 0 오타)
+
+> **발생 시점**: 2026-01-17 (MiniPC NixOS 설치)
+
+**증상**: SSH 키를 GitHub에 등록했는데 `Permission denied (publickey)` 에러.
+
+```bash
+$ ssh -T git@github.com
+git@github.com: Permission denied (publickey).
+```
+
+**원인**: SSH 공개키를 수동으로 복사할 때 `O`(대문자 O)와 `0`(숫자 0)을 혼동.
+
+```
+# MiniPC의 실제 키
+ssh-ed25519 AAAAC3Nza...I806sMRc...  # "I806" (숫자 0)
+
+# GitHub에 잘못 등록된 키
+ssh-ed25519 AAAAC3Nza...I8O6sMRc...  # "I8O6" (대문자 O)
+```
+
+**진단**: fingerprint 비교
+
+```bash
+# 로컬 키의 fingerprint
+$ ssh-keygen -lf ~/.ssh/id_ed25519.pub
+SHA256:rQkj8SQoIe7nFdTrnGfK1+poZquyienxBL6FF5/Ut1k
+
+# GitHub에 등록된 키의 fingerprint (GitHub 설정 페이지에서 확인)
+SHA256:aUP+sMvwSClsQoLxP7P30vxpQi7Xe/GGjeB0L0PF/Zc  # 다름!
+```
+
+**해결**:
+
+1. GitHub에서 잘못된 키 삭제
+2. 터미널에서 `cat ~/.ssh/id_ed25519.pub` 출력
+3. **전체를 정확히 복사**하여 GitHub에 재등록
+
+**예방**:
+
+- 터미널 폰트가 `O`와 `0`을 명확히 구분하는지 확인
+- 가능하면 `ssh-copy-id`나 클립보드 복사 사용
+- 등록 후 `ssh -T git@github.com`으로 즉시 테스트
+
+---
+
+### git commit 시 Author identity unknown
+
+> **발생 시점**: 2026-01-17 (MiniPC NixOS 설치)
+
+**증상**: git commit 실행 시 author 정보 없음 에러.
+
+```
+$ git commit -m "message"
+Author identity unknown
+
+*** Please tell me who you are.
+
+Run
+  git config --global user.email "you@example.com"
+  git config --global user.name "Your Name"
+```
+
+**원인**: 새로 설치된 NixOS 환경에서 git user 설정이 없음. Home Manager의 git 모듈이 아직 적용되지 않은 상태.
+
+**해결**: 수동으로 git config 설정
+
+```bash
+git config --global user.email "your-email@example.com"
+git config --global user.name "your-username"
+```
+
+**참고**: Home Manager의 `programs.git` 설정이 적용되면 이 설정은 자동으로 관리됩니다. 하지만 첫 rebuild 전에 commit이 필요한 경우 수동 설정이 필요합니다.
+
+---
+
+### 첫 로그인 시 zsh-newuser-install 화면
+
+> **발생 시점**: 2026-01-17 (MiniPC NixOS 설치)
+
+**증상**: 새 사용자로 처음 로그인할 때 zsh 설정 마법사가 나타남.
+
+```
+This is the Z Shell configuration function for new users,
+zsh-newuser-install.
+You are seeing this message because you have no zsh startup files
+(the files .zshenv, .zprofile, .zshrc, .zlogin in the directory
+~). This function can help you with a few settings that should
+make your use of the shell easier.
+
+You can:
+(q) Quit and do nothing.
+(0) Exit, creating the file ~/.zshrc containing just a comment.
+(1) Continue to the main menu.
+```
+
+**원인**: Home Manager가 아직 적용되지 않아서 `.zshrc` 파일이 없음.
+
+**해결**: `0` 입력 (빈 .zshrc 생성)
+
+```
+---- Type one of the keys in parentheses ---- 0
+```
+
+**왜 0을 선택하는가?**
+
+| 선택 | 결과 | 권장 |
+|------|------|------|
+| `q` | 다음 로그인에도 다시 나타남 | ✗ |
+| `0` | 빈 `.zshrc` 생성 → 다시 안 나타남 | ✓ |
+| `1` | 수동 설정 → Home Manager와 충돌 가능 | ✗ |
+
+Home Manager가 나중에 `.zshrc`를 관리하므로, 지금은 빈 파일로 넘어가면 됩니다.
+
+---
+
+### Claude Code 설치 실패 (curl 미설치)
+
+> **발생 시점**: 2026-01-17 (MiniPC NixOS 설치)
+
+**증상**: `nixos-rebuild switch` 시 Claude Code 설치 단계에서 실패.
+
+```
+Installing Claude Code binary...
+Either curl or wget is required but neither is installed
+```
+
+**원인**: Home Manager activation 스크립트에서 `${pkgs.curl}/bin/curl`을 사용하는데, `curl`이 `home.packages`에 포함되지 않음.
+
+```nix
+# 문제의 코드 (modules/shared/programs/claude/default.nix)
+home.activation.installClaudeCode = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+  ${pkgs.curl}/bin/curl -fsSL https://claude.ai/install.sh | ${pkgs.bash}/bin/bash
+'';
+```
+
+**해결**: `home.packages`에 `curl` 추가
+
+```nix
+# modules/nixos/home.nix
+home.packages = with pkgs; [
+  curl  # Claude Code 설치에 필요
+  # ... 다른 패키지들
+];
+```
+
+**참고**: activation 스크립트에서 사용하는 패키지는 명시적으로 의존성에 포함되어야 합니다.
+
+---
+
+### 동적 링크 바이너리 실행 불가 (nix-ld)
+
+> **발생 시점**: 2026-01-17 (MiniPC NixOS 설치)
+
+**증상**: Claude Code 설치 스크립트 실행 후 바이너리 실행 실패.
+
+```
+Setting up Claude Code...
+Could not start dynamically linked executable: /home/user/.claude/downloads/claude-x.x.x-linux-x64
+NixOS cannot run dynamically linked executables intended for generic linux environments out of the box.
+For more information, see: https://nix.dev/permalink/stub-ld
+```
+
+**원인**: NixOS는 FHS(Filesystem Hierarchy Standard)를 따르지 않아서 일반 Linux 바이너리를 직접 실행할 수 없습니다.
+
+| 일반 Linux | NixOS |
+|------------|-------|
+| `/lib64/ld-linux-x86-64.so.2` | 존재하지 않음 |
+| 동적 링크 바이너리 실행 가능 | 실행 불가 |
+
+**해결**: `programs.nix-ld` 활성화
+
+```nix
+# modules/nixos/configuration.nix
+programs.nix-ld.enable = true;
+```
+
+**nix-ld란?**
+
+- 동적 링크된 바이너리를 NixOS에서 실행할 수 있게 해주는 호환성 레이어
+- `/lib64/ld-linux-x86-64.so.2`를 시뮬레이션
+- Claude Code, VS Code Server 등 외부 바이너리에 필요
+
+**적용 후**:
+
+```bash
+$ sudo nixos-rebuild switch --flake .#hostname
+
+# Claude Code 재설치
+$ curl -fsSL https://claude.ai/install.sh | bash
+✓ Claude Code successfully installed!
+```
+
+---
+
+### 한글이 ■로 표시됨 (locale 미설정)
+
+> **발생 시점**: 2026-01-17 (MiniPC NixOS 설치)
+
+**증상**: NixOS 설치 직후 터미널에서 한글이 ■(검은 사각형)으로 표시됨.
+
+```
+[sudo] greenhead ■ ■ :
+■ ■ ■ ■ ■ ■ ■ ■ .
+```
+
+**원인**:
+
+1. 콘솔 폰트가 한글을 지원하지 않음
+2. locale이 아직 완전히 적용되지 않음
+
+**해결**: 이것은 **TTY 콘솔의 정상적인 제한사항**입니다.
+
+- TTY(가상 콘솔)는 유니코드 글꼴 지원이 제한적
+- SSH로 접속하거나 GUI 터미널을 사용하면 정상 표시됨
+
+**확인**:
+
+```bash
+# locale 설정 확인
+$ locale
+LANG=ko_KR.UTF-8
+LC_TIME=ko_KR.UTF-8
+
+# SSH로 접속하면 정상
+$ ssh user@minipc
+# 한글 정상 표시됨
+```
+
+**참고**: NixOS configuration에서 locale이 올바르게 설정되어 있다면 문제없습니다.
+
+```nix
+# modules/nixos/configuration.nix
+i18n.defaultLocale = "ko_KR.UTF-8";
+```
+
+---
+
+### Mac에서 MiniPC SSH 접속 실패 (Tailscale 만료)
+
+> **발생 시점**: 2026-01-17 (MiniPC NixOS 설치)
+
+**증상**: Mac에서 MiniPC로 SSH 접속 시 타임아웃.
+
+```bash
+$ ssh greenhead@100.79.80.95
+ssh: connect to host 100.79.80.95 port 22: Operation timed out
+```
+
+**원인**: Mac의 Tailscale 세션이 만료됨.
+
+Tailscale 관리 콘솔에서 확인:
+```
+macbookpro    100.126.197.36    Expired Sep 18, 2025
+greenhead-minipc    100.79.80.95    Connected
+```
+
+**해결**: Mac에서 Tailscale 재인증
+
+```bash
+# macOS GUI
+# 메뉴바 Tailscale 아이콘 → Log in
+
+# 또는 CLI (설치된 경우)
+$ tailscale up
+```
+
+**확인**:
+
+```bash
+$ tailscale status
+100.65.50.98  greenhead-macbookpro  user@  macOS  -
+100.79.80.95  greenhead-minipc      user@  linux  active; direct ...
+
+# SSH 재시도
+$ ssh greenhead@100.79.80.95
+greenhead@greenhead-minipc:~$  # 성공!
+```
+
+**예방**: Tailscale 키 만료 전에 갱신하거나, 자동 갱신 설정 확인.
