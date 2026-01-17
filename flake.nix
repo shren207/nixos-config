@@ -20,12 +20,12 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Private secrets 저장소 (설치 후 SSH 키 설정 완료 후 주석 해제)
-    # nixos-config-secret = {
-    #   url = "git+ssh://git@github.com/shren207/nixos-config-secret?ref=main&shallow=1";
-    #   inputs.nixpkgs.follows = "nixpkgs";
-    #   inputs.home-manager-secrets.follows = "home-manager-secrets";
-    # };
+    # Private secrets 저장소
+    nixos-config-secret = {
+      url = "git+ssh://git@github.com/shren207/nixos-config-secret?ref=main&shallow=1";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.home-manager-secrets.follows = "home-manager-secrets";
+    };
 
     # VSCode/Cursor 확장 프로그램 관리
     nix-vscode-extensions = {
