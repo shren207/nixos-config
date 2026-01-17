@@ -1433,7 +1433,7 @@ ssh minipc "mkdir -p ~/.local/share/atuin"
 scp ~/.local/share/atuin/key minipc:~/.local/share/atuin/
 
 # MiniPC에서 Atuin 로그인
-ssh minipc "atuin login -u glen"  # 기존 계정명
+ssh minipc "atuin login -u greenhead"  # 기존 계정명
 ssh minipc "atuin sync"
 ```
 
