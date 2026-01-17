@@ -14,7 +14,7 @@ if [ -f "$LOCK_FILE" ]; then
     exit 0
 fi
 touch "$LOCK_FILE"
-trap "rm -f $LOCK_FILE" EXIT
+trap 'rm -f "$LOCK_FILE"' EXIT
 
 # PATH 설정 (rar 명령어 위치)
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"

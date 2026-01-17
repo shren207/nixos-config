@@ -14,7 +14,7 @@ if [ -f "$LOCK_FILE" ]; then
     exit 0
 fi
 touch "$LOCK_FILE"
-trap "rm -f $LOCK_FILE" EXIT
+trap 'rm -f "$LOCK_FILE"' EXIT
 
 # 카운터 (동시에 여러 파일 처리 시)
 i=1

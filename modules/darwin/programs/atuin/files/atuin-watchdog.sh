@@ -22,7 +22,8 @@ mkdir -p "$(dirname "$LOG_FILE")"
 log_message() {
     local level="$1"
     local message="$2"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
     # 콘솔 출력
     echo "[$timestamp] [$level] $message"
@@ -62,6 +63,7 @@ send_alert() {
             log_warn "credentials file permission is $PERMS (recommended: 600)"
         fi
 
+        # shellcheck source=/dev/null
         source "$CREDENTIALS_FILE"
         curl -s \
             --form-string "token=$PUSHOVER_TOKEN" \
