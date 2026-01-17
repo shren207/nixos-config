@@ -18,9 +18,9 @@
   };
 
   imports = [
-    # Secrets 관리
-    inputs.home-manager-secrets.homeManagerModules.home-manager-secrets
-    inputs.nixos-config-secret.homeManagerModules.default
+    # Secrets 관리 (설치 후 SSH 키 설정 완료 후 주석 해제)
+    # inputs.home-manager-secrets.homeManagerModules.home-manager-secrets
+    # inputs.nixos-config-secret.homeManagerModules.default
 
     # 공유 프로그램 (공통)
     ../shared/programs/broot
