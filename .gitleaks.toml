@@ -1,0 +1,10 @@
+title = "nixos-config gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+paths = [
+  '''flake\.lock''',
+  '''\.local\.md''',
+]

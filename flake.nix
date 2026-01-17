@@ -34,54 +34,73 @@
     };
   };
 
-  outputs = { self, nixpkgs, nix-darwin, home-manager, ... }@inputs:
-  let
-    system = "aarch64-darwin";
-    username = "{유저네임}"; # 확인: whoami
+  outputs =
+    {
+      self,
+      nixpkgs,
+      nix-darwin,
+      home-manager,
+      ...
+    }@inputs:
+    let
+      system = "aarch64-darwin";
+      username = "{유저네임}"; # 확인: whoami
 
-    # 공유 라이브러리
-    home-manager-shared = ./libraries/home-manager;
-    nixpkgs-shared = ./libraries/nixpkgs;
+      # 공유 라이브러리
+      home-manager-shared = ./libraries/home-manager;
+      nixpkgs-shared = ./libraries/nixpkgs;
 
-    # 호스트별 설정 (확인: scutil --get LocalHostName)
-    hosts = {
-      "yunnogduui-MacBookPro" = {
-        hostType = "personal";
-        nixosConfigPath = "/Users/${username}/IdeaProjects/nixos-config";
-      };
-      "work-MacBookPro" = {
-        hostType = "work";
-        nixosConfigPath = "/Users/${username}/IdeaProjects/nixos-config";
-      };
-    };
-
-    # darwinConfiguration 생성 함수
-    mkDarwinConfig = hostname: hostConfig:
-      nix-darwin.lib.darwinSystem {
-        inherit system;
-        modules = [
-          home-manager-shared
-          nixpkgs-shared
-          home-manager.darwinModules.home-manager
-          ./modules/shared/configuration.nix
-          ./modules/darwin/configuration.nix
-          ./modules/darwin/home.nix
-        ];
-        specialArgs = {
-          inherit inputs username hostname;
-          inherit (hostConfig) hostType nixosConfigPath;
+      # 호스트별 설정 (확인: scutil --get LocalHostName)
+      hosts = {
+        "yunnogduui-MacBookPro" = {
+          hostType = "personal";
+          nixosConfigPath = "/Users/${username}/IdeaProjects/nixos-config";
+        };
+        "work-MacBookPro" = {
+          hostType = "work";
+          nixosConfigPath = "/Users/${username}/IdeaProjects/nixos-config";
         };
       };
 
-  in {
-    darwinConfigurations = builtins.mapAttrs mkDarwinConfig hosts;
+      # darwinConfiguration 생성 함수
+      mkDarwinConfig =
+        hostname: hostConfig:
+        nix-darwin.lib.darwinSystem {
+          inherit system;
+          modules = [
+            home-manager-shared
+            nixpkgs-shared
+            home-manager.darwinModules.home-manager
+            ./modules/shared/configuration.nix
+            ./modules/darwin/configuration.nix
+            ./modules/darwin/home.nix
+          ];
+          specialArgs = {
+            inherit inputs username hostname;
+            inherit (hostConfig) hostType nixosConfigPath;
+          };
+        };
 
-    # 개발 쉘
-    devShells.${system}.default = nixpkgs.legacyPackages.${system}.mkShell {
-      buildInputs = with nixpkgs.legacyPackages.${system}; [
-        nixfmt-classic
-        rage
-      ];
+    in
+    {
+      darwinConfigurations = builtins.mapAttrs mkDarwinConfig hosts;
+
+      # 개발 쉘
+      devShells.${system}.default =
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        pkgs.mkShell {
+          buildInputs = with pkgs; [
+            nixfmt
+            rage
+            lefthook
+            gitleaks
+            shellcheck
+          ];
+          shellHook = ''
+            lefthook install 2>/dev/null || true
+          '';
+        };
     };
-  };
 }

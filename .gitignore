@@ -1,5 +1,2 @@
 # nix build result
 /result
-
-# auto generated lefthook configuration file
-/lefthook.yml
