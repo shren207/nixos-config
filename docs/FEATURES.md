@@ -486,11 +486,34 @@ git commit -m "message"
 # 차단됨 (Private Key)
 -----BEGIN RSA PRIVATE KEY-----
 
+# 차단됨 (실제 형태의 AWS Access Key)
+AKIAIOSFODNN7TESTKEY
+
 # 허용됨 (AWS 예시 키 - EXAMPLE로 끝남)
 AKIAIOSFODNN7EXAMPLE
 ```
 
-> **참고**: gitleaks는 `.+EXAMPLE$` 패턴을 [내장 allowlist](https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml)로 허용합니다. 테스트/문서용 예시 키는 탐지되지 않습니다.
+**gitleaks 내장 allowlist 패턴:**
+
+gitleaks는 `aws-access-token` 규칙에 다음 [내장 allowlist](https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml)를 포함합니다:
+
+```toml
+[rules.allowlist]
+regexes = [
+    '''.+EXAMPLE$''',
+]
+```
+
+이 패턴은 `EXAMPLE`로 끝나는 모든 문자열을 허용합니다. AWS 공식 문서에서 사용하는 예시 키(`AKIAIOSFODNN7EXAMPLE`)가 false positive로 탐지되는 것을 방지하기 위함입니다.
+
+| 키 | 탐지 여부 | 사유 |
+|----|----------|------|
+| `AKIAIOSFODNN7EXAMPLE` | 허용 | `EXAMPLE`로 끝남 |
+| `AKIA222222222EXAMPLE` | 허용 | `EXAMPLE`로 끝남 |
+| `AKIAIOSFODNN7TESTKEY` | **차단** | `EXAMPLE`로 끝나지 않음 |
+| `AKIAIOSFODNN7REALKEY` | **차단** | `EXAMPLE`로 끝나지 않음 |
+
+> **주의**: 실제 키를 `...EXAMPLE` 형태로 위장하면 탐지를 우회할 수 있으므로, PR 리뷰 시 주의가 필요합니다.
 
 **주의사항:**
 
