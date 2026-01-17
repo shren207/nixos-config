@@ -28,7 +28,7 @@ iPhone에서 언제 어디서나 Claude Code 작업 가능하게 만들기
 ### 다음 단계
 
 - [x] 기존 darwin/programs/claude 디렉토리 삭제
-- [ ] GitHub push
+- [x] GitHub push (commit: fec008f)
 - [ ] Phase 2: NixOS 설치 (MiniPC에서)
 - [ ] Phase 2.5: hardware-configuration.nix 실제 내용으로 교체 후 커밋
 
