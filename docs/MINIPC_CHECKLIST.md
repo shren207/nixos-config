@@ -4,10 +4,12 @@
 
 ### 준비물 체크리스트
 
-- [x] NixOS ISO 다운로드 완료 (`~/Downloads/latest-nixos-minimal-x86_64-linux.iso`)
+- [x] NixOS ISO 다운로드 완료 (`~/Downloads/nixos-minimal-25.11.*.iso`)
+- [x] ISO 무결성 검사 (SHA256) 통과
 - [ ] USB에 ISO 굽기 (아래 명령어 참조)
-- [x] nixos-config가 GitHub에 push됨 (commit: 4fd4a28)
+- [x] nixos-config가 GitHub에 push됨 (최신: `48b30d5`)
 - [x] Mac SSH 공개키가 `hosts/greenhead-minipc/default.nix`에 포함됨
+- [x] git 명령어 자동 nix develop 래핑 훅 추가 (`.claude/scripts/wrap-git-with-nix-develop.sh`)
 
 ### USB 굽기 (Mac에서)
 
@@ -23,8 +25,8 @@ diskutil list
 diskutil unmountDisk /dev/diskN  # N을 실제 번호로 변경
 
 # 4. ISO 굽기 (주의: 올바른 디스크 번호 사용!)
-sudo dd if=~/Downloads/latest-nixos-minimal-x86_64-linux.iso of=/dev/rdiskN bs=4m status=progress
-#          ^-- ISO 파일 경로                                   ^-- rdisk 사용 (더 빠름)
+sudo dd if=~/Downloads/nixos-minimal-25.11.*.iso of=/dev/rdiskN bs=4m status=progress
+#          ^-- ISO 파일 경로                      ^-- rdisk 사용 (더 빠름)
 
 # 5. USB 추출
 diskutil eject /dev/diskN
@@ -134,7 +136,7 @@ atuin sync
 ### NixOS 설치 검증
 
 - [ ] `uname -a` → Linux greenhead-minipc ...
-- [ ] `nixos-version` → 24.11
+- [ ] `nixos-version` → 25.11
 - [ ] `ls /mnt/data/` → 기존 HDD 데이터 확인
 
 ### 네트워크 검증
