@@ -1,5 +1,10 @@
 # Git 설정
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 
 let
   # Rebase 역순 표시 스크립트
@@ -129,8 +134,7 @@ in
       ".cursorrules"
       ".cursor"
 
-      # Claude
-      ".claude"
+      # Claude (settings.local.json만 무시, 나머지는 프로젝트별 커밋 가능)
       "**/.claude/settings.local.json"
       "CLAUDE.local.md"
       "CLAUDE.local.*.md"
