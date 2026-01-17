@@ -41,12 +41,13 @@ in
     # broot: tree 스타일 출력
     bt = "br -c :pt";
 
-    # Nix rebuild (launchd 에이전트 정리 + Hammerspoon 재시작 포함)
+    # Nix 시스템 관리
     # 스크립트: scripts/nrs.sh
-    # 소스 참조: 두 명령 모두 flake.lock에 잠긴 remote Git URL 사용 (로컬 경로 아님)
-    # --offline: 다운로드 없이 Nix store 캐시만 사용 (로컬 경로 전환이 아님)
-    nrs = "~/.local/bin/nrs.sh";
-    nrs-offline = "~/.local/bin/nrs.sh --offline";
+    # 소스 참조: 모두 flake.lock에 잠긴 remote Git URL 사용 (로컬 경로 아님)
+    nrs = "~/.local/bin/nrs.sh";                    # 빌드 미리보기 + 확인 후 적용
+    nrs-offline = "~/.local/bin/nrs.sh --offline";  # 오프라인 빌드
+    nrp = "(cd ~/IdeaProjects/nixos-config && sudo darwin-rebuild build --flake . && echo '📋 Preview:' && nvd diff /run/current-system ./result)";  # 미리보기만 (적용 안 함)
+    nrh = "nvd history -p /nix/var/nix/profiles/system";  # 시스템 세대 히스토리
 
     # Hammerspoon CLI
     hs = "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs";

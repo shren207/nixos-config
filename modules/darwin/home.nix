@@ -73,7 +73,7 @@
       htop
 
       # Nix 도구
-      nvd  # nix closure 버전 비교 (업데이트 미리보기용)
+      nvd  # 시스템 변경사항 미리보기: nrp (preview), nrh (history)
     ];
 
     home.stateVersion = "25.05";
