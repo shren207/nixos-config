@@ -1,5 +1,10 @@
 # Shell 설정 (zsh, starship, atuin, zoxide, fzf)
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 
 let
   # 스크립트 디렉토리 (nixos-config 루트 기준)
@@ -54,12 +59,12 @@ in
     # Nix 시스템 관리
     # 스크립트: scripts/nrs.sh, nrp.sh, nrh.sh
     # 소스 참조: 모두 flake.lock에 잠긴 remote Git URL 사용 (로컬 경로 아님)
-    nrs = "~/.local/bin/nrs.sh";                    # 빌드 미리보기 + 확인 후 적용
-    nrs-offline = "~/.local/bin/nrs.sh --offline";  # 오프라인 빌드
-    nrp = "~/.local/bin/nrp.sh";                    # 미리보기만 (적용 안 함)
-    nrp-offline = "~/.local/bin/nrp.sh --offline";  # 오프라인 미리보기
-    nrh = "~/.local/bin/nrh.sh";                    # 최근 10개 세대 히스토리
-    nrh-all = "~/.local/bin/nrh.sh --all";          # 전체 세대 히스토리 (느림)
+    nrs = "~/.local/bin/nrs.sh"; # 빌드 미리보기 + 확인 후 적용
+    nrs-offline = "~/.local/bin/nrs.sh --offline"; # 오프라인 빌드
+    nrp = "~/.local/bin/nrp.sh"; # 미리보기만 (적용 안 함)
+    nrp-offline = "~/.local/bin/nrp.sh --offline"; # 오프라인 미리보기
+    nrh = "~/.local/bin/nrh.sh"; # 최근 10개 세대 히스토리
+    nrh-all = "~/.local/bin/nrh.sh --all"; # 전체 세대 히스토리 (느림)
 
     # Hammerspoon CLI
     hs = "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs";
@@ -72,7 +77,11 @@ in
   # Zsh 설정
   programs.zsh = {
     enable = true;
-    autosuggestion.enable = true;
+    autosuggestion = {
+      enable = true;
+      highlight = "fg=#808080";
+      strategy = [ "history" ]; # completion 제외로 NFD cursor 버그 회피
+    };
     syntaxHighlighting.enable = true;
 
     # 히스토리 설정
@@ -89,6 +98,9 @@ in
     initContent = lib.mkMerge [
       # 가장 먼저 실행되어야 할 설정
       (lib.mkBefore ''
+        # macOS NFD 유니코드 결합 문자 처리 (한글 자모 분리, 일본어 dakuten 등)
+        setopt COMBINING_CHARS
+
         # Ghostty 쉘 통합 설정
         if [ -n "''${GHOSTTY_RESOURCES_DIR}" ]; then
           builtin source "''${GHOSTTY_RESOURCES_DIR}/shell-integration/zsh/ghostty-integration"
@@ -100,34 +112,34 @@ in
 
       # 나머지 초기화 스크립트
       ''
-      # cursor 래퍼: 인수 없이 실행 시 현재 디렉터리 열기
-      cursor() {
-        if [ $# -eq 0 ]; then
-          command cursor .
-        else
-          command cursor "$@"
+        # cursor 래퍼: 인수 없이 실행 시 현재 디렉터리 열기
+        cursor() {
+          if [ $# -eq 0 ]; then
+            command cursor .
+          else
+            command cursor "$@"
+          fi
+        }
+
+        # NVM bash completion
+        [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+        # Bun completions
+        [ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
+
+        # Deno 설정
+        [ -f "$HOME/.deno/env" ] && . "$HOME/.deno/env"
+
+        # Mise 활성화 (node, ruby 등 런타임 관리)
+        if command -v mise >/dev/null 2>&1; then
+          eval "$(mise activate zsh)"
         fi
-      }
 
-      # NVM bash completion
-      [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-
-      # Bun completions
-      [ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
-
-      # Deno 설정
-      [ -f "$HOME/.deno/env" ] && . "$HOME/.deno/env"
-
-      # Mise 활성화 (node, ruby 등 런타임 관리)
-      if command -v mise >/dev/null 2>&1; then
-        eval "$(mise activate zsh)"
-      fi
-
-      # tmux 내부에서 clear 시 history buffer도 함께 삭제
-      if [ -n "$TMUX" ]; then
-        alias clear='clear && tmux clear-history'
-      fi
-    ''
+        # tmux 내부에서 clear 시 history buffer도 함께 삭제
+        if [ -n "$TMUX" ]; then
+          alias clear='clear && tmux clear-history'
+        fi
+      ''
     ];
   };
 
@@ -143,14 +155,14 @@ in
     enable = true;
     settings = {
       # 동기화 설정
-      auto_sync = true;              # 명령 실행 후 자동 sync
-      sync_frequency = "1m";         # auto_sync 최소 간격
-      sync.records = true;           # Sync v2 (record-based sync) 활성화
+      auto_sync = true; # 명령 실행 후 자동 sync
+      sync_frequency = "1m"; # auto_sync 최소 간격
+      sync.records = true; # Sync v2 (record-based sync) 활성화
 
       # 네트워크 타임아웃
-      network_timeout = 30;          # 서버 요청 최대 대기 (초)
-      network_connect_timeout = 5;   # 연결 수립 대기 (초)
-      local_timeout = 5;             # SQLite 연결 대기 (초)
+      network_timeout = 30; # 서버 요청 최대 대기 (초)
+      network_connect_timeout = 5; # 연결 수립 대기 (초)
+      local_timeout = 5; # SQLite 연결 대기 (초)
 
       # UI 설정
       style = "compact";

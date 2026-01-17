@@ -45,6 +45,8 @@
 - [Ghostty 관련](#ghostty-관련)
   - [한글 입력소스에서 Ctrl/Opt 단축키가 동작하지 않음](#한글-입력소스에서-ctrlopt-단축키가-동작하지-않음)
   - [Ctrl+C 입력 시 "5u9;" 같은 문자가 출력됨](#ctrlc-입력-시-5u9-같은-문자가-출력됨)
+- [Zsh 관련](#zsh-관련)
+  - [zsh-autosuggestion에서 한글/일본어 경로 레이아웃 깨짐](#zsh-autosuggestion에서-한글일본어-경로-레이아웃-깨짐)
 - [Atuin 관련](#atuin-관련)
   - [atuin status가 404 오류 반환](#atuin-status가-404-오류-반환)
   - [Encryption key 불일치로 동기화 실패](#encryption-key-불일치로-동기화-실패)
@@ -1356,6 +1358,116 @@ printf "\033[?u\033[<u"
 ```
 
 > **참고**: 터미널 설정에 대한 자세한 내용은 [FEATURES.md](FEATURES.md#터미널-설정)를 참고하세요.
+
+---
+
+## Zsh 관련
+
+### zsh-autosuggestion에서 한글/일본어 경로 레이아웃 깨짐
+
+> **발생 시점**: 2026-01-17
+> **상태**: 부분 해결 (문자 표시는 정상, 커서 위치는 일부 문제)
+
+**증상**: `cd` 입력 시 한글/일본어가 포함된 경로가 zsh-autosuggestion으로 제안되면 터미널 레이아웃이 깨짐.
+
+```
+# 정상 동작 (영어 경로)
+~ > cd Documents/projects/  # autosuggestion 정상
+
+# 문제 발생 (한글/일본어 경로)
+~ > cd Documents/プロジェクト/한글폴더/  # 레이아웃 깨짐
+# 다음과 같이 표시됨:
+# cd Documents/プロシ<3099>ェクト/한글폴더/  # <3099> 문자 노출, 커서 위치 틀어짐
+```
+
+**원인**: macOS 파일 시스템(APFS/HFS+)의 NFD(분해형) 유니코드 정규화.
+
+| 정규화 | 예시 | 바이트 |
+| ------ | ---- | ------ |
+| NFC (조합형) | `동` | `EB 8F 99` (3바이트) |
+| NFD (분해형) | `ᄃ` + `ᅩ` + `ᆼ` | `E1 84 83 E1 85 A9 E1 86 BC` (9바이트) |
+
+macOS는 파일명을 NFD로 저장하므로:
+- 한글: `동` → `ᄃ` + `ᅩ` + `ᆼ` (초성+중성+종성 분리)
+- 일본어: `ダ` → `タ` + U+3099 (기본자+탁점 분리)
+
+zsh-autosuggestion이 결합 문자(combining character)의 너비를 잘못 계산하여 커서 위치가 틀어짐.
+
+**진단 방법**:
+
+```bash
+# 1. 파일명 인코딩 확인
+ls Documents/プロジェクト | xxd | head -10
+# NFD면 한글이 초성/중성/종성 바이트로 분리됨
+
+# 2. grep으로 NFC/NFD 차이 확인
+ls Documents | grep 한글  # NFC "한글"로 검색
+# NFD로 저장된 경우 매칭 안 됨!
+```
+
+**해결 방법**:
+
+**1. `setopt COMBINING_CHARS` 추가 (핵심)**
+
+zsh 4.3.9부터 도입된 내장 옵션으로, 결합 문자를 기본 문자와 같은 화면 영역에 표시.
+
+```nix
+# modules/shared/programs/shell/default.nix
+programs.zsh = {
+  initContent = lib.mkMerge [
+    (lib.mkBefore ''
+      # macOS NFD 유니코드 결합 문자 처리 (한글 자모 분리, 일본어 dakuten 등)
+      setopt COMBINING_CHARS
+
+      # ... 나머지 설정
+    '')
+  ];
+};
+```
+
+**2. autosuggestion 설정 조정 (보조)**
+
+```nix
+programs.zsh = {
+  autosuggestion = {
+    enable = true;
+    highlight = "fg=#808080";
+    strategy = [ "history" ];  # completion 제외로 cursor 버그 완화
+  };
+};
+```
+
+> **주의**: `strategy = [ "history" ]`는 Tab completion 기반 제안을 비활성화함 (한 번도 실행 안 한 명령어는 제안 안 됨).
+
+**적용 후 확인**:
+
+```bash
+# setopt 적용 확인
+setopt | grep -i combining  # 출력: combiningchars
+
+# 문자 표시 테스트
+echo "テスト 한글"  # 정상 출력되는지 확인
+```
+
+**결과**:
+
+| 항목 | 적용 전 | 적용 후 |
+| ---- | ------- | ------- |
+| 문자 표시 | `タ<3099>` | `ダ` (정상) |
+| 커서 위치 | 틀어짐 | 일부 개선 (완전하지 않음) |
+
+**알려진 제한사항**:
+
+- 커서 위치 계산은 zsh-autosuggestions 플러그인 자체 로직의 한계로 완전히 해결되지 않음
+- 문제가 심할 경우 `ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=50`으로 긴 경로 제안 제한 검토
+- Atuin TUI에서 NFD 한글이 초성만 표시되는 문제는 Ratatui 라이브러리 버그 (업스트림 패치 대기)
+
+**참고 자료**:
+
+- [zsh FAQ - COMBINING_CHARS](https://zsh.sourceforge.io/FAQ/zshfaq05.html)
+- [Home Manager - zsh.autosuggestion 옵션](https://mynixos.com/home-manager/options/programs.zsh.autosuggestion)
+- [Oh My Zsh - macOS NFD issue #12380](https://github.com/ohmyzsh/ohmyzsh/issues/12380)
+- [Ratatui - Korean rendering #1396](https://github.com/ratatui/ratatui/issues/1396)
 
 ---
 
