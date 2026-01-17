@@ -1,5 +1,5 @@
 {
-  description = "green/nixos-config - macOS Development Environment";
+  description = "green/nixos-config - macOS & NixOS Development Environment";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable-small";
@@ -32,6 +32,12 @@
       url = "github:nix-community/nix-vscode-extensions";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # NixOS 디스크 파티셔닝
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -40,33 +46,50 @@
       nixpkgs,
       nix-darwin,
       home-manager,
+      disko,
       ...
     }@inputs:
     let
-      system = "aarch64-darwin";
-      username = "{유저네임}"; # 확인: whoami
-
       # 공유 라이브러리
       home-manager-shared = ./libraries/home-manager;
       nixpkgs-shared = ./libraries/nixpkgs;
 
-      # 호스트별 설정 (확인: scutil --get LocalHostName)
-      hosts = {
-        "yunnogduui-MacBookPro" = {
-          hostType = "personal";
-          nixosConfigPath = "/Users/${username}/IdeaProjects/nixos-config";
-        };
-        "work-MacBookPro" = {
-          hostType = "work";
-          nixosConfigPath = "/Users/${username}/IdeaProjects/nixos-config";
-        };
+      # 다중 시스템 지원
+      systems = {
+        darwin = "aarch64-darwin";
+        linux = "x86_64-linux";
       };
+
+      # macOS 호스트 설정 (확인: scutil --get LocalHostName)
+      darwinHosts =
+        let
+          mkDarwinHost = username: hostType: {
+            inherit username hostType;
+            nixosConfigPath = "/Users/${username}/IdeaProjects/nixos-config";
+          };
+        in
+        {
+          "yunnogduui-MacBookPro" = mkDarwinHost "green" "personal";
+          "work-MacBookPro" = mkDarwinHost "glen" "work";
+        };
+
+      # NixOS 호스트 설정
+      nixosHosts =
+        let
+          mkNixosHost = username: hostType: {
+            inherit username hostType;
+            nixosConfigPath = "/home/${username}/nixos-config";
+          };
+        in
+        {
+          "greenhead-minipc" = mkNixosHost "greenhead" "server";
+        };
 
       # darwinConfiguration 생성 함수
       mkDarwinConfig =
         hostname: hostConfig:
         nix-darwin.lib.darwinSystem {
-          inherit system;
+          system = systems.darwin;
           modules = [
             home-manager-shared
             nixpkgs-shared
@@ -76,31 +99,68 @@
             ./modules/darwin/home.nix
           ];
           specialArgs = {
-            inherit inputs username hostname;
-            inherit (hostConfig) hostType nixosConfigPath;
+            inherit inputs hostname;
+            inherit (hostConfig) username hostType nixosConfigPath;
+          };
+        };
+
+      # nixosConfiguration 생성 함수
+      mkNixosConfig =
+        hostname: hostConfig:
+        nixpkgs.lib.nixosSystem {
+          system = systems.linux;
+          modules = [
+            disko.nixosModules.disko
+            home-manager.nixosModules.home-manager
+            ./hosts/${hostname}
+            ./modules/nixos/configuration.nix
+            {
+              home-manager = {
+                useGlobalPkgs = true;
+                useUserPackages = true;
+                backupFileExtension = "backup";
+                extraSpecialArgs = {
+                  inherit inputs hostname;
+                  inherit (hostConfig) username hostType nixosConfigPath;
+                };
+                users.${hostConfig.username} = import ./modules/nixos/home.nix;
+              };
+            }
+          ];
+          specialArgs = {
+            inherit inputs hostname;
+            inherit (hostConfig) username hostType nixosConfigPath;
           };
         };
 
     in
     {
-      darwinConfigurations = builtins.mapAttrs mkDarwinConfig hosts;
+      # macOS 설정
+      darwinConfigurations = builtins.mapAttrs mkDarwinConfig darwinHosts;
 
-      # 개발 쉘
-      devShells.${system}.default =
+      # NixOS 설정
+      nixosConfigurations = builtins.mapAttrs mkNixosConfig nixosHosts;
+
+      # 개발 쉘 (다중 시스템)
+      devShells = nixpkgs.lib.genAttrs [ systems.darwin systems.linux ] (
+        system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
         in
-        pkgs.mkShell {
-          buildInputs = with pkgs; [
-            nixfmt
-            rage
-            lefthook
-            gitleaks
-            shellcheck
-          ];
-          shellHook = ''
-            lefthook install 2>/dev/null || true
-          '';
-        };
+        {
+          default = pkgs.mkShell {
+            buildInputs = with pkgs; [
+              nixfmt
+              rage
+              lefthook
+              gitleaks
+              shellcheck
+            ];
+            shellHook = ''
+              lefthook install 2>/dev/null || true
+            '';
+          };
+        }
+      );
     };
 }

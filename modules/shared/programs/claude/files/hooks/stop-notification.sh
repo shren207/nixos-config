@@ -6,6 +6,7 @@
 CREDENTIALS_FILE="$HOME/.config/pushover/credentials"
 
 if [ -f "$CREDENTIALS_FILE" ]; then
+  # shellcheck source=/dev/null
   source "$CREDENTIALS_FILE"
 else
   echo "Error: Pushover credentials not found at $CREDENTIALS_FILE" >&2

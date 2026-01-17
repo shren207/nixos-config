@@ -94,7 +94,7 @@ description: Automatically documents conversations by appending to CLAUDE.local.
 ## 질문 원본
 
 <user-prompt>
-“{개발자가 입력한 프롬프트 원문(정확 복사)}”
+"{개발자가 입력한 프롬프트 원문(정확 복사)}"
 </user-prompt>
 
 ## 답변

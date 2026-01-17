@@ -46,7 +46,7 @@ allowed-tools: |
 2. **모든 범위(Local, Unpushed, Incoming)**의 변경 사항을 종합하여 보고서 작성을 준비합니다.
 3. 현재 프로젝트 디렉토리에 `CLAUDE.local.*.md` 파일이 존재하는 경우, 이를 참조합니다.
 4. TODO 파일 생성 (필수):
-   작업 트리(Working Tree)가 깨끗하더라도, 이미 커밋된 내역(Committed)에 TODO가 있을 수 있습니다. 
+   작업 트리(Working Tree)가 깨끗하더라도, 이미 커밋된 내역(Committed)에 TODO가 있을 수 있습니다.
    (주의: Incoming 변경 사항에 포함된 TODO는 내 작업이 아니므로 제외해야 합니다. 아래 명령어는 `${base_ref}..HEAD` 방향을 사용하므로, 내가 작성한(Unpushed) 내용만 필터링하고 Incoming은 자동으로 제외됩니다.)
 
    **실행할 검사 (명령어 필수):**
@@ -68,7 +68,7 @@ allowed-tools: |
 
   ## src/components/Button.tsx
   - [ ] TODO: Fix typo (L20)
-  ``` 
+  ```
   </example>
 
 5. 필요한 모든 정보를 수집하고 작업을 수행한 후, 다음 형식을 사용하여 한국어로 구조화된 보고서를 작성합니다:
@@ -79,7 +79,7 @@ allowed-tools: |
 
 ## 진행 상황 요약 (Progress Summary)
 
-- 달성한 내용을 요약합니다: unpushed 커밋, staged/unstaged 변경 사항, 주요 마일스톤 등 
+- 달성한 내용을 요약합니다: unpushed 커밋, staged/unstaged 변경 사항, 주요 마일스톤 등
 - 참고: 새로 추가된 TODO 항목이 발견되어 TODO.md 파일이 생성된 경우 이를 언급해 주십시오
 
 ## 다음 단계 (Next Steps)
@@ -89,4 +89,4 @@ allowed-tools: |
 
 2. 권장 조치:
   - 이후 테스트 실행, 충돌 해결, 변경 사항 push 등 일반적인 다음 단계를 나열하십시오.
-  - 목록이 길어질 경우 상위 항목 위주로 간결하게 유지하십시오. 
+  - 목록이 길어질 경우 상위 항목 위주로 간결하게 유지하십시오.

@@ -1,11 +1,17 @@
-# Claude Code 설정
+# Claude Code 설정 (공통)
 # Homebrew로 앱 설치, Nix로 설정 관리
-{ config, pkgs, lib, nixosConfigPath, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  nixosConfigPath,
+  ...
+}:
 
 let
   claudeDir = ./files;
   # mkOutOfStoreSymlink용 절대 경로 (양방향 수정 가능)
-  claudeFilesPath = "${nixosConfigPath}/modules/darwin/programs/claude/files";
+  claudeFilesPath = "${nixosConfigPath}/modules/shared/programs/claude/files";
 in
 {
   # Binary Claude Code 설치 (Node.js 버전 의존성 없음)
