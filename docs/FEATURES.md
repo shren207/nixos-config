@@ -31,8 +31,8 @@
   - [tmux Extended Keys](#tmux-extended-keys)
 - [GUI 앱 (Homebrew Casks)](#gui-앱-homebrew-casks)
   - [Cursor 설정](#cursor-설정)
+    - [Tab 자동완성 우선순위](#tab-자동완성-우선순위)
     - [에디터 탭 라벨 커스터마이징](#에디터-탭-라벨-커스터마이징)
-    - [JetBrains 스타일 자동완성](#jetbrains-스타일-자동완성)
     - [기본 앱 설정 (duti)](#기본-앱-설정-duti)
   - [Hammerspoon 단축키](#hammerspoon-단축키)
     - [터미널 Ctrl/Opt 단축키 (한글 입력소스 문제 해결)](#터미널-ctrlopt-단축키-한글-입력소스-문제-해결)
@@ -885,6 +885,16 @@ Ghostty, xterm-256color, tmux-256color에서 True Color(24-bit) 지원을 활성
 
 `modules/darwin/programs/cursor/`에서 관리됩니다.
 
+#### Tab 자동완성 우선순위
+
+> **참고**: Cursor 2.3.35 기준
+
+Cursor의 Tab 자동완성(AI 기반)과 VS Code IntelliSense(언어 서버 기반)가 동시에 표시될 때, **Tab 키는 Cursor 자동완성을 우선 처리**합니다. IntelliSense 제안은 무시됩니다.
+
+- **Tab**: Cursor AI 자동완성 수락
+- **방향키(↑↓)**: IntelliSense 제안 탐색
+- **Enter**: IntelliSense 제안 수락
+
 #### 에디터 탭 라벨 커스터마이징
 
 `settings.json`의 `workbench.editor.customLabels.patterns`를 사용하여 Next.js 프로젝트의 탭 가독성을 개선합니다.
@@ -909,33 +919,6 @@ Ghostty, xterm-256color, tmux-256color에서 True Color(24-bit) 지원을 활성
 | Pages Router | `index`, `_app`, `_document`, `_error`                                   | `dirname/filename` |
 | 공통 index   | `index.ts(x)`                                                            | `dirname/index`    |
 | 유틸리티     | `hook(s)`, `constant(s)`, `util(s)`, `state(s)`, `type(s)`, `style(s)`   | `dirname/filename` |
-
-#### JetBrains 스타일 자동완성
-
-`settings.json`과 `keybindings.json`을 조합하여 JetBrains(IntelliJ) 스타일의 자동완성 탐색을 구현합니다.
-
-**VS Code 기본 vs JetBrains 스타일:**
-
-| 동작               | VS Code 기본       | JetBrains 스타일 |
-| ------------------ | ------------------ | ---------------- |
-| 다음 제안으로 이동 | `↓`                | `Tab`            |
-| 이전 제안으로 이동 | `↑`                | `Shift+Tab`      |
-| 제안 수락          | `Tab` 또는 `Enter` | `Enter`          |
-
-**설정 파일:**
-
-- `settings.json`: 자동완성 동작 설정
-
-  - `editor.tabCompletion`: Tab 키로 자동완성 기능 활성화
-  - `editor.suggestSelection`: 첫 번째 항목 자동 선택
-  - `editor.acceptSuggestionOnEnter`: Enter로 제안 수락 보장
-
-- `keybindings.json`: 키 바인딩 재정의
-  - `Tab` → `selectNextSuggestion` (자동완성 창이 열려있을 때만)
-  - `Shift+Tab` → `selectPrevSuggestion`
-  - `Enter` → `acceptSelectedSuggestion`
-
-> **참고**: 자동완성 창이 닫혀있을 때는 Tab이 기존 들여쓰기 기능을 그대로 수행합니다.
 
 #### 기본 앱 설정 (duti)
 

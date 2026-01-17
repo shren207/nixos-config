@@ -416,29 +416,5 @@
     "key": "cmd+n",
     "command": "chatgpt.addToThread",
     "when": "chatgpt.sidebarView.visible"
-  },
-  /*
-   * JetBrains 스타일 자동완성 탐색
-   *
-   * VS Code 기본: Tab으로 제안 수락, 방향키로 탐색
-   * JetBrains 스타일: Tab으로 탐색, Enter로 수락
-   *
-   * 조건(when): 자동완성 창이 열려있을 때만 작동
-   * → 평소에는 Tab이 들여쓰기 기능 그대로 유지
-   */
-  {
-    "key": "tab",
-    "command": "selectNextSuggestion",
-    "when": "suggestWidgetMultipleSuggestions && suggestWidgetVisible"
-  },
-  {
-    "key": "shift+tab",
-    "command": "selectPrevSuggestion",
-    "when": "suggestWidgetMultipleSuggestions && suggestWidgetVisible"
-  },
-  {
-    "key": "enter",
-    "command": "acceptSelectedSuggestion",
-    "when": "suggestWidgetVisible"
   }
 ]
