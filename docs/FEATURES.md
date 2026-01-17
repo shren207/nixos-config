@@ -19,6 +19,7 @@
   - [플러그인 관리](#플러그인-관리)
   - [플러그인 주의사항](#플러그인-주의사항)
 - [Nix 관련](#nix-관련)
+  - [Pre-commit Hooks](#pre-commit-hooks)
   - [SSH 키 자동 로드](#ssh-키-자동-로드)
   - [darwin-rebuild Alias](#darwin-rebuild-alias)
   - [병렬 다운로드 최적화](#병렬-다운로드-최적화)
@@ -447,6 +448,54 @@ claude plugin uninstall plugin-name@marketplace --scope user
 ## Nix 관련
 
 `modules/shared/configuration.nix`와 `modules/shared/programs/shell/default.nix`에서 관리됩니다.
+
+### Pre-commit Hooks
+
+`flake.nix`의 `devShells`와 `lefthook.yml`에서 관리됩니다.
+
+lefthook을 사용하여 커밋 전 자동 검사를 수행합니다. 민감 정보 유출, 포맷 오류, 쉘 스크립트 문제를 커밋 단계에서 차단합니다.
+
+**구성 요소:**
+
+| Hook | 도구 | 기능 |
+|------|------|------|
+| gitleaks | `gitleaks protect --staged` | 민감 정보(API 키, 비밀번호 등) 커밋 차단 |
+| nixfmt | `nixfmt --check` | Nix 파일 포맷 검사 |
+| shellcheck | `shellcheck -S warning` | Shell 스크립트 린팅 (warning 이상) |
+
+**사용법:**
+
+```bash
+# devShell 진입 (lefthook 자동 설치)
+nix develop
+
+# 이후 커밋 시 자동 실행
+git commit -m "message"
+```
+
+**gitleaks 허용 목록 (.gitleaks.toml):**
+
+| 경로 | 사유 |
+|------|------|
+| `flake.lock` | 해시값이 시크릿으로 오탐지됨 |
+| `*.local.md` | 로컬 전용 문서 (커밋 안 함) |
+
+**탐지 예시:**
+
+```bash
+# 차단됨 (Private Key)
+-----BEGIN RSA PRIVATE KEY-----
+
+# 허용됨 (AWS 예시 키 - EXAMPLE로 끝남)
+AKIAIOSFODNN7EXAMPLE
+```
+
+> **참고**: gitleaks는 `.+EXAMPLE$` 패턴을 [내장 allowlist](https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml)로 허용합니다. 테스트/문서용 예시 키는 탐지되지 않습니다.
+
+**주의사항:**
+
+- `nix develop` 환경 외부에서 커밋 시 hook이 실패할 수 있음
+- 새 스크립트 추가 시 `shellcheck -S warning`으로 사전 검사 권장
 
 ### SSH 키 자동 로드
 
