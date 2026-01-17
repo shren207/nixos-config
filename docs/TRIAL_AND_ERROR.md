@@ -4,6 +4,7 @@
 
 ## 목차
 
+- [2026-01-17: rip (프로세스 종료 CLI) Flake input 추가 실패](#2026-01-17-rip-프로세스-종료-cli-flake-input-추가-실패)
 - [2026-01-13: Atuin 동기화 모니터링 시스템 구현 시행착오](#2026-01-13-atuin-동기화-모니터링-시스템-구현-시행착오)
 - [2026-01-13: Atuin 계정 마이그레이션 실패](#2026-01-13-atuin-계정-마이그레이션-실패)
 - [2026-01-11: Claude Code 유령 플러그인 해결](#2026-01-11-claude-code-유령-플러그인-해결)
@@ -20,6 +21,90 @@
   - [교훈](#교훈)
   - [대상 애드온 목록 (참고용)](#대상-애드온-목록-참고용)
   - [결론](#결론)
+
+---
+
+## 2026-01-17: rip (프로세스 종료 CLI) Flake input 추가 실패
+
+> **환경**: nixpkgs nixos-unstable-small (2026-01-16), nix-darwin 26.05, macOS (Apple Silicon)
+>
+> [rip](https://github.com/cesarferreira/rip)은 터미널에서 프로세스를 퍼지 검색으로 찾아 종료하는 Rust CLI 도구입니다.
+
+### 목표
+
+rip을 Nix flake input으로 추가하여 선언적으로 관리하려 했습니다.
+
+### 시도한 방식
+
+**1단계: flake.nix에 input 추가**
+
+```nix
+# inputs 섹션
+rip = {
+  url = "github:cesarferreira/rip";
+  inputs.nixpkgs.follows = "nixpkgs";  # nixpkgs 버전 통일
+};
+
+# specialArgs에 패키지 전달
+specialArgs = {
+  # ...
+  rip = inputs.rip.packages.${system}.default;
+};
+```
+
+**2단계: home.nix에서 사용**
+
+```nix
+{ ..., rip, ... }:
+# ...
+home.packages = with pkgs; [ ... ] ++ [ rip ];
+```
+
+### 발생한 오류
+
+```
+error: darwin.apple_sdk_11_0 has been removed as it was a legacy compatibility stub;
+see <https://nixos.org/manual/nixpkgs/stable/#sec-darwin-legacy-frameworks>
+for migration instructions
+```
+
+### 원인 분석
+
+1. **rip의 flake.nix가 제거된 API 사용**: rip은 macOS 빌드 시 `darwin.apple_sdk.frameworks.{Security,SystemConfiguration}`을 사용하는데, 이는 내부적으로 `darwin.apple_sdk_11_0`을 참조함
+
+2. **최신 nixpkgs에서 제거됨**: nixpkgs unstable에서 `darwin.apple_sdk_11_0`이 제거되고 `darwin.apple_sdk`로 통합됨
+
+3. **follows 제거해도 동일한 문제**: rip의 자체 nixpkgs도 최신 버전이라 같은 오류 발생
+
+### 가능했던 대안들
+
+| 방식 | 장점 | 단점 |
+|------|------|------|
+| **Overlay로 직접 패키징** | Nix 순수성 유지, 수정된 apple_sdk 사용 가능 | 유지보수 필요, rip 업스트림 추적 어려움 |
+| **Homebrew로 관리** | 간단, 바로 사용 가능 | Nix 순수성 저하 |
+| **rip 프로젝트에 PR** | 근본적 해결 | 시간 소요, 머지 불확실 |
+
+### 교훈
+
+1. **외부 flake를 input으로 추가할 때는 먼저 호환성 확인 필요**
+   - 특히 macOS에서 `darwin.apple_sdk` 관련 의존성이 있는 패키지는 주의
+   - `nix build github:owner/repo` 등으로 사전 테스트 권장
+
+2. **`inputs.nixpkgs.follows` 설정의 양면성**
+   - 장점: nixpkgs 버전 통일로 빌드 캐시 효율화
+   - 단점: 외부 프로젝트가 특정 nixpkgs 버전에 의존할 경우 호환성 깨짐
+
+3. **nixpkgs 변경 사항 추적 중요**
+   - `darwin.apple_sdk_11_0` 제거는 [nixpkgs#darwin-legacy-frameworks](https://nixos.org/manual/nixpkgs/stable/#sec-darwin-legacy-frameworks) 참고
+   - 레거시 API 제거는 점진적으로 진행되므로 외부 프로젝트가 뒤처질 수 있음
+
+4. **모든 것을 Nix로 관리할 필요는 없음**
+   - Homebrew가 더 적합한 경우도 있음 (특히 빠르게 변하는 CLI 도구들)
+   - "선언적 관리"와 "실용성" 사이의 균형 필요
+
+### 결론
+
+rip은 현재 최신 nixpkgs와 호환되지 않아 Nix로 관리하지 않기로 결정. 필요 시 Homebrew(`brew install cesarferreira/tap/rip`) 또는 Cargo(`cargo install rip-cli`)로 설치.
 
 ---
 
