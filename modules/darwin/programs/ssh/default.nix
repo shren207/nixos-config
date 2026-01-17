@@ -19,10 +19,17 @@ in
     enable = true;
     # home-manager의 기본 SSH 설정 비활성화 (deprecated 경고 방지)
     enableDefaultConfig = false;
-    matchBlocks."*" = {
-      identityFile = sshKeyPath;
-      extraOptions = {
-        AddKeysToAgent = "yes";
+    matchBlocks = {
+      "*" = {
+        identityFile = sshKeyPath;
+        extraOptions = {
+          AddKeysToAgent = "yes";
+        };
+      };
+      "minipc" = {
+        hostname = "100.79.80.95";
+        user = "greenhead";
+        identityFile = sshKeyPath;
       };
     };
   };
