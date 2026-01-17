@@ -1,13 +1,33 @@
 # green/nixos-config
 
-macOS 개발 환경을 **nix-darwin + Home Manager**로 선언적으로 관리하는 프로젝트입니다.
+macOS와 NixOS 개발 환경을 **nix-darwin/NixOS + Home Manager**로 선언적으로 관리하는 프로젝트입니다.
 
 ## 목차
 
+- [플랫폼 구성](#플랫폼-구성)
 - [새 Mac 설정 가이드](#새-mac-설정-가이드)
+- [MiniPC(NixOS) 설정 가이드](#minipcnixos-설정-가이드)
 - [디렉토리 구조](#디렉토리-구조)
 - [자주 사용하는 명령어](#자주-사용하는-명령어)
 - [문서 안내](#문서-안내)
+
+---
+
+## 플랫폼 구성
+
+| 호스트 | OS | 용도 | 접속 방법 |
+|--------|-----|------|----------|
+| MacBook Pro | macOS (nix-darwin) | 메인 개발 환경 | 로컬 |
+| greenhead-minipc | NixOS | 24시간 원격 개발 서버 | `ssh minipc` |
+
+**공유 설정** (`modules/shared/`):
+- 쉘 환경 (zsh, starship, atuin, fzf, zoxide)
+- 개발 도구 (git, tmux, vim, lazygit)
+- Claude Code 설정
+
+**플랫폼별 설정**:
+- macOS: Homebrew GUI 앱, Hammerspoon, Cursor, 폴더 액션
+- NixOS: SSH 서버, mosh, Tailscale VPN, fail2ban
 
 ---
 
@@ -127,31 +147,101 @@ darwin-rebuild switch --flake .
 
 ---
 
+## MiniPC(NixOS) 설정 가이드
+
+MiniPC는 NixOS로 24시간 원격 개발 환경으로 구성되어 있습니다.
+
+### 접속 정보
+
+| 항목 | 값 |
+|------|-----|
+| Tailscale IP | 100.79.80.95 |
+| hostname | greenhead-minipc |
+| user | greenhead |
+| SSH 접속 | `ssh minipc` |
+
+### 원격 접속 방법
+
+```bash
+# Mac에서 SSH 접속
+ssh minipc
+
+# 모바일(Termius)에서 접속
+# Host: 100.79.80.95, User: greenhead, Key: Mac SSH 키 사용
+
+# 불안정한 네트워크에서 mosh 사용 (연결 유지)
+mosh greenhead@100.79.80.95
+```
+
+### 설정 적용 (MiniPC에서)
+
+```bash
+# 일반 rebuild
+nrs
+
+# 오프라인 rebuild (빠름)
+nrs-offline
+
+# 미리보기만
+nrp
+```
+
+### SSH로 원격 관리 (Mac에서)
+
+```bash
+# Private repo 접근 시 SSH_AUTH_SOCK 유지 필요
+ssh minipc "sudo SSH_AUTH_SOCK=\$SSH_AUTH_SOCK nixos-rebuild switch --flake ~/nixos-config"
+```
+
+> **참고**: 상세한 설치 및 설정 과정은 [MINIPC_PLAN_V3.md](docs/MINIPC_PLAN_V3.md)를 참고하세요.
+
+---
+
 ## 디렉토리 구조
 
 ```
 nixos-config/
-├── flake.nix                     # 메인 Flake 설정
+├── flake.nix                     # 메인 Flake 설정 (darwin + nixos)
 ├── flake.lock                    # 의존성 잠금
+├── hosts/                        # 호스트별 설정
+│   └── greenhead-minipc/         # MiniPC NixOS
+│       ├── default.nix           # 호스트 진입점
+│       ├── disko.nix             # 디스크 파티셔닝
+│       └── hardware-configuration.nix
 ├── modules/
 │   ├── shared/                   # 공유 설정 (macOS/Linux)
 │   │   ├── configuration.nix     # Nix 기본 설정
 │   │   └── programs/
 │   │       ├── broot/            # broot (Modern Linux Tree)
+│   │       ├── claude/           # Claude Code 설정
 │   │       ├── git/              # Git 설정
 │   │       ├── shell/            # Zsh/Starship/Atuin/Mise
+│   │       │   ├── default.nix   # 공통 설정
+│   │       │   ├── darwin.nix    # macOS 전용
+│   │       │   └── nixos.nix     # NixOS 전용
 │   │       ├── tmux/             # tmux 설정
 │   │       └── vim/              # Vim 설정
-│   └── darwin/                   # macOS 전용
-│       ├── configuration.nix     # 시스템 설정 (Touch ID, Dock 등)
+│   ├── darwin/                   # macOS 전용
+│   │   ├── configuration.nix     # 시스템 설정 (Touch ID, Dock 등)
+│   │   ├── home.nix              # Home Manager 설정
+│   │   └── programs/
+│   │       ├── homebrew.nix      # GUI 앱 (Homebrew Casks)
+│   │       ├── hammerspoon/      # 키보드 리매핑
+│   │       ├── cursor/           # Cursor IDE 설정
+│   │       ├── folder-actions/   # 폴더 액션 (launchd)
+│   │       └── keybindings/      # 키 바인딩 (백틱/원화)
+│   └── nixos/                    # NixOS 전용
+│       ├── configuration.nix     # 시스템 설정
 │       ├── home.nix              # Home Manager 설정
 │       └── programs/
-│           ├── homebrew.nix      # GUI 앱 (Homebrew Casks)
-│           ├── hammerspoon/      # 키보드 리매핑
-│           ├── claude/           # Claude Code 설정
-│           ├── cursor/           # Cursor IDE 설정
-│           ├── folder-actions/   # 폴더 액션 (launchd)
-│           └── keybindings/      # 키 바인딩 (백틱/원화)
+│           ├── ssh.nix           # SSH 서버
+│           ├── mosh.nix          # mosh 서버
+│           ├── tailscale.nix     # Tailscale VPN
+│           └── fail2ban.nix      # 보안 설정
+├── scripts/                      # 관리 스크립트
+│   ├── nrs.sh                    # darwin-rebuild
+│   ├── nrs-nixos.sh              # nixos-rebuild
+│   └── ...
 └── libraries/
     ├── home-manager/             # Home Manager 공유 설정
     └── nixpkgs/                  # nixpkgs overlay
@@ -161,9 +251,17 @@ nixos-config/
 
 ## 자주 사용하는 명령어
 
+### macOS (darwin-rebuild)
+
 ```bash
-# 설정 적용
-darwin-rebuild switch --flake .
+# 설정 적용 (미리보기 → 확인 → 적용)
+nrs
+
+# 오프라인 빌드 (빠름, 캐시 사용)
+nrs-offline
+
+# 미리보기만 (적용 안 함)
+nrp
 
 # 롤백
 darwin-rebuild switch --rollback
@@ -173,7 +271,30 @@ nix flake update
 
 # Private secrets 저장소만 업데이트
 nix flake update nixos-config-secret
+```
 
+### NixOS (nixos-rebuild)
+
+```bash
+# MiniPC에서 설정 적용
+nrs
+
+# 오프라인 빌드 (빠름)
+nrs-offline
+
+# 미리보기만
+nrp
+
+# 롤백
+sudo nixos-rebuild switch --rollback
+
+# 세대 히스토리
+nrh
+```
+
+### 공통
+
+```bash
 # 개발 쉘 (rage, nixfmt 사용 가능)
 nix develop
 ```
@@ -185,7 +306,9 @@ nix develop
 | 문서 | 설명 |
 |------|------|
 | [FEATURES.md](docs/FEATURES.md) | CLI 도구, GUI 앱, 폴더 액션, Secrets 등 주요 기능 |
-| [HOW_TO_EDIT.md](docs/HOW_TO_EDIT.md) | 패키지, 쉘, Git, macOS 설정 수정 방법 |
+| [HOW_TO_EDIT.md](docs/HOW_TO_EDIT.md) | 패키지, 쉘, Git, macOS/NixOS 설정 수정 방법 |
+| [MINIPC_PLAN_V3.md](docs/MINIPC_PLAN_V3.md) | MiniPC NixOS 전환 계획 및 설정 가이드 |
+| [MINIPC_CHECKLIST.md](docs/MINIPC_CHECKLIST.md) | MiniPC 설치 체크리스트 |
 | [CURSOR_EXTENSIONS.md](docs/CURSOR_EXTENSIONS.md) | Cursor 확장 프로그램 선언적 관리 |
-| [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | 자주 발생하는 문제 해결 |
+| [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | 자주 발생하는 문제 해결 (NixOS 포함) |
 | [TRIAL_AND_ERROR.md](docs/TRIAL_AND_ERROR.md) | 시도했다가 실패한 작업 기록 |

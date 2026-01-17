@@ -24,13 +24,30 @@ iPhone에서 언제 어디서나 Claude Code 작업 가능하게 만들기
 - [x] Phase 1.6: Claude 모듈 이동 (darwin → shared)
 - [x] Phase 1.7: NixOS용 스크립트 작성
 - [x] darwin-rebuild switch 검증 완료
-
-### 다음 단계
-
 - [x] 기존 darwin/programs/claude 디렉토리 삭제
 - [x] GitHub push (commit: fec008f)
-- [ ] Phase 2: NixOS 설치 (MiniPC에서)
-- [ ] Phase 2.5: hardware-configuration.nix 실제 내용으로 교체 후 커밋
+- [x] **Phase 2: NixOS 설치 (MiniPC에서)** ✅
+  - NixOS 25.11 ISO로 설치
+  - disko로 NVMe 파티셔닝
+  - Tailscale VPN 연결 (IP: 100.79.80.95)
+  - SSH 접속 설정 (`ssh minipc` alias)
+  - Claude Code 설치 (nix-ld 활성화)
+  - Atuin 히스토리 동기화
+  - sudo NOPASSWD 설정
+  - Ghostty terminfo 설치
+  - nixos-config-secret private repo 활성화
+- [x] Phase 2.5: hardware-configuration.nix 실제 내용으로 교체 후 커밋
+
+- [x] **Phase 3: 문서 최신화 및 모바일 접속 검증** ✅
+  - README.md NixOS 섹션 추가
+  - FEATURES.md NixOS 특화 섹션 추가
+  - HOW_TO_EDIT.md NixOS rebuild 명령어 추가
+  - MINIPC_PLAN_V3.md, MINIPC_CHECKLIST.md 완료 표시
+  - 핵심 기능 테스트 (16개 도구 모두 통과)
+
+### 남은 작업
+
+- [ ] Termius 모바일 접속 설정 및 테스트 *(사용자 수동 작업)*
 
 ---
 
@@ -1456,17 +1473,48 @@ git clone git@github.com:shren207/nixos-config.git ~/nixos-config
 
 ## Phase 4: 모바일 UX 설정 (iPhone)
 
-### 4.1 Termius Premium 설정
+### 4.1 Termius에 SSH 키 등록 (Mac에서)
 
-**호스트 설정**:
+1. Mac에서 개인키 내용 복사:
+   ```bash
+   cat ~/.ssh/id_ed25519 | pbcopy
+   ```
+2. iPhone Termius 앱 → **Keychain** → **+** 버튼 → **Key**
+3. "Import from clipboard" 또는 직접 붙여넣기
+4. Key name: "greenhead-mac" 등으로 지정
+
+### 4.2 Termius에 MiniPC 호스트 추가
+
 | 필드 | 값 |
-|------|---|
-| Label | greenhead-minipc |
-| Hostname | 100.x.x.x (Tailscale IP) |
+|------|-----|
+| Label | minipc |
+| Host | 100.79.80.95 (Tailscale IP) |
+| Port | 22 |
 | Username | greenhead |
-| Authentication | SSH Key |
+| Key | 위에서 등록한 키 선택 |
 
-**스니펫**:
+### 4.3 접속 테스트
+
+1. SSH 접속 → 프롬프트 정상 표시 확인
+2. `clear` 명령 → terminfo 문제 없음 확인
+3. `tmux` → 세션 생성/복원 확인
+
+### 4.4 mosh 테스트 (선택)
+
+mosh는 불안정한 네트워크(지하철, 이동 중)에서 연결 유지에 유리합니다.
+
+- Termius에서 **Protocol** → **Mosh** 선택
+- 또는 Blink Shell 앱에서 mosh 사용
+
+```bash
+# mosh 연결 (불안정한 네트워크에서 유리)
+mosh greenhead@100.79.80.95
+```
+
+### 4.5 유용한 스니펫
+
+Termius의 스니펫 기능으로 자주 사용하는 명령어를 등록하세요.
+
 | 이름 | 명령어 | 설명 |
 |------|--------|------|
 | cs | claude-session | Claude 세션 시작/재접속 |
@@ -1479,13 +1527,6 @@ git clone git@github.com:shren207/nixos-config.git ~/nixos-config
 | comp | /compact | 컨텍스트 압축 |
 | help | /help | 도움말 |
 | clear | /clear | 대화 초기화 |
-
-### 4.2 Blink Shell 설정 (대안)
-
-```bash
-# mosh 연결 (불안정한 네트워크에서 유리)
-mosh greenhead@100.x.x.x
-```
 
 ---
 

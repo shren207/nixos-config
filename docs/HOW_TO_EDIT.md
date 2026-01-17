@@ -2,6 +2,7 @@
 
 ## 목차
 
+- [플랫폼별 Rebuild 명령어](#플랫폼별-rebuild-명령어)
 - [Rebuild vs Update 이해하기](#rebuild-vs-update-이해하기)
 - [CLI 패키지 추가/제거](#cli-패키지-추가제거)
 - [폰트 추가/제거 (Nerd Fonts)](#폰트-추가제거-nerd-fonts)
@@ -18,6 +19,73 @@
 - [대외비 설정 추가](#대외비-설정-추가-쉘-함수-gitignore-등)
 - [Claude Code Private 플러그인 추가](#claude-code-private-플러그인-추가)
 - [VSCode(Cursor) 확장 프로그램 관리](#vscodecursor-확장-프로그램-관리)
+
+---
+
+## 플랫폼별 Rebuild 명령어
+
+### macOS (darwin-rebuild)
+
+**파일 위치**: Mac 로컬
+
+```bash
+# 설정 적용 (미리보기 → 확인 → 적용)
+nrs
+
+# 오프라인 빌드 (빠름, 캐시 사용)
+nrs-offline
+
+# 미리보기만 (적용 안 함)
+nrp
+
+# 세대 히스토리
+nrh
+nrh -n 5     # 최근 5개
+nrh -a       # 전체
+
+# 롤백
+darwin-rebuild switch --rollback
+```
+
+### NixOS (nixos-rebuild)
+
+**파일 위치**: MiniPC (`~/nixos-config/`)
+
+```bash
+# 설정 적용 (미리보기 → 확인 → 적용)
+nrs
+
+# 오프라인 빌드 (빠름, 캐시 사용)
+nrs-offline
+
+# 미리보기만 (적용 안 함)
+nrp
+
+# 세대 히스토리
+nrh
+
+# 롤백
+sudo nixos-rebuild switch --rollback
+```
+
+### SSH를 통한 원격 Rebuild (Mac에서 MiniPC로)
+
+```bash
+# 일반 rebuild (Private repo 접근 시 SSH_AUTH_SOCK 유지 필요)
+ssh minipc "sudo SSH_AUTH_SOCK=\$SSH_AUTH_SOCK nixos-rebuild switch --flake ~/nixos-config"
+
+# 오프라인 rebuild
+ssh minipc "sudo nixos-rebuild switch --flake ~/nixos-config --offline"
+```
+
+### 주요 차이점
+
+| 항목 | macOS (darwin-rebuild) | NixOS (nixos-rebuild) |
+|------|------------------------|----------------------|
+| 설정 파일 | `modules/darwin/` | `modules/nixos/` |
+| 호스트 설정 | `flake.nix` 내 darwinHosts | `hosts/greenhead-minipc/` |
+| Private repo | SSH agent 자동 | `SSH_AUTH_SOCK` 명시 필요 |
+| sudo | 불필요 (nix-darwin) | **필수** |
 
 ---
 
