@@ -36,6 +36,7 @@
   home.packages = with pkgs; [
     # CLI 도구
     bat
+    curl
     eza
     fd
     fzf
