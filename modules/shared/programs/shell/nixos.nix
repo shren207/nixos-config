@@ -21,6 +21,9 @@ in
   # Atuin 비활성화 (Termius 한국어 입력 문제 테스트용)
   programs.atuin.enable = lib.mkForce false;
 
+  # zsh-syntax-highlighting 비활성화 (테스트용)
+  programs.zsh.syntaxHighlighting.enable = lib.mkForce false;
+
   # NixOS용 스크립트 설치
   home.file.".local/bin/nrs.sh" = {
     source = "${scriptsDir}/nrs-nixos.sh";
