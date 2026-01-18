@@ -32,20 +32,7 @@ in
       config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/settings.json";
 
     # MCP 설정 - 양방향 수정 가능
-    ".claude/mcp-config.json".source =
-      config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/mcp-config.json";
-
-    # Agents
-    ".claude/agents/document-task.md".source = "${claudeDir}/agents/document-task.md";
-
-    # Commands (slash commands)
-    ".claude/commands/catchup.md".source = "${claudeDir}/commands/catchup.md";
-
-    # Skills
-    ".claude/skills/document-task" = {
-      source = "${claudeDir}/skills/document-task";
-      recursive = true;
-    };
+    ".claude/mcp.json".source = config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/mcp.json";
 
     # Hooks (외부 스크립트로 분리)
     ".claude/hooks/stop-notification.sh" = {

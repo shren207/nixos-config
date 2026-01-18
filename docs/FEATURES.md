@@ -403,30 +403,29 @@ tail -f ~/.local/share/atuin/watchdog.log
 
 ## Claude Code 설정
 
-`modules/darwin/programs/claude/`에서 관리됩니다.
+`modules/shared/programs/claude/`에서 관리됩니다.
 
 Claude Code CLI 도구의 설정을 Nix로 선언적으로 관리하면서, 런타임 수정(플러그인 설치/삭제, 설정 변경)도 지원합니다.
 
 ### Claude Code 관리 구조
 
-| 항목              | 관리 방식             | 설명                   |
-| ----------------- | --------------------- | ---------------------- |
-| 앱 설치           | `home.activation`     | npm 전역 설치 스크립트 |
-| `settings.json`   | `mkOutOfStoreSymlink` | 양방향 수정 가능       |
-| `mcp-config.json` | `mkOutOfStoreSymlink` | 양방향 수정 가능       |
-| hooks             | `home.file`           | Nix store 심볼릭 링크  |
-| skills/agents     | `home.file`           | Nix store 심볼릭 링크  |
+| 항목            | 관리 방식             | 설명                   |
+| --------------- | --------------------- | ---------------------- |
+| 앱 설치         | `home.activation`     | 설치 스크립트 실행     |
+| `settings.json` | `mkOutOfStoreSymlink` | 양방향 수정 가능       |
+| `mcp.json`      | `mkOutOfStoreSymlink` | 양방향 수정 가능       |
+| hooks           | `home.file`           | Nix store 심볼릭 링크  |
 
 ### 양방향 수정
 
-`settings.json`과 `mcp-config.json`은 `mkOutOfStoreSymlink`를 사용하여 nixos-config 저장소의 실제 파일을 직접 참조합니다.
+`settings.json`과 `mcp.json`은 `mkOutOfStoreSymlink`를 사용하여 nixos-config 저장소의 실제 파일을 직접 참조합니다.
 
 **심볼릭 링크 구조:**
 
 ```
 ~/.claude/settings.json
     ↓ (symlink)
-$HOME/<nixos-config-path>/modules/darwin/programs/claude/files/settings.json
+$HOME/<nixos-config-path>/modules/shared/programs/claude/files/settings.json
 ```
 
 **장점:**
@@ -613,8 +612,8 @@ echo Z2l0IGFkZC... | base64 -d | nix develop -c bash
 
 **설정 파일:**
 
-```bash
-# .claude/settings.local.json (프로젝트별 훅 설정)
+```json
+// .claude/settings.local.json (프로젝트별 훅 설정)
 {
   "hooks": {
     "PreToolUse": [
@@ -623,7 +622,8 @@ echo Z2l0IGFkZC... | base64 -d | nix develop -c bash
         "hooks": [
           {
             "type": "command",
-            "command": "$REPO_ROOT/.claude/scripts/wrap-git-with-nix-develop.sh"
+            "command": "bash ${CLAUDE_PROJECT_DIR}/.claude/scripts/wrap-git-with-nix-develop.sh",
+            "timeout": 5
           }
         ]
       }

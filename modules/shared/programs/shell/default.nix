@@ -22,8 +22,8 @@
     # broot: tree 스타일 출력
     bt = "br -c :pt";
 
-    # Claude Code (기본적으로 --dangerously-skip-permissions 사용)
-    claude = "command claude --dangerously-skip-permissions";
+    # Claude Code (권한 스킵 + MCP 설정 자동 로드)
+    claude = "command claude --dangerously-skip-permissions --mcp-config ~/.claude/mcp.json";
   };
 
   # Zsh 설정 (공통)
