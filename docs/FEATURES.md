@@ -19,6 +19,7 @@
   - [양방향 수정](#양방향-수정)
   - [플러그인 관리](#플러그인-관리)
   - [플러그인 주의사항](#플러그인-주의사항)
+  - [PreToolUse 훅 (nix develop 환경)](#pretooluse-훅-nix-develop-환경)
 - [Nix 관련](#nix-관련)
   - [Pre-commit Hooks](#pre-commit-hooks)
   - [SSH 키 자동 로드](#ssh-키-자동-로드)
@@ -539,6 +540,97 @@ claude plugin uninstall plugin-name@marketplace --scope user
 - **프로젝트별 적용**: 특정 프로젝트에서만 플러그인 활성화
 
 > **참고**: Private 플러그인 상세 내용 및 추가 방법은 `nixos-config-secret/README.md`를 참고하세요.
+
+### PreToolUse 훅 (nix develop 환경)
+
+`.claude/scripts/wrap-git-with-nix-develop.sh`에서 관리됩니다.
+
+이 프로젝트는 `lefthook`을 통해 git pre-commit 훅으로 `gitleaks`, `nixfmt`, `shellcheck`를 실행합니다. 이 도구들은 `nix develop` 환경에서만 사용 가능하므로, Claude Code가 git 명령어를 실행할 때 자동으로 nix develop 환경에서 실행되도록 PreToolUse 훅을 사용합니다.
+
+**왜 필요한가:**
+
+| 환경 | lefthook 도구 | 결과 |
+|------|---------------|------|
+| `nix develop` 셸 | 사용 가능 | pre-commit 훅 정상 동작 |
+| 일반 시스템 셸 | 사용 불가 | pre-commit 훅 실패 또는 우회 |
+| Claude Code (기본) | 사용 불가 | pre-commit 훅 실패 또는 우회 |
+| Claude Code + 훅 | 사용 가능 | pre-commit 훅 정상 동작 ✅ |
+
+**동작 방식:**
+
+```
+[Claude Code가 git 명령어 실행 요청]
+        ↓
+[PreToolUse 훅 (wrap-git-with-nix-develop.sh)]
+        ↓
+[명령어를 Base64로 인코딩]
+        ↓
+[nix develop -c bash로 래핑]
+        ↓
+[래핑된 명령어 실행]
+```
+
+**예시:**
+
+```bash
+# 원본 명령어
+git add . && git commit -m "feat: 새 기능" && git push
+
+# 래핑된 명령어
+echo Z2l0IGFkZC... | base64 -d | nix develop -c bash
+```
+
+**처리 대상:**
+
+| 명령어 | 래핑 여부 | 사유 |
+|--------|----------|------|
+| `git add` | ✅ | lefthook 필요 |
+| `git commit` | ✅ | lefthook 필요 |
+| `git push` | ✅ | lefthook 필요 |
+| `git stash` | ✅ | lefthook 필요 |
+| `git status` | ❌ | lefthook 불필요 |
+| `git log` | ❌ | lefthook 불필요 |
+| `ls`, `cat` 등 | ❌ | git 명령어 아님 |
+
+**Base64 인코딩 장점:**
+
+- 줄바꿈, 따옴표, 백틱, `$변수`, `&&` 등 모든 특수문자 안전 처리
+- 단일 라인 출력 → Claude Code 호환성 보장
+- 체인 명령어(`&&`)도 전체가 nix develop 환경에서 실행됨
+
+**설정 파일:**
+
+```bash
+# .claude/settings.local.json (프로젝트별 훅 설정)
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$REPO_ROOT/.claude/scripts/wrap-git-with-nix-develop.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**디버깅:**
+
+문제 발생 시 스크립트의 디버그 로깅을 활성화할 수 있습니다:
+
+```bash
+# .claude/scripts/wrap-git-with-nix-develop.sh 11-13행 주석 해제
+exec 2>>/tmp/claude-hook-debug.log
+echo "=== $(date) ===" >&2
+echo "Input: $input" >&2
+```
+
+> **참고**: JSON validation 에러 등 훅 관련 문제는 [TROUBLESHOOTING.md](TROUBLESHOOTING.md#pretooluse-훅-json-validation-에러)를 참고하세요.
 
 ---
 
