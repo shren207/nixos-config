@@ -138,6 +138,10 @@ in
       "**/.claude/settings.local.json"
       "CLAUDE.local.md"
       "CLAUDE.local.*.md"
+
+      # mise (프로젝트별 로컬 설정, dotfile 버전 포함)
+      "mise.local.toml"
+      ".mise.local.toml"
     ];
   };
 

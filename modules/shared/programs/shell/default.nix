@@ -45,10 +45,18 @@
       share = true;
     };
 
-    # 공통 초기화 스크립트
+    # .zshenv: SSH 비대화형 세션을 위한 mise shims PATH 추가
+    # (대화형 훅은 .zshrc에서 활성화)
+    envExtra = ''
+      if command -v mise >/dev/null 2>&1 && [[ -z "$MISE_SHELL" ]]; then
+        eval "$(mise activate zsh --shims)"
+      fi
+    '';
+
+    # 공통 초기화 스크립트 (.zshrc)
     initContent = lib.mkMerge [
       (lib.mkBefore ''
-        # Mise 활성화 (node, ruby 등 런타임 관리)
+        # Mise 활성화 (대화형 셸: cd 시 자동 버전 전환 등)
         if command -v mise >/dev/null 2>&1; then
           eval "$(mise activate zsh)"
         fi
