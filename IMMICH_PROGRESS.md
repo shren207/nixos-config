@@ -1,6 +1,6 @@
 # Google Photos → Immich 마이그레이션 진행 상황
 
-> **최종 업데이트**: 2026-01-18 22:15 KST
+> **최종 업데이트**: 2026-01-18 23:10 KST
 > **상태**: 자동 모니터링 실행 중 (백그라운드)
 
 ---
@@ -72,12 +72,36 @@ shasum -a 256 -c takeout-checksums.txt  # 모두 OK
 | 001 | 4,772개 | 534개 | 5,308개 | 206개 |
 | 002 | 3,630개 | 869개 | 4,500개 | 438개 |
 
-### 3.3 현재 Immich 서버 통계
+### 3.3 서버 안정화 (완료)
+OOM(Out of Memory) 문제 해결:
+
+**원인**: immich-server 메모리 제한 2GB 초과로 OOM killer에 의해 종료됨
+
+**해결 조치**:
+1. **메모리 제한 증가**: `modules/nixos/programs/docker/immich.nix` 수정
+   ```nix
+   # 변경 전
+   "--memory=2g"
+
+   # 변경 후
+   "--memory=4g"
+   "--memory-swap=6g"
+   ```
+
+2. **동시 작업 수 감소** (Immich API로 설정):
+   | 작업 | 변경 전 | 변경 후 |
+   |------|--------|--------|
+   | thumbnailGeneration | 3 | 1 |
+   | metadataExtraction | 5 | 2 |
+   | smartSearch | 2 | 1 |
+   | faceDetection | 2 | 1 |
+
+### 3.4 현재 Immich 서버 통계
 ```json
 {
-  "photos": 9385,
-  "videos": 931,
-  "usage": "94.7GB"
+  "photos": 9794,
+  "videos": 829,
+  "usage": "97GB"
 }
 ```
 
@@ -87,16 +111,9 @@ shasum -a 256 -c takeout-checksums.txt  # 모두 OK
 
 ### 4.1 Immich 작업 큐 처리 중
 ```
-thumbnailGeneration: ~1,000개 대기
-metadataExtraction: ~19,000개 대기 (가장 많음)
-smartSearch: ~600개 대기
-faceDetection: ~1,700개 대기
-ocr: ~2,000개 대기
-─────────────────────────────
-총 약 21,600개 작업 대기 중
+작업 큐 남은 수: ~11,400개 (약 50% 완료)
+예상 남은 시간: 2-3시간
 ```
-
-**예상 소요 시간**: 3-5시간 (N100 CPU 기준)
 
 ### 4.2 자동 모니터링 실행 중
 ```bash
@@ -109,8 +126,16 @@ tail -f /mnt/data/google-takeout/migration-monitor.log
 
 **모니터링 스크립트 동작:**
 1. 5분마다 Immich 작업 큐 확인
-2. 모든 작업 완료 시 → 전체 zip 재실행
+2. 모든 작업 완료 시 → 전체 zip 재실행 (메타데이터 매칭)
 3. 완료 시 Pushover 알림 발송
+
+### 4.3 서버 리소스 상태
+| 항목 | 값 | 상태 |
+|------|-----|------|
+| CPU 부하 | ~10.7 | 🟡 높음 (개선 중) |
+| 메모리 | 36% | 🟢 정상 |
+| immich-server | 1.6GB / 4GB | 🟢 정상 |
+| immich-ml | 1.1GB / 4GB | 🟢 정상 |
 
 ---
 
@@ -120,15 +145,13 @@ tail -f /mnt/data/google-takeout/migration-monitor.log
 - **원인**: 썸네일 생성 작업이 아직 완료되지 않음
 - **해결**: 작업 큐 완료 대기 (자동)
 
-### 5.2 메타데이터 누락 (Pending 자산)
+### 5.2 메타데이터 누락 (Pending 자산 ~930개)
 - **원인**: Google Takeout이 zip 파일을 분할할 때 사진과 메타데이터 JSON이 다른 zip에 저장됨
 - **해결**: 전체 zip을 한 번에 재실행하여 매칭 (모니터링 스크립트가 자동 실행)
 
-### 5.3 일부 실패한 작업
-- thumbnailGeneration: 3개 실패
-- faceDetection: 1개 실패
-- ocr: 1개 실패
-- **해결**: Immich 웹 UI → 관리자 → Jobs → 실패한 작업 재시도
+### 5.3 ~~OOM으로 인한 서버 다운~~ (해결됨)
+- **원인**: immich-server 메모리 제한 2GB 초과
+- **해결**: 메모리 4GB로 증가 + 동시 작업 수 감소
 
 ---
 
@@ -207,8 +230,11 @@ cd /mnt/data/google-takeout
 # Immich 컨테이너 상태
 ssh minipc 'sudo podman ps | grep immich'
 
-# 컨테이너 재시작
-ssh minipc 'sudo systemctl restart podman-immich-server'
+# 컨테이너 리소스 확인
+ssh minipc 'sudo podman stats --no-stream'
+
+# NixOS 설정 재적용
+ssh minipc 'cd ~/IdeaProjects/nixos-config && git pull && sudo nixos-rebuild switch --flake .'
 ```
 
 ---
@@ -223,11 +249,28 @@ ssh minipc 'sudo systemctl restart podman-immich-server'
 | 모니터링 로그 | `/mnt/data/google-takeout/migration-monitor.log` |
 | 업로드 로그 | `/mnt/data/google-takeout/migration-00X.log` |
 | Pushover 자격 증명 | `/home/greenhead/.config/pushover/credentials` |
-| Immich 데이터 | `/mnt/data/immich/` (추정) |
+| Immich 데이터 | `/mnt/data/immich/photos/` |
+| Immich NixOS 설정 | `modules/nixos/programs/docker/immich.nix` |
 
 ---
 
-## 9. API 키 정보
+## 9. 설정 변경 이력
+
+### 2026-01-18 23:05 - 서버 안정화
+**커밋**: `89182a3 feat(docker): Immich 서비스 활성화 (Phase 2)`
+**커밋**: `02968c9 fix(immich): 메모리 제한 2GB→4GB 증가 (OOM 방지)`
+
+**변경 내용**:
+1. `modules/nixos/programs/docker/immich.nix`:
+   - `--memory=2g` → `--memory=4g`
+   - `--memory-swap=6g` 추가
+
+2. Immich API 설정 변경:
+   - 동시 작업 수 감소 (CPU 부하 완화)
+
+---
+
+## 10. API 키 정보
 
 > **주의**: 마이그레이션 완료 후 삭제 권장
 
@@ -237,7 +280,7 @@ ssh minipc 'sudo systemctl restart podman-immich-server'
 
 ---
 
-## 10. 타임라인
+## 11. 타임라인
 
 | 시간 | 작업 |
 |------|------|
@@ -249,5 +292,47 @@ ssh minipc 'sudo systemctl restart podman-immich-server'
 | 21:45 | 파일2 업로드 완료 (3,630개) |
 | 22:00 | Immich 작업 큐 상태 분석 |
 | 22:15 | 자동 모니터링 스크립트 실행 |
+| 22:20 | 서버 다운 감지 (OOM) |
+| 22:55 | 원인 분석: 메모리 부족 + CPU 과부하 |
+| 23:05 | 메모리 4GB 증가, 동시 작업 수 감소 |
+| 23:08 | 모니터링 스크립트 재시작 |
 | ~02:00 (예상) | 작업 큐 완료, 전체 zip 재실행 |
 | ~04:00 (예상) | 마이그레이션 완료, Pushover 알림 |
+
+---
+
+## 12. 트러블슈팅 가이드
+
+### OOM (Out of Memory) 발생 시
+```bash
+# 1. OOM 로그 확인
+ssh minipc 'sudo dmesg | grep -i oom | tail -10'
+
+# 2. 컨테이너 메모리 사용량 확인
+ssh minipc 'sudo podman stats --no-stream'
+
+# 3. 메모리 제한 늘리기 (NixOS 설정 수정 후)
+# modules/nixos/programs/docker/immich.nix 수정
+ssh minipc 'cd ~/IdeaProjects/nixos-config && sudo nixos-rebuild switch --flake .'
+```
+
+### 서버 응답 없음 시
+```bash
+# 1. 컨테이너 상태 확인
+ssh minipc 'sudo podman ps -a | grep immich'
+
+# 2. 서비스 재시작
+ssh minipc 'sudo systemctl restart podman-immich-server'
+
+# 3. 로그 확인
+ssh minipc 'sudo podman logs immich-server --tail 50'
+```
+
+### 모니터링 스크립트 재시작
+```bash
+# 프로세스 확인
+ssh minipc 'ps aux | grep monitor-and-sync | grep -v grep'
+
+# 재시작
+ssh minipc 'cd /mnt/data/google-takeout && nohup bash ./monitor-and-sync.sh >> migration-monitor.log 2>&1 &'
+```
