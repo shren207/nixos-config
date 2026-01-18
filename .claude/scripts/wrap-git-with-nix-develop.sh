@@ -40,6 +40,7 @@ if [[ "$command" =~ ^git[[:space:]]+(add|commit|push|stash) ]] && \
     --arg msg "lefthook 사용을 위해 nix develop 환경에서 실행합니다." \
     '{
       hookSpecificOutput: {
+        hookEventName: "PreToolUse",
         permissionDecision: "allow",
         updatedInput: { command: $cmd }
       },
