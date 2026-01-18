@@ -10,6 +10,14 @@ let
   scriptsDir = ../../../../scripts;
 in
 {
+  # NixOS 전용 Zsh 초기화
+  programs.zsh.initContent = lib.mkMerge [
+    (lib.mkBefore ''
+      # 유니코드 결합 문자 처리 (wide character 지원)
+      setopt COMBINING_CHARS
+    '')
+  ];
+
   # NixOS용 스크립트 설치
   home.file.".local/bin/nrs.sh" = {
     source = "${scriptsDir}/nrs-nixos.sh";
