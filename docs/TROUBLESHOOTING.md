@@ -1864,6 +1864,50 @@ tail -f ~/.local/share/atuin/watchdog.log
 
 ---
 
+### Fuzzy search로 의도치 않은 검색 결과
+
+> **발생 시점**: 2026-01-18 / atuin 18.11.0
+> **해결**: `search_mode = "fulltext"` 설정
+
+**증상**: `atuin search "media"` 실행 시 `media`라는 문자열이 온전히 포함되지 않은 결과도 표시됨.
+
+```bash
+$ atuin search "media"
+2025-09-12 10:47:41     rm -rf ~/Library/Developer/Xcode/DerivedData/   # media가 없는데?
+2025-12-21 17:29:38     sudo nix run ... nix-darwin -- switch --flake . # 이것도?
+```
+
+**원인**: Atuin의 기본 `search_mode`가 `fuzzy`이기 때문입니다. Fuzzy 검색은 입력한 글자(`m`, `e`, `d`, `i`, `a`)가 **순서대로 흩어져 있기만 하면** 매칭됩니다.
+
+예: `rm -rf ~/Library/Developer/Xcode/DerivedData/`
+- **m**: r**m**
+- **e**: D**e**veloper
+- **d**: **D**erived**D**ata
+- **i**: L**i**brary
+- **a**: Dat**a**
+
+**해결**: `search_mode`를 `fulltext`로 변경
+
+```nix
+# modules/shared/programs/shell/default.nix
+programs.atuin.settings = {
+  # ... 기존 설정 ...
+  search_mode = "fulltext";
+};
+```
+
+**왜 `fulltext`인가?**
+
+| 모드 | 특징 | 한계 |
+|------|------|------|
+| `fuzzy` (기본값) | 글자가 순서대로 흩어져 있으면 매칭 | 의도치 않은 결과 다수 포함 |
+| `prefix` | 검색어로 **시작**하는 명령어만 검색 | `sudo media...` 검색 불가 |
+| `fulltext` | 검색어가 **정확히 포함**된 명령어만 검색 | 가장 균형 잡힌 선택 |
+
+**TUI에서 모드 변경**: `Ctrl+r` 누르면 모드 순환 (Fuzzy → Prefix → Fulltext → Skim)
+
+---
+
 ## NixOS 관련
 
 ### nixos-install 시 GitHub flake 캐시 문제

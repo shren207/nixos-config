@@ -341,7 +341,19 @@ com.green.atuin-watchdog (launchd, 10분마다)
 | 5분~30분 지연 | macOS 알림 + Hammerspoon |
 | 30분 초과 | macOS 알림 + Hammerspoon + Pushover |
 
-**설정값** (`default.nix`에서 중앙 관리):
+**설정값** (`modules/shared/programs/shell/default.nix`에서 중앙 관리):
+
+```nix
+programs.atuin.settings = {
+  auto_sync = true;
+  sync_frequency = "1m";
+  sync.records = true;         # v2 API 사용
+  search_mode = "fulltext";    # 정확한 검색 (fuzzy 대신)
+  # ...
+};
+```
+
+watchdog 설정 (`modules/darwin/programs/atuin/default.nix`):
 
 ```nix
 syncCheckInterval = 600;        # 10분 (초) - watchdog 실행 주기
@@ -367,6 +379,7 @@ tail -f ~/.local/share/atuin/watchdog.log
 | 문제 | 설명 | 상태 |
 | ---- | ---- | ---- |
 | `atuin status` 404 | Atuin 서버가 Sync v1 API 비활성화 | 무시해도 됨 |
+| fuzzy search 오매칭 | 기본 fuzzy 모드는 의도치 않은 결과 포함 | `search_mode = "fulltext"`로 해결 |
 
 > **참고**: 자세한 트러블슈팅은 [TROUBLESHOOTING.md](TROUBLESHOOTING.md#atuin-관련)를 참고하세요.
 

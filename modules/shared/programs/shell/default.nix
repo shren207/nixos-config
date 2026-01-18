@@ -80,6 +80,7 @@
       inline_height = 9;
       show_help = false;
       update_check = false;
+      search_mode = "fulltext";
     };
   };
 
