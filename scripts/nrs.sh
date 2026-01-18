@@ -104,7 +104,9 @@ preview_changes() {
 
     echo ""
     log_info "📋 Changes to be applied:"
-    # nvd diff는 동일 결과 시 non-zero 반환 가능
+    # nvd diff 출력 안내:
+    # - <none> 버전: home-manager 관리 파일(files, hm_*)은 버전 접미사가 없어 정상적으로 <none> 표시
+    # - nvd diff는 동일 결과 시 non-zero 반환 가능
     if ! nvd diff /run/current-system ./result; then
         log_warn "⚠️  nvd diff returned non-zero (possibly identical results)"
     fi
