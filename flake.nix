@@ -78,7 +78,7 @@
         let
           mkNixosHost = username: hostType: {
             inherit username hostType;
-            nixosConfigPath = "/home/${username}/nixos-config";
+            nixosConfigPath = "/home/${username}/IdeaProjects/nixos-config";
           };
         in
         {
