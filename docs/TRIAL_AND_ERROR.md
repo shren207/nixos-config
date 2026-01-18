@@ -4,6 +4,7 @@
 
 ## 목차
 
+- [2026-01-18: Termius 한국어 입력 시 터미널 UI 깨짐 문제](#2026-01-18-termius-한국어-입력-시-터미널-ui-깨짐-문제)
 - [2026-01-17: rip (프로세스 종료 CLI) Flake input 추가 실패](#2026-01-17-rip-프로세스-종료-cli-flake-input-추가-실패)
   - [후속 문제: nix flake update로 의도치 않은 전체 업데이트](#후속-문제-nix-flake-update로-의도치-않은-전체-업데이트)
 - [2026-01-13: Atuin 동기화 모니터링 시스템 구현 시행착오](#2026-01-13-atuin-동기화-모니터링-시스템-구현-시행착오)
@@ -22,6 +23,182 @@
   - [교훈](#교훈)
   - [대상 애드온 목록 (참고용)](#대상-애드온-목록-참고용)
   - [결론](#결론)
+
+---
+
+## 2026-01-18: Termius 한국어 입력 시 터미널 UI 깨짐 문제
+
+> **환경**:
+> - **miniPC OS**: NixOS 24.11 (nixos-unstable-small)
+> - **클라이언트**: iPhone 16 Pro (iOS 18.2.1), MacBook Pro M3 Max (macOS 15.2)
+> - **Termius 버전**: iOS 9.2.1 (9020001), Mac 9.2.1
+> - **Tailscale 버전**: iOS 1.80.3, miniPC 1.78.1
+> - **연결 방식**: SSH 및 Mosh (Tailscale VPN 경유)
+> - **Shell**: zsh + Starship + Atuin + zsh-autosuggestion + zsh-syntax-highlighting
+
+### 문제 현상
+
+iPhone/Mac Termius에서 miniPC로 SSH/Mosh 접속 시:
+1. **한국어 입력 시 터미널 UI 깨짐** - 커서 위치가 어긋남
+2. **Starship 프롬프트가 엉뚱한 위치에 렌더링**됨
+3. **Backspace로 삭제하면 안 되는 문자**(❯ 등)도 삭제됨
+4. 영어 입력은 정상, **한국어 입력만 문제**
+
+참고: Mac Ghostty 터미널에서는 동일 환경에서 한국어 입력이 정상 작동함.
+
+### 시도한 방법들 (모두 실패)
+
+#### 1. locale 영어로 변경
+
+**가설**: 한국어 locale(`ko_KR.UTF-8`)이 문제일 수 있음
+
+**변경 내용** (`modules/nixos/configuration.nix`):
+```nix
+# Before
+i18n.defaultLocale = "ko_KR.UTF-8";
+i18n.extraLocaleSettings = {
+  LC_TIME = "ko_KR.UTF-8";
+};
+
+# After
+i18n.defaultLocale = "en_US.UTF-8";
+# extraLocaleSettings 제거
+```
+
+**결과**: ❌ CLI 메시지가 영어로 바뀌었지만, 한국어 입력 문제는 그대로
+
+**유지**: locale은 영어로 유지 (사용자 선호)
+
+#### 2. zsh COMBINING_CHARS 옵션 추가
+
+**가설**: macOS에만 있는 `setopt COMBINING_CHARS`가 NixOS에 없어서 유니코드 처리가 다를 수 있음
+
+**변경 내용** (`modules/shared/programs/shell/nixos.nix`):
+```nix
+programs.zsh.initContent = lib.mkMerge [
+  (lib.mkBefore ''
+    # 유니코드 결합 문자 처리 (wide character 지원)
+    setopt COMBINING_CHARS
+  '')
+];
+```
+
+**결과**: ❌ 효과 없음
+
+**유지**: 해가 되지 않으므로 유지
+
+#### 3. Starship 이모지 → ASCII 대체
+
+**가설**: Starship 프롬프트의 wide character(🌐, ❯ 등)가 터미널 커서 위치 계산을 방해
+
+**변경 내용** (`modules/shared/programs/shell/default.nix`):
+```nix
+programs.starship.settings = {
+  character = {
+    success_symbol = "[>](bold green)";  # ❯ 대신 >
+    error_symbol = "[>](bold red)";
+  };
+  hostname = {
+    ssh_symbol = "";
+    format = "in [$hostname]($style) ";  # 🌐 제거
+  };
+  # ... 기타 이모지 제거
+};
+```
+
+**결과**: ❌ 효과 없음
+
+**롤백**: 이모지 설정 제거, 기본값 복구
+
+#### 4. Starship 완전 비활성화
+
+**가설**: Starship 자체가 문제일 수 있음
+
+**변경 내용**:
+```nix
+programs.starship.enable = lib.mkForce false;
+```
+
+**결과**: ❌ 기본 zsh 프롬프트에서도 동일 문제 발생
+
+**롤백**: Starship 활성화 복구
+
+#### 5. Atuin 비활성화
+
+**가설**: Atuin이 zle(Zsh Line Editor)를 후킹하여 IME와 충돌
+
+**변경 내용**:
+```nix
+programs.atuin.enable = lib.mkForce false;
+```
+
+**결과**: ❌ 효과 없음
+
+**롤백**: Atuin 활성화 복구
+
+#### 6. zsh-syntax-highlighting 비활성화
+
+**가설**: 구문 강조가 입력 버퍼를 조작하여 IME와 충돌
+
+**변경 내용**:
+```nix
+programs.zsh.syntaxHighlighting.enable = lib.mkForce false;
+```
+
+**결과**: ❌ 효과 없음
+
+**롤백**: 활성화 복구
+
+#### 7. zsh-autosuggestion 비활성화
+
+**가설**: 자동 완성이 입력 버퍼를 조작하여 IME와 충돌
+
+**변경 내용**:
+```nix
+programs.zsh.autosuggestion.enable = lib.mkForce false;
+```
+
+**결과**: ❌ 효과 없음 (Atuin, syntax-highlighting과 함께 모두 비활성화해도 동일)
+
+**롤백**: 활성화 복구
+
+### 추가 발견 사항
+
+1. **Mac Termius에서도 동일 문제 발생**
+   - iPhone만의 문제가 아니라 Termius 앱 자체의 문제
+
+2. **Termius CJK 설정 확인**
+   - "CJK Input In Terminal" 옵션은 **하드웨어 키보드에서만** 작동
+   - 소프트웨어 키보드(화면 키보드)에서는 CJK IME 지원 부족
+
+3. **IME 조합 창(Pre-edit area) 미지원**
+   - Mac Ghostty: 한글 조합 중인 글자가 별도 영역에서 처리됨
+   - Termius: 조합 중인 글자가 바로 터미널에 전송되어 문제 발생
+
+### 결론
+
+**Termius 앱 자체가 소프트웨어 키보드에서 한국어 IME를 제대로 처리하지 못함**
+
+NixOS 설정으로는 해결 불가능. 다음 대안을 고려:
+
+1. **Blink Shell 사용** ($19.99, Chromium HTerm 기반으로 인코딩 처리 우수)
+2. **한국어 입력 포기** - 영어만 사용
+3. **하드웨어 키보드 연결** - Bluetooth 키보드에서는 CJK 지원
+4. **Termius에 버그 리포트** 제출
+
+### 교훈
+
+1. **터미널 앱의 IME 지원은 앱마다 다름** - NixOS/zsh 설정과 무관할 수 있음
+2. **Mac에서 정상이라고 다른 앱에서도 정상인 것은 아님** - 앱별로 테스트 필요
+3. **wide character 문제는 복잡함** - 터미널, shell, 프롬프트, IME 모두 관여
+4. **하나씩 비활성화해서 원인 격리**하는 방법이 디버깅에 효과적
+
+### 관련 이슈/참고 자료
+
+- [Starship Issue #6923: Unicode prompt cursor positioning](https://github.com/starship/starship/issues/6923)
+- [Blink Shell Issue #524: Broken unicode with mosh](https://github.com/blinksh/blink/issues/524)
+- [Termius iOS Changelog](https://termius.com/changelog/ios-changelog) - CJK hardware keyboard 지원 언급
+- [React Native iOS 15+ CJK Issue](https://github.com/facebook/react-native/issues/32503)
 
 ---
 
