@@ -83,5 +83,6 @@
     ./programs/ssh.nix
     ./programs/mosh.nix
     ./programs/fail2ban.nix
+    ./programs/docker # Docker/Podman 기반 홈서버 서비스
   ];
 }
