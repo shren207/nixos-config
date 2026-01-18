@@ -116,7 +116,8 @@ in
     ];
     extraOptions = [
       "--network=immich-network"
-      "--memory=2g"
+      "--memory=4g"
+      "--memory-swap=6g"
     ];
   };
 
