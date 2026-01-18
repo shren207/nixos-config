@@ -15,7 +15,7 @@ in
 {
   imports = [
     ./uptime-kuma.nix
-    # ./immich.nix    # Phase 2에서 활성화
+    ./immich.nix
     # ./plex.nix      # Phase 3에서 활성화
   ];
 
