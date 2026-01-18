@@ -1,7 +1,16 @@
 # macOS 시스템 설정 (nix-darwin)
-{ config, pkgs, username, ... }:
+{
+  config,
+  pkgs,
+  username,
+  ...
+}:
 
 {
+  imports = [
+    ./programs/sshd # SSH 서버 보안 설정
+    ./programs/mosh # mosh 서버 (Termius 등에서 사용)
+  ];
   # Nerd Fonts 설치 (nix-darwin이 /Library/Fonts/Nix Fonts에 자동 링크)
   fonts.packages = with pkgs.nerd-fonts; [
     fira-code
@@ -15,6 +24,10 @@
   users.users.${username} = {
     shell = pkgs.zsh;
     home = "/Users/${username}";
+    # SSH 원격 접속 허용 키 (Termius 등에서 접속 시 사용)
+    openssh.authorizedKeys.keys = [
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDN048Qg9ABnM26jU0X0w2mG9pqcrwuVrcihvDbkRVX8 greenhead-home-mac-2025-10"
+    ];
   };
 
   # 환경 설정
@@ -49,8 +62,8 @@
       AppleShowAllExtensions = true;
 
       # 키보드: 키 반복 속도 가장 빠르게, 반복 지연 시간 제일 짧게
-      InitialKeyRepeat = 15;  # 반복 지연 시간 (최소값: 15)
-      KeyRepeat = 1;          # 키 반복 속도 (최소값: 1, 가장 빠름) [GUI에서는 2 이하로 내릴 수 없음]
+      InitialKeyRepeat = 15; # 반복 지연 시간 (최소값: 15)
+      KeyRepeat = 1; # 키 반복 속도 (최소값: 1, 가장 빠름) [GUI에서는 2 이하로 내릴 수 없음]
 
       # 마우스: 자연스러운 스크롤 비활성화
       "com.apple.swipescrolldirection" = false;
@@ -93,44 +106,87 @@
       AppleSymbolicHotKeys = {
         # === 스크린샷 설정 ===
         # 28: 화면→파일 (⇧⌘3) - 비활성화
-        "28" = { enabled = false; };
+        "28" = {
+          enabled = false;
+        };
         # 30: 선택→파일 (⇧⌘4) - 비활성화
-        "30" = { enabled = false; };
+        "30" = {
+          enabled = false;
+        };
 
         # 29: 화면→클립보드 (⌃⇧⌘3) - 활성화
         "29" = {
           enabled = true;
-          value = { parameters = [ 51 20 1441792 ]; type = "standard"; };
+          value = {
+            parameters = [
+              51
+              20
+              1441792
+            ];
+            type = "standard";
+          };
         };
         # 31: 선택→클립보드 (⇧⌘4) - 활성화
         "31" = {
           enabled = true;
-          value = { parameters = [ 52 21 1179648 ]; type = "standard"; };
+          value = {
+            parameters = [
+              52
+              21
+              1179648
+            ];
+            type = "standard";
+          };
         };
 
         # === Mission Control 설정 ===
         # 32: Mission Control (F3) - 활성화
         "32" = {
           enabled = true;
-          value = { parameters = [ 65535 99 8388608 ]; type = "standard"; };
+          value = {
+            parameters = [
+              65535
+              99
+              8388608
+            ];
+            type = "standard";
+          };
         };
 
         # === 입력 소스 설정 ===
         # 60: 이전 입력 소스 (⌃Space) - 비활성화
-        "60" = { enabled = false; };
+        "60" = {
+          enabled = false;
+        };
         # 61: 다음 입력 소스 (F18) - 활성화 (Hammerspoon Capslock→F18 연동)
         "61" = {
           enabled = true;
-          value = { parameters = [ 65535 79 8388608 ]; type = "standard"; };
+          value = {
+            parameters = [
+              65535
+              79
+              8388608
+            ];
+            type = "standard";
+          };
         };
 
         # === Spotlight 설정 (Raycast 사용으로 비활성화) ===
         # 64: Spotlight 검색 (⌘Space) - 비활성화
-        "64" = { enabled = false; };
+        "64" = {
+          enabled = false;
+        };
         # 65: Finder 검색 윈도우 (⌥⌘Space) - 활성화
         "65" = {
           enabled = true;
-          value = { parameters = [ 32 49 1572864 ]; type = "standard"; };
+          value = {
+            parameters = [
+              32
+              49
+              1572864
+            ];
+            type = "standard";
+          };
         };
       };
     };

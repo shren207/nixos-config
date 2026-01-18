@@ -26,6 +26,7 @@
   - [darwin-rebuild Alias](#darwin-rebuild-alias)
   - [병렬 다운로드 최적화](#병렬-다운로드-최적화)
 - [macOS 시스템 설정](#macos-시스템-설정)
+  - [원격 접속 (SSH/mosh)](#원격-접속-sshmosh)
   - [키보드 단축키 (Symbolic Hotkeys)](#키보드-단축키-symbolic-hotkeys)
   - [키 바인딩 (백틱/원화)](#키-바인딩-백틱원화)
   - [폰트 관리 (Nerd Fonts)](#폰트-관리-nerd-fonts)
@@ -953,6 +954,66 @@ nix config show | grep -E "(max-substitution|http-connections)"
 ## macOS 시스템 설정
 
 `modules/darwin/configuration.nix`에서 관리됩니다.
+
+### 원격 접속 (SSH/mosh)
+
+`modules/darwin/programs/sshd/`와 `modules/darwin/programs/mosh/`에서 관리됩니다.
+
+Termius 등 외부 기기에서 맥북에 SSH/mosh로 원격 접속할 수 있도록 설정합니다.
+
+**구성 요소:**
+
+| 모듈 | 파일 | 설명 |
+|------|------|------|
+| SSH 서버 보안 | `programs/sshd/default.nix` | 공개키 인증만 허용, 비밀번호 비활성화 |
+| mosh | `programs/mosh/default.nix` | mosh-server 설치 (불안정한 네트워크 대응) |
+| authorized_keys | `configuration.nix` | SSH 접속 허용 키 등록 |
+
+**SSH 서버 보안 설정:**
+
+```nix
+environment.etc."ssh/sshd_config.d/200-security.conf".text = ''
+  PubkeyAuthentication yes
+  PasswordAuthentication no
+  KbdInteractiveAuthentication no
+  PermitRootLogin no
+  PermitEmptyPasswords no
+  X11Forwarding no
+  ClientAliveInterval 60
+  ClientAliveCountMax 3
+'';
+```
+
+**사전 준비 (1회):**
+
+macOS 원격 로그인은 nix-darwin으로 활성화할 수 없으므로 수동 설정이 필요합니다:
+
+```bash
+# 방법 1: 명령어
+sudo launchctl load -w /System/Library/LaunchDaemons/ssh.plist
+
+# 방법 2: 시스템 설정
+# 시스템 설정 → 일반 → 공유 → 원격 로그인 → 켜기
+```
+
+**Termius 연결 정보:**
+
+| 항목 | 값 |
+|------|-----|
+| Host | Tailscale IP (예: `100.65.50.98`) |
+| Port | `22` |
+| Username | `green` |
+| Auth | SSH Key (Ed25519) |
+
+**mosh 사용:**
+
+```bash
+# Termius에서 mosh 연결 시 자동으로 mosh-server 사용
+# 또는 CLI에서:
+mosh green@100.65.50.98
+```
+
+> **참고**: macOS의 launchd가 SSH 소켓을 직접 관리하므로 `sshd_config`의 `ListenAddress` 설정은 적용되지 않습니다. LAN 접근 제한이 필요한 경우 pf 방화벽을 사용해야 합니다.
 
 ### 보안
 

@@ -15,6 +15,7 @@
 - [Homebrew GUI 앱 추가](#homebrew-gui-앱-추가)
 - [새 프로그램 모듈 추가](#새-프로그램-모듈-추가)
 - [폴더 액션 추가](#폴더-액션-추가)
+- [SSH 인증 키 추가 (원격 접속용)](#ssh-인증-키-추가-원격-접속용)
 - [Secrets 추가](#secrets-추가)
 - [대외비 설정 추가](#대외비-설정-추가-쉘-함수-gitignore-등)
 - [Claude Code Private 플러그인 추가](#claude-code-private-플러그인-추가)
@@ -627,6 +628,45 @@ launchd.agents.folder-action-<액션명> = {
   };
 };
 ```
+
+---
+
+## SSH 인증 키 추가 (원격 접속용)
+
+새 기기(Termius 등)에서 맥북이나 miniPC에 SSH 접속하려면 authorized_keys에 공개키를 추가해야 합니다.
+
+### macOS
+
+```bash
+# 1. configuration.nix 수정
+# modules/darwin/configuration.nix
+
+users.users.${username} = {
+  # ...
+  openssh.authorizedKeys.keys = [
+    "ssh-ed25519 AAAA... existing-key"
+    "ssh-ed25519 AAAA... new-device-key"  # 추가
+  ];
+};
+
+# 2. 적용
+nrs
+```
+
+### NixOS (miniPC)
+
+```bash
+# 1. hosts/greenhead-minipc/default.nix 수정
+users.users.${username}.openssh.authorizedKeys.keys = [
+  "ssh-ed25519 AAAA... existing-key"
+  "ssh-ed25519 AAAA... new-device-key"  # 추가
+];
+
+# 2. 적용 (miniPC에서)
+nrs
+```
+
+> **참고**: SSH 공개키는 공개 정보이므로 Public 저장소에 커밋해도 안전합니다.
 
 ---
 
