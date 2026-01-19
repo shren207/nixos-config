@@ -73,9 +73,9 @@ in
     ];
   };
 
-  # Machine Learning
+  # Machine Learning (Intel N100 OpenVINO GPU 가속)
   virtualisation.oci-containers.containers.immich-ml = {
-    image = "ghcr.io/immich-app/immich-machine-learning:release";
+    image = "ghcr.io/immich-app/immich-machine-learning:release-openvino";
     autoStart = true;
     volumes = [ "${dockerDataPath}/immich/ml-cache:/cache" ];
     environment = {
@@ -86,6 +86,8 @@ in
       "--memory=4g"
       "--memory-swap=6g"
       "--cpus=2"
+      "--device=/dev/dri:/dev/dri"
+      "--group-add=303" # render 그룹
     ];
   };
 
@@ -118,6 +120,8 @@ in
       "--network=immich-network"
       "--memory=4g"
       "--memory-swap=6g"
+      "--device=/dev/dri:/dev/dri" # 비디오 트랜스코딩 하드웨어 가속
+      "--group-add=303" # render 그룹
     ];
   };
 
