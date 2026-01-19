@@ -1,6 +1,8 @@
 {
   "cleanupPeriodDays": 7,
   "env": {
+    "IS_DEMO": "true",
+    "MAX_THINKING_TOKENS": "63999",
     "CLAUDE_CODE_ENABLE_UNIFIED_READ_TOOL": "true",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "true"
   },
