@@ -29,6 +29,11 @@ in
     executable = true;
   };
 
+  home.file.".local/bin/git-cleanup" = {
+    source = "${scriptsDir}/git-cleanup.sh";
+    executable = true;
+  };
+
   # NixOS 전용 aliases
   home.shellAliases = {
     # Nix 시스템 관리 (nixos-rebuild)

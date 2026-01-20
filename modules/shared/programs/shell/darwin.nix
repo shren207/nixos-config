@@ -26,6 +26,11 @@ in
     executable = true;
   };
 
+  home.file.".local/bin/git-cleanup" = {
+    source = "${scriptsDir}/git-cleanup.sh";
+    executable = true;
+  };
+
   # macOS 전용 환경 변수
   home.sessionVariables = {
     ICLOUD = "$HOME/Library/Mobile Documents/com~apple~CloudDocs";
