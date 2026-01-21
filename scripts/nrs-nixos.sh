@@ -126,7 +126,11 @@ test_github_access() {
     log_info "🔐 Testing GitHub SSH access..."
 
     # 일반 사용자 환경에서 GitHub 접근 테스트
-    if ! ssh -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
+    # ssh -T는 인증 성공해도 exit code 1 반환 (shell access 미제공)
+    # pipefail 때문에 별도 변수에 저장 후 grep
+    local ssh_output
+    ssh_output=$(ssh -T git@github.com 2>&1 || true)
+    if ! echo "$ssh_output" | grep -q "successfully authenticated"; then
         log_error "❌ GitHub SSH authentication failed!"
         log_error "   Run: ssh-add ~/.ssh/id_ed25519"
         exit 1
@@ -156,7 +160,10 @@ test_sudo_ssh_access() {
     log_info "🔑 Testing SSH access under sudo..."
 
     # sudo 환경에서 SSH_AUTH_SOCK이 전달되는지 확인
-    if ! sudo SSH_AUTH_SOCK="$SSH_AUTH_SOCK" ssh -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
+    # ssh -T는 인증 성공해도 exit code 1 반환 (shell access 미제공)
+    local ssh_output
+    ssh_output=$(sudo SSH_AUTH_SOCK="$SSH_AUTH_SOCK" ssh -T git@github.com 2>&1 || true)
+    if ! echo "$ssh_output" | grep -q "successfully authenticated"; then
         log_error "❌ GitHub SSH authentication failed under sudo!"
         log_error "   SSH_AUTH_SOCK is not properly forwarded."
         exit 1
