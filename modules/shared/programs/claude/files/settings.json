@@ -1,4 +1,5 @@
 {
+  "plansDirectory": "./.claude/plans",
   "cleanupPeriodDays": 7,
   "env": {
     "IS_DEMO": "true",
