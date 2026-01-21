@@ -68,6 +68,9 @@
   - [sudo에서 SSH 키 인증 실패 (SSH_AUTH_SOCK)](#sudo에서-ssh-키-인증-실패-ssh_auth_sock)
   - [SSH에서 sudo 비밀번호 입력 불가](#ssh에서-sudo-비밀번호-입력-불가)
   - [Ghostty SSH 접속 시 unknown terminal type](#ghostty-ssh-접속-시-unknown-terminal-type)
+  - [flake 시스템에서 /etc/nixos/configuration.nix 직접 수정 시 문제](#flake-시스템에서-etcnixosconfigurationnix-직접-수정-시-문제)
+  - [nixos-rebuild 실패로 인한 시스템 부팅 불가](#nixos-rebuild-실패로-인한-시스템-부팅-불가)
+  - [immich OOM으로 인한 시스템 불안정](#immich-oom으로-인한-시스템-불안정)
 - [mise 관련](#mise-관련)
   - [SSH 비대화형 세션에서 pnpm not found](#ssh-비대화형-세션에서-pnpm-not-found)
   - [mise가 .nvmrc 파일을 자동 인식하지 않음](#mise가-nvmrc-파일을-자동-인식하지-않음)
@@ -2633,3 +2636,164 @@ $ mise trust
 > **참고**: `mise.local.toml`과 `.mise.local.toml` 둘 다 global gitignore에 추가되어 있습니다 (`modules/shared/programs/git/default.nix`). mise는 "mise"로 시작하는 파일에 dotfile 버전(`.mise.*`)도 지원합니다.
 
 **참고**: `idiomatic_version_file_enable_tools` 설정이 있으면 `mise.local.toml` 없이도 `.nvmrc`가 인식됩니다. 둘 중 편한 방법을 선택하면 됩니다.
+
+### flake 시스템에서 /etc/nixos/configuration.nix 직접 수정 시 문제
+
+**날짜**: 2026-01-21
+
+**증상**: miniPC에서 로케일 변경을 위해 `/etc/nixos/configuration.nix`를 직접 수정하고 `sudo nixos-rebuild switch`를 실행했으나 실패
+
+```
+error: file 'nixos-config' was not found in the Nix search path
+```
+
+**원인**:
+
+이 시스템은 **flake 기반 NixOS**입니다:
+
+| 항목 | 전통적 NixOS | Flake 기반 NixOS (현재) |
+|------|-------------|----------------------|
+| 설정 파일 | `/etc/nixos/configuration.nix` | `~/nixos-config/flake.nix` |
+| 빌드 명령 | `nixos-rebuild switch` | `nixos-rebuild switch --flake .#hostname` |
+| 설정 위치 | 로컬 | Git 저장소 |
+
+`/etc/nixos/configuration.nix`는 flake 시스템에서 **사용되지 않는 레거시 파일**입니다. 이 파일을 수정해도 빌드에 영향이 없고, 전통적 빌드 명령은 NIX_PATH 오류를 발생시킵니다.
+
+**해결**:
+
+1. `/etc/nixos/configuration.nix` 수정 내용 원복:
+```bash
+sudo sed -i 's/i18n.defaultLocale.*/# i18n.defaultLocale = "en_US.UTF-8";/' /etc/nixos/configuration.nix
+```
+
+2. 로케일 설정은 flake 설정 파일에서 변경:
+```nix
+# hosts/greenhead-minipc/default.nix 또는 관련 모듈
+i18n.defaultLocale = "ko_KR.UTF-8";
+i18n.supportedLocales = [ "ko_KR.UTF-8/UTF-8" "en_US.UTF-8/UTF-8" ];
+```
+
+**교훈**:
+
+- miniPC에서 설정 변경 시 반드시 flake 기반 명령 사용
+- AI 어시스턴트 사용 시 flake 시스템임을 먼저 알려주기
+- 설정 변경은 Mac의 nixos-config 레포에서 수정 → push → miniPC에서 pull 후 빌드가 안전함
+
+---
+
+### nixos-rebuild 실패로 인한 시스템 부팅 불가
+
+**날짜**: 2026-01-21
+
+**증상**: `nixos-rebuild switch --flake .#greenhead-minipc` 실행 후 Tailscale, SSH, podman 등 모든 서비스가 사라짐
+
+```bash
+# 재부팅 후 서비스가 존재하지 않음
+Failed to restart tailscaled.service: Unit tailscaled.service not found.
+Failed to stop podman-immich-server.service: Unit podman-immich-server.service not loaded.
+```
+
+**원인**:
+
+nixos-rebuild 과정에서 **Git SSH 인증 실패**로 `nixos-config-secret` 프라이빗 레포를 가져오지 못함:
+
+```
+error: Failed to fetch git repository ssh://git@github.com/shren207/nixos-config-secret
+git@github.com: Permission denied (publickey).
+```
+
+이로 인해 불완전한 시스템 설정(세대 30)이 생성되었고, 이 세대로 부팅하면 대부분의 서비스가 없는 상태가 됨.
+
+**해결**:
+
+1. 모니터/키보드로 직접 접속하여 이전 세대로 롤백:
+```bash
+# 방법 1: 명령으로 롤백
+sudo nixos-rebuild switch --rollback
+
+# 방법 2: 세대 목록 확인 후 특정 세대로 전환
+sudo nix-env --list-generations --profile /nix/var/nix/profiles/system
+sudo /nix/var/nix/profiles/system-29-link/bin/switch-to-configuration switch
+```
+
+2. 또는 재부팅 시 GRUB 메뉴에서 이전 세대 선택
+
+**교훈**:
+
+- nixos-rebuild 전 Git SSH 인증 상태 확인 필수:
+```bash
+ssh-add -l              # SSH agent에 키 로드 확인
+ssh -T git@github.com   # GitHub 접근 테스트
+```
+
+- sudo 사용 시 SSH_AUTH_SOCK 전달:
+```bash
+sudo SSH_AUTH_SOCK=$SSH_AUTH_SOCK nixos-rebuild switch --flake .#greenhead-minipc
+```
+
+- 불완전한 세대가 생성되면 롤백으로 복구 가능 (NixOS의 장점)
+
+---
+
+### immich OOM으로 인한 시스템 불안정
+
+**날짜**: 2026-01-21
+
+**증상**: miniPC에 Tailscale SSH 접속 불가, 시스템 응답 없음. 모니터 확인 시 OOM 로그 대량 출력:
+
+```
+Memory cgroup out of memory: Killed process 93379 (immich) total-vm:28522012kB
+Memory cgroup out of memory: Killed process 94003 (immich) total-vm:28810952kB
+...
+```
+
+**원인**:
+
+immich-ml 컨테이너가 **OpenVINO 버전** (`ghcr.io/immich-app/immich-machine-learning:release-openvino`)을 사용 중이었음. OpenVINO ML 모델은 메모리를 많이 사용하여 4GB 제한을 초과 → OOM Killer 작동 → 컨테이너 재시작 → 다시 OOM → **무한 루프**.
+
+| 컨테이너 | 메모리 제한 | 실제 요구량 (OpenVINO) |
+|----------|-----------|---------------------|
+| immich-ml | 4GB | 6GB+ |
+| immich-server | 4GB | 적정 |
+
+이 과정에서 tailscaled 등 다른 서비스도 영향을 받아 시스템 전체가 불안정해짐.
+
+**해결**:
+
+1. 즉시 조치 (OOM 루프 탈출):
+```bash
+sudo systemctl stop podman-immich-server podman-immich-ml podman-immich-postgres podman-immich-redis
+sudo systemctl restart tailscaled
+```
+
+2. 영구 해결 - OpenVINO 대신 일반 이미지 사용:
+```nix
+# modules/nixos/programs/docker/immich.nix
+virtualisation.oci-containers.containers.immich-ml = {
+  image = "ghcr.io/immich-app/immich-machine-learning:release";  # openvino 제거
+  extraOptions = [
+    "--memory=2g"      # 4g에서 2g로 감소
+    "--memory-swap=3g"
+    # GPU 관련 옵션 제거
+  ];
+};
+```
+
+**변경 전후 비교**:
+
+| 항목 | 변경 전 (OpenVINO) | 변경 후 (CPU) |
+|------|-------------------|--------------|
+| 이미지 | `release-openvino` | `release` |
+| 메모리 | 4GB | 2GB |
+| GPU | `/dev/dri` 사용 | 미사용 |
+| ML 속도 | 빠름 | 느림 (허용 가능) |
+| 안정성 | OOM 위험 | 안정적 |
+
+**교훈**:
+
+- Intel N100 같은 저전력 시스템에서 OpenVINO는 메모리 부담이 큼
+- immich ML 작업은 사진 업로드 시에만 발생하므로 속도 저하 체감이 적음
+- 컨테이너 메모리 제한 설정 시 실제 사용량 모니터링 필요:
+```bash
+sudo podman stats --no-stream
+```
