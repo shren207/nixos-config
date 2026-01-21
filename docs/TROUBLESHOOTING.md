@@ -71,6 +71,7 @@
   - [flake 시스템에서 /etc/nixos/configuration.nix 직접 수정 시 문제](#flake-시스템에서-etcnixosconfigurationnix-직접-수정-시-문제)
   - [nixos-rebuild 실패로 인한 시스템 부팅 불가](#nixos-rebuild-실패로-인한-시스템-부팅-불가)
   - [immich OOM으로 인한 시스템 불안정](#immich-oom으로-인한-시스템-불안정)
+  - [Tailscale IP 바인딩 서비스 부팅 순서 문제](#tailscale-ip-바인딩-서비스-부팅-순서-문제)
 - [mise 관련](#mise-관련)
   - [SSH 비대화형 세션에서 pnpm not found](#ssh-비대화형-세션에서-pnpm-not-found)
   - [mise가 .nvmrc 파일을 자동 인식하지 않음](#mise가-nvmrc-파일을-자동-인식하지-않음)
@@ -2797,3 +2798,80 @@ virtualisation.oci-containers.containers.immich-ml = {
 ```bash
 sudo podman stats --no-stream
 ```
+
+### Tailscale IP 바인딩 서비스 부팅 순서 문제
+
+**날짜**: 2026-01-21
+
+**증상**: 부팅 후 immich, uptime-kuma 등 Tailscale IP에 바인딩하는 서비스가 실패:
+
+```
+Error: failed to expose ports via rootlessport: cannot expose privileged port 2283,
+you can add 'net.ipv4.ip_unprivileged_port_start=2283' to /etc/sysctl.conf
+(currently snip), or choose a larger port number (>= 1024): listen tcp 100.79.80.95:2283:
+bind: cannot assign requested address
+```
+
+**원인**:
+
+`tailscaled.service`가 시작되었다고 해서 Tailscale IP가 바로 사용 가능한 것은 아님:
+
+| 단계 | 설명 |
+|------|------|
+| 1. tailscaled 시작 | 데몬 프로세스 실행 |
+| 2. 네트워크 인증 | Tailscale 서버와 통신 |
+| 3. IP 할당 | 100.x.x.x IP 주소 할당 (수 초~수십 초) |
+| 4. 인터페이스 준비 | tailscale0 인터페이스에서 IP 사용 가능 |
+
+`after = [ "tailscaled.service" ]`만으로는 1단계만 기다리고 4단계를 기다리지 않음.
+
+**해결**:
+
+`ExecStartPre`로 Tailscale IP 할당 완료까지 대기하는 로직 추가:
+
+```nix
+# 예시: create-immich-network 서비스
+systemd.services.create-immich-network = {
+  after = [
+    "podman.socket"
+    "network-online.target"
+    "tailscaled.service"
+  ];
+  wants = [
+    "podman.socket"
+    "tailscaled.service"
+  ];
+  serviceConfig = {
+    Type = "oneshot";
+    RemainAfterExit = true;
+    # Tailscale IP 할당 완료까지 대기 (최대 60초)
+    ExecStartPre = "${pkgs.bash}/bin/bash -c 'for i in $(seq 1 60); do ${pkgs.tailscale}/bin/tailscale ip -4 2>/dev/null | grep -q \"^100\\.\" && exit 0; sleep 1; done; echo \"Tailscale IP not ready after 60s\" >&2; exit 1'";
+    ExecStart = "${pkgs.podman}/bin/podman network create immich-network --ignore";
+  };
+};
+```
+
+**적용 대상**:
+- `immich.nix`: create-immich-network 서비스
+- `uptime-kuma.nix`: podman-uptime-kuma 서비스
+- `plex.nix`: podman-plex 서비스 (현재 비활성)
+
+**검증**:
+
+```bash
+# 재부팅 후 서비스 상태 확인
+systemctl status create-immich-network
+systemctl status podman-immich-server
+systemctl status podman-uptime-kuma
+
+# 부팅 순서 로그 확인
+journalctl -b -u tailscaled -u create-immich-network -u podman-immich-server --no-pager | head -50
+
+# 포트 바인딩 확인
+curl -I http://100.79.80.95:2283  # immich
+curl -I http://100.79.80.95:3002  # uptime-kuma
+```
+
+**교훈**:
+- `after = [ "xxx.service" ]`는 서비스 시작만 보장, 완전히 준비됨을 보장하지 않음
+- Tailscale처럼 네트워크 의존 서비스는 실제 리소스 가용성을 확인하는 로직 필요
