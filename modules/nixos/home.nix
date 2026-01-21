@@ -85,4 +85,14 @@
   };
 
   programs.home-manager.enable = true;
+
+  # SSH 에이전트 자동 시작 (nrs에서 GitHub private 저장소 접근용)
+  services.ssh-agent.enable = true;
+
+  # SSH 키 자동 로드 (로그인 시 keychain이 ssh-agent에 키 추가)
+  programs.keychain = {
+    enable = true;
+    keys = [ "id_ed25519" ];
+    enableZshIntegration = true;
+  };
 }
