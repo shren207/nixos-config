@@ -303,12 +303,23 @@ nix develop
 
 ## 문서 안내
 
-| 문서 | 설명 |
-|------|------|
-| [FEATURES.md](docs/FEATURES.md) | CLI 도구, GUI 앱, 폴더 액션, Secrets 등 주요 기능 |
-| [HOW_TO_EDIT.md](docs/HOW_TO_EDIT.md) | 패키지, 쉘, Git, macOS/NixOS 설정 수정 방법 |
-| [MINIPC_PLAN_V3.md](docs/MINIPC_PLAN_V3.md) | MiniPC NixOS 전환 계획 및 설정 가이드 |
-| [MINIPC_CHECKLIST.md](docs/MINIPC_CHECKLIST.md) | MiniPC 설치 체크리스트 |
-| [CURSOR_EXTENSIONS.md](docs/CURSOR_EXTENSIONS.md) | Cursor 확장 프로그램 선언적 관리 |
-| [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | 자주 발생하는 문제 해결 (NixOS 포함) |
-| [TRIAL_AND_ERROR.md](docs/TRIAL_AND_ERROR.md) | 시도했다가 실패한 작업 기록 |
+문서는 Claude Code 플러그인(skills)으로 관리됩니다. Claude Code 세션에서 질문하면 관련 문서가 자동으로 로드됩니다.
+
+### Skills 라우팅
+
+| 주제 | Skill | 내용 |
+|------|-------|------|
+| NixOS/MiniPC | `managing-minipc` | 설치, rebuild, disko, 부팅 문제 |
+| macOS/nix-darwin | `managing-macos` | 시스템 설정, Homebrew, 스크롤 롤백 |
+| Nix 공통 | `understanding-nix` | flake, 빌드 속도, experimental features |
+| Atuin | `syncing-atuin` | 히스토리 동기화, zsh 레이아웃 |
+| Claude Code | `configuring-claude-code` | 플러그인, 훅 설정 |
+| Hammerspoon | `automating-hammerspoon` | 단축키, launchd, Ghostty |
+| 컨테이너 | `running-containers` | Podman, immich |
+| Git | `configuring-git` | delta, rerere 설정 |
+| mise | `managing-mise` | 런타임 버전, .nvmrc |
+| tmux | `managing-tmux` | 단축키, pane notepad |
+| SSH | `managing-ssh` | 키 관리, Tailscale |
+| Cursor | `managing-cursor` | 확장 관리 |
+
+> **참고**: 플러그인은 `nixos-config-secret` 저장소에서 관리됩니다.

@@ -4,22 +4,34 @@
 # 사용법:
 #   nrs.sh           # 일반 rebuild
 #   nrs.sh --offline # 오프라인 rebuild (빠름)
+#   nrs.sh --update  # nixos-config-secret flake input 업데이트 후 rebuild
 #
 # 안전 기능:
 #   - SSH 키 로드 확인
 #   - GitHub SSH 접근 테스트
 #   - nixos-config-secret 프라이빗 레포 접근 테스트
 #   - sudo 환경에서 SSH_AUTH_SOCK 전달
+#   - nixos-config-secret 로컬 변경 감지 및 경고
 
 set -euo pipefail
 
 FLAKE_PATH="$HOME/IdeaProjects/nixos-config"
-OFFLINE_FLAG=""
+SECRET_PATH="$HOME/IdeaProjects/nixos-config-secret"
 SECRET_REPO="git@github.com:shren207/nixos-config-secret.git"
+OFFLINE_FLAG=""
+UPDATE_FLAG=""
 
-if [[ "${1:-}" == "--offline" ]]; then
-    OFFLINE_FLAG="--offline"
-fi
+# 인수 파싱
+for arg in "$@"; do
+    case "$arg" in
+        --offline)
+            OFFLINE_FLAG="--offline"
+            ;;
+        --update)
+            UPDATE_FLAG="true"
+            ;;
+    esac
+done
 
 # 색상 정의
 GREEN='\033[0;32m'
@@ -39,6 +51,72 @@ ensure_ssh_key_loaded() {
         log_info "🔑 Loading SSH key..."
         ssh-add ~/.ssh/id_ed25519
     fi
+}
+
+#───────────────────────────────────────────────────────────────────────────────
+# nixos-config-secret 로컬 변경 감지
+#───────────────────────────────────────────────────────────────────────────────
+check_secret_repo_sync() {
+    if [[ ! -d "$SECRET_PATH" ]]; then
+        return 0
+    fi
+
+    local has_warning=false
+
+    # 1. uncommitted 변경 확인
+    if [[ -n "$(git -C "$SECRET_PATH" status --porcelain 2>/dev/null)" ]]; then
+        log_warn "⚠️  nixos-config-secret에 커밋되지 않은 변경이 있습니다"
+        log_warn "   경로: $SECRET_PATH"
+        has_warning=true
+    fi
+
+    # 2. unpushed commits 확인
+    local unpushed
+    unpushed=$(git -C "$SECRET_PATH" log origin/main..HEAD --oneline 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$unpushed" -gt 0 ]]; then
+        log_warn "⚠️  nixos-config-secret에 push되지 않은 커밋이 ${unpushed}개 있습니다"
+        has_warning=true
+    fi
+
+    # 3. flake.lock과 remote main 비교 (--offline이 아닐 때만)
+    if [[ -z "$OFFLINE_FLAG" ]]; then
+        # flake.lock에서 현재 잠긴 rev 추출
+        local locked_rev
+        locked_rev=$(nix flake metadata "$FLAKE_PATH" --json 2>/dev/null | \
+            jq -r '.locks.nodes["nixos-config-secret"].locked.rev // empty' 2>/dev/null || echo "")
+
+        if [[ -n "$locked_rev" ]]; then
+            # remote main의 최신 rev 가져오기
+            local remote_rev
+            remote_rev=$(git -C "$SECRET_PATH" ls-remote origin main 2>/dev/null | cut -f1 || echo "")
+
+            if [[ -n "$remote_rev" && "$locked_rev" != "$remote_rev" ]]; then
+                log_warn "⚠️  nixos-config-secret이 업데이트되었지만 flake.lock에 반영되지 않았습니다"
+                log_warn "   locked: ${locked_rev:0:7}"
+                log_warn "   remote: ${remote_rev:0:7}"
+                log_warn "   💡 'nrs --update' 또는 'nix flake update nixos-config-secret' 실행 필요"
+                has_warning=true
+            fi
+        fi
+    fi
+
+    if [[ "$has_warning" == "true" ]]; then
+        echo ""
+    fi
+}
+
+#───────────────────────────────────────────────────────────────────────────────
+# flake input 업데이트 (--update 옵션)
+#───────────────────────────────────────────────────────────────────────────────
+update_flake_inputs() {
+    if [[ "$UPDATE_FLAG" != "true" ]]; then
+        return 0
+    fi
+
+    log_info "🔄 Updating nixos-config-secret flake input..."
+    nix flake update nixos-config-secret --flake "$FLAKE_PATH"
+    log_info "  ✓ flake.lock updated"
+    echo ""
 }
 
 #───────────────────────────────────────────────────────────────────────────────
@@ -167,6 +245,8 @@ main() {
     # 1. SSH 인증 검증 (--offline이 아닐 때만)
     if [[ -z "$OFFLINE_FLAG" ]]; then
         ensure_ssh_key_loaded
+        check_secret_repo_sync
+        update_flake_inputs
         test_github_access
         test_secret_repo_access
         test_sudo_ssh_access

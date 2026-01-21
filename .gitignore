@@ -1,2 +1,5 @@
 # nix build result
 /result
+
+# Private plugin symlinks (nixos-config-secret)
+.claude/plugins/
