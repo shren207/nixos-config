@@ -25,8 +25,12 @@ in
     after = [
       "podman.socket"
       "network-online.target"
+      "tailscaled.service"
     ];
-    wants = [ "podman.socket" ];
+    wants = [
+      "podman.socket"
+      "tailscaled.service"
+    ];
     wantedBy = [ "multi-user.target" ];
     before = [
       "podman-immich-postgres.service"
@@ -37,6 +41,8 @@ in
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
+      # Tailscale IP 할당 완료까지 대기 (최대 60초)
+      ExecStartPre = "${pkgs.bash}/bin/bash -c 'for i in $(seq 1 60); do ${pkgs.tailscale}/bin/tailscale ip -4 2>/dev/null | grep -q \"^100\\.\" && exit 0; sleep 1; done; echo \"Tailscale IP not ready after 60s\" >&2; exit 1'";
       ExecStart = "${pkgs.podman}/bin/podman network create immich-network --ignore";
     };
   };

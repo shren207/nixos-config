@@ -28,6 +28,13 @@ in
     ];
   };
 
+  # Tailscale IP 바인딩을 위한 서비스 의존성
+  systemd.services.podman-uptime-kuma = {
+    after = [ "tailscaled.service" ];
+    wants = [ "tailscaled.service" ];
+    serviceConfig.ExecStartPre = "${pkgs.bash}/bin/bash -c 'for i in $(seq 1 60); do ${pkgs.tailscale}/bin/tailscale ip -4 2>/dev/null | grep -q \"^100\\.\" && exit 0; sleep 1; done; echo \"Tailscale IP not ready\" >&2; exit 1'";
+  };
+
   # 방화벽
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [ 3002 ];
 }
