@@ -4,11 +4,18 @@
 # 사용법:
 #   nrs.sh           # 일반 rebuild
 #   nrs.sh --offline # 오프라인 rebuild (빠름)
+#
+# 안전 기능:
+#   - SSH 키 로드 확인
+#   - GitHub SSH 접근 테스트
+#   - nixos-config-secret 프라이빗 레포 접근 테스트
+#   - sudo 환경에서 SSH_AUTH_SOCK 전달
 
 set -euo pipefail
 
 FLAKE_PATH="$HOME/IdeaProjects/nixos-config"
 OFFLINE_FLAG=""
+SECRET_REPO="git@github.com:shren207/nixos-config-secret.git"
 
 if [[ "${1:-}" == "--offline" ]]; then
     OFFLINE_FLAG="--offline"
@@ -35,6 +42,51 @@ ensure_ssh_key_loaded() {
 }
 
 #───────────────────────────────────────────────────────────────────────────────
+# GitHub SSH 접근 테스트
+#───────────────────────────────────────────────────────────────────────────────
+test_github_access() {
+    log_info "🔐 Testing GitHub SSH access..."
+
+    # 일반 사용자 환경에서 GitHub 접근 테스트
+    if ! ssh -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
+        log_error "❌ GitHub SSH authentication failed!"
+        log_error "   Run: ssh-add ~/.ssh/id_ed25519"
+        exit 1
+    fi
+    log_info "  ✓ GitHub SSH access OK"
+}
+
+#───────────────────────────────────────────────────────────────────────────────
+# nixos-config-secret 프라이빗 레포 접근 테스트
+#───────────────────────────────────────────────────────────────────────────────
+test_secret_repo_access() {
+    log_info "🔒 Testing nixos-config-secret access..."
+
+    # git ls-remote로 프라이빗 레포 접근 테스트 (실제 clone 없이)
+    if ! git ls-remote "$SECRET_REPO" HEAD &>/dev/null; then
+        log_error "❌ Cannot access nixos-config-secret repository!"
+        log_error "   Check your SSH key permissions for the private repo."
+        exit 1
+    fi
+    log_info "  ✓ nixos-config-secret access OK"
+}
+
+#───────────────────────────────────────────────────────────────────────────────
+# sudo 환경에서 SSH 접근 테스트
+#───────────────────────────────────────────────────────────────────────────────
+test_sudo_ssh_access() {
+    log_info "🔑 Testing SSH access under sudo..."
+
+    # sudo 환경에서 SSH_AUTH_SOCK이 전달되는지 확인
+    if ! sudo SSH_AUTH_SOCK="$SSH_AUTH_SOCK" ssh -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
+        log_error "❌ GitHub SSH authentication failed under sudo!"
+        log_error "   SSH_AUTH_SOCK is not properly forwarded."
+        exit 1
+    fi
+    log_info "  ✓ sudo SSH access OK"
+}
+
+#───────────────────────────────────────────────────────────────────────────────
 # 빌드 및 미리보기
 #───────────────────────────────────────────────────────────────────────────────
 preview_changes() {
@@ -45,7 +97,7 @@ preview_changes() {
     fi
 
     # shellcheck disable=SC2086
-    if ! sudo nixos-rebuild build --flake "$FLAKE_PATH" $OFFLINE_FLAG; then
+    if ! sudo SSH_AUTH_SOCK="$SSH_AUTH_SOCK" nixos-rebuild build --flake "$FLAKE_PATH" $OFFLINE_FLAG; then
         log_error "❌ Build failed!"
         exit 1
     fi
@@ -86,7 +138,7 @@ run_nixos_rebuild() {
     fi
 
     # shellcheck disable=SC2086
-    sudo nixos-rebuild switch --flake "$FLAKE_PATH" $OFFLINE_FLAG
+    sudo SSH_AUTH_SOCK="$SSH_AUTH_SOCK" nixos-rebuild switch --flake "$FLAKE_PATH" $OFFLINE_FLAG
 }
 
 #───────────────────────────────────────────────────────────────────────────────
@@ -111,11 +163,22 @@ main() {
     cd "$FLAKE_PATH" || exit 1
 
     echo ""
-    ensure_ssh_key_loaded
+
+    # 1. SSH 인증 검증 (--offline이 아닐 때만)
+    if [[ -z "$OFFLINE_FLAG" ]]; then
+        ensure_ssh_key_loaded
+        test_github_access
+        test_secret_repo_access
+        test_sudo_ssh_access
+        echo ""
+    fi
+
+    # 2. 빌드 및 적용
     preview_changes
     confirm_apply
     run_nixos_rebuild
     cleanup_build_artifacts
+
     echo ""
     log_info "✅ Done!"
 }
