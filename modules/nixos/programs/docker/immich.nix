@@ -10,10 +10,9 @@ let
 in
 {
   # 데이터 디렉토리
-  # ⚠️ 권한 중요: Immich는 내부적으로 UID 1000으로 실행
+  # ⚠️ 권한 중요: PostgreSQL은 UID 999, Immich Server/Upload는 UID 1000으로 실행
   systemd.tmpfiles.rules = [
     "d ${dockerDataPath}/immich/postgres 0755 999 999 -" # postgres UID
-    "d ${dockerDataPath}/immich/redis 0755 root root -" # Redis는 root로 충분
     "d ${dockerDataPath}/immich/ml-cache 0755 root root -"
     "d ${dockerDataPath}/immich/upload-cache 0755 1000 1000 -" # 업로드 캐시
     "d ${mediaDataPath}/immich/photos 0755 1000 1000 -" # ⚠️ 1000:1000 필수!
@@ -66,11 +65,10 @@ in
     ];
   };
 
-  # Redis
+  # Redis (Job Queue/캐싱 전용 - 영속성 불필요, 공식 Immich 설정과 동일)
   virtualisation.oci-containers.containers.immich-redis = {
     image = "redis:7-alpine";
     autoStart = true;
-    volumes = [ "${dockerDataPath}/immich/redis:/data" ];
     extraOptions = [
       "--network=immich-network"
       "--health-cmd=redis-cli ping"
