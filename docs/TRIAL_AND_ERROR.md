@@ -757,12 +757,10 @@ if settings.sync_v1_enabled {
 
 ### 관련 파일
 
-| 파일 | 설명 |
-|------|------|
-| `modules/darwin/programs/atuin/default.nix` | launchd 에이전트 설정 |
-| `modules/darwin/programs/atuin/files/atuin-sync-monitor.sh` | 모니터링 스크립트 |
-| `docs/TROUBLESHOOTING.md` | Atuin 섹션 |
-| `docs/ATUIN_ACCOUNT_MIGRATION.md` | 마이그레이션 가이드 (미완성) |
+| 파일                                                        | 설명                  |
+| ----------------------------------------------------------- | --------------------- |
+| `modules/darwin/programs/atuin/default.nix`                 | launchd 에이전트 설정 |
+| `modules/darwin/programs/atuin/files/atuin-sync-monitor.sh` | 모니터링 스크립트     |
 
 ### 향후 계획
 
@@ -878,7 +876,7 @@ macOS cat 옵션: `cat [-belnstuv]`
 **실제 문제 상황:**
 
 ```bash
-# CSI u 모드 진단 시 키 입력 테스트 (TROUBLESHOOTING.md 참조)
+# CSI u 모드 진단 시 키 입력 테스트
 cat -v
 # 기대: 입력 대기 후 비출력 문자 표시
 # 실제 (alias 적용 시): 에러 발생

@@ -7,5 +7,4 @@ useDefault = true
 paths = [
   '''flake\.lock''',
   '''\.local\.md''',
-  '''docs/FEATURES\.md''',  # 예시 키 포함 (문서용)
 ]

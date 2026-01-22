@@ -193,8 +193,6 @@ nrp
 ssh minipc "sudo SSH_AUTH_SOCK=\$SSH_AUTH_SOCK nixos-rebuild switch --flake ~/nixos-config"
 ```
 
-> **참고**: 상세한 설치 및 설정 과정은 [MINIPC_PLAN_V3.md](docs/MINIPC_PLAN_V3.md)를 참고하세요.
-
 ---
 
 ## 디렉토리 구조
