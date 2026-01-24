@@ -1,10 +1,10 @@
 ---
 name: managing-mise
 description: |
-  This skill should be used when the user asks about "mise 설정", "런타임 버전 관리",
-  "pnpm not found", ".nvmrc 인식 안 됨", "idiomatic version file", "mise activate",
-  "MISE_NODE_COMPILE", "SSH 비대화형 세션", "mise shims", "node 빌드 실패",
-  or encounters mise version manager issues or Node.js/pnpm path problems.
+  This skill should be used when the user asks about mise, "pnpm not found",
+  "node version mismatch", ".nvmrc", "mise shims", "mise activate",
+  or encounters runtime version issues in non-interactive SSH.
+  Covers Node.js source build when prebuilt binaries fail.
 ---
 
 # mise 런타임 버전 관리
