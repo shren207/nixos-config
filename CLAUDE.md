@@ -54,12 +54,12 @@ macOS와 NixOS 개발 환경을 nix-darwin/NixOS + Home Manager로 선언적 관
 | nix-darwin, macOS settings, Homebrew | `managing-macos` |
 | flake, nix-command, slow build, experimental features | `understanding-nix` |
 | 도구별 | |
-| Atuin, CLI 커맨드 히스토리, `atuin status` 커맨드 사용 | `syncing-atuin` |
+| Atuin sync, shell history, `atuin status` | `syncing-atuin` |
 | Claude Code hooks, plugins | `configuring-claude-code` |
-| Hammerspoon 단축키, launchd 멈춤, Ghostty 터미널 | `automating-hammerspoon` |
-| Podman/Docker, immich, uptime-kuma, 컨테이너 OOM | `running-containers` |
+| Hammerspoon hotkeys, launchd stuck, Ghostty | `automating-hammerspoon` |
+| Podman/Docker, immich, container OOM | `running-containers` |
 | Git config, delta, rerere, gitconfig conflicts | `configuring-git` |
-| mise, 런타임 종속성 관리, .nvmrc | `managing-mise` |
+| mise, runtime versions, .nvmrc | `managing-mise` |
 | tmux config, keybindings, pane notepad | `managing-tmux` |
 | SSH keys, Tailscale VPN, sudo auth failure | `managing-ssh` |
 | Cursor extensions, extensions.json | `managing-cursor` |
