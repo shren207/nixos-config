@@ -14,17 +14,18 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # 민감 정보 관리 (home-manager-secrets)
-    home-manager-secrets = {
-      url = "github:shren207/home-manager-secrets";
+    # Age 기반 secrets 관리 (agenix)
+    agenix = {
+      url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.darwin.follows = "nix-darwin";
+      inputs.home-manager.follows = "home-manager";
     };
 
     # Private secrets 저장소
     nixos-config-secret = {
       url = "git+ssh://git@github.com/shren207/nixos-config-secret?ref=main&shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
-      inputs.home-manager-secrets.follows = "home-manager-secrets";
     };
 
     # VSCode/Cursor 확장 프로그램 관리

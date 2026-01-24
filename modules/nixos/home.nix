@@ -18,9 +18,12 @@
   };
 
   imports = [
-    # Secrets 관리
-    inputs.home-manager-secrets.homeManagerModules.home-manager-secrets
+    # Private 설정
     inputs.nixos-config-secret.homeManagerModules.default
+
+    # Secrets 관리 (agenix)
+    inputs.agenix.homeManagerModules.default
+    ../shared/programs/secrets
 
     # 공유 프로그램 (공통)
     ../shared/programs/broot

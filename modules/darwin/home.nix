@@ -27,15 +27,17 @@
     }:
     {
       home.username = username;
-      # mkForce: home-manager-secrets가 users.users.${name}.home을 참조하는데
-      # nix-darwin에서는 이 값이 null이므로 강제 설정 필요
+      # mkForce: nix-darwin에서 users.users.${name}.home이 null이므로 강제 설정 필요
       home.homeDirectory = lib.mkForce "/Users/${username}";
 
       # 프로그램별 모듈 임포트
       imports = [
-        # Secrets 관리
-        inputs.home-manager-secrets.homeManagerModules.home-manager-secrets
+        # Private 설정
         inputs.nixos-config-secret.homeManagerModules.default
+
+        # Secrets 관리 (agenix)
+        inputs.agenix.homeManagerModules.default
+        ../shared/programs/secrets
 
         # 공유 프로그램
         ../shared/programs/broot
