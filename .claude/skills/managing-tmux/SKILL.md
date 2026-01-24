@@ -1,9 +1,9 @@
 ---
 name: managing-tmux
 description: |
-  This skill should be used when the user asks about "tmux 설정", "tmux 단축키",
-  "터미널 멀티플렉서", "pane notepad", "tmux 세션", "prefix 키",
-  "tmux.conf", "tmux 플러그인", or encounters tmux configuration issues.
+  This skill should be used when the user customizes tmux keybindings,
+  prefix key, session management, or asks about pane notepad, tmux plugins,
+  tmux.conf configuration.
 ---
 # tmux 설정
 
