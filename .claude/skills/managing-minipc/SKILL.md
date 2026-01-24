@@ -1,11 +1,10 @@
 ---
 name: managing-minipc
 description: |
-  This skill should be used when the user asks about "NixOS 설치", "MiniPC 설정",
-  "nixos-rebuild", "disko 파티션", "hardware-configuration.nix", "nixos-install",
-  "부팅 실패", "시스템 복구", "세대 롤백", "NixOS 특화 설정",
-  or encounters NixOS-specific build errors, boot failures, or installation issues.
-  For nix-darwin/macOS issues, use managing-macos. For general Nix issues (flake, etc.), use understanding-nix.
+  This skill should be used when the user asks about NixOS installation,
+  "nixos-rebuild", "disko", "hardware-configuration.nix", "generation rollback",
+  or encounters NixOS errors. For nix-darwin, use managing-macos.
+  For flake issues, use understanding-nix.
 ---
 
 # NixOS MiniPC 관리
