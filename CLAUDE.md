@@ -11,19 +11,20 @@ macOS와 NixOS 개발 환경을 nix-darwin/NixOS + Home Manager로 선언적 관
 | `nixos-config` | 공개 설정 (CLI 도구, 시스템 설정) |
 | `nixos-config-secret` | 대외비 설정 (age 암호화 secrets, Private 플러그인) |
 
-**연동 방식:**
+연동 방식:
 - `flake.nix`에서 `nixos-config-secret`을 input으로 참조
 - `lib.mkAfter`로 secret 설정을 공개 설정에 병합
 - Nix 빌드 시 SSH 키가 필요 (Private 저장소 접근)
 
 ## 세션 시작 전 알아야 할 것
 
-**빌드 시 항상 `nrs` alias를 사용하세요.** `darwin-rebuild`/`nixos-rebuild`를 직접 실행하지 마세요.
+빌드 시 항상 `nrs` alias를 사용하세요. `darwin-rebuild`/`nixos-rebuild`를 직접 실행하지 마세요.
 
 `nrs`가 자동으로 처리하는 것들:
 - SSH 키 로드 (Private 저장소 접근)
 - launchd agent 정리 (setupLaunchAgents 멈춤 방지)
 - nixos-config-secret 변경 감지 및 경고
+- Hammerspoon 재시작 (macOS)
 - sudo SSH_AUTH_SOCK 전달 (NixOS)
 
 ## 디렉토리 구조
@@ -43,26 +44,16 @@ macOS와 NixOS 개발 환경을 nix-darwin/NixOS + Home Manager로 선언적 관
 |--------|--------|------|
 | `nrs` | macOS/NixOS | 설정 적용 (미리보기 + 확인 + 적용) |
 | `nrs --update` | macOS/NixOS | nixos-config-secret flake input 업데이트 후 rebuild |
-| `nrs --offline` | macOS/NixOS | 오프라인 rebuild (캐시만 사용, 빠름) |
-| `nrp` | macOS/NixOS | 미리보기만 (적용 안 함) |
-| `nrh` | macOS/NixOS | 세대 히스토리 확인 |
-
-**nrs 안전 기능:**
-- SSH 키 로드 확인
-- nixos-config-secret 로컬 변경 감지 (uncommitted, unpushed, flake.lock 불일치)
-- launchd 에이전트 정리 (macOS)
-- Hammerspoon 재시작 (macOS)
-- sudo SSH_AUTH_SOCK 전달 (NixOS)
 
 ## 스킬 라우팅
 
 | 상황 | 스킬 |
 |------|------|
-| **플랫폼별** | |
+| 플랫폼별 | |
 | NixOS, MiniPC(미니PC), nixos-rebuild, disko | `managing-minipc` |
 | nix-darwin, macOS 시스템 설정, Homebrew | `managing-macos` |
 | flake, nix-command, 빌드 속도, experimental features | `understanding-nix` |
-| **도구별** | |
+| 도구별 | |
 | Atuin, CLI 커맨드 히스토리, `atuin status` 커맨드 사용 | `syncing-atuin` |
 | Claude Code | `configuring-claude-code` |
 | Hammerspoon 단축키, launchd 멈춤, Ghostty 터미널 | `automating-hammerspoon` |
@@ -73,34 +64,22 @@ macOS와 NixOS 개발 환경을 nix-darwin/NixOS + Home Manager로 선언적 관
 | SSH 키 관리, Tailscale VPN, sudo 인증 실패 | `managing-ssh` |
 | Cursor IDE | `managing-cursor` |
 
-## 컨벤션
-
-- **플랫폼**: macOS (nix-darwin), NixOS
-- **패키지 매니저**: Nix (GUI 앱은 Homebrew Cask)
-- **설정 변경 후**: 반드시 `git add` + `nrs` 실행
-- **Private 설정**: `nixos-config-secret`에서 `lib.mkAfter`로 병합
-
 ## nrs 스크립트 테스트 (LLM용)
 
 nrs 스크립트는 대화형 프롬프트(`Apply these changes? [Y/n]`)가 있어서 Bash 도구로 직접 실행하면 멈춥니다.
 
-**테스트 방법:**
+테스트 방법:
 
 ```bash
 # 잘못된 방법 - 프롬프트에서 멈춤
 bash scripts/nrs.sh
 
-# 올바른 방법 - echo로 입력 전달
-echo "Y" | bash scripts/nrs.sh
-
-# 또는 yes 명령 사용
-yes | bash scripts/nrs.sh
-
-# 취소 테스트
-echo "n" | bash scripts/nrs.sh
+# 올바른 방법 - echo로 입력 전달 
+echo "Y" | bash scripts/nrs.sh # 수락 테스트
+echo "n" | bash scripts/nrs.sh # 취소 테스트
 ```
 
-**부분 테스트 (빌드 없이):**
+부분 테스트 (빌드 없이):
 
 ```bash
 # 변경 감지 로직만 테스트 (함수 추출 실행)
