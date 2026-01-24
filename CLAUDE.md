@@ -8,8 +8,8 @@ macOS와 NixOS 개발 환경을 nix-darwin/NixOS + Home Manager로 선언적 관
 
 | 저장소 | 용도 |
 |--------|------|
-| `nixos-config` | 공개 설정 (CLI 도구, 시스템 설정) |
-| `nixos-config-secret` | 대외비 설정 (age 암호화 secrets, Private 플러그인) |
+| `nixos-config` | 공개 설정 (CLI 도구, 시스템 설정, agenix 암호화 secrets) |
+| `nixos-config-secret` | Private 설정 |
 
 연동 방식:
 - `flake.nix`에서 `nixos-config-secret`을 input으로 참조
@@ -32,6 +32,7 @@ macOS와 NixOS 개발 환경을 nix-darwin/NixOS + Home Manager로 선언적 관
 | 경로 | 설명 |
 |------|------|
 | `flake.nix` | Nix flake 진입점 |
+| `secrets/` | agenix 암호화 secrets (pushover credentials 등) |
 | `modules/shared/` | 공유 설정 (CLI 도구, git, tmux, claude) |
 | `modules/shared/scripts/` | 공용 스크립트 (git-cleanup, validate-skills) |
 | `modules/darwin/` | macOS 전용 (Homebrew, Hammerspoon, Cursor) |

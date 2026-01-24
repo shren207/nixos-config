@@ -2,7 +2,7 @@
 # Claude Code Stop Hook - Pushover 알림 전송
 # 작업 완료 시 현재 깃 브랜치 정보와 함께 알림을 보냅니다.
 
-# home-manager-secrets로 관리되는 credentials 로드
+# agenix로 관리되는 credentials 로드
 CREDENTIALS_FILE="$HOME/.config/pushover/credentials"
 
 if [ -f "$CREDENTIALS_FILE" ]; then
