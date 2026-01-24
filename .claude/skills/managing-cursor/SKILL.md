@@ -1,9 +1,9 @@
 ---
 name: managing-cursor
 description: |
-  This skill should be used when the user asks about "Cursor",
-  "extensions.json", "Cursor 확장 프로그램", "Cursor 익스텐션", "Cursor 설정",
-  or encounters Cursor extension management issues or GUI display problems.
+  This skill should be used when the user installs Cursor extensions,
+  or encounters "Extensions have been modified on disk" warning,
+  extension loading issues. Covers extensions.json Nix management.
 ---
 
 # Cursor 확장 관리
