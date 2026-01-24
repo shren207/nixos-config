@@ -301,7 +301,7 @@ nix develop
 
 ## 문서 안내
 
-문서는 Claude Code 플러그인(skills)으로 관리됩니다. Claude Code 세션에서 질문하면 관련 문서가 자동으로 로드됩니다.
+문서는 `.claude/skills/`에서 관리됩니다. Claude Code 세션에서 질문하면 관련 스킬이 자동으로 로드됩니다.
 
 ### Skills 라우팅
 
@@ -319,5 +319,3 @@ nix develop
 | tmux | `managing-tmux` | 단축키, pane notepad |
 | SSH | `managing-ssh` | 키 관리, Tailscale |
 | Cursor | `managing-cursor` | 확장 관리 |
-
-> **참고**: 플러그인은 `nixos-config-secret` 저장소에서 관리됩니다.

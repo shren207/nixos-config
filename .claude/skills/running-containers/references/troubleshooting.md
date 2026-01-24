@@ -1,0 +1,230 @@
+# 트러블슈팅
+
+## 컨테이너 관련
+
+### immich OOM으로 인한 시스템 불안정
+
+**날짜**: 2026-01-21
+
+**증상**: miniPC에 Tailscale SSH 접속 불가, 시스템 응답 없음. 모니터 확인 시 OOM 로그 대량 출력:
+
+```
+Memory cgroup out of memory: Killed process 93379 (immich) total-vm:28522012kB
+Memory cgroup out of memory: Killed process 94003 (immich) total-vm:28810952kB
+...
+```
+
+**원인**:
+
+immich-ml 컨테이너가 **OpenVINO 버전** (`ghcr.io/immich-app/immich-machine-learning:release-openvino`)을 사용 중이었음. OpenVINO ML 모델은 메모리를 많이 사용하여 4GB 제한을 초과 → OOM Killer 작동 → 컨테이너 재시작 → 다시 OOM → **무한 루프**.
+
+| 컨테이너 | 메모리 제한 | 실제 요구량 (OpenVINO) |
+|----------|-----------|---------------------|
+| immich-ml | 4GB | 6GB+ |
+| immich-server | 4GB | 적정 |
+
+이 과정에서 tailscaled 등 다른 서비스도 영향을 받아 시스템 전체가 불안정해짐.
+
+**해결**:
+
+1. 즉시 조치 (OOM 루프 탈출):
+```bash
+sudo systemctl stop podman-immich-server podman-immich-ml podman-immich-postgres podman-immich-redis
+sudo systemctl restart tailscaled
+```
+
+2. 영구 해결 - OpenVINO 대신 일반 이미지 사용:
+```nix
+# modules/nixos/programs/docker/immich.nix
+virtualisation.oci-containers.containers.immich-ml = {
+  image = "ghcr.io/immich-app/immich-machine-learning:release";  # openvino 제거
+  extraOptions = [
+    "--memory=2g"      # 4g에서 2g로 감소
+    "--memory-swap=3g"
+    # GPU 관련 옵션 제거
+  ];
+};
+```
+
+**변경 전후 비교**:
+
+| 항목 | 변경 전 (OpenVINO) | 변경 후 (CPU) |
+|------|-------------------|--------------|
+| 이미지 | `release-openvino` | `release` |
+| 메모리 | 4GB | 2GB |
+| GPU | `/dev/dri` 사용 | 미사용 |
+| ML 속도 | 빠름 | 느림 (허용 가능) |
+| 안정성 | OOM 위험 | 안정적 |
+
+**적용 상태**: 완료 (커밋: `eb65449`, 2026-01-21)
+
+**교훈**:
+
+- Intel N100 같은 저전력 시스템에서 OpenVINO는 메모리 부담이 큼
+- immich ML 작업은 사진 업로드 시에만 발생하므로 속도 저하 체감이 적음
+- 컨테이너 메모리 제한 설정 시 실제 사용량 모니터링 필요:
+```bash
+sudo podman stats --no-stream
+```
+
+### Tailscale IP 바인딩 서비스 부팅 순서 문제
+
+**날짜**: 2026-01-21
+
+**증상**: 부팅 후 immich, uptime-kuma 등 Tailscale IP에 바인딩하는 서비스가 실패:
+
+```
+Error: failed to expose ports via rootlessport: cannot expose privileged port 2283,
+you can add 'net.ipv4.ip_unprivileged_port_start=2283' to /etc/sysctl.conf
+(currently snip), or choose a larger port number (>= 1024): listen tcp 100.79.80.95:2283:
+bind: cannot assign requested address
+```
+
+**원인**:
+
+`tailscaled.service`가 시작되었다고 해서 Tailscale IP가 바로 사용 가능한 것은 아님:
+
+| 단계 | 설명 |
+|------|------|
+| 1. tailscaled 시작 | 데몬 프로세스 실행 |
+| 2. 네트워크 인증 | Tailscale 서버와 통신 |
+| 3. IP 할당 | 100.x.x.x IP 주소 할당 (수 초~수십 초) |
+| 4. 인터페이스 준비 | tailscale0 인터페이스에서 IP 사용 가능 |
+
+`after = [ "tailscaled.service" ]`만으로는 1단계만 기다리고 4단계를 기다리지 않음.
+
+**해결**:
+
+`ExecStartPre`로 Tailscale IP 할당 완료까지 대기하는 로직 추가:
+
+```nix
+# 예시: create-immich-network 서비스
+systemd.services.create-immich-network = {
+  after = [
+    "podman.socket"
+    "network-online.target"
+    "tailscaled.service"
+  ];
+  wants = [
+    "podman.socket"
+    "tailscaled.service"
+  ];
+  serviceConfig = {
+    Type = "oneshot";
+    RemainAfterExit = true;
+    # Tailscale IP 할당 완료까지 대기 (최대 60초)
+    ExecStartPre = "${pkgs.bash}/bin/bash -c 'for i in $(seq 1 60); do ${pkgs.tailscale}/bin/tailscale ip -4 2>/dev/null | grep -q \"^100\\.\" && exit 0; sleep 1; done; echo \"Tailscale IP not ready after 60s\" >&2; exit 1'";
+    ExecStart = "${pkgs.podman}/bin/podman network create immich-network --ignore";
+  };
+};
+```
+
+**적용 대상**:
+- `immich.nix`: create-immich-network 서비스
+- `uptime-kuma.nix`: podman-uptime-kuma 서비스
+- `plex.nix`: podman-plex 서비스 (현재 비활성)
+
+**검증**:
+
+```bash
+# 재부팅 후 서비스 상태 확인
+systemctl status create-immich-network
+systemctl status podman-immich-server
+systemctl status podman-uptime-kuma
+
+# 부팅 순서 로그 확인
+journalctl -b -u tailscaled -u create-immich-network -u podman-immich-server --no-pager | head -50
+
+# 포트 바인딩 확인
+curl -I http://100.79.80.95:2283  # immich
+curl -I http://100.79.80.95:3002  # uptime-kuma
+```
+
+**적용 상태**: 완료 (커밋: `4153e1d`, 2026-01-21)
+
+**교훈**:
+- `after = [ "xxx.service" ]`는 서비스 시작만 보장, 완전히 준비됨을 보장하지 않음
+- Tailscale처럼 네트워크 의존 서비스는 실제 리소스 가용성을 확인하는 로직 필요
+
+**향후 개선 사항** (기술 부채):
+
+| 항목 | 현재 상태 | 개선 방향 |
+|------|----------|----------|
+| tailscaleIP 하드코딩 | 4개 파일에 중복 정의 (`immich.nix`, `uptime-kuma.nix`, `plex.nix`, `default.nix`) | 단일 소스로 추출 (let 바인딩 또는 별도 모듈) |
+| Tailscale 대기 로직 중복 | 3개 파일에 동일한 bash 스크립트 | 공통 스크립트 또는 함수로 추출 |
+| immich DB 비밀번호 | `immich.nix:51`에 평문 하드코딩 | sops-nix 등 secrets 관리로 이동 |
+
+### Redis RDB 저장 실패 (Permission denied)
+
+**날짜**: 2026-01-23
+
+**증상**:
+
+1. Redis 로그에서 Permission denied 에러:
+```
+Failed opening the temp RDB file temp-*.rdb (in server root dir /data)
+for saving: Permission denied
+```
+
+2. Immich 서버 로그에서 MISCONF 에러:
+```
+ReplyError: MISCONF Redis is configured to save RDB snapshots, but it's
+currently unable to persist to disk. Commands that may modify the data set
+are disabled, because this instance is configured to report errors during
+writes if RDB snapshotting fails (stop-writes-on-bgsave-error option).
+```
+
+3. Immich 웹 UI에서 Job 실행 실패:
+   - "메타데이터 갱신", "썸네일 재생성" 등 버튼 클릭 시 500 에러
+   - 에러 메시지: "Failed to run asset jobs (Immich Server Error)"
+
+**원인**:
+
+| 항목 | 설정값 | 문제 |
+|------|--------|------|
+| 디렉토리 소유자 | root:root (755) | Redis 사용자가 쓰기 불가 |
+| Redis 실행 사용자 | UID 999, GID 1000 | 디렉토리에 쓰기 권한 없음 |
+| tmpfiles.rules | `0755 root root` | 잘못된 주석 "Redis는 root로 충분" |
+| stop-writes-on-bgsave-error | yes (기본값) | RDB 저장 실패 시 쓰기 차단 |
+
+Redis의 `stop-writes-on-bgsave-error=yes` 옵션으로 인해, RDB 저장 실패 시 데이터 일관성 보호를 위해 **모든 쓰기 작업이 차단**됨. 이로 인해 Immich의 Job Queue 추가가 실패하여 웹 UI의 모든 Job 관련 기능이 작동하지 않음.
+
+**해결**:
+
+Redis 볼륨 마운트 완전 제거 (공식 Immich 설정과 동일):
+
+1. `immich.nix`에서 tmpfiles.rules의 redis 디렉토리 제거
+2. `immich.nix`에서 Redis 컨테이너의 volumes 제거
+
+```nix
+# 삭제할 라인들:
+"d ${dockerDataPath}/immich/redis 0755 root root -"
+volumes = [ "${dockerDataPath}/immich/redis:/data" ];
+```
+
+**이유**:
+
+- Redis는 Immich에서 Job Queue/캐싱 용도로만 사용 (영속성 불필요)
+- 공식 Immich docker-compose에서도 Redis 볼륨 없음
+- 원본 사진/동영상, PostgreSQL 데이터는 영향 없음
+- Job Queue 손실 시 웹 UI에서 재생성 버튼으로 복구 가능
+
+**적용 상태**: 완료 (커밋: `8840d14`, 2026-01-23)
+
+**검증**:
+
+```bash
+# Redis 쓰기 테스트
+sudo podman exec immich-redis redis-cli SET test "hello"
+# 예상: OK (이전에는 MISCONF 에러)
+
+# Immich 웹 UI에서 "메타데이터 갱신" 테스트
+# 예상: 성공 (이전에는 500 에러)
+```
+
+**교훈**:
+
+- 컨테이너 볼륨 권한 설정 시 컨테이너 내부 실행 사용자 UID 확인 필수
+- 공식 설정을 참고하여 불필요한 영속성 설정 제거 검토
+- 주석이 실제 동작과 일치하는지 검증 필요
+- `stop-writes-on-bgsave-error` 옵션으로 인해 RDB 실패가 전체 쓰기 차단으로 이어질 수 있음
