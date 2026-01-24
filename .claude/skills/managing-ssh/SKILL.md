@@ -1,10 +1,9 @@
 ---
 name: managing-ssh
 description: |
-  This skill should be used when the user asks about "SSH 키 관리",
-  "Tailscale VPN", "SSH 키 invalid format", "Private 저장소 접근 실패",
-  "sudo SSH_AUTH_SOCK", "Tailscale 만료", "ssh-agent 로드", "mosh",
-  "authorizedKeys", or encounters SSH authentication failures or VPN connection issues.
+  This skill should be used when the user encounters "SSH key invalid format",
+  authentication failures, Tailscale VPN issues, "sudo SSH_AUTH_SOCK" problems,
+  or asks about ssh-agent, authorized keys, mosh setup.
 ---
 
 # SSH 및 Tailscale 관리
