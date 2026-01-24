@@ -1,10 +1,10 @@
 ---
 name: syncing-atuin
 description: |
-  This skill should be used when the user asks about "atuin 동기화", "히스토리 백업",
-  "atuin status 404", "atuin status 4XX", "encryption key 불일치", "daemon 불안정",
-  "zsh-autosuggestion 깨짐", "한글 경로 레이아웃", "쉘 히스토리", "last_sync_time",
-  or encounters Atuin sync failures, zsh layout issues, or shell history problems.
+  This skill should be used when the user encounters Atuin sync issues,
+  "atuin status" 4XX errors, encryption key mismatch, daemon problems,
+  or asks about shell history backup. Covers zsh-autosuggestion conflicts
+  and last_sync_time troubleshooting.
 ---
 
 # Atuin 히스토리 동기화
