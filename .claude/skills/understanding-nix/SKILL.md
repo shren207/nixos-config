@@ -1,11 +1,10 @@
 ---
 name: understanding-nix
 description: |
-  This skill should be used when the user asks about "flake 변경 인식", "nix-command",
-  "experimental features", "빌드 속도 느림", "substituter", "nix flake update",
-  "flake.lock", "derivation", "nix store", "캐시", "offline 빌드",
-  "direnv", "nix-direnv", "use flake", "devShell 자동 활성화", ".envrc",
-  or encounters general Nix build issues common to both NixOS and nix-darwin.
+  This skill should be used when the user asks about "nix flake update",
+  "flake change detection", "slow build", "substituter", "derivation",
+  "direnv", "devShell", "experimental features", or encounters Nix
+  build issues common to NixOS and nix-darwin.
 ---
 
 # Nix 공통 이슈
