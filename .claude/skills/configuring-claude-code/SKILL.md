@@ -1,8 +1,10 @@
 ---
 name: configuring-claude-code
 description: |
-  This skill should be used when the user asks about "Claude Code", "훅", "Hooks", "플러그인", "Plugins", 
-  or encounters Claude Code configuration issues, hook errors, or plugin problems.
+  This skill should be used when the user asks "how to create a hook",
+  "add a plugin", or encounters Claude Code configuration issues,
+  settings.json read-only problems, ghost plugin issues. Covers
+  PreToolUse/PostToolUse/Stop hooks and plugin installation.
 ---
 
 # Claude Code 설정
