@@ -60,9 +60,9 @@ macOS와 NixOS 개발 환경을 nix-darwin/NixOS + Home Manager로 선언적 관
 | Podman/Docker, immich, uptime-kuma, 컨테이너 OOM | `running-containers` |
 | Git 설정, delta diff, rerere, gitconfig 충돌 | `configuring-git` |
 | mise, 런타임 종속성 관리, .nvmrc | `managing-mise` |
-| tmux 설정, 단축키, pane notepad | `managing-tmux` |
+| tmux config, keybindings, pane notepad | `managing-tmux` |
 | SSH 키 관리, Tailscale VPN, sudo 인증 실패 | `managing-ssh` |
-| Cursor IDE | `managing-cursor` |
+| Cursor extensions, extensions.json | `managing-cursor` |
 
 ## nrs 스크립트 테스트 (LLM용)
 
