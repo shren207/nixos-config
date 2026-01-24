@@ -1,10 +1,9 @@
 ---
 name: configuring-git
 description: |
-  This skill should be used when the user asks about "Git", "깃", 
-  "delta", "rerere", "gitconfig", "Home Manager Git", "Git 설정",
-  "Git alias", "rebase 역순 표시", "git-cleanup", or encounters
-  Git configuration conflicts or Git commands alias.
+  This skill should be used when the user configures Git with Home Manager,
+  sets up delta, rerere, or encounters gitconfig conflicts. Covers custom
+  aliases, git-cleanup scripts, rebase reverse display.
 ---
 
 # Git 설정
