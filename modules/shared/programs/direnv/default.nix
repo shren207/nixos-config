@@ -18,5 +18,14 @@
     enable = true;
     enableZshIntegration = true; # zsh hook 자동 등록 (기본값이지만 명시)
     nix-direnv.enable = true; # use flake 지원 + 결과 캐싱
+
+    # ~/IdeaProjects 하위 .envrc 자동 허용
+    config = {
+      whitelist = {
+        prefix = [
+          "~/IdeaProjects"
+        ];
+      };
+    };
   };
 }
