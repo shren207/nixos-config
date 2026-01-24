@@ -1,9 +1,9 @@
 ---
 name: automating-hammerspoon
 description: |
-  This skill should be used when the user asks about "Hammerspoon", "해머스푼", 
-  "자동화", "Finder에서 터미널 열기", "setupLaunchAgents", "open --args", "HOME이 /var/root", 
-  or encounters Hammerspoon hotkey issues, launchd service problems, or Ghostty terminal issues.
+  This skill should be used when the user creates Hammerspoon hotkeys,
+  asks "open terminal from Finder", or encounters "setupLaunchAgents stuck",
+  "HOME is /var/root" in launchd, Ghostty terminal issues.
 ---
 
 # Hammerspoon 자동화
