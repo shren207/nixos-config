@@ -1,10 +1,9 @@
 ---
 name: running-containers
 description: |
-  This skill should be used when the user asks about "Podman", "Docker",
-  "immich 설정", "사진 백업", "컨테이너 OOM", "ML 컨테이너", "CPU 버전",
-  "Tailscale IP 바인딩", "OCI 백엔드", "oci-containers", or encounters
-  container runtime issues, immich memory problems, or service binding issues.
+  This skill should be used when the user asks about Podman, Docker, immich,
+  or encounters container OOM, "Tailscale IP binding" timing issues,
+  OCI backend configuration. Covers photo backup services on NixOS.
 ---
 
 # 컨테이너 관리 (Podman/immich)
