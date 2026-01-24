@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
-# Mac에서 MiniPC SSH 설정 스크립트
-# Phase 3 완료 후 Mac에서 실행
+# setup-minipc-ssh.sh - Mac에서 MiniPC SSH 설정 스크립트
+#
+# 용도: MiniPC 설치 후 Mac에서 SSH 연결 설정
+#       - ~/.ssh/config에 minipc 호스트 추가
+#       - SSH 접속 테스트
+#       - Atuin key 복사 (shell history 동기화용)
+#
+# 실행 시점: MiniPC post-install-minipc.sh 완료 후 Mac에서 실행
+# 참고: 이 스크립트는 Nix 설정에서 참조되지 않음 (수동 실행용)
 
 set -euo pipefail
 

@@ -7,27 +7,29 @@
 }:
 
 let
-  scriptsDir = ../../../../scripts;
+  darwinScriptsDir = ../../../darwin/scripts;
+  sharedScriptsDir = ../../scripts;
 in
 {
   # macOS용 스크립트 설치
   home.file.".local/bin/nrs.sh" = {
-    source = "${scriptsDir}/nrs.sh";
+    source = "${darwinScriptsDir}/nrs.sh";
     executable = true;
   };
 
   home.file.".local/bin/nrp.sh" = {
-    source = "${scriptsDir}/nrp.sh";
+    source = "${darwinScriptsDir}/nrp.sh";
     executable = true;
   };
 
   home.file.".local/bin/nrh.sh" = {
-    source = "${scriptsDir}/nrh.sh";
+    source = "${darwinScriptsDir}/nrh.sh";
     executable = true;
   };
 
+  # 공용 스크립트 설치
   home.file.".local/bin/git-cleanup" = {
-    source = "${scriptsDir}/git-cleanup.sh";
+    source = "${sharedScriptsDir}/git-cleanup.sh";
     executable = true;
   };
 

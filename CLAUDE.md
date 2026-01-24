@@ -33,10 +33,12 @@ macOS와 NixOS 개발 환경을 nix-darwin/NixOS + Home Manager로 선언적 관
 |------|------|
 | `flake.nix` | Nix flake 진입점 |
 | `modules/shared/` | 공유 설정 (CLI 도구, git, tmux, claude) |
+| `modules/shared/scripts/` | 공용 스크립트 (git-cleanup, validate-skills) |
 | `modules/darwin/` | macOS 전용 (Homebrew, Hammerspoon, Cursor) |
+| `modules/darwin/scripts/` | macOS 빌드 스크립트 (nrs, nrp, nrh) |
 | `modules/nixos/` | NixOS 전용 (SSH, Tailscale, fail2ban, Docker) |
+| `modules/nixos/scripts/` | NixOS 빌드 스크립트 (nrs, nrp, install-minipc) |
 | `hosts/` | 호스트별 설정 (greenhead-minipc 등) |
-| `scripts/` | 빌드 스크립트 (nrs.sh, nrp.sh) |
 
 ## 주요 명령어
 
@@ -71,17 +73,20 @@ nrs 스크립트는 대화형 프롬프트(`Apply these changes? [Y/n]`)가 있�
 테스트 방법:
 
 ```bash
-# 잘못된 방법 - 프롬프트에서 멈춤
-bash scripts/nrs.sh
+# macOS
+echo "Y" | bash modules/darwin/scripts/nrs.sh  # 수락 테스트
+echo "n" | bash modules/darwin/scripts/nrs.sh  # 취소 테스트
 
-# 올바른 방법 - echo로 입력 전달 
-echo "Y" | bash scripts/nrs.sh # 수락 테스트
-echo "n" | bash scripts/nrs.sh # 취소 테스트
+# NixOS
+echo "Y" | bash modules/nixos/scripts/nrs.sh
 ```
 
 부분 테스트 (빌드 없이):
 
 ```bash
-# 변경 감지 로직만 테스트 (함수 추출 실행)
-bash -c 'source scripts/nrs.sh; check_secret_repo_sync'
+# macOS
+bash -c 'source modules/darwin/scripts/nrs.sh; check_secret_repo_sync'
+
+# NixOS
+bash -c 'source modules/nixos/scripts/nrs.sh; check_secret_repo_sync'
 ```

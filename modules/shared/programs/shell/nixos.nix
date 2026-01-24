@@ -7,7 +7,8 @@
 }:
 
 let
-  scriptsDir = ../../../../scripts;
+  nixosScriptsDir = ../../../nixos/scripts;
+  sharedScriptsDir = ../../scripts;
 in
 {
   # NixOS 전용 Zsh 초기화
@@ -20,17 +21,18 @@ in
 
   # NixOS용 스크립트 설치
   home.file.".local/bin/nrs.sh" = {
-    source = "${scriptsDir}/nrs-nixos.sh";
+    source = "${nixosScriptsDir}/nrs.sh";
     executable = true;
   };
 
   home.file.".local/bin/nrp.sh" = {
-    source = "${scriptsDir}/nrp-nixos.sh";
+    source = "${nixosScriptsDir}/nrp.sh";
     executable = true;
   };
 
+  # 공용 스크립트 설치
   home.file.".local/bin/git-cleanup" = {
-    source = "${scriptsDir}/git-cleanup.sh";
+    source = "${sharedScriptsDir}/git-cleanup.sh";
     executable = true;
   };
 
