@@ -66,9 +66,11 @@ fetch_and_prune() {
 }
 
 get_stale_timestamp() {
-    if [[ "$(uname)" == "Darwin" ]]; then
-        date -v-${STALE_DAYS}d +%s
+    if [[ -x /usr/bin/date ]]; then
+        # macOS: BSD date 직접 호출 (Nix의 GNU date 우회)
+        /usr/bin/date -v-${STALE_DAYS}d +%s
     else
+        # Linux: GNU date 사용
         date -d "${STALE_DAYS} days ago" +%s
     fi
 }
