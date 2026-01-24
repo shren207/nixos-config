@@ -1,9 +1,7 @@
 ---
 name: configuring-claude-code
 description: |
-  This skill should be used when the user asks about "Claude Code 플러그인",
-  "PreToolUse 훅", "PostToolUse 훅", "settings.json 읽기 전용", "플러그인 설치 안 됨",
-  "JSON validation 에러", "nix develop 환경", "유령 플러그인", "mkOutOfStoreSymlink",
+  This skill should be used when the user asks about "Claude Code", "훅", "Hooks", "플러그인", "Plugins", 
   or encounters Claude Code configuration issues, hook errors, or plugin problems.
 ---
 

@@ -1,10 +1,8 @@
 ---
 name: managing-cursor
 description: |
-  This skill should be used when the user asks about "Cursor 확장 관리",
-  "extensions.json", "Spotlight에 Cursor 2개", "확장 설치 안 됨",
-  "open-vsx vs vscode-marketplace", "확장 프로그램 추가", "buildEnv",
-  "mkOutOfStoreSymlink", "Extensions have been modified on disk",
+  This skill should be used when the user asks about "Cursor",
+  "extensions.json", "Cursor 확장 프로그램", "Cursor 익스텐션", "Cursor 설정",
   or encounters Cursor extension management issues or GUI display problems.
 ---
 

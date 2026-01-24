@@ -1,0 +1,30 @@
+=== Skills Validation ===
+Date: Sat Jan 24 16:00:31 KST 2026
+
+## 1. YAML 구문 검증
+✅ automating-hammerspoon
+✅ configuring-claude-code
+✅ configuring-git
+✅ managing-cursor
+✅ managing-macos
+✅ managing-minipc
+✅ managing-mise
+✅ managing-ssh
+✅ managing-tmux
+✅ running-containers
+✅ syncing-atuin
+✅ understanding-nix
+
+## 2. 길이 검증 (150-260자)
+⚠️  automating-hammerspoon: 283자 (범위 초과)
+✅ configuring-claude-code: 192자
+✅ configuring-git: 250자
+✅ managing-cursor: 225자
+⚠️  managing-macos: 375자 (범위 초과)
+⚠️  managing-minipc: 437자 (범위 초과)
+⚠️  managing-mise: 337자 (범위 초과)
+⚠️  managing-ssh: 304자 (범위 초과)
+✅ managing-tmux: 234자
+⚠️  running-containers: 311자 (범위 초과)
+⚠️  syncing-atuin: 360자 (범위 초과)
+⚠️  understanding-nix: 395자 (범위 초과)

@@ -1,10 +1,10 @@
 ---
 name: configuring-git
 description: |
-  This skill should be used when the user asks about "Git 설정", "delta diff",
-  "delta가 적용 안 됨", "rerere", "gitconfig 충돌", "Home Manager Git",
-  "rebase 역순 표시", "git-cleanup", "gone 브랜치", or encounters
-  Git configuration conflicts or delta pager issues.
+  This skill should be used when the user asks about "Git", "깃", 
+  "delta", "rerere", "gitconfig", "Home Manager Git", "Git 설정",
+  "Git alias", "rebase 역순 표시", "git-cleanup", or encounters
+  Git configuration conflicts or Git commands alias.
 ---
 
 # Git 설정
