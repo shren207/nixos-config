@@ -66,6 +66,426 @@
           alias clear='clear && tmux clear-history'
         fi
       '')
+
+      #─────────────────────────────────────────────────────────────────────────
+      # Git Worktree 관리 함수
+      #─────────────────────────────────────────────────────────────────────────
+      ''
+        #───────────────────────────────────────────────────────────────────────
+        # wt: Git worktree 생성 및 관리
+        # 사용법: wt <브랜치명>
+        #───────────────────────────────────────────────────────────────────────
+        wt() {
+          local branch_name="$1"
+
+          if [[ -z "$branch_name" ]]; then
+            echo "사용법: wt <브랜치명>"
+            echo ""
+            echo "예시:"
+            echo "  wt feature-login    # 새 워크트리 생성"
+            echo "  wt feature/nested   # 슬래시 포함 브랜치 (→ .wt/feature_nested)"
+            return 1
+          fi
+
+          # 1. Git 저장소 확인
+          local git_common_dir
+          git_common_dir=$(git rev-parse --git-common-dir 2>/dev/null)
+          if [[ $? -ne 0 || -z "$git_common_dir" ]]; then
+            echo "❌ Git 저장소가 아닙니다"
+            return 1
+          fi
+
+          # 2. Git 루트 계산 (워크트리 내부에서도 메인 루트 찾기)
+          local git_root
+          if [[ "$git_common_dir" == ".git" ]]; then
+            git_root=$(pwd)
+          else
+            # .git/worktrees/xxx 형태 → 메인 .git 위치 계산
+            git_root=$(cd "$git_common_dir" && cd ../.. && pwd)
+          fi
+
+          # 3. 워크트리 상태 확인 (브랜치 사용 여부)
+          local worktree_info
+          worktree_info=$(git worktree list --porcelain | awk -v branch="$branch_name" '
+            /^worktree / { path = substr($0, 10) }
+            /^branch refs\/heads\// {
+              b = substr($0, 20)
+              if (b == branch) print path
+            }
+          ')
+
+          if [[ -n "$worktree_info" ]]; then
+            echo "⚠️  브랜치 '$branch_name'은 이미 워크트리에서 사용 중입니다:"
+            echo "    $worktree_info"
+            echo ""
+            echo -n "해당 워크트리를 열까요? [Y/n]: "
+            read -r open_choice
+            if [[ "$open_choice" =~ ^[Nn]$ ]]; then
+              return 1
+            fi
+            _wt_open_editor "$worktree_info"
+            return 0
+          fi
+
+          # 4. 디렉토리명 생성 (슬래시 → 언더스코어)
+          local dir_name="''${branch_name//\//_}"
+          local worktree_dir="$git_root/.wt/$dir_name"
+
+          # 디렉토리 충돌 확인 및 해결
+          local suffix=1
+          while [[ -d "$worktree_dir" ]]; do
+            ((suffix++))
+            if [[ $suffix -gt 99 ]]; then
+              echo "❌ 디렉토리명 충돌 해결 실패 (최대 시도 횟수 초과)"
+              return 1
+            fi
+            worktree_dir="$git_root/.wt/''${dir_name}-''${suffix}"
+          done
+
+          # .wt 디렉토리 생성
+          if [[ ! -d "$git_root/.wt" ]]; then
+            mkdir -p "$git_root/.wt" || {
+              echo "❌ .wt 디렉토리 생성 실패: 권한을 확인하세요"
+              return 1
+            }
+          fi
+
+          # 5. 브랜치 존재 여부 확인
+          local local_exists=false
+          local remote_exists=false
+          local remote_ref=""
+
+          if git show-ref --verify --quiet "refs/heads/$branch_name" 2>/dev/null; then
+            local_exists=true
+          fi
+
+          # 원격 브랜치 확인 (fetch 없이 로컬 캐시만)
+          remote_ref=$(git for-each-ref --format='%(refname:short)' "refs/remotes/*/$branch_name" | head -1)
+          if [[ -n "$remote_ref" ]]; then
+            remote_exists=true
+          fi
+
+          if [[ "$local_exists" == true || "$remote_exists" == true ]]; then
+            echo "⚠️  브랜치 '$branch_name'이 이미 존재합니다:"
+            [[ "$local_exists" == true ]] && echo "    📍 로컬"
+            [[ "$remote_exists" == true ]] && echo "    🌐 원격: $remote_ref"
+            echo ""
+            echo "선택:"
+            echo "  [c] 기존 브랜치로 워크트리 생성"
+            echo "  [n] 새 브랜치로 생성 (현재 HEAD 기준)"
+            echo "  [q] 취소"
+            echo ""
+            echo -n "선택: "
+            read -r branch_choice
+
+            case "$branch_choice" in
+              c|C)
+                if [[ "$local_exists" == true ]]; then
+                  git worktree add "$worktree_dir" "$branch_name" || {
+                    echo "❌ 워크트리 생성 실패"
+                    return 1
+                  }
+                else
+                  # 원격만 존재: 트래킹 브랜치 생성
+                  git worktree add -b "$branch_name" "$worktree_dir" "$remote_ref" || {
+                    echo "❌ 워크트리 생성 실패"
+                    return 1
+                  }
+                fi
+                ;;
+              n|N)
+                # 새 브랜치명 생성 (충돌 회피)
+                local new_branch="$branch_name"
+                local branch_suffix=2
+                while git show-ref --verify --quiet "refs/heads/$new_branch" 2>/dev/null; do
+                  new_branch="''${branch_name}-''${branch_suffix}"
+                  ((branch_suffix++))
+                  if [[ $branch_suffix -gt 99 ]]; then
+                    echo "❌ 브랜치명 충돌 해결 실패"
+                    return 1
+                  fi
+                done
+                # 디렉토리명도 새 브랜치에 맞게 조정
+                dir_name="''${new_branch//\//_}"
+                worktree_dir="$git_root/.wt/$dir_name"
+                git worktree add -b "$new_branch" "$worktree_dir" || {
+                  echo "❌ 워크트리 생성 실패"
+                  return 1
+                }
+                echo "📌 새 브랜치 생성: $new_branch"
+                ;;
+              q|Q|*)
+                echo "취소되었습니다."
+                return 1
+                ;;
+            esac
+          else
+            # 브랜치가 존재하지 않음: 새로 생성
+            git worktree add -b "$branch_name" "$worktree_dir" || {
+              echo "❌ 워크트리 생성 실패"
+              return 1
+            }
+          fi
+
+          echo "✅ 워크트리 생성 완료: $worktree_dir"
+          _wt_open_editor "$worktree_dir"
+        }
+
+        #───────────────────────────────────────────────────────────────────────
+        # wt 헬퍼: 에디터 열기 (플랫폼별)
+        #───────────────────────────────────────────────────────────────────────
+        _wt_open_editor() {
+          local target_dir="$1"
+
+          if [[ "$(uname)" == "Darwin" ]]; then
+            # macOS: 에디터 실행
+            local editor="''${WT_EDITOR:-cursor}"
+            if command -v "$editor" &>/dev/null; then
+              "$editor" "$target_dir"
+            else
+              echo "⚠️  에디터 실행 실패: $editor"
+              echo "📁 워크트리 경로: $target_dir"
+            fi
+          else
+            # NixOS/Linux: 경로만 출력
+            echo "📁 워크트리 경로: $target_dir"
+          fi
+        }
+
+        #───────────────────────────────────────────────────────────────────────
+        # wt_cleanup: Git worktree 정리
+        # 사용법: wt_cleanup
+        #───────────────────────────────────────────────────────────────────────
+        wt_cleanup() {
+          # 1. Git 저장소 확인 및 루트 계산
+          local git_common_dir
+          git_common_dir=$(git rev-parse --git-common-dir 2>/dev/null)
+          if [[ $? -ne 0 || -z "$git_common_dir" ]]; then
+            echo "❌ Git 저장소가 아닙니다"
+            return 1
+          fi
+
+          local git_root
+          if [[ "$git_common_dir" == ".git" ]]; then
+            git_root=$(pwd)
+          else
+            git_root=$(cd "$git_common_dir" && cd ../.. && pwd)
+          fi
+
+          # 2. .wt/ 디렉토리 존재 확인
+          if [[ ! -d "$git_root/.wt" ]]; then
+            echo "📁 .wt 디렉토리가 없습니다"
+            return 0
+          fi
+
+          # 3. 워크트리 목록 수집 (.wt/ 내부만)
+          local -a worktree_paths=()
+          local -a worktree_branches=()
+
+          while IFS= read -r line; do
+            if [[ "$line" =~ ^worktree\ (.+) ]]; then
+              local wt_path="''${match[1]:-''${BASH_REMATCH[1]}}"
+              if [[ "$wt_path" == "$git_root/.wt/"* ]]; then
+                worktree_paths+=("$wt_path")
+              fi
+            elif [[ "$line" =~ ^branch\ refs/heads/(.+) ]]; then
+              local branch="''${match[1]:-''${BASH_REMATCH[1]}}"
+              if [[ ''${#worktree_paths[@]} -gt ''${#worktree_branches[@]} ]]; then
+                worktree_branches+=("$branch")
+              fi
+            fi
+          done < <(git worktree list --porcelain)
+
+          if [[ ''${#worktree_paths[@]} -eq 0 ]]; then
+            echo "✨ 정리할 워크트리가 없습니다"
+            return 0
+          fi
+
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🧹 Worktree Cleanup - 상태 확인 중..."
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+
+          # 4. 워크트리별 상태 수집
+          local -a dirty_status=()
+          local -a pr_status=()
+          local gh_available=false
+          local offline_mode=false
+
+          # gh CLI 확인
+          if command -v gh &>/dev/null; then
+            if gh auth status &>/dev/null; then
+              gh_available=true
+            else
+              echo "⚠️  gh auth login 필요 - 오프라인 모드로 진행"
+              offline_mode=true
+            fi
+          fi
+
+          # 임시 디렉토리 생성 (병렬 PR 조회용)
+          local tmp_dir=$(mktemp -d)
+          trap "rm -rf $tmp_dir" EXIT INT TERM HUP
+
+          # 4a. Dirty 상태 확인 + 4b. PR 상태 조회 (병렬)
+          for i in {1..''${#worktree_paths[@]}}; do
+            local wt_path="''${worktree_paths[$i]}"
+            local branch="''${worktree_branches[$i]}"
+
+            # Dirty 체크
+            if [[ -n $(git -C "$wt_path" status --porcelain 2>/dev/null) ]]; then
+              dirty_status[$i]="DIRTY"
+            else
+              dirty_status[$i]=""
+            fi
+
+            # PR 상태 조회 (백그라운드)
+            if [[ "$gh_available" == true ]]; then
+              (gh pr list --head "$branch" --json state -q '.[0].state // "NONE"' > "$tmp_dir/$i" 2>/dev/null) &
+            else
+              echo "OFFLINE" > "$tmp_dir/$i"
+            fi
+          done
+          wait
+
+          # PR 결과 수집
+          for i in {1..''${#worktree_paths[@]}}; do
+            pr_status[$i]=$(cat "$tmp_dir/$i" 2>/dev/null || echo "OFFLINE")
+          done
+
+          # 5. fzf 입력 데이터 준비
+          local -a fzf_lines=()
+          for i in {1..''${#worktree_paths[@]}}; do
+            local wt_path="''${worktree_paths[$i]}"
+            local branch="''${worktree_branches[$i]}"
+            local pr="''${pr_status[$i]}"
+            local dirty="''${dirty_status[$i]}"
+            local wt_name=$(basename "$wt_path")
+
+            # 상태 아이콘
+            local icon=""
+            case "$pr" in
+              MERGED)  icon="✅" ;;
+              OPEN)    icon="🔵" ;;
+              CLOSED)  icon="🚫" ;;
+              OFFLINE) icon="📵" ;;
+              NONE|*)  icon="⚪" ;;
+            esac
+
+            # Dirty 표시
+            local dirty_mark=""
+            [[ -n "$dirty" ]] && dirty_mark=" 💾"
+
+            # fzf 라인: "STATUS|PATH|BRANCH|DISPLAY"
+            fzf_lines+=("$pr|$wt_path|$branch|$icon $wt_name ($branch)$dirty_mark")
+          done
+
+          # 6. 다중 선택 UI
+          local -a selected_items=()
+
+          if command -v fzf &>/dev/null; then
+            # fzf 사용
+            local fzf_input=""
+            for line in "''${fzf_lines[@]}"; do
+              fzf_input+="$line"$'\n'
+            done
+
+            local selected
+            selected=$(echo -n "$fzf_input" | fzf --multi --ansi \
+              --delimiter='|' \
+              --with-nth=4 \
+              --preview='echo {} | cut -d"|" -f2 | xargs -I{} git -C {} log --oneline -5 2>/dev/null || echo "로그 없음"' \
+              --preview-window=right:50% \
+              --header="TAB: 다중 선택 / Enter: 확인 / ESC: 취소" \
+              --bind='ctrl-a:select-all')
+
+            if [[ -z "$selected" ]]; then
+              echo "취소되었습니다."
+              return 0
+            fi
+
+            while IFS= read -r line; do
+              selected_items+=("$line")
+            done <<< "$selected"
+          else
+            # fzf 없음: 번호 선택
+            echo "워크트리 목록:"
+            for i in {1..''${#fzf_lines[@]}}; do
+              local display=$(echo "''${fzf_lines[$i]}" | cut -d'|' -f4)
+              echo "  [$i] $display"
+            done
+            echo ""
+            echo "삭제할 번호를 입력하세요 (예: 1,3,5 또는 'a' 전체):"
+            echo -n "> "
+            read -r selection
+
+            if [[ "$selection" == "a" || "$selection" == "A" ]]; then
+              selected_items=("''${fzf_lines[@]}")
+            elif [[ -n "$selection" ]]; then
+              IFS=',' read -rA nums <<< "$selection"
+              for num in "''${nums[@]}"; do
+                num=$(echo "$num" | tr -d ' ')
+                if [[ "$num" =~ ^[0-9]+$ ]] && [[ $num -ge 1 ]] && [[ $num -le ''${#fzf_lines[@]} ]]; then
+                  selected_items+=("''${fzf_lines[$num]}")
+                fi
+              done
+            fi
+          fi
+
+          if [[ ''${#selected_items[@]} -eq 0 ]]; then
+            echo "선택된 항목이 없습니다."
+            return 0
+          fi
+
+          # 7. 선택된 항목 삭제
+          local deleted=0
+          for item in "''${selected_items[@]}"; do
+            local wt_path=$(echo "$item" | cut -d'|' -f2)
+            local branch=$(echo "$item" | cut -d'|' -f3)
+            local wt_name=$(basename "$wt_path")
+
+            # Dirty 체크
+            if [[ -n $(git -C "$wt_path" status --porcelain 2>/dev/null) ]]; then
+              echo ""
+              echo "⚠️  '$wt_name' ($branch)에 커밋되지 않은 변경사항이 있습니다:"
+              echo ""
+              git -C "$wt_path" diff --stat 2>/dev/null
+              echo ""
+              echo -n "삭제할까요? [y/N]: "
+              read -r confirm
+              if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+                echo "   ⏭️  건너뜀"
+                continue
+              fi
+            fi
+
+            echo "🗑️  $wt_name 삭제 중..."
+
+            # 워크트리 제거
+            if git worktree remove "$wt_path" --force 2>/dev/null; then
+              echo "   └─ 워크트리 제거 완료"
+            else
+              echo "   └─ ⚠️  워크트리 제거 실패"
+              continue
+            fi
+
+            # 로컬 브랜치 삭제
+            if git branch -D "$branch" 2>/dev/null; then
+              echo "   └─ 브랜치 '$branch' 삭제 완료"
+            else
+              echo "   └─ ⚠️  브랜치 삭제 실패 (이미 삭제됨?)"
+            fi
+
+            ((deleted++))
+          done
+
+          # prune 실행
+          git worktree prune 2>/dev/null
+
+          echo ""
+          echo "✅ ''${deleted}개의 워크트리가 삭제되었습니다."
+        }
+      ''
     ];
   };
 

@@ -142,6 +142,9 @@ in
       # mise (프로젝트별 로컬 설정, dotfile 버전 포함)
       "mise.local.toml"
       ".mise.local.toml"
+
+      # wt worktree 디렉토리
+      ".wt/"
     ];
   };
 
