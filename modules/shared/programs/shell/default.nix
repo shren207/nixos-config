@@ -73,17 +73,40 @@
       ''
         #───────────────────────────────────────────────────────────────────────
         # wt: Git worktree 생성 및 관리
-        # 사용법: wt <브랜치명>
+        # 사용법: wt [-s|--stay] <브랜치명>
         #───────────────────────────────────────────────────────────────────────
         wt() {
-          local branch_name="$1"
+          local stay=false
+          local branch_name=""
+
+          # 플래그 파싱
+          while [[ $# -gt 0 ]]; do
+            case "$1" in
+              -s|--stay)
+                stay=true
+                shift
+                ;;
+              -*)
+                echo "알 수 없는 옵션: $1"
+                return 1
+                ;;
+              *)
+                branch_name="$1"
+                shift
+                ;;
+            esac
+          done
 
           if [[ -z "$branch_name" ]]; then
-            echo "사용법: wt <브랜치명>"
+            echo "사용법: wt [-s|--stay] <브랜치명>"
+            echo ""
+            echo "옵션:"
+            echo "  -s, --stay    워크트리 생성 후 현재 디렉토리에 머무름"
             echo ""
             echo "예시:"
-            echo "  wt feature-login    # 새 워크트리 생성"
-            echo "  wt feature/nested   # 슬래시 포함 브랜치 (→ .wt/feature_nested)"
+            echo "  wt feature-login    # 워크트리 생성 + cd 이동"
+            echo "  wt -s feature-login # 워크트리 생성만 (이동 안 함)"
+            echo "  wt feature/nested   # 슬래시 포함 (→ .wt/feature_nested)"
             return 1
           fi
 
@@ -122,6 +145,9 @@
             read -r open_choice
             if [[ "$open_choice" =~ ^[Nn]$ ]]; then
               return 1
+            fi
+            if [[ "$stay" == false ]]; then
+              cd "$worktree_info" || echo "⚠️  디렉토리 이동 실패"
             fi
             _wt_open_editor "$worktree_info"
             return 0
@@ -228,6 +254,9 @@
           fi
 
           echo "✅ 워크트리 생성 완료: $worktree_dir"
+          if [[ "$stay" == false ]]; then
+            cd "$worktree_dir" || echo "⚠️  디렉토리 이동 실패"
+          fi
           _wt_open_editor "$worktree_dir"
         }
 
