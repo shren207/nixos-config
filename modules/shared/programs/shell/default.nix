@@ -253,10 +253,10 @@
         }
 
         #───────────────────────────────────────────────────────────────────────
-        # wt_cleanup: Git worktree 정리
-        # 사용법: wt_cleanup
+        # wt-cleanup: Git worktree 정리
+        # 사용법: wt-cleanup
         #───────────────────────────────────────────────────────────────────────
-        wt_cleanup() {
+        wt-cleanup() {
           # 1. Git 저장소 확인 및 루트 계산
           local git_common_dir
           git_common_dir=$(git rev-parse --git-common-dir 2>/dev/null)
@@ -328,25 +328,29 @@
           trap "rm -rf $tmp_dir" EXIT INT TERM HUP
 
           # 4a. Dirty 상태 확인 + 4b. PR 상태 조회 (병렬)
-          for i in {1..''${#worktree_paths[@]}}; do
-            local wt_path="''${worktree_paths[$i]}"
-            local branch="''${worktree_branches[$i]}"
+          # job control 메시지 숨기기 (zsh)
+          {
+            setopt local_options no_monitor no_notify 2>/dev/null || true
+            for i in {1..''${#worktree_paths[@]}}; do
+              local wt_path="''${worktree_paths[$i]}"
+              local branch="''${worktree_branches[$i]}"
 
-            # Dirty 체크
-            if [[ -n $(git -C "$wt_path" status --porcelain 2>/dev/null) ]]; then
-              dirty_status[$i]="DIRTY"
-            else
-              dirty_status[$i]=""
-            fi
+              # Dirty 체크
+              if [[ -n $(git -C "$wt_path" status --porcelain 2>/dev/null) ]]; then
+                dirty_status[$i]="DIRTY"
+              else
+                dirty_status[$i]=""
+              fi
 
-            # PR 상태 조회 (백그라운드)
-            if [[ "$gh_available" == true ]]; then
-              (gh pr list --head "$branch" --json state -q '.[0].state // "NONE"' > "$tmp_dir/$i" 2>/dev/null) &
-            else
-              echo "OFFLINE" > "$tmp_dir/$i"
-            fi
-          done
-          wait
+              # PR 상태 조회 (백그라운드)
+              if [[ "$gh_available" == true ]]; then
+                (gh pr list --head "$branch" --json state -q '.[0].state // "NONE"' > "$tmp_dir/$i" 2>/dev/null) &
+              else
+                echo "OFFLINE" > "$tmp_dir/$i"
+              fi
+            done
+            wait
+          }
 
           # PR 결과 수집
           for i in {1..''${#worktree_paths[@]}}; do
