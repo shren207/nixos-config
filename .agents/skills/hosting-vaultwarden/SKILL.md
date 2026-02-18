@@ -6,8 +6,7 @@ description: |
   "vaultwarden 백업", "비밀번호 서버", "비밀번호 동기화",
   "master password", "admin token", "admin 패널",
   "vaultwarden 업데이트", "vaultwarden 복원", "backup restore",
-  Bitwarden client connection issues, vault sync problems,
-  "bitwarden-cli", "bw unlock", "self-hosted bitwarden cli".
+  Bitwarden client connection issues, vault sync problems.
 ---
 
 # Vaultwarden 비밀번호 관리자 관리
@@ -82,24 +81,6 @@ journalctl -u vaultwarden-backup.service          # 백업 로그
 4. Face ID 잠금 해제 활성화 권장
 
 **오프라인 사용**: 클라이언트가 vault를 로컬 캐시하므로 Tailscale 없이도 비밀번호 조회 가능. 동기화만 VPN 필요.
-
-### Bitwarden CLI (`bw`) 설정
-
-Vaultwarden를 로컬 자동화(예: Shottr token sync)에 사용하려면 CLI를 self-hosted 서버에 연결해야 합니다.
-
-```bash
-# 1) 서버 지정 (최초 1회)
-bw config server https://vaultwarden.greenhead.dev
-
-# 2) 로그인 (최초 1회 또는 세션 만료 시)
-bw login
-
-# 3) 세션 unlock (매 세션)
-export BW_SESSION="$(bw unlock --raw)"
-bw status
-```
-
-`bw status`가 `unlocked`가 아니면 자동화 스크립트(`stsync`)는 실패(exit 2)합니다.
 
 ### 서비스 활성화/비활성화
 

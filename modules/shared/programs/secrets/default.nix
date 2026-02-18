@@ -46,9 +46,9 @@
         path = "${config.xdg.configHome}/pushover/immich";
         mode = "0400";
       };
-      shottr-upload-token = {
-        file = ../../../../secrets/shottr-upload-token.age;
-        path = "${config.xdg.configHome}/shottr/upload-token";
+      shottr-license = {
+        file = ../../../../secrets/shottr-license.age;
+        path = "${config.xdg.configHome}/shottr/license";
         mode = "0400";
       };
     };

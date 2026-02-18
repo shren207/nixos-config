@@ -6,7 +6,7 @@ description: |
   Triggers: "add a secret", "create .age file", "encrypt with agenix",
   "decrypt secret", "agenix -e", "/dev/stdin" errors, "secrets.nix",
   "re-encrypt", "age key", "identity path" issues, "시크릿", "암호화",
-  "shottr-upload-token", "stsync", "Vaultwarden token sync".
+  "shottr-license", "shottr 라이센스".
   For service-specific secret usage, see the respective service skill.
 ---
 
@@ -62,7 +62,7 @@ Secret 형식은 shell 변수 (`KEY=value`)로, 사용처에서 `source`로 로�
 | `anki-sync-password.age` | `/run/agenix/anki-sync-password` | Anki Sync Server 비밀번호 |
 | `copyparty-password.age` | `/run/agenix/copyparty-password` | Copyparty 파일 서버 비밀번호 |
 | `vaultwarden-admin-token.age` | `/run/agenix/vaultwarden-admin-token` | Vaultwarden 관리자 패널 토큰 |
-| `shottr-upload-token.age` | `~/.config/shottr/upload-token` | Shottr 업로드 토큰 (`TOKEN=...`) |
+| `shottr-license.age` | `~/.config/shottr/license` | Shottr 라이센스 pre-fill (`KC_LICENSE` + `KC_VAULT`) |
 | `cloudflare-dns-api-token.age` | `/run/agenix/cloudflare-dns-api-token` | Caddy HTTPS 인증서 발급용 |
 
 상세는 `secrets/secrets.nix` 참조.
@@ -82,24 +82,31 @@ Secret 형식은 shell 변수 (`KEY=value`)로, 사용처에서 `source`로 로�
 
 **호스트 추가**: 새 호스트의 secret 접근이 필요한 경우 [references/workflows.md](references/workflows.md) 참조.
 
-### Shottr 토큰 동기화 (Vaultwarden -> agenix)
+### Shottr 라이센스 pre-fill (agenix)
 
-Shottr 토큰은 평문을 Nix store에 넣지 않고, `bw`로 가져와 `.age`로 재암호화합니다.
+Shottr 라이센스 키를 agenix로 암호화하여 `nrs` 실행 시 `defaults write`로 pre-fill합니다.
 
-```bash
-# 1) Vaultwarden unlock
-export BW_SESSION="$(bw unlock --raw)"
-
-# 2) 토큰 동기화 (기본 item: shottr-upload-token, field: token)
-stsync
-# 또는
-~/.local/bin/shottr-token-sync --repo ~/IdeaProjects/nixos-config
-
-# 3) 적용
-nrs
+Secret 파일 형식:
+```
+KC_LICENSE=<base64 encoded license>
+KC_VAULT=<base64 encoded vault>
 ```
 
-토큰 secret 파일 형식은 `TOKEN=<value>` 입니다. 빈 값(`TOKEN=`)은 적용 시 경고 후 스킵됩니다.
+`.age` 파일 생성/갱신:
+```bash
+printf 'KC_LICENSE=%s\nKC_VAULT=%s\n' \
+  "$(defaults read cc.ffitch.shottr kc-license)" \
+  "$(defaults read cc.ffitch.shottr kc-vault)" | \
+  nix shell nixpkgs#age -c age \
+    -r "ssh-ed25519 <macbook-pubkey>" \
+    -r "ssh-ed25519 <minipc-pubkey>" \
+    -o secrets/shottr-license.age
+```
+
+HM activation이 `~/.config/shottr/license`에서 값을 읽어 `defaults write cc.ffitch.shottr kc-license -string ...`로 주입합니다.
+새 맥북에서 Shottr 실행 후 Activate 버튼 1회 클릭으로 활성화됩니다.
+
+> Shottr 크레덴셜 구조 상세는 managing-macos 스킬의 "Shottr 크레덴셜 관리 (상세)" 섹션 참조.
 
 ## 자주 발생하는 문제
 

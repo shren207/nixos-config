@@ -29,8 +29,8 @@ in
   "immich-api-key.age".publicKeys = allHosts;
   "pushover-immich.age".publicKeys = allHosts;
 
-  # Shottr 업로드 토큰 (Vaultwarden -> agenix 반자동 동기화)
-  "shottr-upload-token.age".publicKeys = allHosts;
+  # Shottr 라이센스 키 (kc-license + kc-vault pre-fill)
+  "shottr-license.age".publicKeys = allHosts;
 
   # Anki Sync Server 비밀번호
   "anki-sync-password.age".publicKeys = minipcOnly;
