@@ -285,7 +285,7 @@ nix-darwin의 `fonts.packages` 옵션을 사용하여 폰트를 선언적으로 
 | 앱       | 설정 파일                                          | 폰트 이름                   |
 | -------- | -------------------------------------------------- | --------------------------- |
 | Ghostty  | `modules/darwin/programs/ghostty/default.nix`      | Sarasa Mono K Nerd Font (주) + JetBrainsMono Nerd Font (fallback) |
-| Cursor   | `modules/darwin/programs/cursor/files/settings.json`| Sarasa Mono K Nerd Font     |
+| Cursor   | `modules/darwin/programs/cursor/files/settings.json`| Sarasa Mono K Nerd Font (주) + JetBrainsMono Nerd Font (fallback) |
 
 > Sarasa Gothic은 Iosevka(라틴 모노스페이스) + Source Han Sans(CJK)를 합성한 폰트입니다. CJK 문자가 ASCII의 정확히 2배 너비여서 한글+영문 코드 블록이 완벽히 정렬됩니다. jonz94/Sarasa-Gothic-Nerd-Fonts에서 Nerd Font 글리프가 패치된 버전을 사용합니다.
 
