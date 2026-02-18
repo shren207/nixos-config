@@ -3,7 +3,8 @@ name: managing-macos
 description: |
   macOS/nix-darwin: Dock, Finder, Touch ID sudo, Homebrew Cask.
   Triggers: "darwin-rebuild", Dock/Finder settings, "/etc/bashrc conflict",
-  "/etc/zshrc conflict", "killall cfprefsd", "primary user does not exist".
+  "/etc/zshrc conflict", "killall cfprefsd", "primary user does not exist",
+  "shottr 설정", "shottr 단축키", "스크린샷 저장 경로", "stsync", "bitwarden-cli".
 ---
 
 # macOS 관리 (nix-darwin)
@@ -49,6 +50,8 @@ nrp
 darwinOnly = [ ... pkgs.패키지명 ];
 ```
 
+현재 Shottr/Vaultwarden 연동에 필요한 `bw` 명령어는 `pkgs.bitwarden-cli`로 선언 관리됩니다.
+
 자세한 내용: [references/features.md](references/features.md#nix-cli-패키지-darwin-only)
 
 ### macOS 시스템 설정
@@ -68,9 +71,35 @@ darwinOnly = [ ... pkgs.패키지명 ];
 
 homebrew.casks = [
   "cursor"
+  "shottr"
   "ghostty"
   "raycast"
 ];
+```
+
+### Shottr 선언 관리 (Nix + Vaultwarden)
+
+Shottr 설정/토큰 동기화는 아래 파일에서 관리됩니다.
+
+| 파일 | 용도 |
+|------|------|
+| `modules/darwin/programs/shottr/default.nix` | Shottr 설정 선언 적용 + token 런타임 주입 |
+| `modules/darwin/programs/shottr/files/shottr-token-sync.sh` | Vaultwarden -> agenix 토큰 동기화 (`stsync`) |
+| `libraries/constants.nix` | Shottr 기본 저장경로 상대 경로 상수 |
+| `secrets/shottr-upload-token.age` | agenix 암호화 토큰 |
+| `modules/shared/programs/secrets/default.nix` | `~/.config/shottr/upload-token` 배포 |
+
+운영 순서:
+
+```bash
+# 1) Vaultwarden unlock
+export BW_SESSION="$(bw unlock --raw)"
+
+# 2) 토큰 동기화
+stsync
+
+# 3) 설정 적용
+nrs
 ```
 
 ## 자주 발생하는 문제

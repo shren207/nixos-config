@@ -39,6 +39,7 @@ in
   # macOS 전용 패키지
   darwinOnly = [
     pkgs.broot # 파일 탐색기 TUI
+    pkgs.bitwarden-cli # Vaultwarden/Bitwarden CLI (bw)
     pkgs.ffmpeg # 미디어 처리
     pkgs.imagemagick # 이미지 처리
     pkgs.rar # 압축

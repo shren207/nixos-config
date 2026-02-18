@@ -5,7 +5,8 @@ description: |
   .age file encryption/decryption, re-encryption, or secret key management.
   Triggers: "add a secret", "create .age file", "encrypt with agenix",
   "decrypt secret", "agenix -e", "/dev/stdin" errors, "secrets.nix",
-  "re-encrypt", "age key", "identity path" issues, "시크릿", "암호화".
+  "re-encrypt", "age key", "identity path" issues, "시크릿", "암호화",
+  "shottr-upload-token", "stsync", "Vaultwarden token sync".
   For service-specific secret usage, see the respective service skill.
 ---
 
@@ -61,6 +62,7 @@ Secret 형식은 shell 변수 (`KEY=value`)로, 사용처에서 `source`로 로�
 | `anki-sync-password.age` | `/run/agenix/anki-sync-password` | Anki Sync Server 비밀번호 |
 | `copyparty-password.age` | `/run/agenix/copyparty-password` | Copyparty 파일 서버 비밀번호 |
 | `vaultwarden-admin-token.age` | `/run/agenix/vaultwarden-admin-token` | Vaultwarden 관리자 패널 토큰 |
+| `shottr-upload-token.age` | `~/.config/shottr/upload-token` | Shottr 업로드 토큰 (`TOKEN=...`) |
 | `cloudflare-dns-api-token.age` | `/run/agenix/cloudflare-dns-api-token` | Caddy HTTPS 인증서 발급용 |
 
 상세는 `secrets/secrets.nix` 참조.
@@ -79,6 +81,25 @@ Secret 형식은 shell 변수 (`KEY=value`)로, 사용처에서 `source`로 로�
 2. 새 내용으로 재암호화하여 `.age` 파일 덮어쓰기
 
 **호스트 추가**: 새 호스트의 secret 접근이 필요한 경우 [references/workflows.md](references/workflows.md) 참조.
+
+### Shottr 토큰 동기화 (Vaultwarden -> agenix)
+
+Shottr 토큰은 평문을 Nix store에 넣지 않고, `bw`로 가져와 `.age`로 재암호화합니다.
+
+```bash
+# 1) Vaultwarden unlock
+export BW_SESSION="$(bw unlock --raw)"
+
+# 2) 토큰 동기화 (기본 item: shottr-upload-token, field: token)
+stsync
+# 또는
+~/.local/bin/shottr-token-sync --repo ~/IdeaProjects/nixos-config
+
+# 3) 적용
+nrs
+```
+
+토큰 secret 파일 형식은 `TOKEN=<value>` 입니다. 빈 값(`TOKEN=`)은 적용 시 경고 후 스킵됩니다.
 
 ## 자주 발생하는 문제
 
