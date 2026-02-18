@@ -24,6 +24,8 @@ stdenvNoCC.mkDerivation {
 
   sourceRoot = ".";
 
+  dontBuild = true;
+
   installPhase = ''
     mkdir -p $out/share/fonts/truetype
     cp *.ttf $out/share/fonts/truetype/

@@ -15,7 +15,7 @@ macOS 관련 시스템 설정 및 Homebrew 관리입니다.
 - [자동 수정 비활성화](#자동-수정-비활성화)
 - [키보드 단축키 (Symbolic Hotkeys)](#키보드-단축키-symbolic-hotkeys)
 - [키 바인딩 (백틱/원화)](#키-바인딩-백틱원화)
-- [폰트 관리 (Nerd Fonts)](#폰트-관리-nerd-fonts)
+- [폰트 관리](#폰트-관리)
 - [GUI 앱 (Homebrew Casks)](#gui-앱-homebrew-casks)
 - [폴더 액션 (launchd)](#폴더-액션-launchd)
 
