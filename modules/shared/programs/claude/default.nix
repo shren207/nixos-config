@@ -100,6 +100,22 @@ let
   };
 in
 {
+  # Worktree 심링크 정리: .wt/ 경로를 가리키는 stale 심링크 제거
+  # checkLinkTargets 전에 실행하여 cmp 디렉토리 비교 에러 방지
+  # 배경: PR #28에서 nixosConfigPath가 worktree 경로로 동적 변경 → 심링크가 .wt/를 가리킴
+  # 이 activation은 해당 회귀를 한 번 정리한 뒤에도 안전한 no-op으로 남음
+  home.activation.cleanStaleWorktreeSymlinks = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
+    for link in "$HOME/.claude/skills/"* "$HOME/.claude/hooks/"* "$HOME/.claude/"*.json "$HOME/.claude/"*.md; do
+      if [ -L "$link" ]; then
+        target=$(readlink "$link")
+        if echo "$target" | grep -q '/.wt/'; then
+          $DRY_RUN_CMD rm "$link"
+          $VERBOSE_ECHO "Removed stale worktree symlink: $link -> $target"
+        fi
+      fi
+    done
+  '';
+
   # Binary Claude Code 설치 (Node.js 버전 의존성 없음)
   home.activation.installClaudeCode = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     if [ ! -f "$HOME/.local/bin/claude" ]; then
