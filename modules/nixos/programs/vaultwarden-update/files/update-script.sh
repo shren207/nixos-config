@@ -3,10 +3,6 @@
 # pinned tag 이미지 pull → digest 비교 → 안전 백업 → 재시작 → 헬스체크 → 결과 알림
 set -euo pipefail
 
-# 동시 실행 방지 (flock)
-exec 200>"$STATE_DIR/.lock"
-flock -n 200 || { echo "ERROR: Another vaultwarden-update is already running"; exit 1; }
-
 # 환경변수 (래퍼에서 주입)
 : "${PUSHOVER_CRED_FILE:?PUSHOVER_CRED_FILE is required}"
 : "${SERVICE_LIB:?SERVICE_LIB is required}"
@@ -18,6 +14,10 @@ flock -n 200 || { echo "ERROR: Another vaultwarden-update is already running"; e
 : "${BACKUP_SERVICE:?BACKUP_SERVICE is required}"
 : "${GITHUB_REPO:?GITHUB_REPO is required}"
 : "${SERVICE_DISPLAY_NAME:?SERVICE_DISPLAY_NAME is required}"
+
+# 동시 실행 방지 (flock)
+exec 200>"$STATE_DIR/.lock"
+flock -n 200 || { echo "ERROR: Another vaultwarden-update is already running"; exit 1; }
 
 # 공통 라이브러리 로드
 # shellcheck disable=SC1090
@@ -31,6 +31,10 @@ DRY_RUN=false
 if [[ "${1:-}" == "--dry-run" ]]; then
   DRY_RUN=true
   echo "=== DRY RUN MODE ==="
+elif [[ -n "${1:-}" ]]; then
+  echo "ERROR: Unknown argument: $1"
+  echo "Usage: vaultwarden-update [--dry-run]"
+  exit 1
 fi
 
 FAILURE_NOTIFIED=false
@@ -110,7 +114,25 @@ echo "Running backup service: $BACKUP_SERVICE"
 if ! systemctl start "$BACKUP_SERVICE"; then
   # oneshot 백업이 이미 실행 중인 경우 start가 비정상 종료될 수 있음
   if systemctl is-active --quiet "$BACKUP_SERVICE"; then
-    echo "Backup service is already running; proceeding."
+    echo "Backup service is already running; waiting for completion..."
+    WAIT_RETRIES=90   # 최대 15분(90*10초)
+    WAIT_INTERVAL=10
+    BACKUP_DONE=false
+    for _ in $(seq 1 "$WAIT_RETRIES"); do
+      if ! systemctl is-active --quiet "$BACKUP_SERVICE"; then
+        BACKUP_DONE=true
+        break
+      fi
+      sleep "$WAIT_INTERVAL"
+    done
+
+    if ! $BACKUP_DONE; then
+      echo "ERROR: Backup service did not finish within timeout"
+      FAILURE_NOTIFIED=true
+      send_notification "$SERVICE_DISPLAY_NAME Update" "업데이트 중단: 백업 서비스 대기 시간 초과 (15분)" 1
+      exit 1
+    fi
+    echo "Backup service completed; proceeding."
   else
     echo "ERROR: Backup service failed"
     FAILURE_NOTIFIED=true
