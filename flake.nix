@@ -59,13 +59,23 @@
       # 단일 관리 포인트: 여기만 변경하면 nixosConfigPath + rebuild-common.sh FLAKE_PATH 자동 반영
       workspaceDir = "Workspace";
 
+      # Worktree 지원: nrs가 --impure로 빌드 시 env var로 nixosConfigPath 오버라이드
+      # pure mode(기본)에서는 ""을 반환하여 defaultPath 사용
+      nixosConfigPathOverride = builtins.getEnv "NIXOS_CONFIG_PATH";
+
       # macOS 호스트 설정 (확인: scutil --get LocalHostName)
       darwinHosts =
         let
-          mkDarwinHost = username: hostType: {
-            inherit username hostType;
-            nixosConfigPath = "/Users/${username}/${workspaceDir}/nixos-config";
-          };
+          mkDarwinHost =
+            username: hostType:
+            let
+              defaultPath = "/Users/${username}/${workspaceDir}/nixos-config";
+            in
+            {
+              inherit username hostType;
+              nixosConfigPath = if nixosConfigPathOverride != "" then nixosConfigPathOverride else defaultPath;
+              nixosConfigDefaultPath = defaultPath;
+            };
         in
         {
           "greenhead-MacBookPro" = mkDarwinHost "green" "personal";
@@ -75,10 +85,16 @@
       # NixOS 호스트 설정
       nixosHosts =
         let
-          mkNixosHost = username: hostType: {
-            inherit username hostType;
-            nixosConfigPath = "/home/${username}/${workspaceDir}/nixos-config";
-          };
+          mkNixosHost =
+            username: hostType:
+            let
+              defaultPath = "/home/${username}/${workspaceDir}/nixos-config";
+            in
+            {
+              inherit username hostType;
+              nixosConfigPath = if nixosConfigPathOverride != "" then nixosConfigPathOverride else defaultPath;
+              nixosConfigDefaultPath = defaultPath;
+            };
         in
         {
           "greenhead-minipc" = mkNixosHost "greenhead" "server";
@@ -98,7 +114,12 @@
           ];
           specialArgs = {
             inherit inputs hostname constants;
-            inherit (hostConfig) username hostType nixosConfigPath;
+            inherit (hostConfig)
+              username
+              hostType
+              nixosConfigPath
+              nixosConfigDefaultPath
+              ;
           };
         };
 
@@ -121,7 +142,12 @@
                 backupFileExtension = "backup";
                 extraSpecialArgs = {
                   inherit inputs hostname constants;
-                  inherit (hostConfig) username hostType nixosConfigPath;
+                  inherit (hostConfig)
+                    username
+                    hostType
+                    nixosConfigPath
+                    nixosConfigDefaultPath
+                    ;
                 };
                 users.${hostConfig.username} = import ./modules/nixos/home.nix;
               };
@@ -129,7 +155,12 @@
           ];
           specialArgs = {
             inherit inputs hostname constants;
-            inherit (hostConfig) username hostType nixosConfigPath;
+            inherit (hostConfig)
+              username
+              hostType
+              nixosConfigPath
+              nixosConfigDefaultPath
+              ;
           };
         };
 
