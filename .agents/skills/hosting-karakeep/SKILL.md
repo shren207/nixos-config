@@ -52,7 +52,8 @@ Karakeep 웹 아카이버/북마크 관리 서비스 운영 스킬.
 1. SingleFile 확장 → Destinations → "Upload to a REST Form API"
 2. URL: `https://archive.greenhead.dev/api/v1/bookmarks/singlefile`
 3. Token: Karakeep UI → User Settings → API Keys에서 발급
-4. Data field: `file`, URL field: `url`
+4. **archive data field name**: `file` (필수 — 누락 시 ZodError)
+5. **archive URL field name**: `url` (필수 — 누락 시 ZodError)
 
 ## Webhook Notification
 
@@ -98,6 +99,15 @@ v0.30.0+에서 내부 IP 웹훅 기본 차단.
 ```bash
 journalctl -u karakeep-webhook-bridge -f
 ```
+
+### SingleFile ZodError (field name 누락)
+
+SingleFile 확장에서 push 시 아래 에러 발생:
+```
+{"success":false,"error":{"issues":[{"code":"invalid_type","expected":"string","received":"undefined","path":["url"],"message":"Required"},{"code":"custom","message":"Input not instance of File","fatal":true,"path":["file"]}],"name":"ZodError"}}
+```
+**원인**: SingleFile 확장 설정에서 `archive data field name`, `archive URL field name` 필드가 비어있음.
+**해결**: 각각 `file`, `url`을 입력. 이 필드들은 SingleFile 확장이 기본값을 제공하지 않으므로 반드시 수동 입력 필요.
 
 ### 컨테이너 OOM
 
