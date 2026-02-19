@@ -22,6 +22,7 @@ let
 
   # agenix 시크릿에서 환경변수 파일 생성
   envScript = pkgs.writeShellScript "karakeep-env-gen" ''
+    set -euo pipefail
     NEXTAUTH_SECRET=$(cat ${nextauthSecretPath})
     MEILI_MASTER_KEY=$(cat ${meiliMasterKeyPath})
     printf 'NEXTAUTH_SECRET=%s\nMEILI_MASTER_KEY=%s\n' \
@@ -168,6 +169,7 @@ in
         "--network=karakeep-network"
         "--memory=${karakeep.meilisearch.memory}"
         "--memory-swap=${karakeep.meilisearch.memorySwap}"
+        "--cpus=${karakeep.meilisearch.cpus}"
       ];
     };
 
