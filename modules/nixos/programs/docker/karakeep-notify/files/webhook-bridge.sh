@@ -26,13 +26,13 @@ url=$(printf '%s' "$body" | jq -r '.url // empty' 2>/dev/null)
 
 # crawled 이벤트만 처리
 if [ "$operation" = "crawled" ] && [ -n "$url" ]; then
-  # 도메인만 추출 (프라이버시)
-  domain=$(printf '%s' "$url" | sed -E 's|^https?://([^/]+).*|\1|')
+  # 프로토콜 제거 (도메인+경로 유지, 쿼리스트링/트레일링 슬래시 제거)
+  short_url=$(printf '%s' "$url" | sed -E 's|^https?://||; s|\?.*||; s|/$||')
   # shellcheck source=/dev/null
   source "$PUSHOVER_CRED_FILE"
   # shellcheck source=/dev/null
   source "$SERVICE_LIB"
-  send_notification "Karakeep" "아카이브 완료: ${domain}" 0 || true
+  send_notification "Karakeep" "아카이브 완료: ${short_url}" 0 || true
 fi
 
 # HTTP 200 응답
