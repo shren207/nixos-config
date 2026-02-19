@@ -93,7 +93,7 @@ codex -a never exec "Answer YES or NO only: Is a skill named 'managing-secrets' 
 ## 회귀 방지 체크리스트
 
 1. 새 스킬 추가/수정 후 `nrs`(또는 동등 activation) 실행
-2. `.agents/skills/*/SKILL.md`가 일반 파일인지 확인
+2. `.agents/skills/*`이 디렉토리 심링크인지 확인 (`ls -la .agents/skills/`)
 3. `./scripts/ai/verify-ai-compat.sh` 통과 확인
 4. `codex exec`로 project-scope 스킬 1개 이상 런타임 확인
 5. `configuring-codex` 스킬 문서와 실제 구현(`default.nix`, verify script) 간 불일치 여부 점검
