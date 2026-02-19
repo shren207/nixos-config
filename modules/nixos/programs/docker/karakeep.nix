@@ -116,7 +116,8 @@ in
         INFERENCE_ENABLED = "false";
       }
       // lib.optionalAttrs notifyCfg.enable {
-        WEBHOOK_URL = "http://host.containers.internal:${toString notifyCfg.webhookPort}";
+        # 사용자가 UI(Settings → Webhooks)에서 http://host.containers.internal:<port> 등록 시
+        # SSRF 보호가 내부 IP를 차단하므로 이 hostname을 허용
         CRAWLER_ALLOWED_INTERNAL_HOSTNAMES = "host.containers.internal";
       };
       extraOptions = [

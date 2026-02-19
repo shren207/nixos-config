@@ -58,9 +58,12 @@ Karakeep 웹 아카이버/북마크 관리 서비스 운영 스킬.
 ## Webhook Notification
 
 `karakeep-webhook-bridge.service` (socat TCP:9999):
-- Karakeep `WEBHOOK_URL` → `host.containers.internal:9999`
+- **웹훅은 Karakeep UI에서 사용자별로 설정** (Settings → Webhooks)
+  - URL: `http://host.containers.internal:9999`
+  - Events: 원하는 이벤트 선택 (crawled 등)
 - `crawled` 이벤트만 Pushover로 전달
-- `CRAWLER_ALLOWED_INTERNAL_HOSTNAMES` 필수 (v0.30.0+ 내부 IP 차단)
+- `CRAWLER_ALLOWED_INTERNAL_HOSTNAMES` 필수 (v0.30.0+ 내부 IP SSRF 차단)
+- NixOS 방화벽: `podman+` 인터페이스에서 웹훅 포트 허용 필요 (`karakeep-notify.nix`)
 
 ## Backup & Update
 
