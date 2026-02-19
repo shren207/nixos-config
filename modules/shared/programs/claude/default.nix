@@ -104,6 +104,8 @@ in
   # checkLinkTargets 전에 실행하여 cmp 디렉토리 비교 에러 방지
   # 배경: PR #28에서 nixosConfigPath가 worktree 경로로 동적 변경 → 심링크가 .wt/를 가리킴
   # 이 activation은 해당 회귀를 한 번 정리한 뒤에도 안전한 no-op으로 남음
+  # 주의: 아래 glob 목록은 home.file의 Claude 엔트리(skills/hooks/상위 *.json/*.md)와 동기화 필요.
+  # 새 하위 디렉토리 엔트리를 추가하면 여기에도 반영해야 stale 링크 누락을 막을 수 있음.
   home.activation.cleanStaleWorktreeSymlinks = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
     for link in "$HOME/.claude/skills/"* "$HOME/.claude/hooks/"* "$HOME/.claude/"*.json "$HOME/.claude/"*.md; do
       if [ -L "$link" ]; then
