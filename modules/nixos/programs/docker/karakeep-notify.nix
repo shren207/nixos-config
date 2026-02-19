@@ -39,6 +39,16 @@ in
     };
 
     # ═══════════════════════════════════════════════════════════════
+    # 방화벽: Podman 브릿지에서 웹훅 포트 허용
+    # ═══════════════════════════════════════════════════════════════
+    networking.firewall.extraCommands = ''
+      iptables -I nixos-fw 1 -i podman+ -p tcp --dport ${toString cfg.webhookPort} -j nixos-fw-accept
+    '';
+    networking.firewall.extraStopCommands = ''
+      iptables -D nixos-fw -i podman+ -p tcp --dport ${toString cfg.webhookPort} -j nixos-fw-accept 2>/dev/null || true
+    '';
+
+    # ═══════════════════════════════════════════════════════════════
     # 웹훅 브리지 서비스 (socat TCP 리스너)
     # ═══════════════════════════════════════════════════════════════
     systemd.services.karakeep-webhook-bridge = {
