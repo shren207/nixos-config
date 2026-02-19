@@ -13,7 +13,7 @@ Karakeep 웹 아카이버/북마크 관리 서비스 운영 스킬.
 |-----------|--------|------|--------|
 | `karakeep` | `ghcr.io/karakeep-app/karakeep:release` | Next.js 앱 (포트 3000) | 1.5GB / 1 CPU |
 | `karakeep-chrome` | `gcr.io/zenika-hub/alpine-chrome:124` | 헤드리스 Chrome (스크린샷) | 1GB / 1 CPU |
-| `karakeep-meilisearch` | `getmeili/meilisearch:v1.13.3` | 전문 검색 | 512MB / 0.5 CPU |
+| `karakeep-meilisearch` | `getmeili/meilisearch:v1.13.3` | 전문 검색 | 1GB / 0.5 CPU |
 
 ### Data Path
 
@@ -118,6 +118,10 @@ SingleFile 확장에서 push 시 아래 에러 발생:
 ```bash
 podman stats --no-stream karakeep karakeep-chrome karakeep-meilisearch
 ```
+
+**Meilisearch 메모리 기준**: 안정 시 ~365MB 사용.
+512MB 제한에서 OOM 크래시 루프 발생 (98% 점유로 반복 kill).
+**최소 1GB 확보 필요** — Meilisearch가 죽으면 Karakeep 앱도 의존성 실패로 502 발생.
 
 ### 모바일 앱 (iOS/Android)
 

@@ -107,8 +107,8 @@
         cpus = "1";
       };
       meilisearch = {
-        memory = "512m";
-        memorySwap = "768m";
+        memory = "1g";
+        memorySwap = "1536m";
         cpus = "0.5";
       };
     };
