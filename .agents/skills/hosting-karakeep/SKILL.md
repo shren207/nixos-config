@@ -17,7 +17,7 @@ Karakeep 웹 아카이버/북마크 관리 서비스 운영 스킬.
 
 ### Data Path
 
-```
+```text
 /mnt/data/karakeep/         # HDD (모든 데이터)
 ├── db.db                   # 메인 SQLite DB
 ├── queue.db                # 작업 큐 DB
@@ -75,6 +75,8 @@ sudo systemctl stop podman-karakeep.service
 # 2. 백업에서 DB 복원
 sudo gunzip -k /mnt/data/backups/karakeep/YYYY-MM-DD/db.db.gz
 sudo cp /mnt/data/backups/karakeep/YYYY-MM-DD/db.db /mnt/data/karakeep/db.db
+sudo gunzip -k /mnt/data/backups/karakeep/YYYY-MM-DD/queue.db.gz
+sudo cp /mnt/data/backups/karakeep/YYYY-MM-DD/queue.db /mnt/data/karakeep/queue.db
 
 # 3. 서비스 재시작
 sudo systemctl start podman-karakeep.service

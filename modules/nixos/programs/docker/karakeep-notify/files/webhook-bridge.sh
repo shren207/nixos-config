@@ -9,7 +9,7 @@ while IFS= read -r line; do
   line="${line%%$'\r'}"
   [ -z "$line" ] && break
   if [[ "${line,,}" == content-length:* ]]; then
-    content_length="${line#*: }"
+    content_length="${line#*:}"
     content_length="${content_length// /}"
   fi
 done

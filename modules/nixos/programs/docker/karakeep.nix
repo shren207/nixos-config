@@ -113,6 +113,8 @@ in
         CRAWLER_VIDEO_DOWNLOAD = "false";
         MAX_ASSET_SIZE_MB = "100";
         INFERENCE_ENABLED = "false";
+      }
+      // lib.optionalAttrs notifyCfg.enable {
         WEBHOOK_URL = "http://host.containers.internal:${toString notifyCfg.webhookPort}";
         CRAWLER_ALLOWED_INTERNAL_HOSTNAMES = "host.containers.internal";
       };
