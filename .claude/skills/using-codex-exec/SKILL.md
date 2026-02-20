@@ -67,6 +67,13 @@ CLI 버전이 바뀌면 플래그/동작이 달라질 수 있으므로, 실행 �
   2. 공통 기준이 필요한 경우에만 `-m gpt-5.3-codex`를 명시한다.
   3. 팀 문서/스크립트에는 모델명을 혼합 표기하지 않는다.
 
+### 모델 호환성 주의사항
+
+- 계정/구독 조건에 따라 일부 모델은 실행 불가할 수 있다.
+- 실행 불가 모델 지정 시 `"model is not supported"` 오류가 발생한다.
+- 해당 오류가 나면 `-m`을 제거해 기본 모델로 재시도한다.
+- 상세 복구 절차는 [references/troubleshooting.md](references/troubleshooting.md)를 따른다.
+
 ## 표준 실행 절차
 
 1. 프롬프트를 파일로 준비한다.
@@ -159,6 +166,14 @@ codex exec review --uncommitted --full-auto
 ```
 
 staged/unstaged/untracked 변경을 함께 리뷰한다.
+
+### 특정 커밋 리뷰
+
+```bash
+codex exec review --commit <sha> --full-auto
+```
+
+단일 커밋의 변경을 리뷰한다.
 
 ### 커스텀 지시 추가
 

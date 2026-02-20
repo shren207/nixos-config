@@ -121,9 +121,72 @@ cat /tmp/prompt.md | codex exec --full-auto
 ```bash
 codex exec review --base main --full-auto
 codex exec review --uncommitted --full-auto
+codex exec review --commit <sha> --full-auto
 ```
 
-## 6. 재현 가능한 최소 실행으로 복구
+## 6. `model is not supported` 오류
+
+### 증상
+
+```text
+ERROR: {"detail":"The '<model>' model is not supported when using Codex with a ChatGPT account."}
+```
+
+### 원인
+
+- 현재 계정에서 접근할 수 없는 모델을 `-m`으로 지정했다.
+- 모델명을 오타로 지정했거나, 사용 가능한 모델 정책이 바뀌었을 수 있다.
+
+### 해결
+
+1. 우선 `-m`을 제거하고 기본 모델(`~/.codex/config.toml`)로 재시도한다.
+2. 팀 표준 모델(`gpt-5.3-codex`)로 고정해 재실행한다.
+3. 동일 오류가 반복되면 `codex exec --help`와 계정 측 모델 접근 정책을 확인한다.
+
+```bash
+cat /tmp/prompt.md | codex exec --full-auto -o /tmp/result.md 2>&1
+cat /tmp/prompt.md | codex exec --full-auto -m gpt-5.3-codex -o /tmp/result.md 2>&1
+```
+
+## 7. `Warning: no last agent message` 경고
+
+### 증상
+
+```text
+Warning: no last agent message; wrote empty content to /tmp/result.md
+```
+
+### 의미
+
+- 실행이 실패/중단되어 마지막 에이전트 메시지가 생성되지 않았다.
+- `-o` 파일이 비어 있어도 성공으로 오해하기 쉬운 유형이다.
+
+### 해결
+
+1. 반드시 `2>&1`로 stderr를 함께 저장해 실패 원인을 먼저 확인한다.
+2. 상위 오류(`model is not supported` 등)를 해결한 뒤 재실행한다.
+3. 최소 프롬프트(문서 하단 스모크)로 재현 범위를 줄인다.
+
+## 8. `Model metadata ... not found` 경고
+
+### 증상
+
+```text
+warning: Model metadata for `<model>` not found. Defaulting to fallback metadata; this can degrade performance and cause issues.
+```
+
+### 원인
+
+- 지정한 모델의 메타데이터를 CLI가 찾지 못했다.
+- 흔히 미지원/오타 모델 지정과 함께 나타난다.
+
+### 해결
+
+1. `-m`을 제거하거나 표준 모델(`gpt-5.3-codex`)로 바꾼다.
+2. 모델명을 강제할 필요가 없다면 기본 모델 정책으로 되돌린다.
+3. stdin/파이프 입력 관련 이상 징후가 있으면 **3번 섹션**을 함께 점검한다.
+
+## 9. 재현 가능한 최소 실행으로 복구
 
 실패가 반복될 때는 아래 최소 명령으로 상태를 리셋한다.
 
