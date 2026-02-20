@@ -18,7 +18,7 @@ in
       ClientAliveCountMax = clientAliveCountMax;
       # NixOS 기본값은 ETM-only MAC (보안 강화)
       # Echo (iOS SSH 클라이언트)가 비-ETM MAC만 지원하므로 호환성 추가
-      # ETM 우선순위 유지 → 기존 클라이언트는 ETM 계속 사용
+      # 협상은 클라이언트 선호 순서 우선 — 대부분의 최신 클라이언트는 ETM/AEAD 우선 사용
       Macs = [
         "hmac-sha2-512-etm@openssh.com"
         "hmac-sha2-256-etm@openssh.com"
