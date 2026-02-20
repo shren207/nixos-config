@@ -18,6 +18,7 @@ let
 
   nextauthSecretPath = config.age.secrets.karakeep-nextauth-secret.path;
   meiliMasterKeyPath = config.age.secrets.karakeep-meili-master-key.path;
+  openaiKeyPath = config.age.secrets.karakeep-openai-key.path;
   envFilePath = "/run/karakeep-env";
 
   # agenix 시크릿에서 환경변수 파일 생성
@@ -25,8 +26,17 @@ let
     set -euo pipefail
     NEXTAUTH_SECRET=$(cat ${nextauthSecretPath})
     MEILI_MASTER_KEY=$(cat ${meiliMasterKeyPath})
-    printf 'NEXTAUTH_SECRET=%s\nMEILI_MASTER_KEY=%s\n' \
-      "$NEXTAUTH_SECRET" "$MEILI_MASTER_KEY" > ${envFilePath}
+    OPENAI_API_KEY_RAW=$(cat ${openaiKeyPath})
+    case "$OPENAI_API_KEY_RAW" in
+      OPENAI_API_KEY=*)
+        OPENAI_API_KEY="''${OPENAI_API_KEY_RAW#OPENAI_API_KEY=}"
+        ;;
+      *)
+        OPENAI_API_KEY="$OPENAI_API_KEY_RAW"
+        ;;
+    esac
+    printf 'NEXTAUTH_SECRET=%s\nMEILI_MASTER_KEY=%s\nOPENAI_API_KEY=%s\n' \
+      "$NEXTAUTH_SECRET" "$MEILI_MASTER_KEY" "$OPENAI_API_KEY" > ${envFilePath}
     chmod 0400 ${envFilePath}
   '';
 in
@@ -42,6 +52,11 @@ in
     };
     age.secrets.karakeep-meili-master-key = {
       file = ../../../../secrets/karakeep-meili-master-key.age;
+      owner = "root";
+      mode = "0400";
+    };
+    age.secrets.karakeep-openai-key = {
+      file = ../../../../secrets/karakeep-openai-key.age;
       owner = "root";
       mode = "0400";
     };
@@ -113,7 +128,8 @@ in
         CRAWLER_STORE_SCREENSHOT = "true";
         CRAWLER_VIDEO_DOWNLOAD = "false";
         MAX_ASSET_SIZE_MB = "100";
-        INFERENCE_ENABLED = "false";
+        INFERENCE_LANG = "korean";
+        INFERENCE_ENABLE_AUTO_SUMMARIZATION = "true";
       }
       // lib.optionalAttrs notifyCfg.enable {
         # 사용자가 UI(Settings → Webhooks)에서 http://host.containers.internal:<port> 등록 시
