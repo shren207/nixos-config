@@ -268,6 +268,7 @@ let
 
   # karakeep 규칙이 extraCommands에 정확히 포함되어야 함 (규칙 내용 변경 감지)
   # builtins.split는 regex를 사용하므로 podman+의 +를 이스케이프
+  # 현재 규칙 문자열에 다른 regex 특수문자(. [ ( * ? { ^ $ |) 없음
   karakeepExtraCmdRegex = builtins.replaceStrings [ "+" ] [ "\\+" ] karakeepExtraCmd;
   karakeepRulePresent =
     if karakeepNotifyActive then
@@ -284,9 +285,25 @@ let
     else
       "";
 
+  # 비NixOS-관례 트래픽 허용 타겟 검사 (우회 방지)
+  # NixOS 관례는 -j nixos-fw-accept (소문자) — 위 fwAcceptCount로 검증
+  # NAT cleanup 명령은 체인명(-j nixos-nat-pre 등)을 사용하므로 false positive 없음
+  noRawAcceptInExtraCommands =
+    builtins.all
+      (
+        target:
+        builtins.length (builtins.filter builtins.isList (builtins.split target fw.extraCommands)) == 0
+      )
+      [
+        "-j ACCEPT"
+        "-j DNAT"
+        "-j REDIRECT"
+      ];
+
   extraCommandsAllowed =
     fwAcceptCount == expectedFwAcceptCount
     && karakeepRulePresent
+    && noRawAcceptInExtraCommands
     && fw.extraStopCommands == allowedExtraStopCommands;
 
   # tailscale 포트 (UDP)
