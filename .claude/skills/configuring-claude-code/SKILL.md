@@ -83,9 +83,9 @@ Codex 전용 설정과 장애 대응은 `configuring-codex` 스킬을 사용합�
 ## 핵심 절차
 
 1. 수정 대상이 설정/훅/플러그인 중 무엇인지 먼저 분류한다.
-2. `settings.json` 또는 훅 스크립트를 갱신하고 권한/경로를 검증한다.
-3. 플러그인 설치/제거 후 `settings.json` 반영 상태를 확인한다.
-4. 문제 재현 명령으로 훅 실행 경로와 JSON 출력을 점검한다.
+2. `settings.json` 또는 훅 스크립트를 갱신한다.
+3. 훅 스크립트 변경 시 `chmod +x`와 실행 경로를 검증한다.
+4. 플러그인 설치/제거 후 `settings.json` 반영 상태를 확인한다.
 
 ## Shell Alias
 
@@ -100,9 +100,10 @@ c = "command claude${if pkgs.stdenv.isDarwin then " --chrome" else ""} --dangero
 
 ## 자주 발생하는 문제
 
-1. 플러그인 설치/삭제 실패: `settings.json` 쓰기 가능 여부 점검
-2. 훅 JSON validation 에러: 훅 스크립트 출력 형식 점검
-3. nix develop 필요한 git 동작: PreToolUse 래핑 스크립트 점검
+1. 훅 실행 경로/JSON 출력 확인: 문제 재현 명령으로 훅 스크립트 출력을 점검
+2. 플러그인 설치/삭제 실패: `settings.json` 쓰기 가능 여부 점검
+3. 훅 JSON validation 에러: 훅 스크립트 출력 형식 점검
+4. nix develop 필요한 git 동작: PreToolUse 래핑 스크립트 점검
 
 ## Codex 관련 안내
 

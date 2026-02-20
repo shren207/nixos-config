@@ -50,8 +50,22 @@ MiniPC에 저장된 파일이므로 SSH로 가져온 후 Read 도구로 확인�
 ### 명령어
 
 ```bash
-# 확장자 추출하여 유지
-EXT="${FILE_PATH##*.}"
+# 파일명에서 확장자 추출 (Scriptable 업로드는 일반적으로 .jpg)
+BASENAME="${FILE_PATH##*/}"
+if [[ "$BASENAME" != *.* ]]; then
+  echo "오류: 파일 확장자가 없습니다 (.jpg/.jpeg/.png/.webp/.gif 필요)." >&2
+  exit 1
+fi
+
+EXT="${BASENAME##*.}"
+case "$EXT" in
+  jpg|jpeg|png|webp|gif|JPG|JPEG|PNG|WEBP|GIF) ;;
+  *)
+    echo "오류: 지원하지 않는 확장자: $EXT" >&2
+    exit 1
+    ;;
+esac
+
 ssh minipc "cat <원본경로>" > "/tmp/immich_photo_$(date +%s).$EXT"
 ```
 
@@ -60,6 +74,11 @@ ssh minipc "cat <원본경로>" > "/tmp/immich_photo_$(date +%s).$EXT"
 ## NixOS에서 실행 시
 
 로컬 파일이므로 경로를 직접 Read 도구에 전달합니다.
+
+### 핵심 절차
+
+1. 경로 검증 규칙(허용 루트, `..` 부재)을 먼저 확인
+2. 로컬 경로를 Read 도구에 직접 전달
 
 ## 경로 패턴
 
@@ -93,3 +112,9 @@ Read 도구는 이미지를 시각적으로 표시:
 ## 참조
 
 - Immich 경로 변환 규칙은 본 문서의 경로 패턴/변환 표를 기준으로 유지한다.
+- 로컬 원본 기준: `modules/nixos/programs/docker/immich.nix`의
+  `virtualisation.oci-containers.containers.immich-server.volumes`
+  (`.../immich/photos:/usr/src/app/upload`,
+  `.../immich/upload-cache:/usr/src/app/upload/upload`)
+- 업스트림 기준: Immich 배포 템플릿 `docker/docker-compose.yml`의 `immich-server.volumes`
+  (https://github.com/immich-app/immich/blob/main/docker/docker-compose.yml)

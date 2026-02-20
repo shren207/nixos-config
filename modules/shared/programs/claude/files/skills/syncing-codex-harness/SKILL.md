@@ -137,15 +137,16 @@ bash "$SYNC_SH" all "$PWD" "${ARGS[@]}"
 ```
 
 진행상황이 stderr로 출력된다:
-```
+```text
 === syncing-codex-harness: Full Sync ===
-[1/7] Initialized .agents/ and .codex/
-[2/7] AGENTS.md: symlinked|copied|skipped
-[3/7] Local skills: N
-[4/7] Plugin skills: N, Agents: N
-[5/7] Rules -> AGENTS.override.md: N
-[6/7] MCP config updated|no sources found
-[7/7] .gitignore OK|Missing .gitignore entries: ...
+[1/8] Initialized .agents/ and .codex/
+[2/8] AGENTS.md: symlinked|copied|skipped
+[3/8] Local skills: N
+[4/8] Plugin skills: N, Agents: N
+[5/8] Rules -> AGENTS.override.md: N
+[6/8] MCP config updated|no sources found
+[7/8] Trust: trusted|already-trusted|skipped
+[8/8] .gitignore OK|Missing .gitignore entries: ...
 === Sync complete ===
 ```
 

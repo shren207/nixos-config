@@ -76,7 +76,7 @@ Nix `extraPackages`로 관리하는 도구 카테고리:
 
 ## 트러블슈팅
 
-빌드 지연, 한국어 입력, tree-sitter 오류는 트러블슈팅 레퍼런스를 우선 확인한다.
+빌드 지연, 한국어 입력, tree-sitter 오류는 [references/troubleshooting.md](references/troubleshooting.md)를 우선 확인한다.
 
 ## 참조
 - 패키지/extras 상세: [references/packages.md](references/packages.md)

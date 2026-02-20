@@ -23,11 +23,11 @@ SSH 인증, ssh-agent 로드, Tailscale 접속, sudo 환경변수 이슈를 통�
 
 **재부팅 후 SSH 키 미로드**
 - launchd agent로 자동 로드 설정되어 있지만 실패할 수 있음
-- 수동 로드: `ssh-add ~/.ssh/id_ed25519`
+- 수동 로드: `ssh-add $HOME/.ssh/id_ed25519`
 
 **NixOS에서 SSH 키 자동 로드 방식 혼동**
 - NixOS는 launchd가 아니라 `services.ssh-agent` + `programs.keychain`으로 키 로드
-- 수동 로드: `ssh-add ~/.ssh/id_ed25519`
+- 수동 로드: `ssh-add $HOME/.ssh/id_ed25519`
 
 ## 빠른 참조
 
@@ -38,10 +38,10 @@ SSH 인증, ssh-agent 로드, Tailscale 접속, sudo 환경변수 이슈를 통�
 ssh-add -l
 
 # 키 로드
-ssh-add ~/.ssh/id_ed25519
+ssh-add $HOME/.ssh/id_ed25519
 
 # 키 언로드
-ssh-add -d ~/.ssh/id_ed25519
+ssh-add -d $HOME/.ssh/id_ed25519
 ```
 
 ### Tailscale 상태

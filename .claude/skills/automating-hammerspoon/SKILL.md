@@ -67,10 +67,14 @@ launchctl list | grep -v com.apple
 # 특정 에이전트 상태
 launchctl list <label>
 
-# 에이전트 언로드
-launchctl unload ~/Library/LaunchAgents/<plist>
+# 에이전트 언로드 (권장)
+launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/<plist>
 
-# 에이전트 재로드
+# 에이전트 로드 (권장)
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/<plist>
+
+# 레거시 명령 (deprecated, 호환용)
+launchctl unload ~/Library/LaunchAgents/<plist>
 launchctl load ~/Library/LaunchAgents/<plist>
 ```
 

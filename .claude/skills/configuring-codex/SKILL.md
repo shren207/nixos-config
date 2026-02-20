@@ -11,7 +11,7 @@ description: |
 
 Codex CLI 호환 레이어와 프로젝트 스킬 발견 문제를 다룹니다.
 
-## 범위
+## 목적과 범위
 
 - `~/.codex/config.toml` 실행 정책(`approval_policy`, `sandbox_mode`) 및 모델 설정
 - `AGENTS.md`/`.agents/skills` 투영 구조

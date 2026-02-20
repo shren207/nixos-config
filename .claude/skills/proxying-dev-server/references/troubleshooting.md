@@ -32,7 +32,7 @@
 
 ```bash
 # 리스닝 포트 확인
-ss -Htn4 state listening
+ss -Htn state listening
 
 # 로그 확인
 sudo journalctl -u caddy -n 20
