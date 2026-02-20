@@ -141,7 +141,7 @@ pre-push 시 `nix flake check --no-build --all-systems` 자동 실행.
 
 ---
 
-## Getting Started
+## 시작하기
 
 ### 새 Mac 설정
 
