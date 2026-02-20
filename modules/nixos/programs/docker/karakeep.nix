@@ -19,13 +19,22 @@ let
   nextauthSecretPath = config.age.secrets.karakeep-nextauth-secret.path;
   meiliMasterKeyPath = config.age.secrets.karakeep-meili-master-key.path;
   openaiKeyPath = config.age.secrets.karakeep-openai-key.path;
-  envFilePath = "/run/karakeep-env";
+  sharedEnvFilePath = "/run/karakeep-env";
+  openaiEnvFilePath = "/run/karakeep-openai-env";
 
-  # agenix 시크릿에서 환경변수 파일 생성
-  envScript = pkgs.writeShellScript "karakeep-env-gen" ''
+  # agenix 시크릿에서 공통 환경변수 파일 생성 (karakeep + meilisearch)
+  sharedEnvScript = pkgs.writeShellScript "karakeep-env-gen" ''
     set -euo pipefail
     NEXTAUTH_SECRET=$(cat ${nextauthSecretPath})
     MEILI_MASTER_KEY=$(cat ${meiliMasterKeyPath})
+    printf 'NEXTAUTH_SECRET=%s\nMEILI_MASTER_KEY=%s\n' \
+      "$NEXTAUTH_SECRET" "$MEILI_MASTER_KEY" > ${sharedEnvFilePath}
+    chmod 0400 ${sharedEnvFilePath}
+  '';
+
+  # agenix 시크릿에서 OpenAI 전용 환경변수 파일 생성 (karakeep only)
+  openaiEnvScript = pkgs.writeShellScript "karakeep-openai-env-gen" ''
+    set -euo pipefail
     OPENAI_API_KEY_RAW=$(cat ${openaiKeyPath})
     case "$OPENAI_API_KEY_RAW" in
       OPENAI_API_KEY=*)
@@ -35,9 +44,8 @@ let
         OPENAI_API_KEY="$OPENAI_API_KEY_RAW"
         ;;
     esac
-    printf 'NEXTAUTH_SECRET=%s\nMEILI_MASTER_KEY=%s\nOPENAI_API_KEY=%s\n' \
-      "$NEXTAUTH_SECRET" "$MEILI_MASTER_KEY" "$OPENAI_API_KEY" > ${envFilePath}
-    chmod 0400 ${envFilePath}
+    printf 'OPENAI_API_KEY=%s\n' "$OPENAI_API_KEY" > ${openaiEnvFilePath}
+    chmod 0400 ${openaiEnvFilePath}
   '';
 in
 {
@@ -73,12 +81,24 @@ in
     # 환경변수 파일 생성 서비스 (컨테이너 시작 전)
     # ═══════════════════════════════════════════════════════════════
     systemd.services.karakeep-env = {
-      description = "Generate Karakeep environment file from agenix secrets";
+      description = "Generate Karakeep shared environment file from agenix secrets";
       wantedBy = [ "podman-karakeep.service" ];
       before = [ "podman-karakeep.service" ];
       serviceConfig = {
         Type = "oneshot";
-        ExecStart = envScript;
+        ExecStart = sharedEnvScript;
+        RemainAfterExit = true;
+        UMask = "0077";
+      };
+    };
+
+    systemd.services.karakeep-openai-env = {
+      description = "Generate Karakeep OpenAI environment file from agenix secrets";
+      wantedBy = [ "podman-karakeep.service" ];
+      before = [ "podman-karakeep.service" ];
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = openaiEnvScript;
         RemainAfterExit = true;
         UMask = "0077";
       };
@@ -118,7 +138,10 @@ in
       autoStart = true;
       ports = [ "127.0.0.1:${toString cfg.port}:3000" ];
       volumes = [ "${mediaData}/karakeep:/data" ];
-      environmentFiles = [ envFilePath ];
+      environmentFiles = [
+        sharedEnvFilePath
+        openaiEnvFilePath
+      ];
       environment = {
         NEXTAUTH_URL = "https://${subdomains.karakeep}.${base}";
         MEILI_ADDR = "http://karakeep-meilisearch:7700";
@@ -178,7 +201,7 @@ in
       image = "getmeili/meilisearch:v1.13.3";
       autoStart = true;
       volumes = [ "${mediaData}/karakeep/meilisearch:/meili_data" ];
-      environmentFiles = [ envFilePath ];
+      environmentFiles = [ sharedEnvFilePath ];
       environment = {
         MEILI_NO_ANALYTICS = "true";
       };
@@ -197,10 +220,12 @@ in
       after = [
         "create-karakeep-network.service"
         "karakeep-env.service"
+        "karakeep-openai-env.service"
       ];
       wants = [
         "create-karakeep-network.service"
         "karakeep-env.service"
+        "karakeep-openai-env.service"
       ];
       unitConfig = {
         ConditionPathExists = nextauthSecretPath;

@@ -101,10 +101,10 @@ OpenAI 키가 있으면 Karakeep inference worker가 자동 태깅/요약을 수
 nrs
 
 # 컨테이너/환경 파일 재기동
-sudo systemctl restart karakeep-env.service podman-karakeep.service
+sudo systemctl restart karakeep-env.service karakeep-openai-env.service podman-karakeep.service
 
 # 서비스 상태 확인
-sudo systemctl status karakeep-env.service podman-karakeep.service --no-pager
+sudo systemctl status karakeep-env.service karakeep-openai-env.service podman-karakeep.service --no-pager
 
 # OPENAI_API_KEY 주입 확인 (값 노출 없이 키 존재만 체크)
 sudo podman exec karakeep /bin/sh -lc 'printenv OPENAI_API_KEY >/dev/null && echo OPENAI_API_KEY=loaded'
@@ -189,11 +189,11 @@ podman stats --no-stream karakeep karakeep-chrome karakeep-meilisearch
 점검 순서:
 
 1. `karakeep-openai-key.age`가 실제 키로 갱신되었는지 확인 (placeholder 금지)
-2. `karakeep-env.service` 실행 성공 여부 확인
+2. `karakeep-env.service`, `karakeep-openai-env.service` 실행 성공 여부 확인
 3. Karakeep 컨테이너 로그에서 OpenAI 요청 오류(401/429/timeout) 확인
 
 ```bash
-sudo systemctl status karakeep-env.service --no-pager
+sudo systemctl status karakeep-env.service karakeep-openai-env.service --no-pager
 sudo podman logs --tail=200 karakeep
 journalctl -u podman-karakeep.service -n 200 --no-pager
 ```
