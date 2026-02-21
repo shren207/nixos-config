@@ -93,6 +93,8 @@ KARAKEEP_API_KEY=...
 - **50MB 이하**: 기존 Karakeep SingleFile API로 그대로 전달
 - **50MB 초과**: 링크 북마크만 생성 + HTML을 `/mnt/data/archive-fallback`에 저장
 - 저장된 HTML은 `https://copyparty.greenhead.dev/archive-fallback/<filename>.html`로 접근 가능
+- **주의**: 50MB 초과 분기 북마크는 Karakeep 내부 `보관` 탭(asset)으로 붙지 않는다.
+  대신 북마크 `note`에 Copyparty fallback URL이 자동 기록된다.
 
 ## 핵심 절차
 
