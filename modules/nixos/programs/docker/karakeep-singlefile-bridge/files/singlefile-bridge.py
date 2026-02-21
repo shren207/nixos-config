@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import cgi
 import hashlib
 import json
 import os
@@ -58,10 +57,72 @@ def build_fallback_name(source_url: str, original_name: str) -> str:
     return f"{ts}-{host}-{path_slug}-{digest}{ext}"
 
 
-def parse_content_type(headers) -> tuple[str, dict]:
-    content_type = headers.get("Content-Type", "")
-    ctype, pdict = cgi.parse_header(content_type)
-    return ctype.lower(), pdict
+def extract_boundary(content_type: str) -> str | None:
+    match = re.search(r'boundary="?([^";]+)"?', content_type, flags=re.IGNORECASE)
+    if not match:
+        return None
+    return match.group(1)
+
+
+def parse_content_disposition(value: str) -> dict[str, str]:
+    parts = [part.strip() for part in value.split(";")]
+    attrs: dict[str, str] = {}
+    if parts:
+        attrs["type"] = parts[0].lower()
+    for part in parts[1:]:
+        if "=" not in part:
+            continue
+        key, raw = part.split("=", 1)
+        attrs[key.strip().lower()] = raw.strip().strip('"')
+    return attrs
+
+
+def parse_multipart_body(body: bytes, boundary: str) -> tuple[list[tuple[str, str]], dict | None]:
+    delimiter = f"--{boundary}".encode("utf-8")
+    text_fields: list[tuple[str, str]] = []
+    file_part = None
+
+    for chunk in body.split(delimiter):
+        if not chunk:
+            continue
+        if chunk.startswith(b"--"):
+            continue
+        if chunk.startswith(b"\r\n"):
+            chunk = chunk[2:]
+        if chunk.endswith(b"\r\n"):
+            chunk = chunk[:-2]
+        if not chunk or b"\r\n\r\n" not in chunk:
+            continue
+
+        header_blob, content = chunk.split(b"\r\n\r\n", 1)
+        headers = {}
+        for raw_line in header_blob.split(b"\r\n"):
+            if b":" not in raw_line:
+                continue
+            key, value = raw_line.split(b":", 1)
+            headers[key.decode("latin1").strip().lower()] = value.decode("latin1").strip()
+
+        disposition = parse_content_disposition(headers.get("content-disposition", ""))
+        if disposition.get("type") != "form-data":
+            continue
+
+        field_name = disposition.get("name", "")
+        if not field_name:
+            continue
+
+        filename = disposition.get("filename")
+        if filename is not None:
+            file_part = {
+                "name": field_name,
+                "filename": filename,
+                "content": content,
+                "content_type": headers.get("content-type", "application/octet-stream"),
+            }
+            continue
+
+        text_fields.append((field_name, content.decode("utf-8", errors="replace")))
+
+    return text_fields, file_part
 
 
 def parse_response_headers(headers_path: str) -> str:
@@ -182,39 +243,41 @@ class SingleFileBridgeHandler(BaseHTTPRequestHandler):
             self.respond_json(401, {"error": "Missing Bearer token"})
             return
 
-        ctype, _ = parse_content_type(self.headers)
-        if ctype != "multipart/form-data":
+        content_type = self.headers.get("Content-Type", "")
+        if not content_type.lower().startswith("multipart/form-data"):
             self.respond_json(415, {"error": "Content-Type must be multipart/form-data"})
+            return
+        boundary = extract_boundary(content_type)
+        if not boundary:
+            self.respond_json(400, {"error": "Missing multipart boundary"})
+            return
+
+        content_length_raw = self.headers.get("Content-Length", "0")
+        try:
+            content_length = int(content_length_raw)
+        except ValueError:
+            self.respond_json(400, {"error": "Invalid Content-Length"})
+            return
+        if content_length <= 0:
+            self.respond_json(400, {"error": "Empty request body"})
             return
 
         temp_path = None
         try:
-            form = cgi.FieldStorage(
-                fp=self.rfile,
-                headers=self.headers,
-                environ={
-                    "REQUEST_METHOD": "POST",
-                    "CONTENT_TYPE": self.headers.get("Content-Type", ""),
-                    "CONTENT_LENGTH": self.headers.get("Content-Length", ""),
-                },
-                keep_blank_values=True,
-            )
-
-            file_item = form["file"] if "file" in form else None
-            if isinstance(file_item, list):
-                file_item = next((item for item in file_item if item.filename), file_item[0] if file_item else None)
-
-            if file_item is None or getattr(file_item, "file", None) is None:
-                self.respond_json(400, {"error": "Missing file field"})
+            request_body = self.rfile.read(content_length)
+            if len(request_body) != content_length:
+                self.respond_json(400, {"error": "Truncated multipart body"})
                 return
 
-            fields: list[tuple[str, str]] = []
-            for item in form.list or []:
-                if item.filename is not None:
-                    continue
-                if not item.name:
-                    continue
-                fields.append((item.name, str(item.value)))
+            fields, file_part = parse_multipart_body(request_body, boundary)
+            request_body = b""
+
+            if file_part is None:
+                self.respond_json(400, {"error": "Missing file field"})
+                return
+            if file_part.get("name") not in ("file", ""):
+                self.respond_json(400, {"error": "Unsupported file field name"})
+                return
 
             source_url = ""
             for key, value in fields:
@@ -224,19 +287,19 @@ class SingleFileBridgeHandler(BaseHTTPRequestHandler):
                 self.respond_json(400, {"error": "Missing url field"})
                 return
 
-            original_name = sanitize_filename(getattr(file_item, "filename", "") or "archive.html")
+            original_name = sanitize_filename(str(file_part.get("filename") or "archive.html"))
+            file_bytes = file_part.get("content")
+            if not isinstance(file_bytes, bytes):
+                self.respond_json(400, {"error": "Invalid file payload"})
+                return
             suffix = os.path.splitext(original_name)[1] or ".html"
             with tempfile.NamedTemporaryFile(
                 delete=False, prefix="karakeep-singlefile-", suffix=suffix
             ) as temp_file:
                 temp_path = temp_file.name
-                file_size = 0
-                while True:
-                    chunk = file_item.file.read(1024 * 1024)
-                    if not chunk:
-                        break
-                    temp_file.write(chunk)
-                    file_size += len(chunk)
+                temp_file.write(file_bytes)
+
+            file_size = len(file_bytes)
 
             if file_size <= MAX_ASSET_SIZE_BYTES:
                 endpoint = f"{KARAKEEP_BASE_URL}/api/v1/bookmarks/singlefile"
