@@ -55,6 +55,7 @@ in
         ExecStart = "${logMonitorScript}/bin/karakeep-log-monitor";
         Restart = "on-failure";
         RestartSec = "5s";
+        StateDirectory = "karakeep-log-monitor";
         PrivateTmp = true;
         NoNewPrivileges = true;
       };
@@ -63,6 +64,8 @@ in
         PUSHOVER_CRED_FILE = pushoverCredPath;
         SERVICE_LIB = "${serviceLib}";
         COPYPARTY_FALLBACK_URL = "https://${subdomains.copyparty}.${base}/archive-fallback/";
+        FAILED_URL_QUEUE_FILE = "/var/lib/karakeep-log-monitor/failed-urls.queue";
+        FAILED_URL_QUEUE_MAX = "200";
       };
     };
   };

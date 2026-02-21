@@ -6,8 +6,13 @@ source "$SERVICE_LIB"
 
 COPYPARTY_UPLOAD_URL="${COPYPARTY_FALLBACK_URL:-https://copyparty.greenhead.dev/archive-fallback/}"
 DEDUP_WINDOW_SEC=1800
+FAILED_URL_QUEUE_FILE="${FAILED_URL_QUEUE_FILE:-/var/lib/karakeep-log-monitor/failed-urls.queue}"
+FAILED_URL_QUEUE_MAX="${FAILED_URL_QUEUE_MAX:-200}"
 LAST_CRAWL_URL=""
 declare -A NOTIFIED_URLS=()
+
+mkdir -p "$(dirname "$FAILED_URL_QUEUE_FILE")"
+touch "$FAILED_URL_QUEUE_FILE"
 
 shorten_url() {
   local url="$1"
@@ -37,6 +42,24 @@ should_notify_url() {
   return 0
 }
 
+enqueue_failed_url() {
+  local failed_url="$1"
+  local tmp
+
+  if [ -z "$failed_url" ] || [ "$failed_url" = "(unknown URL)" ]; then
+    return 0
+  fi
+
+  if grep -Fxq "$failed_url" "$FAILED_URL_QUEUE_FILE"; then
+    return 0
+  fi
+
+  printf "%s\n" "$failed_url" >> "$FAILED_URL_QUEUE_FILE"
+  tmp=$(mktemp)
+  tail -n "$FAILED_URL_QUEUE_MAX" "$FAILED_URL_QUEUE_FILE" > "$tmp"
+  mv "$tmp" "$FAILED_URL_QUEUE_FILE"
+}
+
 send_failure_alert() {
   local reason="$1"
   local priority="$2"
@@ -50,6 +73,8 @@ send_failure_alert() {
   else
     failed_url="(unknown URL)"
   fi
+
+  enqueue_failed_url "$failed_url"
 
   if ! should_notify_url "$failed_url"; then
     echo "Dedup: skipped alert for ${failed_url}"

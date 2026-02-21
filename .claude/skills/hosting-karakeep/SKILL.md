@@ -21,6 +21,8 @@ Karakeep 웹 아카이버/북마크 관리 서비스 운영 스킬.
 | `sudo systemctl start karakeep-backup` | 수동 백업 실행 |
 | `sudo karakeep-update` | 수동 업데이트 |
 | `journalctl -u karakeep-webhook-bridge -f` | 웹훅 브리지 로그 확인 |
+| `journalctl -u karakeep-log-monitor -f` | 실패 URL 감시 로그 확인 |
+| `sudo systemctl start karakeep-fallback-sync` | fallback HTML 자동 재연결 1회 실행 |
 
 ## Architecture
 
@@ -51,6 +53,8 @@ Karakeep 웹 아카이버/북마크 관리 서비스 운영 스킬.
 | `modules/nixos/programs/docker/karakeep.nix` | 메인 모듈 (3컨테이너 + 네트워크 + env) |
 | `modules/nixos/programs/docker/karakeep-backup.nix` | SQLite 백업 (db.db + queue.db) |
 | `modules/nixos/programs/docker/karakeep-notify.nix` | 웹훅→Pushover 브리지 (socat) |
+| `modules/nixos/programs/docker/karakeep-log-monitor.nix` | OOM/크롤 실패 로그 감시 + 실패 URL 큐 적재 |
+| `modules/nixos/programs/docker/karakeep-fallback-sync.nix` | fallback HTML → Karakeep API 자동 재연결 |
 | `modules/nixos/programs/karakeep-update/` | 버전 체크 + 수동 업데이트 |
 | `modules/nixos/programs/caddy.nix` | HTTPS 리버스 프록시 (CSP 제거 포함) |
 
@@ -62,6 +66,14 @@ Karakeep 웹 아카이버/북마크 관리 서비스 운영 스킬.
 | `karakeep-meili-master-key.age` | Meilisearch 인증 키 |
 | `karakeep-openai-key.age` | OpenAI API 키 (OPENAI_API_KEY) |
 | `pushover-karakeep.age` | Pushover 알림 자격증명 |
+
+`karakeep-fallback-sync` 자동 재연결을 쓰려면 `pushover-karakeep.age`에 API 키를 추가한다.
+
+```text
+PUSHOVER_TOKEN=...
+PUSHOVER_USER=...
+KARAKEEP_API_KEY=...
+```
 
 ## SingleFile Integration
 
@@ -130,6 +142,26 @@ sudo podman exec karakeep /bin/sh -lc 'printenv OPENAI_API_KEY >/dev/null && ech
 
 - **백업**: `sudo systemctl start karakeep-backup` (매일 05:00 자동)
 - **업데이트**: `sudo karakeep-update` (수동), `karakeep-version-check` (매일 06:00 자동)
+
+## Fallback Auto Relink
+
+`karakeep-log-monitor`가 실패 URL을 큐(`failed-urls.queue`)에 적재하면
+`karakeep-fallback-sync` 타이머가 `/mnt/data/archive-fallback`의 HTML을 검사해
+원본 URL을 추출하고 Karakeep SingleFile API로 자동 재연결한다.
+
+- API 엔드포인트: `http://127.0.0.1:<karakeep-port>/api/v1/bookmarks/singlefile?ifexists=overwrite`
+- 매칭 규칙: HTML의 canonical/og:url/URL 후보와 실패 URL 큐를 정규화 비교
+- 성공 시: 실패 URL 큐에서 제거 + Pushover 완료 알림
+- 실패 시: 큐 유지 + dedup된 실패 알림
+
+점검 명령어:
+
+```bash
+systemctl status karakeep-log-monitor karakeep-fallback-sync.timer --no-pager
+journalctl -u karakeep-log-monitor -n 50 --no-pager
+journalctl -u karakeep-fallback-sync -n 50 --no-pager
+sudo systemctl start karakeep-fallback-sync
+```
 
 ### Restore
 

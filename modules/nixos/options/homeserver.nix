@@ -159,6 +159,15 @@
       enable = lib.mkEnableOption "Karakeep log monitor (OOM/failure Pushover alerts)";
     };
 
+    karakeepFallbackSync = {
+      enable = lib.mkEnableOption "Karakeep archive-fallback auto relink sync";
+      syncInterval = lib.mkOption {
+        type = lib.types.str;
+        default = "1m";
+        description = "OnUnitActiveSec interval for fallback sync service";
+      };
+    };
+
     reverseProxy = {
       enable = lib.mkEnableOption "Caddy reverse proxy with HTTPS for homeserver services";
     };
@@ -188,6 +197,7 @@
     ../programs/docker/karakeep-backup.nix # Karakeep SQLite 매일 백업
     ../programs/docker/karakeep-notify.nix # Karakeep 웹훅→Pushover 브리지
     ../programs/docker/karakeep-log-monitor.nix # Karakeep 로그 감시 (OOM/실패 알림)
+    ../programs/docker/karakeep-fallback-sync.nix # Karakeep fallback HTML 자동 재연결
     ../programs/karakeep-update # Karakeep 버전 체크 + 업데이트 알림
     ../programs/caddy.nix # HTTPS 리버스 프록시
     ../programs/dev-proxy # Dev server reverse proxy (dev.greenhead.dev)
