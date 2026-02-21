@@ -64,9 +64,16 @@ in
         Group = "anki";
         StateDirectory = "anki";
 
-        # Tailscale IP 할당 대기 → Anki 실행
+        # Tailscale IP 할당 대기 → 프로필 디렉터리 보장 → Anki 실행
         ExecStartPre = [
           ("+" + (import ../../lib/tailscale-wait.nix { inherit pkgs; }))
+          (
+            "+"
+            + pkgs.writeShellScript "anki-ensure-profile" ''
+              mkdir -p "/var/lib/anki/.local/share/Anki2/${cfg.profile}"
+              chown -R anki:anki /var/lib/anki/.local/share/Anki2
+            ''
+          )
         ];
         ExecStart = "${ankiWithConnect}/bin/anki -p ${cfg.profile}";
 
