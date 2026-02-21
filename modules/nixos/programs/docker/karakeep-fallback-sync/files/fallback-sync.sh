@@ -56,7 +56,7 @@ gc_unmatched_notified_state() {
   local now cutoff tmp hash ts file_path epoch
   now=$(date +%s)
   cutoff=$((now - UNMATCHED_STATE_RETENTION_DAYS * 86400))
-  tmp=$(mktemp)
+  tmp=$(mktemp -p "$STATE_DIR")
 
   while IFS=$'\t' read -r hash ts file_path || [ -n "${hash:-}" ]; do
     [ -n "${hash:-}" ] || continue
@@ -78,7 +78,7 @@ gc_processed_state() {
   local now cutoff tmp hash failed_url file_path ts epoch
   now=$(date +%s)
   cutoff=$((now - PROCESSED_STATE_RETENTION_DAYS * 86400))
-  tmp=$(mktemp)
+  tmp=$(mktemp -p "$STATE_DIR")
 
   while IFS=$'\t' read -r hash failed_url file_path ts || [ -n "${hash:-}" ]; do
     [ -n "${hash:-}" ] || continue
@@ -100,7 +100,7 @@ gc_notify_state() {
   local now cutoff tmp
   now=$(date +%s)
   cutoff=$((now - NOTIFY_STATE_RETENTION_SEC))
-  tmp=$(mktemp)
+  tmp=$(mktemp -p "$STATE_DIR")
 
   awk -F '\t' -v cutoff="$cutoff" '
     NF >= 2 && $2 ~ /^[0-9]+$/ && $2 >= cutoff { print $1 "\t" $2 }
@@ -155,7 +155,7 @@ should_notify_key() {
     return 1
   fi
 
-  tmp=$(mktemp)
+  tmp=$(mktemp -p "$STATE_DIR")
   awk -F '\t' -v key="$key" '$1 != key { print }' "$NOTIFY_STATE_FILE" > "$tmp"
   printf "%s\t%s\n" "$key" "$now" >> "$tmp"
   mv "$tmp" "$NOTIFY_STATE_FILE"
@@ -182,7 +182,7 @@ remove_queue_url() {
     flock -x 10
   fi
 
-  tmp=$(mktemp)
+  tmp=$(mktemp -p "$STATE_DIR")
 
   awk -v target="$target" '
     BEGIN { removed = 0 }
@@ -319,8 +319,11 @@ process_file() {
     fi
 
     message=$(printf "자동 재연결 보류: %s\n원인: 실패 URL 매칭 불가\n확인 경로: %s" "$(basename "$file")" "$FALLBACK_DIR")
-    send_notification "Karakeep" "$message" 0
-    record_unmatched_notified "$file_hash" "$file"
+    if send_notification_strict "Karakeep" "$message" 0; then
+      record_unmatched_notified "$file_hash" "$file"
+    else
+      echo "Unmatched fallback notification failed; will retry later: $file"
+    fi
     echo "No matching failed URL for file: $file"
     return 0
   fi
