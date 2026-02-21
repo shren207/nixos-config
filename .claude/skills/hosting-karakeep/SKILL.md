@@ -22,6 +22,7 @@ Karakeep 웹 아카이버/북마크 관리 서비스 운영 스킬.
 | `sudo karakeep-update` | 수동 업데이트 |
 | `journalctl -u karakeep-webhook-bridge -f` | 웹훅 브리지 로그 확인 |
 | `journalctl -u karakeep-log-monitor -f` | 실패 URL 감시 로그 확인 |
+| `journalctl -u karakeep-singlefile-bridge -f` | SingleFile 대용량 분기 브리지 로그 확인 |
 | `sudo systemctl start karakeep-fallback-sync` | fallback HTML 자동 재연결 1회 실행 |
 
 ## Architecture
@@ -55,6 +56,8 @@ Karakeep 웹 아카이버/북마크 관리 서비스 운영 스킬.
 | `modules/nixos/programs/docker/karakeep-notify.nix` | 웹훅→Pushover 브리지 (socat) |
 | `modules/nixos/programs/docker/karakeep-log-monitor.nix` | OOM/크롤 실패 로그 감시 + 실패 URL 큐 적재 |
 | `modules/nixos/programs/docker/karakeep-fallback-sync.nix` | fallback HTML → Karakeep API 자동 재연결 |
+| `modules/nixos/programs/docker/karakeep-singlefile-bridge.nix` | SingleFile API 분기 라우터 (크기 기준) |
+| `modules/nixos/programs/docker/karakeep-singlefile-bridge/files/singlefile-bridge.py` | 대용량 파일 분기 처리 핸들러 |
 | `modules/nixos/programs/karakeep-update/` | 버전 체크 + 수동 업데이트 |
 | `modules/nixos/programs/caddy.nix` | HTTPS 리버스 프록시 (CSP 제거 포함) |
 
@@ -85,12 +88,19 @@ KARAKEEP_API_KEY=...
 4. **archive data field name**: `file` (필수 — 누락 시 ZodError)
 5. **archive URL field name**: `url` (필수 — 누락 시 ZodError)
 
+현재 구성은 Caddy가 `/api/v1/bookmarks/singlefile`만 `karakeep-singlefile-bridge`로 우회한다.
+
+- **50MB 이하**: 기존 Karakeep SingleFile API로 그대로 전달
+- **50MB 초과**: 링크 북마크만 생성 + HTML을 `/mnt/data/archive-fallback`에 저장
+- 저장된 HTML은 `https://copyparty.greenhead.dev/archive-fallback/<filename>.html`로 접근 가능
+
 ## 핵심 절차
 
 1. `karakeep.nix`로 3컨테이너/네트워크를 적용한다.
 2. SingleFile 확장에서 REST Form API와 필수 field name(`file`, `url`)을 설정한다.
-3. 웹훅 브리지와 `CRAWLER_ALLOWED_INTERNAL_HOSTNAMES` 설정을 검증한다.
-4. 백업 타이머와 업데이트 체크 타이머 상태를 확인한다.
+3. `karakeep-singlefile-bridge` 서비스가 active인지 확인한다.
+4. 웹훅 브리지와 `CRAWLER_ALLOWED_INTERNAL_HOSTNAMES` 설정을 검증한다.
+5. 백업 타이머와 업데이트 체크 타이머 상태를 확인한다.
 
 ## AI Tagging + Summarization (OpenAI)
 
@@ -157,7 +167,8 @@ sudo podman exec karakeep /bin/sh -lc 'printenv OPENAI_API_KEY >/dev/null && ech
 점검 명령어:
 
 ```bash
-systemctl status karakeep-log-monitor karakeep-fallback-sync.timer --no-pager
+systemctl status karakeep-singlefile-bridge karakeep-log-monitor karakeep-fallback-sync.timer --no-pager
+journalctl -u karakeep-singlefile-bridge -n 50 --no-pager
 journalctl -u karakeep-log-monitor -n 50 --no-pager
 journalctl -u karakeep-fallback-sync -n 50 --no-pager
 sudo systemctl start karakeep-fallback-sync

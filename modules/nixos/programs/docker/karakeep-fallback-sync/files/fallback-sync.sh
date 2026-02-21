@@ -168,7 +168,7 @@ upload_singlefile_archive() {
 
 process_file() {
   local file="$1"
-  local file_hash failed_url short_url notify_key
+  local file_hash failed_url short_url notify_key message
   file_hash=$(sha256sum "$file" | cut -d ' ' -f 1)
 
   if grep -Fq "${file_hash}" "$PROCESSED_FILE"; then
@@ -179,8 +179,8 @@ process_file() {
   if [ -z "$failed_url" ]; then
     notify_key="unmatched:${file_hash}"
     if should_notify_key "$notify_key"; then
-      send_notification "Karakeep" \
-        "자동 재연결 보류: $(basename "$file")\n원인: 실패 URL 매칭 불가\n확인 경로: ${FALLBACK_DIR}" 0
+      message=$(printf "자동 재연결 보류: %s\n원인: 실패 URL 매칭 불가\n확인 경로: %s" "$(basename "$file")" "$FALLBACK_DIR")
+      send_notification "Karakeep" "$message" 0
     fi
     echo "No matching failed URL for file: $file"
     return 0
@@ -190,16 +190,16 @@ process_file() {
     remove_queue_url "$failed_url" || true
     printf "%s\t%s\t%s\t%s\n" "$file_hash" "$failed_url" "$file" "$(date -Iseconds)" >> "$PROCESSED_FILE"
     short_url=$(shorten_url "$failed_url")
-    send_notification "Karakeep" \
-      "자동 재연결 완료: ${short_url}\n파일: $(basename "$file")" 0
+    message=$(printf "자동 재연결 완료: %s\n파일: %s" "$short_url" "$(basename "$file")")
+    send_notification "Karakeep" "$message" 0
     echo "Auto relink succeeded: $failed_url <- $file"
     return 0
   fi
 
   notify_key="upload-failed:$(normalize_url_loose "$failed_url")"
   if should_notify_key "$notify_key"; then
-    send_notification "Karakeep" \
-      "자동 재연결 실패: $(shorten_url "$failed_url")\n파일: $(basename "$file")\njournalctl -u karakeep-fallback-sync 확인 필요" 0
+    message=$(printf "자동 재연결 실패: %s\n파일: %s\njournalctl -u karakeep-fallback-sync 확인 필요" "$(shorten_url "$failed_url")" "$(basename "$file")")
+    send_notification "Karakeep" "$message" 0
   fi
   echo "Auto relink failed: $failed_url <- $file"
   return 1

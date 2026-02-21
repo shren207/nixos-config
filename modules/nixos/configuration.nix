@@ -114,6 +114,7 @@
   homeserver.karakeepNotify.enable = true; # Karakeep 웹훅→Pushover 브리지
   homeserver.karakeepLogMonitor.enable = true; # Karakeep 로그 모니터 (OOM/실패 알림)
   homeserver.karakeepFallbackSync.enable = true; # fallback HTML 자동 재연결 (API)
+  homeserver.karakeepSinglefileBridge.enable = true; # SingleFile 대용량 자동 분기 (링크+fallback HTML)
   homeserver.karakeepUpdate.enable = true; # Karakeep 버전 체크 + 업데이트 알림
   homeserver.immichBackup.enable = true; # Immich PostgreSQL 매일 백업 (HDD)
   homeserver.reverseProxy.enable = true; # Caddy HTTPS 리버스 프록시
