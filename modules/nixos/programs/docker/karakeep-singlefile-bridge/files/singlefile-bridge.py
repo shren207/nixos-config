@@ -177,6 +177,16 @@ def run_curl(cmd: list[str]) -> tuple[int | None, bytes, str, str | None]:
                 pass
 
 
+def parse_json_body(body: bytes) -> dict:
+    try:
+        parsed = json.loads(body.decode("utf-8"))
+        if isinstance(parsed, dict):
+            return parsed
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        pass
+    return {}
+
+
 def send_pushover(message: str, priority: int = 0) -> None:
     if not PUSHOVER_TOKEN or not PUSHOVER_USER:
         return
@@ -393,6 +403,41 @@ class SingleFileBridgeHandler(BaseHTTPRequestHandler):
                 )
                 self.respond_bytes(status or 502, body, content_type)
                 return
+
+            bookmark_id = parse_json_body(body).get("id")
+            if bookmark_id:
+                note_payload = {
+                    "note": "\n".join(
+                        [
+                            "[자동 fallback 보관]",
+                            "대용량 HTML은 Copyparty에 저장되었습니다.",
+                            fallback_public_url,
+                        ]
+                    )
+                }
+                patch_cmd = [
+                    "curl",
+                    "-sS",
+                    "--max-time",
+                    str(REQUEST_TIMEOUT_SEC),
+                    "-X",
+                    "PATCH",
+                    "-H",
+                    f"Authorization: {auth_header}",
+                    "-H",
+                    "Content-Type: application/json",
+                    "-H",
+                    "Accept: application/json",
+                    "--data",
+                    json.dumps(note_payload, ensure_ascii=False),
+                    f"{KARAKEEP_BASE_URL}/api/v1/bookmarks/{bookmark_id}",
+                ]
+                patch_status, _, _, patch_err = run_curl(patch_cmd)
+                if patch_err or patch_status is None or patch_status < 200 or patch_status >= 300:
+                    log(
+                        f"fallback note patch failed for {bookmark_id}: "
+                        f"status={patch_status}, err={patch_err}"
+                    )
 
             send_pushover(
                 "\n".join(
