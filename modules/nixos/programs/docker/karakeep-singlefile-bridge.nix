@@ -1,7 +1,7 @@
 # modules/nixos/programs/docker/karakeep-singlefile-bridge.nix
 # SingleFile 업로드 크기 기준 분기 브리지:
 # - 임계값 이하: Karakeep singlefile API로 전달
-# - 임계값 초과: 링크 북마크 생성 + archive-fallback HTML 보관
+# - 임계값 초과: 링크 북마크 생성 + fullPageArchive asset 직접 연결
 {
   config,
   pkgs,
@@ -59,6 +59,9 @@ in
         SINGLEFILE_BRIDGE_PORT = toString cfg.port;
         MAX_ASSET_SIZE_MB = toString cfg.maxAssetSizeMb;
         KARAKEEP_BASE_URL = "http://127.0.0.1:${toString karakeepCfg.port}";
+        KARAKEEP_DB_PATH = "${constants.paths.mediaData}/karakeep/db.db";
+        KARAKEEP_QUEUE_DB_PATH = "${constants.paths.mediaData}/karakeep/queue.db";
+        SINGLEFILE_BRIDGE_SQLITE_TIMEOUT_MS = "5000";
       };
     };
   };

@@ -91,8 +91,9 @@ KARAKEEP_API_KEY=...
 현재 구성은 Caddy가 `/api/v1/bookmarks/singlefile`만 `karakeep-singlefile-bridge`로 우회한다.
 
 - **50MB 이하**: 기존 Karakeep SingleFile API로 그대로 전달
-- **50MB 초과**: Karakeep `/api/v1/assets` 업로드 후 `precrawledArchive`로 북마크에 연결
+- **50MB 초과**: Karakeep `/api/v1/assets` 업로드 후, 브리지에서 DB에 `fullPageArchive`로 직접 연결
 - 결과: 대용량 분기 북마크에서도 Karakeep UI의 `보관` 뷰를 직접 사용 가능
+- 추가 보호: 기존 `precrawledArchive` 연결이 있으면 브리지가 해제하여 OOM 재발 경로를 차단
 - **주의**: 자산 업로드 한도는 `MAX_ASSET_SIZE_MB`(현재 100MB)에 의존한다.
   100MB 초과 파일은 브리지에서 실패 알림 후 413/502로 종료될 수 있다.
 

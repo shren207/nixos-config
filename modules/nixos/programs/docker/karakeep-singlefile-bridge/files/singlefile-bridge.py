@@ -2,10 +2,11 @@
 import json
 import os
 import re
+import sqlite3
 import subprocess
 import tempfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 MAX_ASSET_SIZE_MB = int(os.environ.get("MAX_ASSET_SIZE_MB", "50"))
 MAX_ASSET_SIZE_BYTES = MAX_ASSET_SIZE_MB * 1024 * 1024
@@ -13,6 +14,9 @@ KARAKEEP_BASE_URL = os.environ.get("KARAKEEP_BASE_URL", "http://127.0.0.1:3000")
 LISTEN_HOST = os.environ.get("SINGLEFILE_BRIDGE_LISTEN", "127.0.0.1")
 LISTEN_PORT = int(os.environ.get("SINGLEFILE_BRIDGE_PORT", "3010"))
 REQUEST_TIMEOUT_SEC = int(os.environ.get("SINGLEFILE_BRIDGE_TIMEOUT_SEC", "240"))
+KARAKEEP_DB_PATH = os.environ.get("KARAKEEP_DB_PATH", "/mnt/data/karakeep/db.db")
+KARAKEEP_QUEUE_DB_PATH = os.environ.get("KARAKEEP_QUEUE_DB_PATH", "/mnt/data/karakeep/queue.db")
+SQLITE_BUSY_TIMEOUT_MS = int(os.environ.get("SINGLEFILE_BRIDGE_SQLITE_TIMEOUT_MS", "5000"))
 
 PUSHOVER_TOKEN = os.environ.get("PUSHOVER_TOKEN", "")
 PUSHOVER_USER = os.environ.get("PUSHOVER_USER", "")
@@ -192,6 +196,128 @@ def send_pushover(message: str, priority: int = 0) -> None:
     subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
 
 
+def parse_ifexists_mode(query: str) -> str:
+    raw = parse_qs(query).get("ifexists", ["skip"])[0].strip().lower()
+    valid = {"skip", "overwrite", "overwrite-recrawl", "append", "append-recrawl"}
+    return raw if raw in valid else "skip"
+
+
+def create_link_bookmark(auth_header: str, source_url: str, title_value: str) -> tuple[int | None, bytes, str, str | None]:
+    payload = {
+        "type": "link",
+        "url": source_url,
+        "source": "singlefile",
+    }
+    if title_value:
+        payload["title"] = title_value
+
+    cmd = [
+        "curl",
+        "-sS",
+        "--max-time",
+        str(REQUEST_TIMEOUT_SEC),
+        "-X",
+        "POST",
+        "-H",
+        f"Authorization: {auth_header}",
+        "-H",
+        "Content-Type: application/json",
+        "-H",
+        "Accept: application/json",
+        "--data",
+        json.dumps(payload, ensure_ascii=False),
+        f"{KARAKEEP_BASE_URL}/api/v1/bookmarks",
+    ]
+    return run_curl(cmd)
+
+
+def upload_asset(auth_header: str, temp_path: str, original_name: str) -> tuple[str | None, int | None, str | None]:
+    upload_asset_cmd = [
+        "curl",
+        "-sS",
+        "--max-time",
+        str(REQUEST_TIMEOUT_SEC),
+        "-X",
+        "POST",
+        "-H",
+        f"Authorization: {auth_header}",
+        "-H",
+        "Accept: application/json",
+        "-F",
+        f"file=@{temp_path};filename={original_name};type=text/html",
+        f"{KARAKEEP_BASE_URL}/api/v1/assets",
+    ]
+    status, body, _, err = run_curl(upload_asset_cmd)
+    if err:
+        return None, status, f"asset upload failed ({err})"
+    if status is None or status < 200 or status >= 300:
+        return None, status, f"asset upload HTTP {status or 'unknown'}"
+    asset_id = parse_json_body(body).get("assetId")
+    if not asset_id:
+        return None, status, "asset upload response missing assetId"
+    return str(asset_id), status, None
+
+
+def with_sqlite_write(db_path: str, fn) -> int:
+    conn = sqlite3.connect(db_path, timeout=max(SQLITE_BUSY_TIMEOUT_MS / 1000.0, 1.0))
+    try:
+        conn.execute(f"PRAGMA busy_timeout={SQLITE_BUSY_TIMEOUT_MS}")
+        conn.execute("BEGIN IMMEDIATE")
+        result = fn(conn)
+        conn.execute("COMMIT")
+        return result
+    except Exception:
+        try:
+            conn.execute("ROLLBACK")
+        except sqlite3.Error:
+            pass
+        raise
+    finally:
+        conn.close()
+
+
+def attach_fullpage_archive(bookmark_id: str, asset_id: str, detach_existing_full_archive: bool) -> None:
+    def _write(conn: sqlite3.Connection) -> int:
+        # Prevent crawler OOM path: do not leave precrawledArchive attached.
+        conn.execute(
+            "UPDATE assets SET assetType='unknown', bookmarkId=NULL "
+            "WHERE bookmarkId=? AND assetType='linkPrecrawledArchive'",
+            (bookmark_id,),
+        )
+        if detach_existing_full_archive:
+            conn.execute(
+                "UPDATE assets SET assetType='unknown', bookmarkId=NULL "
+                "WHERE bookmarkId=? AND assetType='linkFullPageArchive' AND id<>?",
+                (bookmark_id, asset_id),
+            )
+        cur = conn.execute(
+            "UPDATE assets SET bookmarkId=?, assetType='linkFullPageArchive' WHERE id=?",
+            (bookmark_id, asset_id),
+        )
+        if cur.rowcount != 1:
+            raise RuntimeError("failed to link uploaded asset as fullPageArchive")
+        return cur.rowcount
+
+    with_sqlite_write(KARAKEEP_DB_PATH, _write)
+
+
+def cleanup_stale_crawler_tasks(bookmark_id: str) -> int:
+    if not os.path.exists(KARAKEEP_QUEUE_DB_PATH):
+        return 0
+
+    payload_match = f'%\"bookmarkId\":\"{bookmark_id}\"%'
+
+    def _write(conn: sqlite3.Connection) -> int:
+        cur = conn.execute(
+            "DELETE FROM tasks WHERE queue IN ('link_crawler_queue', 'low_priority_crawler_queue', 'crawl_link') "
+            "AND payload LIKE ?",
+            (payload_match,),
+        )
+        return max(cur.rowcount, 0)
+
+    return with_sqlite_write(KARAKEEP_QUEUE_DB_PATH, _write)
+
+
 class SingleFileBridgeHandler(BaseHTTPRequestHandler):
     server_version = "KarakeepSingleFileBridge/1.0"
 
@@ -228,6 +354,7 @@ class SingleFileBridgeHandler(BaseHTTPRequestHandler):
             self.respond_json(404, {"error": "Not Found"})
             return
 
+        ifexists_mode = parse_ifexists_mode(parsed.query)
         auth_header = (self.headers.get("Authorization") or "").strip()
         if not auth_header.lower().startswith("bearer "):
             self.respond_json(401, {"error": "Missing Bearer token"})
@@ -319,91 +446,8 @@ class SingleFileBridgeHandler(BaseHTTPRequestHandler):
                 self.respond_bytes(status or 502, body, content_type)
                 return
 
-            upload_asset_cmd = [
-                "curl",
-                "-sS",
-                "--max-time",
-                str(REQUEST_TIMEOUT_SEC),
-                "-X",
-                "POST",
-                "-H",
-                f"Authorization: {auth_header}",
-                "-H",
-                "Accept: application/json",
-                "-F",
-                f"file=@{temp_path};filename={original_name};type=text/html",
-                f"{KARAKEEP_BASE_URL}/api/v1/assets",
-            ]
-            asset_status, asset_body, _, asset_err = run_curl(upload_asset_cmd)
-            if asset_err:
-                send_pushover(
-                    "\n".join(
-                        [
-                            f"대용량 분기 실패: {shorten_url(source_url)}",
-                            f"원인: Karakeep asset 업로드 실패 ({asset_err})",
-                        ]
-                    ),
-                    0,
-                )
-                self.respond_json(502, {"error": asset_err})
-                return
-            if asset_status is None or asset_status < 200 or asset_status >= 300:
-                send_pushover(
-                    "\n".join(
-                        [
-                            f"대용량 분기 실패: {shorten_url(source_url)}",
-                            "원인: Karakeep asset 업로드 HTTP 실패",
-                        ]
-                    ),
-                    0,
-                )
-                self.respond_json(
-                    asset_status or 502,
-                    {"error": "asset upload failed", "status": asset_status},
-                )
-                return
-
-            asset_id = parse_json_body(asset_body).get("assetId")
-            if not asset_id:
-                send_pushover(
-                    "\n".join(
-                        [
-                            f"대용량 분기 실패: {shorten_url(source_url)}",
-                            "원인: Karakeep assetId 파싱 실패",
-                        ]
-                    ),
-                    0,
-                )
-                self.respond_json(502, {"error": "missing assetId from upload response"})
-                return
-
-            payload = {
-                "type": "link",
-                "url": source_url,
-                "precrawledArchiveId": asset_id,
-            }
             title_value = next((value.strip() for key, value in fields if key == "title" and value.strip()), "")
-            if title_value:
-                payload["title"] = title_value
-
-            cmd = [
-                "curl",
-                "-sS",
-                "--max-time",
-                str(REQUEST_TIMEOUT_SEC),
-                "-X",
-                "POST",
-                "-H",
-                f"Authorization: {auth_header}",
-                "-H",
-                "Content-Type: application/json",
-                "-H",
-                "Accept: application/json",
-                "--data",
-                json.dumps(payload, ensure_ascii=False),
-                f"{KARAKEEP_BASE_URL}/api/v1/bookmarks",
-            ]
-            status, body, content_type, err = run_curl(cmd)
+            status, body, content_type, err = create_link_bookmark(auth_header, source_url, title_value)
             if err:
                 send_pushover(
                     "\n".join(
@@ -414,7 +458,7 @@ class SingleFileBridgeHandler(BaseHTTPRequestHandler):
                     ),
                     0,
                 )
-                self.respond_json(502, {"error": err, "assetId": asset_id})
+                self.respond_json(502, {"error": err})
                 return
 
             if status is None or status < 200 or status >= 300:
@@ -430,13 +474,90 @@ class SingleFileBridgeHandler(BaseHTTPRequestHandler):
                 self.respond_bytes(status or 502, body, content_type)
                 return
 
-            bookmark_id = parse_json_body(body).get("id")
+            bookmark_payload = parse_json_body(body)
+            bookmark_id = bookmark_payload.get("id")
+            already_exists = bool(bookmark_payload.get("alreadyExists"))
+            if not bookmark_id:
+                send_pushover(
+                    "\n".join(
+                        [
+                            f"대용량 분기 실패: {shorten_url(source_url)}",
+                            "원인: 북마크 ID 파싱 실패",
+                        ]
+                    ),
+                    0,
+                )
+                self.respond_json(502, {"error": "missing bookmark id"})
+                return
+
+            if already_exists and ifexists_mode == "skip":
+                send_pushover(
+                    "\n".join(
+                        [
+                            f"대용량 분기 건너뜀: {shorten_url(source_url)}",
+                            "원인: 동일 URL 북마크가 이미 존재 (ifexists=skip)",
+                        ]
+                    ),
+                    0,
+                )
+                self.respond_json(
+                    200,
+                    {
+                        "status": "already_exists_skip",
+                        "url": source_url,
+                        "bookmarkId": bookmark_id,
+                        "assetSizeBytes": file_size,
+                        "ifexists": ifexists_mode,
+                    },
+                )
+                return
+
+            asset_id, asset_status, asset_error = upload_asset(auth_header, temp_path, original_name)
+            if asset_error or not asset_id:
+                send_pushover(
+                    "\n".join(
+                        [
+                            f"대용량 분기 실패: {shorten_url(source_url)}",
+                            f"원인: Karakeep asset 업로드 실패 ({asset_error or 'unknown'})",
+                        ]
+                    ),
+                    0,
+                )
+                self.respond_json(
+                    asset_status or 502,
+                    {"error": "asset upload failed", "detail": asset_error},
+                )
+                return
+
+            try:
+                detach_existing_full_archive = ifexists_mode != "append" and ifexists_mode != "append-recrawl"
+                attach_fullpage_archive(str(bookmark_id), asset_id, detach_existing_full_archive)
+                removed_tasks = cleanup_stale_crawler_tasks(str(bookmark_id))
+            except Exception as sql_exc:  # noqa: BLE001
+                send_pushover(
+                    "\n".join(
+                        [
+                            f"대용량 분기 실패: {shorten_url(source_url)}",
+                            f"원인: DB 자산 연결 실패 ({sql_exc})",
+                        ]
+                    ),
+                    0,
+                )
+                self.respond_json(
+                    502,
+                    {
+                        "error": "failed to link fullPageArchive",
+                        "assetId": asset_id,
+                        "bookmarkId": bookmark_id,
+                    },
+                )
+                return
 
             send_pushover(
                 "\n".join(
                     [
                         f"대용량 분기 저장: {shorten_url(source_url)}",
-                        "북마크: 링크 + 보관(asset) 연결 완료",
+                        "북마크: 링크 + 보관(fullPageArchive) 연결 완료",
                         f"Asset ID: {asset_id}",
                     ]
                 ),
@@ -444,14 +565,17 @@ class SingleFileBridgeHandler(BaseHTTPRequestHandler):
             )
 
             response_payload = {
-                "status": "asset_attached",
+                "status": "fullpage_archive_attached",
                 "url": source_url,
                 "assetId": asset_id,
                 "bookmarkId": bookmark_id,
+                "alreadyExists": already_exists,
+                "ifexists": ifexists_mode,
+                "removedCrawlerTasks": removed_tasks,
                 "assetSizeBytes": file_size,
                 "maxAssetSizeBytes": MAX_ASSET_SIZE_BYTES,
             }
-            self.respond_json(201, response_payload)
+            self.respond_json(200 if already_exists else 201, response_payload)
         except Exception as exc:  # noqa: BLE001
             log(f"bridge handler error: {exc}")
             self.respond_json(500, {"error": "internal server error"})
@@ -467,7 +591,7 @@ def main() -> None:
     server = ThreadingHTTPServer((LISTEN_HOST, LISTEN_PORT), SingleFileBridgeHandler)
     log(
         f"karakeep-singlefile-bridge listening on {LISTEN_HOST}:{LISTEN_PORT} "
-        f"(max={MAX_ASSET_SIZE_MB}MB, mode=karakeep-asset-attach)"
+        f"(max={MAX_ASSET_SIZE_MB}MB, mode=karakeep-fullpage-archive-attach)"
     )
     server.serve_forever()
 
