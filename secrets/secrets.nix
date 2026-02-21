@@ -35,6 +35,9 @@ in
   # Anki Sync Server 비밀번호
   "anki-sync-password.age".publicKeys = minipcOnly;
 
+  # AnkiConnect API 인증 키
+  "anki-connect-api-key.age".publicKeys = minipcOnly;
+
   # Copyparty 파일 서버 비밀번호
   "copyparty-password.age".publicKeys = minipcOnly;
 
