@@ -532,7 +532,7 @@ class SingleFileBridgeHandler(BaseHTTPRequestHandler):
             try:
                 detach_existing_full_archive = ifexists_mode != "append" and ifexists_mode != "append-recrawl"
                 attach_fullpage_archive(str(bookmark_id), asset_id, detach_existing_full_archive)
-                removed_tasks = cleanup_stale_crawler_tasks(str(bookmark_id))
+                removed_tasks = cleanup_stale_crawler_tasks(str(bookmark_id)) if already_exists else 0
             except Exception as sql_exc:  # noqa: BLE001
                 send_pushover(
                     "\n".join(
