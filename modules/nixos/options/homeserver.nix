@@ -155,6 +155,10 @@
       };
     };
 
+    karakeepLogMonitor = {
+      enable = lib.mkEnableOption "Karakeep log monitor (OOM/failure Pushover alerts)";
+    };
+
     reverseProxy = {
       enable = lib.mkEnableOption "Caddy reverse proxy with HTTPS for homeserver services";
     };
@@ -183,6 +187,7 @@
     ../programs/docker/karakeep.nix # Karakeep 웹 아카이버/북마크 관리 (3컨테이너)
     ../programs/docker/karakeep-backup.nix # Karakeep SQLite 매일 백업
     ../programs/docker/karakeep-notify.nix # Karakeep 웹훅→Pushover 브리지
+    ../programs/docker/karakeep-log-monitor.nix # Karakeep 로그 감시 (OOM/실패 알림)
     ../programs/karakeep-update # Karakeep 버전 체크 + 업데이트 알림
     ../programs/caddy.nix # HTTPS 리버스 프록시
     ../programs/dev-proxy # Dev server reverse proxy (dev.greenhead.dev)

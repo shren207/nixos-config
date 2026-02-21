@@ -75,6 +75,7 @@ in
     systemd.tmpfiles.rules = [
       "d ${mediaData}/karakeep 0755 root root -"
       "d ${mediaData}/karakeep/meilisearch 0755 root root -"
+      "d ${mediaData}/archive-fallback 0755 root root -"
     ];
 
     # ═══════════════════════════════════════════════════════════════
@@ -153,7 +154,7 @@ in
         CRAWLER_NUM_WORKERS = "2";
         CRAWLER_JOB_TIMEOUT_SEC = "180";
         CRAWLER_SCREENSHOT_TIMEOUT_SEC = "30";
-        MAX_ASSET_SIZE_MB = "100";
+        MAX_ASSET_SIZE_MB = "50";
         INFERENCE_LANG = "korean";
         INFERENCE_ENABLE_AUTO_SUMMARIZATION = "true";
         NODE_OPTIONS = "--max-old-space-size=1536";

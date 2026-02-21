@@ -112,6 +112,7 @@
   homeserver.karakeep.enable = true; # Karakeep 웹 아카이버/북마크 관리 (3컨테이너)
   homeserver.karakeepBackup.enable = true; # Karakeep SQLite 매일 백업 (HDD)
   homeserver.karakeepNotify.enable = true; # Karakeep 웹훅→Pushover 브리지
+  homeserver.karakeepLogMonitor.enable = true; # Karakeep 로그 모니터 (OOM/실패 알림)
   homeserver.karakeepUpdate.enable = true; # Karakeep 버전 체크 + 업데이트 알림
   homeserver.immichBackup.enable = true; # Immich PostgreSQL 매일 백업 (HDD)
   homeserver.reverseProxy.enable = true; # Caddy HTTPS 리버스 프록시
