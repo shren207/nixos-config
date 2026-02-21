@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 import time
@@ -332,7 +333,7 @@ class SingleFileBridgeHandler(BaseHTTPRequestHandler):
             os.makedirs(FALLBACK_DIR, exist_ok=True)
             fallback_name = build_fallback_name(source_url, original_name)
             fallback_path = os.path.join(FALLBACK_DIR, fallback_name)
-            os.replace(temp_path, fallback_path)
+            shutil.move(temp_path, fallback_path)
             temp_path = None
             fallback_public_url = f"{COPYPARTY_FALLBACK_URL}{quote(fallback_name)}"
 
