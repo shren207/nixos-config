@@ -13,11 +13,12 @@ LOCK_FILE="${STATE_DIR}/fallback-sync.lock"
 FAILED_URL_QUEUE_LOCK_FILE="${FAILED_URL_QUEUE_LOCK_FILE:-${FAILED_URL_QUEUE_FILE}.lock}"
 PROCESSED_FILE="${STATE_DIR}/fallback-processed.tsv"
 NOTIFY_STATE_FILE="${STATE_DIR}/fallback-notify-state.tsv"
+UNMATCHED_NOTIFIED_FILE="${STATE_DIR}/fallback-unmatched-notified.tsv"
 NOTIFY_DEDUP_WINDOW_SEC=1800
 MAX_CONSECUTIVE_FAILURES="${MAX_CONSECUTIVE_FAILURES:-3}"
 
 mkdir -p "$STATE_DIR"
-touch "$FAILED_URL_QUEUE_FILE" "$PROCESSED_FILE" "$NOTIFY_STATE_FILE"
+touch "$FAILED_URL_QUEUE_FILE" "$PROCESSED_FILE" "$NOTIFY_STATE_FILE" "$UNMATCHED_NOTIFIED_FILE"
 
 QUEUE_LOCK_ENABLED=0
 if command -v flock > /dev/null 2>&1; then
@@ -83,6 +84,17 @@ should_notify_key() {
   printf "%s\t%s\n" "$key" "$now" >> "$tmp"
   mv "$tmp" "$NOTIFY_STATE_FILE"
   return 0
+}
+
+is_unmatched_notified() {
+  local file_hash="$1"
+  awk -F '\t' -v hash="$file_hash" '$1 == hash { found = 1 } END { exit(found ? 0 : 1) }' "$UNMATCHED_NOTIFIED_FILE"
+}
+
+record_unmatched_notified() {
+  local file_hash="$1"
+  local file_path="$2"
+  printf "%s\t%s\t%s\n" "$file_hash" "$(date -Iseconds)" "$file_path" >> "$UNMATCHED_NOTIFIED_FILE"
 }
 
 remove_queue_url() {
@@ -225,11 +237,14 @@ process_file() {
 
   failed_url=$(find_matching_failed_url "$file" || true)
   if [ -z "$failed_url" ]; then
-    notify_key="unmatched:${file_hash}"
-    if should_notify_key "$notify_key"; then
-      message=$(printf "자동 재연결 보류: %s\n원인: 실패 URL 매칭 불가\n확인 경로: %s" "$(basename "$file")" "$FALLBACK_DIR")
-      send_notification "Karakeep" "$message" 0
+    if is_unmatched_notified "$file_hash"; then
+      echo "Unmatched fallback already notified once: $file"
+      return 0
     fi
+
+    message=$(printf "자동 재연결 보류: %s\n원인: 실패 URL 매칭 불가\n확인 경로: %s" "$(basename "$file")" "$FALLBACK_DIR")
+    send_notification "Karakeep" "$message" 0
+    record_unmatched_notified "$file_hash" "$file"
     echo "No matching failed URL for file: $file"
     return 0
   fi
