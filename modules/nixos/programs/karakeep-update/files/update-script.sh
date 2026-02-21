@@ -32,7 +32,7 @@ EOF
 }
 
 print_bridge_risk_notice() {
-  cat <<'EOF'
+  cat >&2 <<'EOF'
 [Bridge Guardrail Notice]
 Karakeep 업데이트는 아래 브릿지 체인을 깨뜨릴 수 있습니다.
   1) karakeep-log-monitor (로그 패턴 기반 실패 URL 추적)

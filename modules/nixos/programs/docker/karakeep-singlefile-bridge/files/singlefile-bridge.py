@@ -285,6 +285,15 @@ def with_sqlite_write(db_path: str, fn) -> int:
 
 def attach_fullpage_archive(bookmark_id: str, asset_id: str, detach_existing_full_archive: bool) -> None:
     def _write(conn: sqlite3.Connection) -> int:
+        before_rows = conn.execute(
+            "SELECT id, bookmarkId, assetType FROM assets WHERE bookmarkId=? OR id=? ORDER BY id LIMIT 50",
+            (bookmark_id, asset_id),
+        ).fetchall()
+        log(
+            f"attach_fullpage_archive(before): bookmarkId={bookmark_id} "
+            f"assetId={asset_id} detachExisting={detach_existing_full_archive} rows={before_rows}"
+        )
+
         # Prevent crawler OOM path: do not leave precrawledArchive attached.
         conn.execute(
             "UPDATE assets SET assetType='unknown', bookmarkId=NULL "
@@ -301,6 +310,14 @@ def attach_fullpage_archive(bookmark_id: str, asset_id: str, detach_existing_ful
             "UPDATE assets SET bookmarkId=?, assetType='linkFullPageArchive' WHERE id=?",
             (bookmark_id, asset_id),
         )
+        after_rows = conn.execute(
+            "SELECT id, bookmarkId, assetType FROM assets WHERE bookmarkId=? OR id=? ORDER BY id LIMIT 50",
+            (bookmark_id, asset_id),
+        ).fetchall()
+        log(
+            f"attach_fullpage_archive(after): bookmarkId={bookmark_id} "
+            f"assetId={asset_id} updated={cur.rowcount} rows={after_rows}"
+        )
         if cur.rowcount != 1:
             raise RuntimeError("failed to link uploaded asset as fullPageArchive")
         return cur.rowcount
@@ -313,14 +330,24 @@ def cleanup_stale_crawler_tasks(bookmark_id: str) -> int:
         return 0
 
     payload_match = f'%\"bookmarkId\":\"{bookmark_id}\"%'
+    queue_filter = "queue IN ('link_crawler_queue', 'low_priority_crawler_queue', 'crawl_link')"
 
     def _write(conn: sqlite3.Connection) -> int:
-        cur = conn.execute(
-            "DELETE FROM tasks WHERE queue IN ('link_crawler_queue', 'low_priority_crawler_queue', 'crawl_link') "
-            "AND payload LIKE ?",
-            (payload_match,),
-        )
-        return max(cur.rowcount, 0)
+        try:
+            cur = conn.execute(
+                f"DELETE FROM tasks WHERE {queue_filter} "
+                "AND json_extract(payload, '$.bookmarkId') = ?",
+                (bookmark_id,),
+            )
+            return max(cur.rowcount, 0)
+        except sqlite3.Error as exc:
+            log(f"cleanup_stale_crawler_tasks: json_extract query failed, fallback to LIKE ({exc})")
+            cur = conn.execute(
+                f"DELETE FROM tasks WHERE {queue_filter} "
+                "AND payload LIKE ?",
+                (payload_match,),
+            )
+            return max(cur.rowcount, 0)
 
     return with_sqlite_write(KARAKEEP_QUEUE_DB_PATH, _write)
 
@@ -409,7 +436,7 @@ class SingleFileBridgeHandler(BaseHTTPRequestHandler):
             if file_part is None:
                 self.respond_json(400, {"error": "Missing file field"})
                 return
-            if file_part.get("name") not in ("file", ""):
+            if file_part.get("name") != "file":
                 self.respond_json(400, {"error": "Unsupported file field name"})
                 return
 

@@ -47,6 +47,7 @@ in
 
       serviceConfig = {
         Type = "simple";
+        # bridge script uses PEP 604 typing syntax (`str | None`), requires Python 3.10+.
         ExecStart = "${pkgs.python3}/bin/python3 ${bridgeScript}";
         EnvironmentFile = pushoverCredPath;
         Restart = "on-failure";

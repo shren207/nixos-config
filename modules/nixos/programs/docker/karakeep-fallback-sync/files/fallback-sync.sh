@@ -113,7 +113,7 @@ remove_queue_url() {
   if [ "$rc" -ne 0 ]; then
     rm -f "$tmp"
   else
-    mv "$tmp" "$FAILED_URL_QUEUE_FILE" || rc=1
+    mv "$tmp" "$FAILED_URL_QUEUE_FILE" || { rm -f "$tmp"; rc=1; }
   fi
 
   if (( QUEUE_LOCK_ENABLED )); then
