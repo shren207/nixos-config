@@ -39,7 +39,7 @@ homeserver.karakeepBackup.enable = true;      # Karakeep SQLite 매일 백업 (0
 homeserver.karakeepNotify.enable = true;      # Karakeep 웹훅→Pushover 브리지 (socat)
 homeserver.karakeepLogMonitor.enable = true;  # Karakeep 로그 감시 + 실패 URL 큐
 homeserver.karakeepFallbackSync.enable = true;# fallback HTML 자동 재연결 (1분)
-homeserver.karakeepSinglefileBridge.enable = true; # SingleFile 대용량 분기 (링크+fallback HTML)
+homeserver.karakeepSinglefileBridge.enable = true; # SingleFile 대용량 분기 (Karakeep asset attach)
 homeserver.karakeepUpdate.enable = true;      # Karakeep 버전 체크 + 업데이트 (06:00)
 homeserver.immichBackup.enable = true;        # Immich PostgreSQL 매일 백업 (05:30)
 homeserver.reverseProxy.enable = true;        # Caddy HTTPS 리버스 프록시
@@ -68,7 +68,7 @@ homeserver.reverseProxy.enable = true;        # Caddy HTTPS 리버스 프록시
 | `modules/nixos/programs/docker/karakeep-notify.nix` | Karakeep 웹훅→Pushover 브리지 (socat) |
 | `modules/nixos/programs/docker/karakeep-log-monitor.nix` | Karakeep 로그 감시 + 실패 URL 큐 적재 |
 | `modules/nixos/programs/docker/karakeep-fallback-sync.nix` | fallback HTML → Karakeep API 자동 재연결 |
-| `modules/nixos/programs/docker/karakeep-singlefile-bridge.nix` | SingleFile 대용량 분기 브리지 (링크 북마크 + fallback HTML 저장) |
+| `modules/nixos/programs/docker/karakeep-singlefile-bridge.nix` | SingleFile 대용량 분기 브리지 (Karakeep `/api/v1/assets` + `precrawledArchive` 연결) |
 | `modules/nixos/programs/anki-sync-server/` | Anki sync (NixOS 네이티브 모듈, 비컨테이너) |
 | `modules/nixos/programs/docker/karakeep.nix` | Karakeep 웹 아카이버 (Podman 컨테이너) |
 | `modules/nixos/programs/docker/karakeep-backup.nix` | Karakeep SQLite 매일 백업 |

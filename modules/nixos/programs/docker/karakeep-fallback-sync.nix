@@ -11,6 +11,7 @@
 let
   cfg = config.homeserver.karakeepFallbackSync;
   karakeepCfg = config.homeserver.karakeep;
+  bridgeCfg = config.homeserver.karakeepSinglefileBridge;
   monitorCfg = config.homeserver.karakeepLogMonitor;
   inherit (constants.paths) mediaData;
 
@@ -64,7 +65,11 @@ in
         SERVICE_LIB = "${serviceLib}";
         FALLBACK_DIR = "${mediaData}/archive-fallback";
         FAILED_URL_QUEUE_FILE = "/var/lib/karakeep-log-monitor/failed-urls.queue";
-        KARAKEEP_BASE_URL = "http://127.0.0.1:${toString karakeepCfg.port}";
+        KARAKEEP_BASE_URL =
+          if bridgeCfg.enable then
+            "http://127.0.0.1:${toString bridgeCfg.port}"
+          else
+            "http://127.0.0.1:${toString karakeepCfg.port}";
       };
     };
 

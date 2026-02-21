@@ -13,8 +13,6 @@
 let
   cfg = config.homeserver.karakeepSinglefileBridge;
   karakeepCfg = config.homeserver.karakeep;
-  inherit (constants.paths) mediaData;
-  inherit (constants.domain) base subdomains;
 
   pushoverCredPath = config.age.secrets.pushover-karakeep.path;
 
@@ -41,10 +39,7 @@ in
       wantedBy = [ "multi-user.target" ];
 
       unitConfig = {
-        ConditionPathExists = [
-          pushoverCredPath
-          "${mediaData}/archive-fallback"
-        ];
+        ConditionPathExists = pushoverCredPath;
       };
 
       path = with pkgs; [ curl ];
@@ -64,8 +59,6 @@ in
         SINGLEFILE_BRIDGE_PORT = toString cfg.port;
         MAX_ASSET_SIZE_MB = toString cfg.maxAssetSizeMb;
         KARAKEEP_BASE_URL = "http://127.0.0.1:${toString karakeepCfg.port}";
-        FALLBACK_DIR = "${mediaData}/archive-fallback";
-        COPYPARTY_FALLBACK_URL = "https://${subdomains.copyparty}.${base}/archive-fallback/";
       };
     };
   };

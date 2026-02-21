@@ -91,10 +91,10 @@ KARAKEEP_API_KEY=...
 현재 구성은 Caddy가 `/api/v1/bookmarks/singlefile`만 `karakeep-singlefile-bridge`로 우회한다.
 
 - **50MB 이하**: 기존 Karakeep SingleFile API로 그대로 전달
-- **50MB 초과**: 링크 북마크만 생성 + HTML을 `/mnt/data/archive-fallback`에 저장
-- 저장된 HTML은 `https://copyparty.greenhead.dev/archive-fallback/<filename>.html`로 접근 가능
-- **주의**: 50MB 초과 분기 북마크는 Karakeep 내부 `보관` 탭(asset)으로 붙지 않는다.
-  대신 북마크 `note`에 Copyparty fallback URL이 자동 기록된다.
+- **50MB 초과**: Karakeep `/api/v1/assets` 업로드 후 `precrawledArchive`로 북마크에 연결
+- 결과: 대용량 분기 북마크에서도 Karakeep UI의 `보관` 뷰를 직접 사용 가능
+- **주의**: 자산 업로드 한도는 `MAX_ASSET_SIZE_MB`(현재 100MB)에 의존한다.
+  100MB 초과 파일은 브리지에서 실패 알림 후 413/502로 종료될 수 있다.
 
 ## 핵심 절차
 

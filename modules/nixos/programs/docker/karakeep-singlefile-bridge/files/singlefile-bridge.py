@@ -1,22 +1,15 @@
 #!/usr/bin/env python3
-import hashlib
 import json
 import os
 import re
-import shutil
 import subprocess
 import tempfile
-import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import quote, urlsplit
+from urllib.parse import urlsplit
 
 MAX_ASSET_SIZE_MB = int(os.environ.get("MAX_ASSET_SIZE_MB", "50"))
 MAX_ASSET_SIZE_BYTES = MAX_ASSET_SIZE_MB * 1024 * 1024
 KARAKEEP_BASE_URL = os.environ.get("KARAKEEP_BASE_URL", "http://127.0.0.1:3000").rstrip("/")
-FALLBACK_DIR = os.environ.get("FALLBACK_DIR", "/mnt/data/archive-fallback")
-COPYPARTY_FALLBACK_URL = os.environ.get(
-    "COPYPARTY_FALLBACK_URL", "https://copyparty.greenhead.dev/archive-fallback/"
-).rstrip("/") + "/"
 LISTEN_HOST = os.environ.get("SINGLEFILE_BRIDGE_LISTEN", "127.0.0.1")
 LISTEN_PORT = int(os.environ.get("SINGLEFILE_BRIDGE_PORT", "3010"))
 REQUEST_TIMEOUT_SEC = int(os.environ.get("SINGLEFILE_BRIDGE_TIMEOUT_SEC", "240"))
@@ -43,19 +36,6 @@ def sanitize_filename(name: str) -> str:
     if not re.search(r"\.(html?|xhtml)$", cleaned, flags=re.IGNORECASE):
         cleaned = f"{cleaned}.html"
     return cleaned
-
-
-def build_fallback_name(source_url: str, original_name: str) -> str:
-    parsed = urlsplit(source_url)
-    host = re.sub(r"[^A-Za-z0-9.-]+", "-", parsed.netloc or "unknown").strip("-")
-    path_slug = re.sub(r"[^A-Za-z0-9]+", "-", parsed.path or "").strip("-")
-    if not path_slug:
-        path_slug = "page"
-    path_slug = path_slug[:40]
-    digest = hashlib.sha256(source_url.encode("utf-8")).hexdigest()[:10]
-    ts = time.strftime("%Y%m%d-%H%M%S", time.gmtime())
-    ext = os.path.splitext(sanitize_filename(original_name))[1] or ".html"
-    return f"{ts}-{host}-{path_slug}-{digest}{ext}"
 
 
 def extract_boundary(content_type: str) -> str | None:
@@ -237,7 +217,6 @@ class SingleFileBridgeHandler(BaseHTTPRequestHandler):
                 {
                     "status": "ok",
                     "maxAssetSizeMb": MAX_ASSET_SIZE_MB,
-                    "fallbackDir": FALLBACK_DIR,
                 },
             )
             return
@@ -340,14 +319,69 @@ class SingleFileBridgeHandler(BaseHTTPRequestHandler):
                 self.respond_bytes(status or 502, body, content_type)
                 return
 
-            os.makedirs(FALLBACK_DIR, exist_ok=True)
-            fallback_name = build_fallback_name(source_url, original_name)
-            fallback_path = os.path.join(FALLBACK_DIR, fallback_name)
-            shutil.move(temp_path, fallback_path)
-            temp_path = None
-            fallback_public_url = f"{COPYPARTY_FALLBACK_URL}{quote(fallback_name)}"
+            upload_asset_cmd = [
+                "curl",
+                "-sS",
+                "--max-time",
+                str(REQUEST_TIMEOUT_SEC),
+                "-X",
+                "POST",
+                "-H",
+                f"Authorization: {auth_header}",
+                "-H",
+                "Accept: application/json",
+                "-F",
+                f"file=@{temp_path};filename={original_name};type=text/html",
+                f"{KARAKEEP_BASE_URL}/api/v1/assets",
+            ]
+            asset_status, asset_body, _, asset_err = run_curl(upload_asset_cmd)
+            if asset_err:
+                send_pushover(
+                    "\n".join(
+                        [
+                            f"대용량 분기 실패: {shorten_url(source_url)}",
+                            f"원인: Karakeep asset 업로드 실패 ({asset_err})",
+                        ]
+                    ),
+                    0,
+                )
+                self.respond_json(502, {"error": asset_err})
+                return
+            if asset_status is None or asset_status < 200 or asset_status >= 300:
+                send_pushover(
+                    "\n".join(
+                        [
+                            f"대용량 분기 실패: {shorten_url(source_url)}",
+                            "원인: Karakeep asset 업로드 HTTP 실패",
+                        ]
+                    ),
+                    0,
+                )
+                self.respond_json(
+                    asset_status or 502,
+                    {"error": "asset upload failed", "status": asset_status},
+                )
+                return
 
-            payload = {"type": "link", "url": source_url}
+            asset_id = parse_json_body(asset_body).get("assetId")
+            if not asset_id:
+                send_pushover(
+                    "\n".join(
+                        [
+                            f"대용량 분기 실패: {shorten_url(source_url)}",
+                            "원인: Karakeep assetId 파싱 실패",
+                        ]
+                    ),
+                    0,
+                )
+                self.respond_json(502, {"error": "missing assetId from upload response"})
+                return
+
+            payload = {
+                "type": "link",
+                "url": source_url,
+                "precrawledArchiveId": asset_id,
+            }
             title_value = next((value.strip() for key, value in fields if key == "title" and value.strip()), "")
             if title_value:
                 payload["title"] = title_value
@@ -376,18 +410,11 @@ class SingleFileBridgeHandler(BaseHTTPRequestHandler):
                         [
                             f"대용량 분기 실패: {shorten_url(source_url)}",
                             f"원인: 링크 북마크 API 호출 실패 ({err})",
-                            f"보관 파일: {fallback_public_url}",
                         ]
                     ),
                     0,
                 )
-                self.respond_json(
-                    502,
-                    {
-                        "error": err,
-                        "fallbackUrl": fallback_public_url,
-                    },
-                )
+                self.respond_json(502, {"error": err, "assetId": asset_id})
                 return
 
             if status is None or status < 200 or status >= 300:
@@ -396,7 +423,6 @@ class SingleFileBridgeHandler(BaseHTTPRequestHandler):
                         [
                             f"대용량 분기 실패: {shorten_url(source_url)}",
                             "원인: 링크 북마크 생성 실패",
-                            f"보관 파일: {fallback_public_url}",
                         ]
                     ),
                     0,
@@ -405,55 +431,23 @@ class SingleFileBridgeHandler(BaseHTTPRequestHandler):
                 return
 
             bookmark_id = parse_json_body(body).get("id")
-            if bookmark_id:
-                note_payload = {
-                    "note": "\n".join(
-                        [
-                            "[자동 fallback 보관]",
-                            "대용량 HTML은 Copyparty에 저장되었습니다.",
-                            fallback_public_url,
-                        ]
-                    )
-                }
-                patch_cmd = [
-                    "curl",
-                    "-sS",
-                    "--max-time",
-                    str(REQUEST_TIMEOUT_SEC),
-                    "-X",
-                    "PATCH",
-                    "-H",
-                    f"Authorization: {auth_header}",
-                    "-H",
-                    "Content-Type: application/json",
-                    "-H",
-                    "Accept: application/json",
-                    "--data",
-                    json.dumps(note_payload, ensure_ascii=False),
-                    f"{KARAKEEP_BASE_URL}/api/v1/bookmarks/{bookmark_id}",
-                ]
-                patch_status, _, _, patch_err = run_curl(patch_cmd)
-                if patch_err or patch_status is None or patch_status < 200 or patch_status >= 300:
-                    log(
-                        f"fallback note patch failed for {bookmark_id}: "
-                        f"status={patch_status}, err={patch_err}"
-                    )
 
             send_pushover(
                 "\n".join(
                     [
                         f"대용량 분기 저장: {shorten_url(source_url)}",
-                        "북마크: 링크 저장 완료",
-                        f"HTML: {fallback_public_url}",
+                        "북마크: 링크 + 보관(asset) 연결 완료",
+                        f"Asset ID: {asset_id}",
                     ]
                 ),
                 0,
             )
 
             response_payload = {
-                "status": "fallback_saved",
+                "status": "asset_attached",
                 "url": source_url,
-                "fallbackUrl": fallback_public_url,
+                "assetId": asset_id,
+                "bookmarkId": bookmark_id,
                 "assetSizeBytes": file_size,
                 "maxAssetSizeBytes": MAX_ASSET_SIZE_BYTES,
             }
@@ -470,11 +464,10 @@ class SingleFileBridgeHandler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
-    os.makedirs(FALLBACK_DIR, exist_ok=True)
     server = ThreadingHTTPServer((LISTEN_HOST, LISTEN_PORT), SingleFileBridgeHandler)
     log(
         f"karakeep-singlefile-bridge listening on {LISTEN_HOST}:{LISTEN_PORT} "
-        f"(max={MAX_ASSET_SIZE_MB}MB, fallback={FALLBACK_DIR})"
+        f"(max={MAX_ASSET_SIZE_MB}MB, mode=karakeep-asset-attach)"
     )
     server.serve_forever()
 

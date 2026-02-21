@@ -154,7 +154,9 @@ in
         CRAWLER_NUM_WORKERS = "2";
         CRAWLER_JOB_TIMEOUT_SEC = "180";
         CRAWLER_SCREENSHOT_TIMEOUT_SEC = "30";
-        MAX_ASSET_SIZE_MB = "50";
+        # SingleFile 브리지가 대용량 파일을 /api/v1/assets + precrawledArchive로 우회 연결하므로
+        # 자산 업로드 자체는 100MB 허용, 파싱 경로는 브리지 임계값(기본 50MB)으로 제어한다.
+        MAX_ASSET_SIZE_MB = "100";
         INFERENCE_LANG = "korean";
         INFERENCE_ENABLE_AUTO_SUMMARIZATION = "true";
         NODE_OPTIONS = "--max-old-space-size=1536";
