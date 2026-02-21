@@ -11,7 +11,7 @@
 let
   cfg = config.homeserver.karakeepLogMonitor;
   karakeepCfg = config.homeserver.karakeep;
-  failedUrlQueueFile = "/var/lib/karakeep-log-monitor/failed-urls.queue";
+  failedUrlQueueFile = cfg.queueFile;
   notifyStateFile = "/var/lib/karakeep-log-monitor/notified-urls.tsv";
 
   pushoverCredPath = config.age.secrets.pushover-karakeep.path;

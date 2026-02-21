@@ -13,8 +13,7 @@ let
   karakeepCfg = config.homeserver.karakeep;
   bridgeCfg = config.homeserver.karakeepSinglefileBridge;
   monitorCfg = config.homeserver.karakeepLogMonitor;
-  # Keep aligned with karakeep-log-monitor StateDirectory ("karakeep-log-monitor").
-  failedUrlQueueFile = "/var/lib/karakeep-log-monitor/failed-urls.queue";
+  failedUrlQueueFile = monitorCfg.queueFile;
   inherit (constants.paths) mediaData;
 
   pushoverCredPath = config.age.secrets.pushover-karakeep.path;

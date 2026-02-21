@@ -157,6 +157,11 @@
 
     karakeepLogMonitor = {
       enable = lib.mkEnableOption "Karakeep log monitor (OOM/failure Pushover alerts)";
+      queueFile = lib.mkOption {
+        type = lib.types.str;
+        default = "/var/lib/karakeep-log-monitor/failed-urls.queue";
+        description = "Shared failed URL queue file used by karakeep-log-monitor and karakeep-fallback-sync";
+      };
     };
 
     karakeepFallbackSync = {
