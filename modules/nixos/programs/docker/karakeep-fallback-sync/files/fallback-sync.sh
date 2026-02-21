@@ -16,6 +16,9 @@ NOTIFY_STATE_FILE="${STATE_DIR}/fallback-notify-state.tsv"
 UNMATCHED_NOTIFIED_FILE="${STATE_DIR}/fallback-unmatched-notified.tsv"
 NOTIFY_DEDUP_WINDOW_SEC=1800
 MAX_CONSECUTIVE_FAILURES="${MAX_CONSECUTIVE_FAILURES:-3}"
+UNMATCHED_STATE_RETENTION_DAYS="${UNMATCHED_STATE_RETENTION_DAYS:-30}"
+PROCESSED_STATE_RETENTION_DAYS="${PROCESSED_STATE_RETENTION_DAYS:-30}"
+NOTIFY_STATE_RETENTION_SEC="${NOTIFY_STATE_RETENTION_SEC:-86400}"
 
 mkdir -p "$STATE_DIR"
 touch "$FAILED_URL_QUEUE_FILE" "$PROCESSED_FILE" "$NOTIFY_STATE_FILE" "$UNMATCHED_NOTIFIED_FILE"
@@ -38,6 +41,79 @@ if [ -z "$API_KEY" ]; then
   echo "KARAKEEP_API_KEY is not set in PUSHOVER_CRED_FILE; skipping auto relink"
   exit 0
 fi
+
+timestamp_to_epoch() {
+  local raw="$1"
+  if [[ "$raw" =~ ^[0-9]+$ ]]; then
+    printf "%s" "$raw"
+    return 0
+  fi
+
+  date -d "$raw" +%s 2>/dev/null || printf "0"
+}
+
+gc_unmatched_notified_state() {
+  local now cutoff tmp hash ts file_path epoch
+  now=$(date +%s)
+  cutoff=$((now - UNMATCHED_STATE_RETENTION_DAYS * 86400))
+  tmp=$(mktemp)
+
+  while IFS=$'\t' read -r hash ts file_path || [ -n "${hash:-}" ]; do
+    [ -n "${hash:-}" ] || continue
+    [ -n "${file_path:-}" ] || continue
+    [ -e "$file_path" ] || continue
+
+    epoch=$(timestamp_to_epoch "${ts:-}")
+    if [ "$epoch" -gt 0 ] && [ "$epoch" -lt "$cutoff" ]; then
+      continue
+    fi
+
+    printf "%s\t%s\t%s\n" "$hash" "$ts" "$file_path" >> "$tmp"
+  done < "$UNMATCHED_NOTIFIED_FILE"
+
+  mv "$tmp" "$UNMATCHED_NOTIFIED_FILE"
+}
+
+gc_processed_state() {
+  local now cutoff tmp hash failed_url file_path ts epoch
+  now=$(date +%s)
+  cutoff=$((now - PROCESSED_STATE_RETENTION_DAYS * 86400))
+  tmp=$(mktemp)
+
+  while IFS=$'\t' read -r hash failed_url file_path ts || [ -n "${hash:-}" ]; do
+    [ -n "${hash:-}" ] || continue
+    [ -n "${file_path:-}" ] || continue
+    [ -e "$file_path" ] || continue
+
+    epoch=$(timestamp_to_epoch "${ts:-}")
+    if [ "$epoch" -gt 0 ] && [ "$epoch" -lt "$cutoff" ]; then
+      continue
+    fi
+
+    printf "%s\t%s\t%s\t%s\n" "$hash" "$failed_url" "$file_path" "$ts" >> "$tmp"
+  done < "$PROCESSED_FILE"
+
+  mv "$tmp" "$PROCESSED_FILE"
+}
+
+gc_notify_state() {
+  local now cutoff tmp
+  now=$(date +%s)
+  cutoff=$((now - NOTIFY_STATE_RETENTION_SEC))
+  tmp=$(mktemp)
+
+  awk -F '\t' -v cutoff="$cutoff" '
+    NF >= 2 && $2 ~ /^[0-9]+$/ && $2 >= cutoff { print $1 "\t" $2 }
+  ' "$NOTIFY_STATE_FILE" > "$tmp"
+
+  mv "$tmp" "$NOTIFY_STATE_FILE"
+}
+
+gc_state_files() {
+  gc_unmatched_notified_state
+  gc_processed_state
+  gc_notify_state
+}
 
 normalize_url() {
   local url="$1"
@@ -272,6 +348,8 @@ if [ ! -d "$FALLBACK_DIR" ]; then
   echo "Fallback directory does not exist: $FALLBACK_DIR"
   exit 0
 fi
+
+gc_state_files
 
 if ! [ -s "$FAILED_URL_QUEUE_FILE" ]; then
   echo "No pending failed URLs in queue"
