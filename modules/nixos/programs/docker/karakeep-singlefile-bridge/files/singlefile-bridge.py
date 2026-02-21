@@ -2,6 +2,7 @@
 import json
 import os
 import re
+import signal
 import sqlite3
 import subprocess
 import tempfile
@@ -10,6 +11,11 @@ from urllib.parse import parse_qs, urlsplit
 
 MAX_ASSET_SIZE_MB = int(os.environ.get("MAX_ASSET_SIZE_MB", "50"))
 MAX_ASSET_SIZE_BYTES = MAX_ASSET_SIZE_MB * 1024 * 1024
+DEFAULT_MAX_REQUEST_BODY_MB = max(MAX_ASSET_SIZE_MB * 3, 200)
+MAX_REQUEST_BODY_MB = int(
+    os.environ.get("SINGLEFILE_BRIDGE_MAX_REQUEST_MB", str(DEFAULT_MAX_REQUEST_BODY_MB))
+)
+MAX_REQUEST_BODY_BYTES = MAX_REQUEST_BODY_MB * 1024 * 1024
 KARAKEEP_BASE_URL = os.environ.get("KARAKEEP_BASE_URL", "http://127.0.0.1:3000").rstrip("/")
 LISTEN_HOST = os.environ.get("SINGLEFILE_BRIDGE_LISTEN", "127.0.0.1")
 LISTEN_PORT = int(os.environ.get("SINGLEFILE_BRIDGE_PORT", "3010"))
@@ -129,7 +135,8 @@ def run_curl(cmd: list[str]) -> tuple[int | None, bytes, str, str | None]:
     os.close(body_fd)
     os.close(header_fd)
     try:
-        full_cmd = cmd + [
+        full_cmd = [
+            *cmd,
             "-D",
             header_path,
             "-o",
@@ -343,6 +350,7 @@ class SingleFileBridgeHandler(BaseHTTPRequestHandler):
                 {
                     "status": "ok",
                     "maxAssetSizeMb": MAX_ASSET_SIZE_MB,
+                    "maxRequestBodyMb": MAX_REQUEST_BODY_MB,
                 },
             )
             return
@@ -377,6 +385,15 @@ class SingleFileBridgeHandler(BaseHTTPRequestHandler):
             return
         if content_length <= 0:
             self.respond_json(400, {"error": "Empty request body"})
+            return
+        if content_length > MAX_REQUEST_BODY_BYTES:
+            self.respond_json(
+                413,
+                {
+                    "error": "Request too large",
+                    "maxRequestBodyMb": MAX_REQUEST_BODY_MB,
+                },
+            )
             return
 
         temp_path = None
@@ -589,11 +606,23 @@ class SingleFileBridgeHandler(BaseHTTPRequestHandler):
 
 def main() -> None:
     server = ThreadingHTTPServer((LISTEN_HOST, LISTEN_PORT), SingleFileBridgeHandler)
+
+    def _shutdown(signum, _frame) -> None:
+        log(f"received signal {signum}, shutting down...")
+        server.shutdown()
+
+    signal.signal(signal.SIGTERM, _shutdown)
+    signal.signal(signal.SIGINT, _shutdown)
+
     log(
         f"karakeep-singlefile-bridge listening on {LISTEN_HOST}:{LISTEN_PORT} "
         f"(max={MAX_ASSET_SIZE_MB}MB, mode=karakeep-fullpage-archive-attach)"
     )
-    server.serve_forever()
+    try:
+        server.serve_forever()
+    finally:
+        server.server_close()
+        log("karakeep-singlefile-bridge stopped")
 
 
 if __name__ == "__main__":

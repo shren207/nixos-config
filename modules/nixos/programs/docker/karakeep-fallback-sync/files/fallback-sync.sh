@@ -10,21 +10,26 @@ source "$SERVICE_LIB"
 
 STATE_DIR=$(dirname "$FAILED_URL_QUEUE_FILE")
 LOCK_FILE="${STATE_DIR}/fallback-sync.lock"
+FAILED_URL_QUEUE_LOCK_FILE="${FAILED_URL_QUEUE_LOCK_FILE:-${FAILED_URL_QUEUE_FILE}.lock}"
 PROCESSED_FILE="${STATE_DIR}/fallback-processed.tsv"
 NOTIFY_STATE_FILE="${STATE_DIR}/fallback-notify-state.tsv"
 NOTIFY_DEDUP_WINDOW_SEC=1800
+MAX_CONSECUTIVE_FAILURES="${MAX_CONSECUTIVE_FAILURES:-3}"
 
 mkdir -p "$STATE_DIR"
 touch "$FAILED_URL_QUEUE_FILE" "$PROCESSED_FILE" "$NOTIFY_STATE_FILE"
 
+QUEUE_LOCK_ENABLED=0
 if command -v flock > /dev/null 2>&1; then
   exec 9>"$LOCK_FILE"
   if ! flock -n 9; then
     echo "Another karakeep-fallback-sync run is in progress"
     exit 0
   fi
+  exec 10>"$FAILED_URL_QUEUE_LOCK_FILE"
+  QUEUE_LOCK_ENABLED=1
 else
-  echo "WARNING: flock command not found; running without lock"
+  echo "WARNING: flock command not found; running without queue lock"
 fi
 
 API_KEY="${KARAKEEP_API_KEY:-${KARAKEEP_SINGLEFILE_API_KEY:-}}"
@@ -82,7 +87,13 @@ should_notify_key() {
 
 remove_queue_url() {
   local target="$1"
-  local tmp
+  local tmp rc
+  rc=0
+
+  if (( QUEUE_LOCK_ENABLED )); then
+    flock -x 10
+  fi
+
   tmp=$(mktemp)
 
   awk -v target="$target" '
@@ -97,29 +108,36 @@ remove_queue_url() {
     END {
       if (!removed) exit 1
     }
-  ' "$FAILED_URL_QUEUE_FILE" > "$tmp" || {
-    rm -f "$tmp"
-    return 1
-  }
+  ' "$FAILED_URL_QUEUE_FILE" > "$tmp" || rc=1
 
-  mv "$tmp" "$FAILED_URL_QUEUE_FILE"
-  return 0
+  if [ "$rc" -ne 0 ]; then
+    rm -f "$tmp"
+  else
+    mv "$tmp" "$FAILED_URL_QUEUE_FILE" || rc=1
+  fi
+
+  if (( QUEUE_LOCK_ENABLED )); then
+    flock -u 10
+  fi
+
+  return "$rc"
 }
 
 extract_url_candidates() {
   local file="$1"
-  local snippet
+  local snippet quote_class
   snippet=$(mktemp)
+  quote_class='["'"'"']'
   head -c 2097152 "$file" > "$snippet"
 
   {
-    grep -Eoi '<link[^>]+rel=["'"'"'"'"'"'"'"'"']canonical["'"'"'"'"'"'"'"'"'][^>]*>' "$snippet" \
-      | sed -En 's/.*href=["'"'"'"'"'"'"'"'"']([^"'"'"'"'"'"'"'"'"']+)["'"'"'"'"'"'"'"'"'].*/\1/ip'
-    grep -Eoi '<meta[^>]+property=["'"'"'"'"'"'"'"'"']og:url["'"'"'"'"'"'"'"'"'][^>]*>' "$snippet" \
-      | sed -En 's/.*content=["'"'"'"'"'"'"'"'"']([^"'"'"'"'"'"'"'"'"']+)["'"'"'"'"'"'"'"'"'].*/\1/ip'
-    grep -Eoi '<meta[^>]+name=["'"'"'"'"'"'"'"'"']twitter:url["'"'"'"'"'"'"'"'"'][^>]*>' "$snippet" \
-      | sed -En 's/.*content=["'"'"'"'"'"'"'"'"']([^"'"'"'"'"'"'"'"'"']+)["'"'"'"'"'"'"'"'"'].*/\1/ip'
-    grep -Eom200 'https?://[^"'"'"'"'"'"'"'"'"' <>)]+' "$snippet"
+    grep -Eoi "<link[^>]+rel=${quote_class}canonical${quote_class}[^>]*>" "$snippet" \
+      | sed -En "s/.*href=${quote_class}([^\"']+)${quote_class}.*/\\1/ip"
+    grep -Eoi "<meta[^>]+property=${quote_class}og:url${quote_class}[^>]*>" "$snippet" \
+      | sed -En "s/.*content=${quote_class}([^\"']+)${quote_class}.*/\\1/ip"
+    grep -Eoi "<meta[^>]+name=${quote_class}twitter:url${quote_class}[^>]*>" "$snippet" \
+      | sed -En "s/.*content=${quote_class}([^\"']+)${quote_class}.*/\\1/ip"
+    grep -Eom200 "https?://[^\"' <>)]+" "$snippet"
   } | sed -E 's/&amp;/\&/g' | grep -E '^https?://' | sort -u
 
   rm -f "$snippet"
@@ -131,7 +149,13 @@ find_matching_failed_url() {
   local candidate candidate_norm candidate_loose
   local -a queue_urls candidates
 
+  if (( QUEUE_LOCK_ENABLED )); then
+    flock -s 10
+  fi
   mapfile -t queue_urls < "$FAILED_URL_QUEUE_FILE"
+  if (( QUEUE_LOCK_ENABLED )); then
+    flock -u 10
+  fi
   [ "${#queue_urls[@]}" -gt 0 ] || return 1
 
   mapfile -t candidates < <(extract_url_candidates "$file")
@@ -156,14 +180,38 @@ find_matching_failed_url() {
 upload_singlefile_archive() {
   local file="$1"
   local url="$2"
-  local endpoint
+  local endpoint response_file http_code curl_exit
   endpoint="${KARAKEEP_BASE_URL%/}/api/v1/bookmarks/singlefile?ifexists=overwrite"
+  response_file=$(mktemp)
 
-  curl -sf --max-time 240 \
+  http_code=$(curl -sS -o "$response_file" -w "%{http_code}" --max-time 240 \
     -H "Authorization: Bearer ${API_KEY}" \
     --form-string "url=${url}" \
     -F "file=@${file}" \
-    "$endpoint" > /dev/null
+    "$endpoint")
+  curl_exit=$?
+
+  if [ "$curl_exit" -ne 0 ]; then
+    echo "Upload curl error (exit=${curl_exit}, http=${http_code:-000}): $url"
+    rm -f "$response_file"
+    return 1
+  fi
+
+  if ! [[ "$http_code" =~ ^[0-9]{3}$ ]]; then
+    echo "Upload failed with invalid HTTP code '${http_code}': $url"
+    rm -f "$response_file"
+    return 1
+  fi
+
+  if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+    echo "Upload failed with HTTP ${http_code}: $url"
+    echo "Response: $(head -c 300 "$response_file" | tr '\n' ' ')"
+    rm -f "$response_file"
+    return 1
+  fi
+
+  rm -f "$response_file"
+  return 0
 }
 
 process_file() {
@@ -225,6 +273,17 @@ if [ "${#fallback_files[@]}" -eq 0 ]; then
   exit 0
 fi
 
+consecutive_failures=0
 for file in "${fallback_files[@]}"; do
-  process_file "$file" || break
+  if process_file "$file"; then
+    consecutive_failures=0
+    continue
+  fi
+
+  consecutive_failures=$((consecutive_failures + 1))
+  echo "Fallback sync failure count: ${consecutive_failures}/${MAX_CONSECUTIVE_FAILURES}"
+  if [ "$consecutive_failures" -ge "$MAX_CONSECUTIVE_FAILURES" ]; then
+    echo "Stopping batch after ${consecutive_failures} consecutive failures"
+    break
+  fi
 done

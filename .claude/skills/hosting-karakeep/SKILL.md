@@ -19,7 +19,7 @@ Karakeep 웹 아카이버/북마크 관리 서비스 운영 스킬.
 | `sudo systemctl start podman-karakeep.service` | Karakeep 앱 시작 |
 | `sudo systemctl stop podman-karakeep.service` | Karakeep 앱 중지 |
 | `sudo systemctl start karakeep-backup` | 수동 백업 실행 |
-| `sudo karakeep-update` | 수동 업데이트 |
+| `sudo karakeep-update --ack-bridge-risk` | 수동 업데이트 (브릿지 리스크 인지 필수) |
 | `journalctl -u karakeep-webhook-bridge -f` | 웹훅 브리지 로그 확인 |
 | `journalctl -u karakeep-log-monitor -f` | 실패 URL 감시 로그 확인 |
 | `journalctl -u karakeep-singlefile-bridge -f` | SingleFile 대용량 분기 브리지 로그 확인 |
@@ -94,8 +94,8 @@ KARAKEEP_API_KEY=...
 - **50MB 초과**: Karakeep `/api/v1/assets` 업로드 후, 브리지에서 DB에 `fullPageArchive`로 직접 연결
 - 결과: 대용량 분기 북마크에서도 Karakeep UI의 `보관` 뷰를 직접 사용 가능
 - 추가 보호: 기존 `precrawledArchive` 연결이 있으면 브리지가 해제하여 OOM 재발 경로를 차단
-- **주의**: 자산 업로드 한도는 `MAX_ASSET_SIZE_MB`(현재 100MB)에 의존한다.
-  100MB 초과 파일은 브리지에서 실패 알림 후 413/502로 종료될 수 있다.
+- **주의**: 자산 업로드 한도는 `MAX_ASSET_SIZE_MB`(현재 50MB)에 의존한다.
+  50MB 초과 파일은 브리지 분기 경로로 처리되며, 요청 본문 상한(`SINGLEFILE_BRIDGE_MAX_REQUEST_MB`) 초과 시 413/502로 종료될 수 있다.
 
 ## 핵심 절차
 
@@ -154,7 +154,8 @@ sudo podman exec karakeep /bin/sh -lc 'printenv OPENAI_API_KEY >/dev/null && ech
 ## Backup & Update
 
 - **백업**: `sudo systemctl start karakeep-backup` (매일 05:00 자동)
-- **업데이트**: `sudo karakeep-update` (수동), `karakeep-version-check` (매일 06:00 자동)
+- **업데이트**: `sudo karakeep-update --ack-bridge-risk` (수동), `karakeep-version-check` (매일 06:00 자동)
+- `--ack-bridge-risk` 없이는 업데이트 스크립트가 중단된다 (브릿지/로그 의존성 인지 강제).
 
 ## Fallback Auto Relink
 
@@ -218,7 +219,7 @@ sudo systemctl start podman-karakeep.service
 sudo podman logs --tail=200 karakeep 2>&1 | grep -E '\[Crawler\].*Will crawl'
 
 # 2. 패턴이 변경되었다면 → 로그 모니터 스크립트 수정 필요
-#    로그 모니터 스크립트 위치: karakeep.nix 내 logMonitorScript 또는 별도 파일
+#    로그 모니터 스크립트 위치: modules/nixos/programs/docker/karakeep-log-monitor/files/log-monitor.sh
 #    관련 이슈: #60 (통합 구현 설계 섹션 참조)
 
 # 3. 로그 모니터 서비스 재시작 후 정상 동작 확인

@@ -11,6 +11,8 @@
 let
   cfg = config.homeserver.karakeepLogMonitor;
   karakeepCfg = config.homeserver.karakeep;
+  failedUrlQueueFile = "/var/lib/karakeep-log-monitor/failed-urls.queue";
+  notifyStateFile = "/var/lib/karakeep-log-monitor/notified-urls.tsv";
 
   pushoverCredPath = config.age.secrets.pushover-karakeep.path;
   serviceLib = import ../../lib/service-lib.nix { inherit pkgs; };
@@ -23,6 +25,8 @@ let
       curl
       systemd
       gnugrep
+      gawk
+      util-linux
     ];
     text = builtins.readFile ./karakeep-log-monitor/files/log-monitor.sh;
   };
@@ -40,7 +44,6 @@ in
       description = "Karakeep log monitor (OOM/failure Pushover alerts)";
       after = [ "podman-karakeep.service" ];
       bindsTo = [ "podman-karakeep.service" ];
-      partOf = [ "podman-karakeep.service" ];
       wantedBy = [
         "multi-user.target"
         "podman-karakeep.service"
@@ -64,8 +67,10 @@ in
         PUSHOVER_CRED_FILE = pushoverCredPath;
         SERVICE_LIB = "${serviceLib}";
         COPYPARTY_FALLBACK_URL = "https://${subdomains.copyparty}.${base}/archive-fallback/";
-        FAILED_URL_QUEUE_FILE = "/var/lib/karakeep-log-monitor/failed-urls.queue";
+        FAILED_URL_QUEUE_FILE = failedUrlQueueFile;
+        FAILED_URL_QUEUE_LOCK_FILE = "${failedUrlQueueFile}.lock";
         FAILED_URL_QUEUE_MAX = "200";
+        NOTIFY_STATE_FILE = notifyStateFile;
       };
     };
   };

@@ -36,6 +36,7 @@ in
         "podman-karakeep.service"
       ];
       wants = [ "podman-karakeep.service" ];
+      partOf = [ "podman-karakeep.service" ];
       wantedBy = [ "multi-user.target" ];
 
       unitConfig = {
@@ -58,6 +59,7 @@ in
         SINGLEFILE_BRIDGE_LISTEN = "127.0.0.1";
         SINGLEFILE_BRIDGE_PORT = toString cfg.port;
         MAX_ASSET_SIZE_MB = toString cfg.maxAssetSizeMb;
+        SINGLEFILE_BRIDGE_MAX_REQUEST_MB = toString (lib.max (cfg.maxAssetSizeMb * 3) 200);
         KARAKEEP_BASE_URL = "http://127.0.0.1:${toString karakeepCfg.port}";
         KARAKEEP_DB_PATH = "${constants.paths.mediaData}/karakeep/db.db";
         KARAKEEP_QUEUE_DB_PATH = "${constants.paths.mediaData}/karakeep/queue.db";

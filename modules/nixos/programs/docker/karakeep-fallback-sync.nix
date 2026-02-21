@@ -13,6 +13,8 @@ let
   karakeepCfg = config.homeserver.karakeep;
   bridgeCfg = config.homeserver.karakeepSinglefileBridge;
   monitorCfg = config.homeserver.karakeepLogMonitor;
+  # Keep aligned with karakeep-log-monitor StateDirectory ("karakeep-log-monitor").
+  failedUrlQueueFile = "/var/lib/karakeep-log-monitor/failed-urls.queue";
   inherit (constants.paths) mediaData;
 
   pushoverCredPath = config.age.secrets.pushover-karakeep.path;
@@ -64,7 +66,8 @@ in
         PUSHOVER_CRED_FILE = pushoverCredPath;
         SERVICE_LIB = "${serviceLib}";
         FALLBACK_DIR = "${mediaData}/archive-fallback";
-        FAILED_URL_QUEUE_FILE = "/var/lib/karakeep-log-monitor/failed-urls.queue";
+        FAILED_URL_QUEUE_FILE = failedUrlQueueFile;
+        FAILED_URL_QUEUE_LOCK_FILE = "${failedUrlQueueFile}.lock";
         KARAKEEP_BASE_URL =
           if bridgeCfg.enable then
             "http://127.0.0.1:${toString bridgeCfg.port}"
