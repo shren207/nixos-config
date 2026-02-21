@@ -70,8 +70,11 @@ in
           (
             "+"
             + pkgs.writeShellScript "anki-ensure-profile" ''
-              mkdir -p "/var/lib/anki/.local/share/Anki2/${cfg.profile}"
-              chown -R anki:anki /var/lib/anki/.local/share/Anki2
+              profile_dir="/var/lib/anki/.local/share/Anki2/${cfg.profile}"
+              if [ ! -d "$profile_dir" ]; then
+                mkdir -p "$profile_dir"
+                chown -R anki:anki /var/lib/anki/.local/share/Anki2
+              fi
             ''
           )
         ];
@@ -85,6 +88,8 @@ in
         NoNewPrivileges = true;
         ProtectHome = true;
         PrivateTmp = true;
+        ProtectKernelTunables = true;
+        ProtectControlGroups = true;
       };
     };
   };
