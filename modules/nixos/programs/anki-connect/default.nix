@@ -1,6 +1,9 @@
 # modules/nixos/programs/anki-connect/default.nix
 # Headless Anki + AnkiConnect API 서버
 # QT_QPA_PLATFORM=offscreen으로 GUI 없이 실행
+#
+# 인증: Tailscale 네트워크 레벨 격리에 의존 (API key 불필요)
+# withAddons + withConfig → 설정이 Nix store에 bake됨 (immutable)
 {
   config,
   pkgs,
@@ -16,7 +19,6 @@ let
   ankiWithConnect = pkgs.anki.withAddons [
     (pkgs.ankiAddons.anki-connect.withConfig {
       config = {
-        apiKey = null; # 런타임에 configScript로 주입
         webBindAddress = minipcTailscaleIP;
         webBindPort = cfg.port;
         webCorsOriginList = [
@@ -28,29 +30,6 @@ let
       };
     })
   ];
-
-  # AnkiConnect config.json을 agenix 시크릿으로 동적 생성
-  configScript = pkgs.writeShellScript "anki-connect-config" ''
-    CONFIG_DIR="/var/lib/anki/.local/share/Anki2/addons21/2055492159"
-    mkdir -p "$CONFIG_DIR"
-
-    API_KEY=$(cat ${config.age.secrets.anki-connect-api-key.path})
-
-    cat > "$CONFIG_DIR/config.json" <<CONF
-    {
-      "apiKey": "$API_KEY",
-      "webBindAddress": "${minipcTailscaleIP}",
-      "webBindPort": ${toString cfg.port},
-      "webCorsOriginList": [
-        "http://localhost",
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://${minipcTailscaleIP}"
-      ]
-    }
-    CONF
-    chown -R anki:anki "$CONFIG_DIR"
-  '';
 in
 {
   config = lib.mkIf cfg.enable {
@@ -59,16 +38,8 @@ in
       isSystemUser = true;
       group = "anki";
       home = "/var/lib/anki";
-      createHome = true;
     };
     users.groups.anki = { };
-
-    # agenix 시크릿
-    age.secrets.anki-connect-api-key = {
-      file = ../../../../secrets/anki-connect-api-key.age;
-      mode = "0400";
-      owner = "anki";
-    };
 
     # systemd 서비스
     systemd.services.anki-connect = {
@@ -93,10 +64,9 @@ in
         Group = "anki";
         StateDirectory = "anki";
 
-        # Tailscale 대기 → config.json 생성 → Anki 실행
+        # Tailscale IP 할당 대기 → Anki 실행
         ExecStartPre = [
           ("+" + (import ../../lib/tailscale-wait.nix { inherit pkgs; }))
-          ("+" + configScript)
         ];
         ExecStart = "${ankiWithConnect}/bin/anki -p ${cfg.profile}";
 
