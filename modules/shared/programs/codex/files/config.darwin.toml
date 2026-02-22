@@ -10,9 +10,6 @@ hide_full_access_warning = true
 [notice.model_migrations]
 "gpt-5.2" = "gpt-5.2-codex"
 
-[projects."/home/greenhead/Workspace/zaritalk-front"]
-trust_level = "trusted"
-
 [features]
 multi_agent = true
 apps = true
