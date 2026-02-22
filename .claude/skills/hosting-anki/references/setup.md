@@ -44,7 +44,8 @@ ankiConnect = {
   };
   configApi = {
     enable = lib.mkOption { type = lib.types.bool; default = true; };
-    allowedKeyPrefixes = lib.mkOption { type = lib.types.listOf lib.types.str; default = [ "awesomeAnki." ]; };
+    # nonEmptyPrefixList: 비어있는 리스트 불가 + 공백-only 항목 불가
+    allowedKeyPrefixes = lib.mkOption { type = nonEmptyPrefixList; default = [ "awesomeAnki." ]; };
     maxValueBytes = lib.mkOption { type = lib.types.ints.positive; default = 65536; };
   };
   sync = {

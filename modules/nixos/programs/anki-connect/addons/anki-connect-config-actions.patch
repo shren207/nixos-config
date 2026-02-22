@@ -44,13 +44,13 @@
 -            api_return_value = methodInst(**params)
 +            if name == 'getConfig':
 +                key_param = params.get('key') if isinstance(params, dict) else None
-+                api_return_value = methodInst(key=key_param)
++                api_return_value = method(key=key_param)
 +            elif name == 'setConfig':
 +                key_param = params.get('key') if isinstance(params, dict) else None
 +                val_param = params['val'] if isinstance(params, dict) and 'val' in params else CONFIG_API_MISSING
-+                api_return_value = methodInst(key=key_param, val=val_param)
++                api_return_value = method(key=key_param, val=val_param)
 +            else:
-+                api_return_value = methodInst(**params)
++                api_return_value = method(**params)
              reply = format_success_reply(version, api_return_value)
  
          except Exception as e:
@@ -64,21 +64,20 @@
          return reply
  
  
-@@ -198,6 +227,93 @@
+@@ -198,6 +227,94 @@
  
          return media
  
-+    def configApiEnabled(self):
++    def getConfigApiSettings(self):
 +        config = self.window().addonManager.getConfig(__name__)
++        if not isinstance(config, dict):
++            raise Exception(ERR_CONFIG_API_INVALID_SETTINGS)
++
 +        enabled = config.get('configApiEnable', True)
 +        if not isinstance(enabled, bool):
 +            raise Exception(ERR_CONFIG_API_INVALID_SETTINGS)
-+        return enabled
 +
-+    def configApiAllowedPrefixes(self):
-+        config = self.window().addonManager.getConfig(__name__)
 +        prefixes = config.get('configApiAllowedKeyPrefixes', CONFIG_API_DEFAULT_ALLOWED_PREFIXES)
-+
 +        if not isinstance(prefixes, list) or len(prefixes) == 0:
 +            raise Exception(ERR_CONFIG_API_INVALID_SETTINGS)
 +
@@ -93,20 +92,19 @@
 +
 +            normalized_prefixes.append(normalized_prefix)
 +
-+        return normalized_prefixes
-+
-+    def configApiMaxValueBytes(self):
-+        config = self.window().addonManager.getConfig(__name__)
 +        max_value_bytes = config.get('configApiMaxValueBytes', CONFIG_API_DEFAULT_MAX_VALUE_BYTES)
-+        if not isinstance(max_value_bytes, int) or max_value_bytes <= 0:
++        if isinstance(max_value_bytes, bool) or not isinstance(max_value_bytes, int) or max_value_bytes <= 0:
 +            raise Exception(ERR_CONFIG_API_INVALID_SETTINGS)
-+        return max_value_bytes
 +
-+    def requireConfigApiEnabled(self):
-+        if not self.configApiEnabled():
++        return enabled, normalized_prefixes, max_value_bytes
++
++    def requireConfigApiEnabled(self, settings):
++        enabled, _, _ = settings
++        if not enabled:
 +            raise Exception(ERR_CONFIG_API_DISABLED)
 +
-+    def validateConfigKey(self, key):
++    def validateConfigKey(self, key, settings):
++        _, allowed_prefixes, _ = settings
 +        if not isinstance(key, str):
 +            raise Exception(ERR_INVALID_KEY)
 +
@@ -114,12 +112,13 @@
 +        if not normalized_key:
 +            raise Exception(ERR_INVALID_KEY)
 +
-+        if not any(normalized_key.startswith(prefix) for prefix in self.configApiAllowedPrefixes()):
++        if not any(normalized_key.startswith(prefix) for prefix in allowed_prefixes):
 +            raise Exception(ERR_KEY_NOT_ALLOWED)
 +
 +        return normalized_key
 +
-+    def validateConfigValue(self, val):
++    def validateConfigValue(self, val, settings):
++        _, _, max_value_bytes = settings
 +        if val is CONFIG_API_MISSING:
 +            raise Exception(ERR_INVALID_VALUE)
 +
@@ -128,7 +127,7 @@
 +        except (TypeError, ValueError):
 +            raise Exception(ERR_INVALID_VALUE)
 +
-+        if len(encoded) > self.configApiMaxValueBytes():
++        if len(encoded) > max_value_bytes:
 +            raise Exception(ERR_VALUE_TOO_LARGE)
 +
 +    def redactRequestForLog(self, request):
@@ -142,6 +141,8 @@
 +            if 'val' in redacted_params:
 +                redacted_params['val'] = CONFIG_API_REDACTED_VALUE
 +            redacted_request['params'] = redacted_params
++        elif 'params' in redacted_request:
++            redacted_request['params'] = CONFIG_API_REDACTED_VALUE
 +
 +        return redacted_request
 +
@@ -150,7 +151,7 @@
 +            return reply
 +
 +        redacted_reply = dict(reply)
-+        if 'result' in redacted_reply:
++        if redacted_reply.get('result') is not None:
 +            redacted_reply['result'] = CONFIG_API_REDACTED_VALUE
 +
 +        return redacted_reply
@@ -158,20 +159,22 @@
  
      def getModel(self, modelName):
          model = self.collection().models.by_name(modelName)
-@@ -471,6 +587,20 @@
+@@ -471,6 +588,22 @@
          return self.window().pm.name
  
      @util.api()
 +    def getConfig(self, key):
-+        self.requireConfigApiEnabled()
-+        normalized_key = self.validateConfigKey(key)
++        settings = self.getConfigApiSettings()
++        self.requireConfigApiEnabled(settings)
++        normalized_key = self.validateConfigKey(key, settings)
 +        return self.collection().get_config(normalized_key, None)
 +
 +    @util.api()
 +    def setConfig(self, key, val=CONFIG_API_MISSING):
-+        self.requireConfigApiEnabled()
-+        normalized_key = self.validateConfigKey(key)
-+        self.validateConfigValue(val)
++        settings = self.getConfigApiSettings()
++        self.requireConfigApiEnabled(settings)
++        normalized_key = self.validateConfigKey(key, settings)
++        self.validateConfigValue(val, settings)
 +        self.collection().set_config(normalized_key, val, undoable=False)
 +        return None
 +

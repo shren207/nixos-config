@@ -130,20 +130,6 @@ in
         message = "homeserver.ankiConnect.sync.username must not be empty.";
       }
       {
-        assertion = builtins.length configApiCfg.allowedKeyPrefixes > 0;
-        message = "homeserver.ankiConnect.configApi.allowedKeyPrefixes must include at least one prefix.";
-      }
-      {
-        assertion = builtins.all (
-          prefix: builtins.match ".*[^[:space:]].*" prefix != null
-        ) configApiCfg.allowedKeyPrefixes;
-        message = "homeserver.ankiConnect.configApi.allowedKeyPrefixes must not contain blank entries.";
-      }
-      {
-        assertion = configApiCfg.maxValueBytes > 0;
-        message = "homeserver.ankiConnect.configApi.maxValueBytes must be a positive integer.";
-      }
-      {
         assertion = !syncCfg.enable || config.homeserver.ankiSync.enable || syncCfg.url != null;
         message = "Enable homeserver.ankiSync or set homeserver.ankiConnect.sync.url when sync is enabled.";
       }
