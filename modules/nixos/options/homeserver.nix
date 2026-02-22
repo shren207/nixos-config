@@ -9,6 +9,12 @@
   ...
 }:
 
+let
+  nonBlankString = lib.types.strMatching ".*[^[:space:]].*";
+  nonEmptyPrefixList = lib.types.addCheck (lib.types.listOf nonBlankString) (
+    prefixes: builtins.length prefixes > 0
+  );
+in
 {
   options.homeserver = {
     immich = {
@@ -99,6 +105,23 @@
         type = lib.types.str;
         default = "server";
         description = "Anki profile name";
+      };
+      configApi = {
+        enable = lib.mkOption {
+          type = lib.types.bool;
+          default = true;
+          description = "Enable AnkiConnect custom config actions (`getConfig`, `setConfig`).";
+        };
+        allowedKeyPrefixes = lib.mkOption {
+          type = nonEmptyPrefixList;
+          default = [ "awesomeAnki." ];
+          description = "Allowed key prefixes for config API writes/reads.";
+        };
+        maxValueBytes = lib.mkOption {
+          type = lib.types.ints.positive;
+          default = 65536;
+          description = "Maximum serialized UTF-8 JSON payload size per config value.";
+        };
       };
       sync = {
         enable = lib.mkOption {

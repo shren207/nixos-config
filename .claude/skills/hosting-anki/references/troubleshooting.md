@@ -337,6 +337,63 @@ awesome-anki 웹 앱에서 AnkiConnect API 호출 시 브라우저 콘솔에 COR
 
 변경 시 `modules/nixos/programs/anki-connect/default.nix`의 `webCorsOriginList` 수정 후 `nrs` 재배포.
 
+## `getConfig`/`setConfig`가 `unsupported action` 반환
+
+### 증상
+`version`은 정상인데 `getConfig` 또는 `setConfig`가 `unsupported action`.
+
+### 진단
+```bash
+# 1) 서비스 버전 확인
+curl -s http://100.79.80.95:8765 -X POST -H 'Content-Type: application/json' \
+  -d '{"action":"version","version":6}'
+
+# 2) 커스텀 액션 확인
+curl -s http://100.79.80.95:8765 -X POST -H 'Content-Type: application/json' \
+  -d '{"action":"getConfig","version":6,"params":{"key":"awesomeAnki.prompts.system"}}'
+
+# 3) 배포 산출물 빌드 확인 (패치 컴파일 단계)
+nix build .#nixosConfigurations.greenhead-minipc.config.system.build.toplevel
+```
+
+### 해결
+1. `modules/nixos/programs/anki-connect/addons/anki-connect-config-actions.patch` 적용 여부 확인
+2. `homeserver.ankiConnect.configApi.enable = true` 확인
+3. `nrs` 재배포 후 `systemctl restart anki-connect.service`
+
+## `config key is not allowed` 오류
+
+### 원인
+요청 key가 `homeserver.ankiConnect.configApi.allowedKeyPrefixes` 범위 밖.
+
+### 해결
+- key를 `awesomeAnki.` prefix로 변경
+- 또는 Nix 옵션에 필요한 prefix를 추가 후 재배포
+
+## `config value exceeds size limit` 오류
+
+### 원인
+직렬화된 JSON payload가 `maxValueBytes`(기본 64KB) 초과.
+
+### 해결
+1. 저장 payload 크기 축소
+2. 운영 정책상 필요 시 `maxValueBytes` 조정 후 재배포
+3. 조정 후 `sync` 20회 측정 기준(`P95 < 10s`, 실패율 0%) 재검증
+
+## 로그에 프롬프트 본문이 보이는지 확인 (보안 점검)
+
+### 진단
+```bash
+journalctl -u anki-connect.service --since today | grep -E "getConfig|setConfig|prompts.system"
+```
+
+### 기대 결과
+- 요청/응답 로그에 실제 값 본문이 아닌 redacted 값만 보여야 함
+- 본문이 보이면 즉시 롤백:
+  1) `homeserver.ankiConnect.configApi.enable = false`
+  2) `nrs`
+  3) `systemctl restart anki-connect.service`
+
 ## AnkiConnect 로그 확인
 
 ```bash

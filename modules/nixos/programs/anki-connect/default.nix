@@ -14,6 +14,7 @@
 
 let
   cfg = config.homeserver.ankiConnect;
+  configApiCfg = cfg.configApi;
   syncCfg = cfg.sync;
   inherit (constants.network) minipcTailscaleIP;
 
@@ -86,9 +87,13 @@ let
         '';
       };
 
+  ankiConnectAddon = pkgs.ankiAddons.anki-connect.overrideAttrs (oldAttrs: {
+    patches = (oldAttrs.patches or [ ]) ++ [ ./addons/anki-connect-config-actions.patch ];
+  });
+
   ankiWithConnect = pkgs.anki.withAddons (
     [
-      (pkgs.ankiAddons.anki-connect.withConfig {
+      (ankiConnectAddon.withConfig {
         config = {
           webBindAddress = minipcTailscaleIP;
           webBindPort = cfg.port;
@@ -98,6 +103,9 @@ let
             "http://localhost:5173"
             "http://${minipcTailscaleIP}"
           ];
+          configApiEnable = configApiCfg.enable;
+          configApiAllowedKeyPrefixes = configApiCfg.allowedKeyPrefixes;
+          configApiMaxValueBytes = configApiCfg.maxValueBytes;
         };
       })
     ]
@@ -120,6 +128,20 @@ in
       {
         assertion = !syncCfg.enable || syncCfg.username != "";
         message = "homeserver.ankiConnect.sync.username must not be empty.";
+      }
+      {
+        assertion = builtins.length configApiCfg.allowedKeyPrefixes > 0;
+        message = "homeserver.ankiConnect.configApi.allowedKeyPrefixes must include at least one prefix.";
+      }
+      {
+        assertion = builtins.all (
+          prefix: builtins.match ".*[^[:space:]].*" prefix != null
+        ) configApiCfg.allowedKeyPrefixes;
+        message = "homeserver.ankiConnect.configApi.allowedKeyPrefixes must not contain blank entries.";
+      }
+      {
+        assertion = configApiCfg.maxValueBytes > 0;
+        message = "homeserver.ankiConnect.configApi.maxValueBytes must be a positive integer.";
       }
       {
         assertion = !syncCfg.enable || config.homeserver.ankiSync.enable || syncCfg.url != null;

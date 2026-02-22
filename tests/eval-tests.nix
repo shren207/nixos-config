@@ -308,6 +308,12 @@ let
 
   # tailscale 포트 (UDP)
   tailscalePort = nixosCfg.services.tailscale.port;
+  ankiConfigApi = nixosCfg.homeserver.ankiConnect.configApi;
+  ankiConfigApiHasPrefixes =
+    builtins.length ankiConfigApi.allowedKeyPrefixes > 0
+    && builtins.all (
+      prefix: builtins.match ".*[^[:space:]].*" prefix != null
+    ) ankiConfigApi.allowedKeyPrefixes;
 
   # ═══════════════════════════════════════════════════════════════
   # 테스트 실행
@@ -386,6 +392,22 @@ let
       # (anki-sync/mosh의 openFirewall은 Test 6b/6e가 이미 잡으므로 별도 테스트 불필요)
       name = "Test 5b: openssh.openFirewall이 false이어야 함 (true이면 LAN에서 SSH 접근 가능)";
       cond = nixosCfg.services.openssh.openFirewall == false;
+    }
+    {
+      name = "Test 5c: ankiConnect.configApi.enable 기본값이 true이어야 함";
+      cond = ankiConfigApi.enable == true;
+    }
+    {
+      name = "Test 5d: ankiConnect.configApi.allowedKeyPrefixes 기본값이 [awesomeAnki.] 이어야 함";
+      cond = ankiConfigApi.allowedKeyPrefixes == [ "awesomeAnki." ];
+    }
+    {
+      name = "Test 5e-1: ankiConnect.configApi.allowedKeyPrefixes는 비어있지 않고 공백-only 항목이 없어야 함";
+      cond = ankiConfigApiHasPrefixes;
+    }
+    {
+      name = "Test 5e-2: ankiConnect.configApi.maxValueBytes가 65536이어야 함";
+      cond = ankiConfigApi.maxValueBytes == 65536;
     }
     {
       # Codex 피드백: SSH 경화 설정은 Tailscale 경계와 독립적인 보안 레이어
