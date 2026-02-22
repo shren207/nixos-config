@@ -606,16 +606,33 @@ sync_all() {
     project_mcp_arg="--project-mcp=$project_root/.mcp.json"
   fi
 
-  local mcp_config_args=()
-  [ -n "$project_mcp_arg" ] && mcp_config_args+=("$project_mcp_arg")
-  mcp_config_args+=("${mcp_args[@]}")
-  [ -n "$user_mcp" ] && mcp_config_args+=("--user-mcp=$user_mcp")
-  [ -n "$user_codex_config" ] && mcp_config_args+=("--user-codex-config=$user_codex_config")
+  local project_mcp_args=()
+  [ -n "$project_mcp_arg" ] && project_mcp_args+=("$project_mcp_arg")
+  project_mcp_args+=("${mcp_args[@]}")
 
-  if [ ${#mcp_config_args[@]} -gt 0 ]; then
-    mcp_config "$project_root" "${mcp_config_args[@]}"
-    echo "[6/8] MCP config updated" >&2
-  else
+  local did_mcp_update=0
+
+  # project-scope sources -> <project>/.codex/config.toml
+  if [ ${#project_mcp_args[@]} -gt 0 ]; then
+    mcp_config "$project_root" "${project_mcp_args[@]}"
+    echo "[6/8] MCP config updated (project)" >&2
+    did_mcp_update=1
+  fi
+
+  # user-scope source -> ~/.codex/config.toml (or --user-codex-config target)
+  if [ -n "$user_mcp" ]; then
+    local user_mcp_args=("--user-mcp=$user_mcp")
+    [ -n "$user_codex_config" ] && user_mcp_args+=("--user-codex-config=$user_codex_config")
+    mcp_config "$project_root" "${user_mcp_args[@]}"
+    if [ ${#project_mcp_args[@]} -gt 0 ]; then
+      echo "[6b/8] MCP config updated (user)" >&2
+    else
+      echo "[6/8] MCP config updated (user)" >&2
+    fi
+    did_mcp_update=1
+  fi
+
+  if [ "$did_mcp_update" -eq 0 ]; then
     echo "[6/8] MCP config: no sources found" >&2
   fi
 

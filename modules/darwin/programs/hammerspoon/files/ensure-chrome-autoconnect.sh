@@ -45,11 +45,13 @@ tell application "Google Chrome"
       set URL of newTab to "chrome://inspect/#remote-debugging"
       set active tab index to (count of tabs)
     end tell
-  on error
+  on error errMsg
     try
       make new window
       delay 0.2
       set URL of active tab of window 1 to "chrome://inspect/#remote-debugging"
+    on error
+      error "Failed to open chrome://inspect/#remote-debugging: " & errMsg
     end try
   end try
 end tell

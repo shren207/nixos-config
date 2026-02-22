@@ -19,7 +19,7 @@ No `${CLAUDE_PLUGIN_ROOT}` substitution needed. Paths are already absolute or re
 
 ### 3. User-scope `~/.claude/mcp.json`
 
-No `${CLAUDE_PLUGIN_ROOT}` substitution needed. `mcpServers` 래퍼 객체 안의 서버들을 변환한다.
+No `${CLAUDE_PLUGIN_ROOT}` substitution needed. Convert all servers inside the `mcpServers` wrapper object.
 
 ## Conversion Rules
 
@@ -100,7 +100,7 @@ Example:
 
 Write target:
 - project-scope: `.codex/config.toml`
-- user-scope: `~/.codex/config.toml` (or `--user-codex-config`로 지정한 경로)
+- user-scope: `~/.codex/config.toml` (or the path specified via `--user-codex-config`)
 
 If file exists: replace only `[mcp_servers.*]` sections, preserve other settings.
 If file doesn't exist: create with MCP sections only.

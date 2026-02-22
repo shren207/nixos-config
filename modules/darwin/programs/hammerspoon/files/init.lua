@@ -213,7 +213,13 @@ local function prepareChromeAutoConnect()
     end, {})
 
     if task then
-        task:start()
+        if not task:start() then
+            hs.notify.new({
+                title = "Chrome DevTools",
+                informativeText = "스크립트 시작 실패, 일반 Chrome 실행"
+            }):send()
+            hs.application.launchOrFocus("Google Chrome")
+        end
     else
         hs.notify.new({
             title = "Chrome DevTools",
