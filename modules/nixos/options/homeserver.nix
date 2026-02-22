@@ -10,6 +10,8 @@
 }:
 
 let
+  # Prefix normalization/trim is enforced in the AnkiConnect patch at runtime.
+  # This type only guarantees at least one non-space character exists.
   nonBlankString = lib.types.strMatching ".*[^[:space:]].*";
   nonEmptyPrefixList = lib.types.addCheck (lib.types.listOf nonBlankString) (
     prefixes: builtins.length prefixes > 0
@@ -110,7 +112,11 @@ in
         enable = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Enable AnkiConnect custom config actions (`getConfig`, `setConfig`).";
+          description = ''
+            Enable AnkiConnect custom config actions (`getConfig`, `setConfig`).
+            Defaults to true because awesome-anki integration depends on this API.
+            Access is constrained by Tailscale network isolation and allowedKeyPrefixes.
+          '';
         };
         allowedKeyPrefixes = lib.mkOption {
           type = nonEmptyPrefixList;

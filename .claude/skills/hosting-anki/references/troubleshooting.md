@@ -370,6 +370,38 @@ nix build .#nixosConfigurations.greenhead-minipc.config.system.build.toplevel
 - key를 `awesomeAnki.` prefix로 변경
 - 또는 Nix 옵션에 필요한 prefix를 추가 후 재배포
 
+## `config API is disabled` 오류
+
+### 원인
+- `homeserver.ankiConnect.configApi.enable = false`
+- 또는 addon config 계약 키 누락/불일치로 fail-closed 동작
+
+### 해결
+1. `homeserver.ankiConnect.configApi.enable = true` 확인
+2. `modules/nixos/programs/anki-connect/default.nix`의 config key 이름과 patch 상수 계약 일치 확인
+3. `nrs` 재배포 후 `systemctl restart anki-connect.service`
+
+## `config API settings are invalid` 오류
+
+### 원인
+- addon config가 dict가 아니거나 key 타입이 손상됨
+- `allowedKeyPrefixes`/`maxValueBytes`가 비정상 타입으로 오염됨
+
+### 해결
+1. Nix 옵션 타입 제약(`nonEmptyPrefixList`, `ints.positive`) 위반 여부 확인
+2. `nix eval --impure --file tests/eval-tests.nix` 실행
+3. `nix build .#nixosConfigurations.greenhead-minipc.config.system.build.toplevel`로 patch/config 적용 검증
+
+## `invalid config key` 오류
+
+### 원인
+- `key`가 문자열이 아님
+- `key`가 빈 문자열이거나 공백-only 문자열
+
+### 해결
+- 요청 payload에서 `params.key`를 non-empty 문자열로 전달
+- 예: `\"awesomeAnki.prompts.system\"`
+
 ## `config value exceeds size limit` 오류
 
 ### 원인
@@ -379,6 +411,17 @@ nix build .#nixosConfigurations.greenhead-minipc.config.system.build.toplevel
 1. 저장 payload 크기 축소
 2. 운영 정책상 필요 시 `maxValueBytes` 조정 후 재배포
 3. 조정 후 `sync` 20회 측정 기준(`P95 < 10s`, 실패율 0%) 재검증
+
+## `invalid config value` 오류
+
+### 원인
+- `setConfig` 요청에서 `val` 누락
+- JSON 직렬화 불가능한 값 포함
+- `Infinity`/`NaN` 등 비정상 수치 입력
+
+### 해결
+- `params.val`을 JSON 직렬화 가능한 값으로 전달
+- 직렬화 전 payload를 검증하고 비정상 수치/타입 제거
 
 ## 로그에 프롬프트 본문이 보이는지 확인 (보안 점검)
 
