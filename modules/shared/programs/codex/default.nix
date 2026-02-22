@@ -12,6 +12,7 @@
 
 let
   codexFilesPath = "${nixosConfigPath}/modules/shared/programs/codex/files";
+  codexConfigFile = if pkgs.stdenv.isDarwin then "config.darwin.toml" else "config.toml";
   # Claude 파일 경로 (공유 소스)
   claudeFilesPath = "${nixosConfigPath}/modules/shared/programs/claude/files";
 in
@@ -21,7 +22,9 @@ in
   home.file = {
     # Codex config.toml - 양방향 수정 가능 (codex mcp add 등 반영)
     # ⚠️ trust 설정 포함 — 이것이 .agents/skills/ 발견의 전제조건
-    ".codex/config.toml".source = config.lib.file.mkOutOfStoreSymlink "${codexFilesPath}/config.toml";
+    # 주의: macOS는 chrome-devtools-mcp user-scope MCP를 포함한 별도 템플릿 사용
+    ".codex/config.toml".source =
+      config.lib.file.mkOutOfStoreSymlink "${codexFilesPath}/${codexConfigFile}";
 
     # 글로벌 AGENTS.md - Claude의 CLAUDE.md와 동일 소스 공유
     ".codex/AGENTS.md".source = config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/CLAUDE.md";
