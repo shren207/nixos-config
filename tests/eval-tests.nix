@@ -14,6 +14,9 @@ let
 
   # NixOS config (greenhead-minipc)
   nixosCfg = flake.nixosConfigurations.greenhead-minipc.config;
+  nixosOptions = flake.nixosConfigurations.greenhead-minipc.options;
+  ankiConfigApiMaxValueBytesDefault =
+    nixosOptions.homeserver.ankiConnect.configApi.maxValueBytes.default;
 
   # Darwin config 평가 테스트는 pre-push의 `nix flake check --all-systems`와
   # 100% 중복이므로 제거 (Opus 피드백). eval-tests는 네트워크 노출 경계에 집중.
@@ -402,8 +405,8 @@ let
       cond = ankiConfigApiHasPrefixes;
     }
     {
-      name = "Test 5e: ankiConnect.configApi.maxValueBytes가 65536이어야 함";
-      cond = ankiConfigApi.maxValueBytes == 65536;
+      name = "Test 5e: ankiConnect.configApi.maxValueBytes가 옵션 기본값과 일치해야 함";
+      cond = ankiConfigApi.maxValueBytes == ankiConfigApiMaxValueBytesDefault;
     }
     {
       # Codex 피드백: SSH 경화 설정은 Tailscale 경계와 독립적인 보안 레이어
