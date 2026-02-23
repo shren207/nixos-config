@@ -25,7 +25,7 @@
   # macOS 전용 패키지
   darwinOnly = [
     pkgs.ffmpeg # 미디어 처리
-    pkgs.ghostty # 터미널 에뮬레이터 (GUI)
+    pkgs.ghostty-bin # 터미널 에뮬레이터 (GUI, macOS는 프리빌트 바이너리만 지원 — pkgs.ghostty는 Linux 전용)
     pkgs.imagemagick # 이미지 처리
     pkgs.rar # 압축
     pkgs.shottr # 스크린샷 (GUI, macOS 전용)
