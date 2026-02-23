@@ -373,7 +373,7 @@ brews = [ "laishulu/homebrew/macism" ];  # ✅ 전체 경로
 
 Homebrew Cask는 `/Applications`에 동일 앱이 이미 존재하면 `brew install`을 거부합니다:
 
-```
+```text
 Error: It seems there is already an App at '/Applications/Cursor.app'
 ```
 
@@ -383,7 +383,7 @@ Error: It seems there is already an App at '/Applications/Cursor.app'
 
 `--adopt`는 **세 번째 선택지**를 제공합니다:
 
-```
+```text
 일반 brew install --cask cursor:
   1. Cursor.zip 다운로드
   2. /Applications/Cursor.app 이미 있음 → 에러, 중단
@@ -403,8 +403,8 @@ brew install --cask --adopt cursor:
 # 개별 앱 adopt
 brew install --cask --adopt cursor
 
-# 여러 앱 일괄 adopt (Nix 패키지로 관리하는 shottr, ghostty 제외)
-for cask in cursor raycast rectangle hammerspoon homerow docker fork slack figma; do
+# 여러 앱 일괄 adopt (Nix 패키지로 관리하는 shottr 제외)
+for cask in codex cursor ghostty raycast rectangle hammerspoon homerow docker fork slack figma monitorcontrol; do
   brew install --cask --adopt "$cask" || echo "FAILED: $cask"
 done
 
