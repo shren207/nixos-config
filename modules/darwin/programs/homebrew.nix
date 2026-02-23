@@ -43,18 +43,28 @@
     #      "내가 설치한 것"으로 인식하도록 등록만 수행. 이후 brew upgrade로 관리 가능.
     #
     # 따라서 nrs 실행 전에 직접 설치된 앱을 --adopt로 전환해야 한다:
-    #   brew install --cask --adopt cursor ghostty docker ...
+    #   brew install --cask --adopt cursor docker ...
     #
     # adopt 후에는 nrs(darwin-rebuild)가 해당 cask를 정상적으로 인식하여 에러 없이 통과한다.
     # cleanup="none"이므로 미adopt 앱이 남아있어도 삭제되지는 않지만,
     # brew가 해당 앱의 존재를 모르므로 업데이트/관리가 불가능한 상태로 남는다.
     #
+    # [Nix 패키지로 전환한 앱]
+    # shottr, ghostty → libraries/packages.nix darwinOnly로 이동 (nixpkgs에 macOS 지원 있음)
+    #
+    # [Nix 전환이 불가능한 앱]
+    # cursor: pkgs.code-cursor가 존재하지만, Nix store와 /Applications에 각각 설치되어
+    #         Spotlight에 동일 앱이 2개 표시되는 문제 발생. programs.vscode.package로 관리 시
+    #         Nix가 별도 .app 번들을 생성하기 때문. 이를 회피하려면 Homebrew Cask 단독 관리 필요.
+    #         (자세한 내용: .claude/skills/managing-cursor/references/troubleshooting.md)
+    # docker: Docker Desktop은 nixpkgs에 macOS용 패키지 없음 (CLI만 존재)
+    # fork: 상용 Git GUI, nixpkgs에 없음
+    # figma: nixpkgs에 Linux 비공식 래퍼만 존재 (figma-linux), macOS 공식 앱 미지원
+    #
     # 참고: boring-notch는 의도적으로 제외 (수동 설치 cask로 유지, cleanup="none"이므로 삭제되지 않음)
     casks = [
       "codex"
       "cursor"
-      "shottr"
-      "ghostty"
       "raycast"
       "rectangle"
       "hammerspoon"

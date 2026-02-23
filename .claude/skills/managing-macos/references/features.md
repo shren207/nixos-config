@@ -329,8 +329,6 @@ brews = [ "laishulu/homebrew/macism" ];  # ✅ 전체 경로
 | -------------- | -------------------------- |
 | Codex          | AI 코딩 에이전트           |
 | Cursor         | AI 코드 에디터             |
-| Shottr         | 스크린샷                   |
-| Ghostty        | 터미널                     |
 | Raycast        | 런처 (Spotlight 대체)      |
 | Rectangle      | 창 관리                    |
 | Hammerspoon    | 키보드 리매핑/자동화       |
@@ -342,6 +340,24 @@ brews = [ "laishulu/homebrew/macism" ];  # ✅ 전체 경로
 | MonitorControl | 외부 모니터 밝기 조절      |
 
 > **참고**: boring-notch는 의도적으로 선언에서 제외. 수동 설치 cask로 유지하며, cleanup="none"이므로 삭제되지 않음.
+
+### Nix 패키지로 관리하는 GUI 앱
+
+`libraries/packages.nix`의 `darwinOnly`에서 관리됩니다. nixpkgs에 macOS 지원이 있어 Homebrew 대신 Nix로 전환한 앱입니다.
+
+| 앱      | 패키지         | 용도         |
+| ------- | -------------- | ------------ |
+| Ghostty | `pkgs.ghostty` | 터미널       |
+| Shottr  | `pkgs.shottr`  | 스크린샷     |
+
+### Homebrew Cask에서 Nix 전환이 불가능한 앱
+
+| 앱     | 사유 |
+| ------ | ---- |
+| Cursor | `pkgs.code-cursor`가 존재하지만, Nix store와 `/Applications`에 각각 .app이 생성되어 Spotlight에 2개 표시됨. `programs.vscode.package`가 별도 번들을 생성하는 구조적 문제. |
+| Docker | Docker Desktop은 nixpkgs에 macOS용 패키지 없음 (CLI만 존재) |
+| Fork   | 상용 Git GUI, nixpkgs에 없음 |
+| Figma  | nixpkgs에 Linux 비공식 래퍼(`figma-linux`)만 존재, macOS 공식 앱 미지원 |
 
 ### Brew Formula
 
@@ -387,8 +403,8 @@ brew install --cask --adopt cursor:
 # 개별 앱 adopt
 brew install --cask --adopt cursor
 
-# 여러 앱 일괄 adopt
-for cask in cursor shottr ghostty raycast rectangle hammerspoon homerow docker fork slack figma; do
+# 여러 앱 일괄 adopt (Nix 패키지로 관리하는 shottr, ghostty 제외)
+for cask in cursor raycast rectangle hammerspoon homerow docker fork slack figma; do
   brew install --cask --adopt "$cask" || echo "FAILED: $cask"
 done
 
