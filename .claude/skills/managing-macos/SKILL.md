@@ -76,12 +76,12 @@ darwinOnly = [ ... pkgs.패키지명 ];
 ```nix
 # cleanup = "none" — 선언되지 않은 앱을 삭제하지 않음 (수동 설치 cask 보호)
 homebrew.casks = [
-  "codex" "cursor" "raycast" "rectangle"
+  "codex" "cursor" "ghostty" "raycast" "rectangle"
   "hammerspoon" "homerow" "docker"
   "fork" "slack" "figma" "monitorcontrol"
 ];
 homebrew.brews = [ "laishulu/homebrew/macism" ]; # Neovim 한영 전환
-# shottr, ghostty → Nix 패키지로 관리 (libraries/packages.nix darwinOnly)
+# shottr → Nix 패키지로 관리 (libraries/packages.nix darwinOnly)
 ```
 
 **새 Mac 세팅 시**: 직접 설치된 앱은 `brew install --cask --adopt <앱>`으로 Homebrew 관리로 전환 필요.

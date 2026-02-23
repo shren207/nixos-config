@@ -50,13 +50,15 @@
     # brew가 해당 앱의 존재를 모르므로 업데이트/관리가 불가능한 상태로 남는다.
     #
     # [Nix 패키지로 전환한 앱]
-    # shottr, ghostty → libraries/packages.nix darwinOnly로 이동 (nixpkgs에 macOS 지원 있음)
+    # shottr → libraries/packages.nix darwinOnly로 이동 (pkgs.shottr가 macOS .app 번들 포함)
     #
     # [Nix 전환이 불가능한 앱]
     # cursor: pkgs.code-cursor가 존재하지만, Nix store와 /Applications에 각각 설치되어
     #         Spotlight에 동일 앱이 2개 표시되는 문제 발생. programs.vscode.package로 관리 시
     #         Nix가 별도 .app 번들을 생성하기 때문. 이를 회피하려면 Homebrew Cask 단독 관리 필요.
     #         (자세한 내용: .claude/skills/managing-cursor/references/troubleshooting.md)
+    # ghostty: pkgs.ghostty-bin은 CLI 바이너리만 제공하고 macOS .app 번들을 포함하지 않음.
+    #          Ghostty.app은 Homebrew Cask로만 설치 가능.
     # docker: Docker Desktop은 nixpkgs에 macOS용 패키지 없음 (CLI만 존재)
     # fork: 상용 Git GUI, nixpkgs에 없음
     # figma: nixpkgs에 Linux 비공식 래퍼만 존재 (figma-linux), macOS 공식 앱 미지원
@@ -65,6 +67,7 @@
     casks = [
       "codex"
       "cursor"
+      "ghostty"
       "raycast"
       "rectangle"
       "hammerspoon"

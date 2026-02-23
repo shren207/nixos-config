@@ -343,21 +343,21 @@ brews = [ "laishulu/homebrew/macism" ];  # ✅ 전체 경로
 
 ### Nix 패키지로 관리하는 GUI 앱
 
-`libraries/packages.nix`의 `darwinOnly`에서 관리됩니다. nixpkgs에 macOS 지원이 있어 Homebrew 대신 Nix로 전환한 앱입니다.
+`libraries/packages.nix`의 `darwinOnly`에서 관리됩니다. nixpkgs에 macOS .app 번들이 포함되어 있어 Homebrew 대신 Nix로 전환한 앱입니다.
 
 | 앱      | 패키지         | 용도         |
 | ------- | -------------- | ------------ |
-| Ghostty | `pkgs.ghostty` | 터미널       |
 | Shottr  | `pkgs.shottr`  | 스크린샷     |
 
 ### Homebrew Cask에서 Nix 전환이 불가능한 앱
 
-| 앱     | 사유 |
-| ------ | ---- |
-| Cursor | `pkgs.code-cursor`가 존재하지만, Nix store와 `/Applications`에 각각 .app이 생성되어 Spotlight에 2개 표시됨. `programs.vscode.package`가 별도 번들을 생성하는 구조적 문제. |
-| Docker | Docker Desktop은 nixpkgs에 macOS용 패키지 없음 (CLI만 존재) |
-| Fork   | 상용 Git GUI, nixpkgs에 없음 |
-| Figma  | nixpkgs에 Linux 비공식 래퍼(`figma-linux`)만 존재, macOS 공식 앱 미지원 |
+| 앱      | 사유 |
+| ------- | ---- |
+| Cursor  | `pkgs.code-cursor`가 존재하지만, Nix store와 `/Applications`에 각각 .app이 생성되어 Spotlight에 2개 표시됨. `programs.vscode.package`가 별도 번들을 생성하는 구조적 문제. |
+| Ghostty | `pkgs.ghostty-bin`은 CLI 바이너리만 제공하고 macOS .app 번들을 포함하지 않음. Ghostty.app은 Homebrew Cask로만 설치 가능. |
+| Docker  | Docker Desktop은 nixpkgs에 macOS용 패키지 없음 (CLI만 존재) |
+| Fork    | 상용 Git GUI, nixpkgs에 없음 |
+| Figma   | nixpkgs에 Linux 비공식 래퍼(`figma-linux`)만 존재, macOS 공식 앱 미지원 |
 
 ### Brew Formula
 
