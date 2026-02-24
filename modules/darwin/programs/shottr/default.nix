@@ -8,13 +8,18 @@
   config,
   lib,
   constants,
+  hostType,
   ...
 }:
 
 let
   homeDir = config.home.homeDirectory;
   shottrDomain = "cc.ffitch.shottr";
-  shottrDefaultFolder = "${homeDir}/${constants.macos.paths.shottrDefaultFolderRelative}";
+  shottrDefaultFolder =
+    if (hostType == "personal") then
+      "${homeDir}/${constants.macos.paths.shottrDefaultFolderRelative}"
+    else
+      "${homeDir}/FolderActions/screenshots";
   shottrLicensePath = "${config.xdg.configHome}/shottr/license";
 in
 {

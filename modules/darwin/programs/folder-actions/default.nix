@@ -1,10 +1,12 @@
 # Folder Actions - launchd WatchPaths 기반 폴더 감시
-# 감시 폴더: ~/FolderActions/{compress-rar, compress-video, rename-asset, convert-video-to-gif, upload-immich}/
+# 감시 폴더: ~/FolderActions/{compress-rar, compress-video, rename-asset, convert-video-to-gif}/
+# personal 전용: upload-immich (Tailscale/Immich 의존)
 {
   config,
   pkgs,
   lib,
   constants,
+  hostType,
   ...
 }:
 
@@ -12,7 +14,11 @@ let
   scriptsDir = ./files/scripts;
   homeDir = config.home.homeDirectory;
   folderActionsDir = "${homeDir}/FolderActions";
-  shottrDefaultDir = "${homeDir}/${constants.macos.paths.shottrDefaultFolderRelative}";
+  shottrDefaultDir =
+    if (hostType == "personal") then
+      "${homeDir}/${constants.macos.paths.shottrDefaultFolderRelative}"
+    else
+      "${homeDir}/FolderActions/screenshots";
   logsDir = "${homeDir}/Library/Logs/folder-actions";
 in
 {
@@ -34,6 +40,8 @@ in
       source = "${scriptsDir}/convert-video-to-gif.sh";
       executable = true;
     };
+  }
+  // lib.optionalAttrs (hostType == "personal") {
     ".local/bin/upload-immich.sh" = {
       source = "${scriptsDir}/upload-immich.sh";
       executable = true;
@@ -108,8 +116,9 @@ in
         };
       };
     };
-
-    # Immich 자동 업로드 폴더 감시
+  }
+  // lib.optionalAttrs (hostType == "personal") {
+    # Immich 자동 업로드 폴더 감시 (Tailscale 전용)
     folder-action-upload-immich = {
       enable = true;
       config = {

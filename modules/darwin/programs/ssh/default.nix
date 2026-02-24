@@ -1,7 +1,9 @@
 {
   config,
   pkgs,
+  lib,
   constants,
+  hostType,
   ...
 }:
 let
@@ -31,6 +33,8 @@ in
           AddKeysToAgent = "yes";
         };
       };
+    }
+    // lib.optionalAttrs (hostType == "personal") {
       "minipc" = {
         hostname = constants.network.minipcTailscaleIP;
         user = "greenhead";
