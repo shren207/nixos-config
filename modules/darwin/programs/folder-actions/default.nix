@@ -1,5 +1,5 @@
 # Folder Actions - launchd WatchPaths 기반 폴더 감시
-# 감시 폴더: ~/FolderActions/{compress-rar, compress-video, rename-asset, convert-video-to-gif}/
+# 감시 폴더: ~/FolderActions/{compress-rar, compress-video, rename-asset, convert-video-to-gif, upload-immich(personal)}/
 #
 # hostType 분기:
 #   upload-immich 스크립트와 launchd agent는 personal 전용 (hostType == "personal").
