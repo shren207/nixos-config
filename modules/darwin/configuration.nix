@@ -63,8 +63,10 @@
     openssh.authorizedKeys.keys = [
       constants.sshKeys.macbook # Termius 등 외부 기기에서 접속
     ]
+    # MiniPC → Mac SSH 접속용 공개키 — personal 전용
+    # work Mac은 Tailnet 미소속이므로 MiniPC에서 SSH 접속할 일이 없다.
     ++ lib.optionals (hostType == "personal") [
-      constants.sshKeys.minipc # MiniPC에서 접속 (Tailscale 전용)
+      constants.sshKeys.minipc
     ];
   };
 

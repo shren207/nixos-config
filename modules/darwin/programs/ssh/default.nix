@@ -35,6 +35,9 @@ in
       };
     }
     // lib.optionalAttrs (hostType == "personal") {
+      # MiniPC SSH 접속 — personal 전용
+      # MiniPC 홈서버는 Tailscale IP에만 바인딩되어 있어
+      # Tailnet에 속하지 않은 work Mac에서는 접속 불가.
       "minipc" = {
         hostname = constants.network.minipcTailscaleIP;
         user = "greenhead";
