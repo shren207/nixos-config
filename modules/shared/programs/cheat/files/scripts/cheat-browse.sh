@@ -8,7 +8,8 @@ set -euo pipefail
 cheat_cmd="$(command -v cheat 2>/dev/null || echo cheat)"
 fzf_cmd="$(command -v fzf 2>/dev/null || echo fzf)"
 
-SELF="$HOME/.local/bin/cheat-browse"
+# SELF: 배포 환경(~/.local/bin)과 개발 환경(worktree 직접 실행) 모두 지원
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 
 # --content: 모든 시트 내용을 title\t내용줄 형태로 출력
 if [[ "${1:-}" == "--content" ]]; then
