@@ -27,10 +27,10 @@ if [[ "${1:-}" == "--toggle" ]]; then
   state_file="${2:?STATE_FILE required}"
   if [[ "$(cat "$state_file")" == "title" ]]; then
     echo "content" > "$state_file"
-    echo "reload($SELF --content)+change-header(  [content 모드] Ctrl-S: title 모드 전환)+change-prompt(content> )"
+    echo "reload($SELF --content)+change-header(  [content 모드] Ctrl-S: title 모드 전환)+change-prompt(content> )+change-nth(..)"
   else
     echo "title" > "$state_file"
-    echo "reload($cheat_cmd -l | tail -n +2)+change-header(  [title 모드] Ctrl-S: content 모드 전환)+change-prompt(title> )"
+    echo "reload($cheat_cmd -l | tail -n +2)+change-header(  [title 모드] Ctrl-S: content 모드 전환)+change-prompt(title> )+change-nth(1)"
   fi
   exit 0
 fi
@@ -42,6 +42,7 @@ trap 'rm -f "$state_file"' EXIT
 
 "$cheat_cmd" -l | tail -n +2 | "$fzf_cmd" \
   --ansi \
+  --nth 1 \
   --header "  [title 모드] Ctrl-S: content 모드 전환" \
   --prompt "title> " \
   --preview "$cheat_cmd {1}" \
