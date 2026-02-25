@@ -197,7 +197,7 @@ Staleness 방지: `rebuild-common.sh`의 `@flakePath@`는 `nixosConfigDefaultPat
 
 > **주의**: `CustomUserPreferences."com.apple.symbolichotkeys"`는 사용하지 않습니다.
 > nix-darwin이 `defaults write` (dict replace)로 AppleSymbolicHotKeys 전체를 교체하여
-> 기존 ~229개 시스템 기본값을 삭제하기 때문입니다. 대신 postActivation에서
+> 기존 항목(사용자 오버라이드 포함)을 삭제할 수 있기 때문입니다. 대신 postActivation에서
 > `defaults write -dict-add`로 개별 항목만 수정하여 기존 항목을 보존합니다.
 
 **적용 흐름** (`nrs` 실행 시):
