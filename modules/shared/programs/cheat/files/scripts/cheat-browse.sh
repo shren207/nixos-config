@@ -11,6 +11,28 @@ fzf_cmd="$(command -v fzf 2>/dev/null || echo fzf)"
 # SELF: 배포 환경(~/.local/bin)과 개발 환경(worktree 직접 실행) 모두 지원
 SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 
+# --preview TITLE: cheatsheet 내용을 구문 강조하여 출력
+# 섹션 헤더 → bold cyan, 키바인딩 → bold yellow, 설명/본문 → 기본색
+if [[ "${1:-}" == "--preview" ]]; then
+  "$cheat_cmd" "${2:?title required}" 2>/dev/null | awk '
+    /^[^[:space:]]/ && NF > 0 {
+      printf "\033[1;36m%s\033[0m\n", $0; next
+    }
+    /^[[:space:]]+[^[:space:]]/ {
+      n = match($0, /[^[:space:]]/)
+      indent = substr($0, 1, n - 1)
+      rest = substr($0, n)
+      m = match(rest, /  /)
+      if (m > 0) {
+        printf "%s\033[1;33m%s\033[0m%s\n", indent, substr(rest, 1, m - 1), substr(rest, m)
+      } else { print }
+      next
+    }
+    { print }
+  '
+  exit 0
+fi
+
 # --content: 모든 시트 내용을 title\t내용줄 형태로 출력
 if [[ "${1:-}" == "--content" ]]; then
   "$cheat_cmd" -l | awk 'NR>1 {print $1}' | while read -r title; do
@@ -45,7 +67,7 @@ trap 'rm -f "$state_file"' EXIT
   --nth 1 \
   --header "  [title 모드] Ctrl-S: content 모드 전환" \
   --prompt "title> " \
-  --preview "$cheat_cmd {1}" \
+  --preview "$SELF --preview {1}" \
   --preview-window=right:70% \
-  --bind "enter:become($cheat_cmd {1})" \
+  --bind "enter:become($SELF --preview {1} | less -FRX)" \
   --bind "ctrl-s:transform:$SELF --toggle $state_file"
