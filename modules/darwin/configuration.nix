@@ -12,11 +12,11 @@
 let
   # symbolic hotkeys plist XML 헬퍼
   #
-  # nix-darwin CustomUserPreferences는 AppleSymbolicHotKeys 전체를 dict replace하여
-  # 기존 ~229개 시스템 기본값을 삭제한다. 또한 enabled=false + nested value 조합을
-  # 올바르게 직렬화하지 못한다.
+  # nix-darwin CustomUserPreferences는 AppleSymbolicHotKeys dict 전체를 replace하여
+  # 기존 항목(사용자 오버라이드 포함)을 삭제한다. 또한 enabled=false + nested value
+  # 조합을 올바르게 직렬화하지 못한다.
   # 대신 postActivation에서 defaults write -dict-add로 개별 항목만 수정하여
-  # 기존 항목을 보존하고, root 컨텍스트에서 activateSettings를 호출한다.
+  # dict 내 기존 key를 보존하고, root 컨텍스트에서 activateSettings를 호출한다.
   mkHotkey =
     {
       enabled,
@@ -47,7 +47,7 @@ let
       <false/>
     </dict>'';
 
-  asUser = "launchctl asuser \"$(id -u -- ${username})\" sudo --user=${username} --";
+  asUser = "launchctl asuser \"$(id -u -- ${username})\" sudo --user=${username} --set-home --";
 in
 {
   imports = [
@@ -172,7 +172,7 @@ in
     #
     # [주의] CustomUserPreferences가 아닌 postActivation에서 관리.
     # nix-darwin CustomUserPreferences."com.apple.symbolichotkeys"는 defaults write로
-    # AppleSymbolicHotKeys dict 전체를 교체(replace)하여 기존 ~229개 시스템 항목을 삭제한다.
+    # AppleSymbolicHotKeys dict 전체를 교체(replace)하여 기존 항목(사용자 오버라이드 포함)을 삭제한다.
     # 또한 enabled=false + nested value 조합을 올바르게 직렬화하지 못한다.
     # 대신 postActivation에서 defaults write -dict-add로 개별 항목만 수정한다.
 
@@ -200,7 +200,7 @@ in
 
     # === macOS 키보드 단축키 (Symbolic Hotkeys) ===
     #
-    # defaults write -dict-add로 개별 항목만 수정하여 기존 ~229개 시스템 항목을 보존.
+    # defaults write -dict-add로 개별 항목만 수정하여 dict 내 기존 key를 보존.
     # CustomUserPreferences."com.apple.symbolichotkeys"는 dict 전체를 교체하므로 사용하지 않음.
     #
     # Symbolic Hotkeys ID:
@@ -330,9 +330,12 @@ in
     /Applications/Hammerspoon.app/Contents/Frameworks/hs/hs -c "hs.reload()" 2>/dev/null || true
 
     # Shottr 재시작 (activateSettings로 symbolic hotkeys 반영 후)
-    killall Shottr 2>/dev/null || true
-    sleep 1
-    ${asUser} /usr/bin/open -a Shottr
+    # Shottr 미설치/GUI 세션 없음(SSH) 등에서 실패해도 activation을 중단하지 않음
+    if pgrep -x Shottr >/dev/null 2>&1; then
+      killall Shottr 2>/dev/null || true
+      sleep 1
+      ${asUser} /usr/bin/open -a Shottr 2>/dev/null || echo "경고: Shottr 재시작 실패 (GUI 세션 없음?)"
+    fi
   '';
 
   system.primaryUser = username;
