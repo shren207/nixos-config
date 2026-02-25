@@ -17,7 +17,7 @@ if [[ "${1:-}" == "--content" ]]; then
     "$cheat_cmd" "$title" 2>/dev/null | while IFS= read -r line; do
       [[ -z "$line" ]] && continue
       printf '%s\t%s\n' "$title" "$line"
-    done
+    done || true
   done
   exit 0
 fi
