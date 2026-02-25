@@ -7,5 +7,7 @@ cheat_cmd="$(command -v cheat 2>/dev/null || echo cheat)"
 fzf_cmd="$(command -v fzf 2>/dev/null || echo fzf)"
 
 "$cheat_cmd" -l | "$fzf_cmd" \
-  --preview "$cheat_cmd {}" \
-  --preview-window=right:70%
+  --header-lines=1 \
+  --preview "$cheat_cmd {1}" \
+  --preview-window=right:70% \
+  --bind "enter:become($cheat_cmd {1})"
