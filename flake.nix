@@ -189,6 +189,9 @@
               inputs.agenix.packages.${system}.default
             ];
             shellHook = ''
+              # worktree 환경에서 공유 config에 남은 core.hooksPath를 정리
+              # (lefthook 2.x는 core.hooksPath 없이 .git/hooks/에 직접 설치)
+              git config --unset-all --local core.hooksPath 2>/dev/null || true
               lefthook install 2>/dev/null || true
             '';
           };
