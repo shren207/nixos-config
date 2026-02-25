@@ -52,7 +52,7 @@ if [[ "${1:-}" == "--toggle" ]]; then
     echo "reload($SELF --content)+change-header(  [content 모드] Ctrl-S: title 모드 전환)+change-prompt(content> )+change-nth(..)"
   else
     echo "title" > "$state_file"
-    echo "reload($cheat_cmd -l | tail -n +2)+change-header(  [title 모드] Ctrl-S: content 모드 전환)+change-prompt(title> )+change-nth(1)"
+    echo "reload($cheat_cmd -l | awk 'NR>1 {print \$1}')+change-header(  [title 모드] Ctrl-S: content 모드 전환)+change-prompt(title> )+change-nth(..)"
   fi
   exit 0
 fi
@@ -62,9 +62,8 @@ state_file="$(mktemp)"
 echo "title" > "$state_file"
 trap 'rm -f "$state_file"' EXIT
 
-"$cheat_cmd" -l | tail -n +2 | "$fzf_cmd" \
+"$cheat_cmd" -l | awk 'NR>1 {print $1}' | "$fzf_cmd" \
   --ansi \
-  --nth 1 \
   --header "  [title 모드] Ctrl-S: content 모드 전환" \
   --prompt "title> " \
   --preview "$SELF --preview {1}" \
