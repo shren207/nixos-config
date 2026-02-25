@@ -314,6 +314,7 @@ ls "/Library/Fonts/Nix Fonts/"
 
 # 폰트 목록에서 확인
 fc-list | grep -i "JetBrains"
+fc-list | grep -i "D2Coding"
 ```
 
 ## GUI 앱 (Homebrew Casks)
