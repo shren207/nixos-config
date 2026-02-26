@@ -426,7 +426,7 @@ handle_existing_lock() {
         age=$(calc_age "$TOKEN_STARTED_AT" "$now")
         state=$(classify_liveness "$TOKEN_PID" "$TOKEN_PROC_START")
 
-        if [ "$state" = "dead" ] && [ "$age" -gt "$LOCK_TTL_SECONDS" ]; then
+        if [ "$state" = "dead" ]; then
             try_reclaim_lock "dead owner (age=${age}s)"
             rc=$?
             handle_reclaim_result_or_exit "$rc"
@@ -442,11 +442,6 @@ handle_existing_lock() {
 
         if [ "$state" = "alive" ]; then
             log_info "Lock held by active process (pid=${TOKEN_PID}); exiting"
-            exit 0
-        fi
-
-        if [ "$state" = "dead" ]; then
-            log_info "Dead lock is younger than ttl (${age}s <= ${LOCK_TTL_SECONDS}s); exiting"
             exit 0
         fi
 
