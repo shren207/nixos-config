@@ -18,7 +18,7 @@ if [[ "$(uname)" == "Darwin" ]]; then
   HOST=$(scutil --get LocalHostName)
   ATTR="darwinConfigurations.\"${HOST}\".config.system.build.toplevel"
 else
-  HOST=$(hostname)
+  HOST=$(hostname -s)
   ATTR="nixosConfigurations.\"${HOST}\".config.system.build.toplevel"
 fi
 
@@ -30,27 +30,31 @@ echo "대상: ${HOST}"
 
 for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
   echo ""
-  echo "빌드 검증 중... (${round}/$((MAX_ROUNDS+1)))"
+  if (( round <= MAX_ROUNDS )); then
+    echo "빌드 검증 중... (${round}/${MAX_ROUNDS})"
+  else
+    echo "최종 검증 빌드..."
+  fi
 
-  stderr=""
-  if stderr=$(nix build ".#${ATTR}" --no-link 2>&1); then
+  build_output=""
+  if build_output=$(nix build ".#${ATTR}" --no-link 2>&1); then
     break
   fi
 
   # 최대 수정 횟수 도달 — 더 이상 수정 없이 실패
   if (( round > MAX_ROUNDS )); then
     echo "❌ ${MAX_ROUNDS}회 수정 후에도 빌드 실패:"
-    echo "$stderr" | tail -20
+    echo "$build_output" | tail -20
     exit 1
   fi
 
   # hash mismatch 파싱 (nix 출력 형식: "  specified: sha256-..." / "  got: sha256-...")
-  mapfile -t old_hashes < <(awk '/specified:.*sha256-/{print $2}' <<< "$stderr")
-  mapfile -t new_hashes < <(awk '/got:.*sha256-/{print $2}' <<< "$stderr")
+  mapfile -t old_hashes < <(awk '/specified:.*sha256-/{print $2}' <<< "$build_output")
+  mapfile -t new_hashes < <(awk '/got:.*sha256-/{print $2}' <<< "$build_output")
 
   if (( ${#old_hashes[@]} == 0 )); then
     echo "❌ hash mismatch가 아닌 빌드 에러:"
-    echo "$stderr" | tail -20
+    echo "$build_output" | tail -20
     exit 1
   fi
 
@@ -58,7 +62,8 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
     old="${old_hashes[$i]}"
     new="${new_hashes[$i]}"
 
-    file=$(grep -rl --include='*.nix' "$old" . | head -1 || true)
+    # -F: 고정 문자열 매칭 (hash를 정규식으로 해석하지 않음)
+    file=$(grep -Frl --include='*.nix' "$old" . | head -1 || true)
     if [[ -z "$file" ]]; then
       echo "❌ hash를 포함하는 .nix 파일을 찾을 수 없음: $old"
       exit 1
@@ -66,7 +71,10 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
 
     echo "  수정: ${file#./}"
     echo "    ${old} → ${new}"
-    sed -i "s|${old}|${new}|" "$file"
+    # Nix SRI hash는 [A-Za-z0-9+/=-]만 포함하여 sed 구분자 '|'와 충돌 없음.
+    # macOS BSD sed 호환을 위해 tmpfile 패턴 사용.
+    tmp=$(mktemp)
+    sed "s|${old}|${new}|" "$file" > "$tmp" && mv "$tmp" "$file"
     ((fixed++))
   done
 done

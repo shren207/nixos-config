@@ -28,6 +28,4 @@ git diff flake.lock
 
 echo
 echo "═══ FOD Hash 자동 검증 ═══"
-if ! "$SCRIPT_DIR/fix-fod-hashes.sh"; then
-  echo "⚠  FOD 검증 실패 — 빌드 에러를 확인하세요"
-fi
+"$SCRIPT_DIR/fix-fod-hashes.sh"
