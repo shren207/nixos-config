@@ -60,19 +60,19 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
 
   # hash mismatch 블록 단위 파싱:
   #   "hash mismatch in fixed-output derivation" → specified → got 순서로 1쌍씩 추출
+  #   SRI(sha256-xxx) 및 legacy(sha256:xxx) 양쪽 포맷 대응
   # Bash 3.2 호환을 위해 mapfile 대신 while-read 사용
   pairs=()
   while IFS= read -r pair; do
     [[ -n "$pair" ]] && pairs+=("$pair")
-  # SRI hash 패턴: sha256/sha512/sha1 등 모든 알고리즘 대응
   done < <(awk '
     /hash mismatch in fixed-output derivation/ { in_block=1; old=""; next }
     in_block && /specified:/ {
-      if (match($0, /sha[0-9]+-[A-Za-z0-9+\/=-]+/)) old=substr($0, RSTART, RLENGTH)
+      if (match($0, /sha[0-9]+[-:][A-Za-z0-9+\/=_-]+/)) old=substr($0, RSTART, RLENGTH)
       next
     }
     in_block && /got:/ {
-      if (old != "" && match($0, /sha[0-9]+-[A-Za-z0-9+\/=-]+/))
+      if (old != "" && match($0, /sha[0-9]+[-:][A-Za-z0-9+\/=_-]+/))
         print old, substr($0, RSTART, RLENGTH)
       in_block=0
     }
@@ -85,7 +85,10 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
   fi
 
   # Phase 1: 모든 pair의 타깃 파일 검증 (치환 전 실패 시 워킹트리 오염 방지)
-  replacements=()  # "old new file" 형태로 저장
+  # 평행 배열로 보관하여 파일 경로의 공백에도 안전
+  r_olds=()
+  r_news=()
+  r_files=()
   for pair in "${pairs[@]}"; do
     old="${pair%% *}"
     new="${pair##* }"
@@ -110,21 +113,23 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
       exit 1
     fi
 
-    replacements+=("${old} ${new} ${matches[0]}")
+    r_olds+=("$old")
+    r_news+=("$new")
+    r_files+=("${matches[0]}")
   done
 
   # Phase 2: 검증 통과 후 일괄 치환
-  for entry in "${replacements[@]}"; do
-    old="${entry%% *}"
-    rest="${entry#* }"
-    new="${rest%% *}"
-    file="${rest#* }"
+  for (( i=0; i<${#r_olds[@]}; i++ )); do
+    old="${r_olds[$i]}"
+    new="${r_news[$i]}"
+    file="${r_files[$i]}"
 
     echo "  수정: ${file#./}"
     echo "    ${old} → ${new}"
     # Nix SRI hash는 [A-Za-z0-9+/=-]만 포함하여 sed 구분자 '|'와 충돌 없음.
     # macOS BSD sed 호환을 위해 tmpfile 패턴 사용. g 플래그로 파일 내 모든 매치 교체.
     tmp=$(mktemp)
+    trap 'rm -f "$tmp"' EXIT
     sed "s|${old}|${new}|g" "$file" > "$tmp" && mv "$tmp" "$file"
     fixed=$((fixed + 1))
     modified_files+=("$file")
