@@ -66,12 +66,19 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
     [[ -n "$pair" ]] && pairs+=("$pair")
   done < <(awk '
     /hash mismatch in fixed-output derivation/ { in_block=1; old=""; next }
-    in_block && /specified:/ { old=$2; next }
-    in_block && /got:/ { if (old != "") print old, $2; in_block=0 }
+    in_block && /specified:/ {
+      if (match($0, /sha256-[A-Za-z0-9+\/=-]+/)) old=substr($0, RSTART, RLENGTH)
+      next
+    }
+    in_block && /got:/ {
+      if (old != "" && match($0, /sha256-[A-Za-z0-9+\/=-]+/))
+        print old, substr($0, RSTART, RLENGTH)
+      in_block=0
+    }
   ' <<< "$build_output" | sort -u)
 
   if (( ${#pairs[@]} == 0 )); then
-    echo "❌ hash mismatch가 아닌 빌드 에러:"
+    echo "❌ hash mismatch가 아닌 빌드 에러 (attr: ${ATTR}):"
     echo "$build_output" | tail -20
     exit 1
   fi
@@ -93,6 +100,8 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
       exit 1
     fi
     if (( match_count > 1 )); then
+      # 안전장치: 동일 hash가 여러 파일에 있으면 의도치 않은 치환 방지를 위해 중단.
+      # FOD hash는 derivation별로 고유하므로 multi-match는 비정상 상태를 의미함.
       echo "❌ hash가 ${match_count}개 파일에서 발견됨 — 수동 확인 필요: $old"
       printf '  %s\n' "${matches[@]}"
       exit 1
