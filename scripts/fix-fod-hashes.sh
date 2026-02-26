@@ -89,21 +89,37 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
   r_olds=()
   r_news=()
   r_files=()
+  # 동일 old hash에 서로 다른 new hash가 매핑되면 충돌 — 수동 확인 필요
+  seen_olds=()
   for pair in "${pairs[@]}"; do
     old="${pair%% *}"
     new="${pair##* }"
+    for seen in "${seen_olds[@]+"${seen_olds[@]}"}"; do
+      if [[ "${seen%% *}" == "$old" && "${seen##* }" != "$new" ]]; then
+        echo "❌ 동일 hash에 서로 다른 대체값이 매핑됨 — 수동 확인 필요: $old"
+        exit 1
+      fi
+    done
+    seen_olds+=("$old $new")
 
     # git grep: tracked + untracked 파일 대상 (gitignored 제외)
     # exit code: 0=매치, 1=미매치, 2+=실행 오류
-    matches=()
+    # 주의: process substitution은 exit code를 전파하지 않으므로 변수 캡처 사용
+    grep_output=""
     grep_exit=0
-    while IFS= read -r f; do
-      [[ -n "$f" ]] && matches+=("$f")
-    done < <(git grep --untracked --exclude-standard -Fl -- "$old" -- '*.nix' 2>/tmp/fod-grep-err) || grep_exit=$?
+    grep_output=$(git grep --untracked --exclude-standard -Fl -- "$old" -- '*.nix' 2>&1) || grep_exit=$?
     if (( grep_exit > 1 )); then
       echo "❌ git grep 실행 오류:"
-      cat /tmp/fod-grep-err
+      echo "$grep_output"
       exit 1
+    fi
+    matches=()
+    while IFS= read -r f; do
+      [[ -n "$f" ]] && matches+=("$f")
+    done <<< "$grep_output"
+    # grep exit 1 (미매치) 시 빈 줄이 들어올 수 있으므로 빈 요소 제거
+    if [[ ${#matches[@]} -eq 1 && -z "${matches[0]}" ]]; then
+      matches=()
     fi
     match_count=${#matches[@]}
 
