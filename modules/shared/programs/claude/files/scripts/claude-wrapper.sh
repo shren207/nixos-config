@@ -72,10 +72,12 @@ if acquire_lock; then
     if [ -n "$tmp" ]; then
       if jq --arg p "$cwd" '
         .projects |= ((. // {}) |
-          .[$p] = ((.[$p] // { allowedTools: [] }) + {
-            hasTrustDialogAccepted: true,
-            hasTrustDialogHooksAccepted: true
-          })
+          if (.[$p] == null) or ((.[$p] | type) == "object") then
+            .[$p] = ((.[$p] // { allowedTools: [] }) + {
+              hasTrustDialogAccepted: true,
+              hasTrustDialogHooksAccepted: true
+            })
+          else . end
         )
       ' "$cfg" > "$tmp" 2>/dev/null && [ -s "$tmp" ] && jq empty "$tmp" >/dev/null 2>&1; then
         mv -- "$tmp" "$cfg" 2>/dev/null || true
