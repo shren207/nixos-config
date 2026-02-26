@@ -93,12 +93,18 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
     old="${pair%% *}"
     new="${pair##* }"
 
-    # git grep: 추적 파일만 대상, 파일명 안전 처리, 파이프 불필요
-    # || true: 매치 0개일 때 set -e 방어
+    # git grep: tracked + untracked 파일 대상 (gitignored 제외)
+    # exit code: 0=매치, 1=미매치, 2+=실행 오류
     matches=()
+    grep_exit=0
     while IFS= read -r f; do
       [[ -n "$f" ]] && matches+=("$f")
-    done < <(git grep -Fl -- "$old" -- '*.nix' 2>/dev/null || true)
+    done < <(git grep --untracked --exclude-standard -Fl -- "$old" -- '*.nix' 2>/tmp/fod-grep-err) || grep_exit=$?
+    if (( grep_exit > 1 )); then
+      echo "❌ git grep 실행 오류:"
+      cat /tmp/fod-grep-err
+      exit 1
+    fi
     match_count=${#matches[@]}
 
     if (( match_count == 0 )); then
