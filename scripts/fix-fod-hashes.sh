@@ -73,12 +73,12 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
     old="${pair%% *}"
     new="${pair##* }"
 
-    # git ls-files: 추적 파일만 대상 (비의도 파일 수정 방지)
+    # git grep: 추적 파일만 대상, 파일명 안전 처리, 파이프 불필요
     # || true: 매치 0개일 때 set -e 방어
     matches=()
     while IFS= read -r f; do
       [[ -n "$f" ]] && matches+=("$f")
-    done < <(git ls-files '*.nix' | xargs grep -Fl -- "$old" 2>/dev/null || true)
+    done < <(git grep -Fl -- "$old" -- '*.nix' 2>/dev/null || true)
     match_count=${#matches[@]}
 
     if (( match_count == 0 )); then

@@ -28,3 +28,4 @@ git diff flake.lock
 
 echo
 echo "💡 FOD hash mismatch 수동 수정: ./scripts/fix-fod-hashes.sh"
+echo "   (현재 호스트만 검증됨 — NixOS/macOS 각 머신에서 별도 실행 필요)"
