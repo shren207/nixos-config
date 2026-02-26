@@ -152,7 +152,10 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
     # macOS BSD sed 호환을 위해 tmpfile 패턴 사용. g 플래그로 파일 내 모든 매치 교체.
     tmp=$(mktemp)
     trap 'rm -f "$tmp"' EXIT
-    sed "s|${old}|${new}|g" "$file" > "$tmp" && mv "$tmp" "$file"
+    # sed와 mv를 분리하여 set -e가 각각에 적용되도록 함
+    # (AND-list에서는 좌변 실패가 errexit을 트리거하지 않음)
+    sed "s|${old}|${new}|g" "$file" > "$tmp"
+    mv "$tmp" "$file"
     fixed=$((fixed + 1))
     modified_files+=("$file")
   done
