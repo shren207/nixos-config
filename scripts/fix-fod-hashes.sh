@@ -14,6 +14,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 # 현재 시스템의 flake output attribute 결정
+# 주의: 현재 호스트의 config만 검증. 크로스플랫폼 빌드(예: macOS에서 NixOS config)는
+# 원격 빌더가 필요하므로 각 머신에서 개별 실행해야 함.
 if [[ "$(uname)" == "Darwin" ]]; then
   HOST=$(scutil --get LocalHostName)
   ATTR="darwinConfigurations.\"${HOST}\".config.system.build.toplevel"
@@ -77,12 +79,12 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
     old="${old_hashes[$i]}"
     new="${new_hashes[$i]}"
 
-    # -F: 고정 문자열 매칭 (hash를 정규식으로 해석하지 않음)
-    # || true: 매치 0개일 때 set -e/pipefail 방어
+    # find + grep -Fl: POSIX 호환 (macOS BSD grep에 --include 없음)
+    # || true: 매치 0개일 때 set -e 방어
     matches=()
     while IFS= read -r f; do
       [[ -n "$f" ]] && matches+=("$f")
-    done < <(grep -Frl --include='*.nix' "$old" . || true)
+    done < <(find . -name '*.nix' -type f -exec grep -Fl -- "$old" {} + 2>/dev/null || true)
     match_count=${#matches[@]}
 
     if (( match_count == 0 )); then
