@@ -64,14 +64,15 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
   pairs=()
   while IFS= read -r pair; do
     [[ -n "$pair" ]] && pairs+=("$pair")
+  # SRI hash 패턴: sha256/sha512/sha1 등 모든 알고리즘 대응
   done < <(awk '
     /hash mismatch in fixed-output derivation/ { in_block=1; old=""; next }
     in_block && /specified:/ {
-      if (match($0, /sha256-[A-Za-z0-9+\/=-]+/)) old=substr($0, RSTART, RLENGTH)
+      if (match($0, /sha[0-9]+-[A-Za-z0-9+\/=-]+/)) old=substr($0, RSTART, RLENGTH)
       next
     }
     in_block && /got:/ {
-      if (old != "" && match($0, /sha256-[A-Za-z0-9+\/=-]+/))
+      if (old != "" && match($0, /sha[0-9]+-[A-Za-z0-9+\/=-]+/))
         print old, substr($0, RSTART, RLENGTH)
       in_block=0
     }
@@ -83,6 +84,8 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
     exit 1
   fi
 
+  # Phase 1: 모든 pair의 타깃 파일 검증 (치환 전 실패 시 워킹트리 오염 방지)
+  replacements=()  # "old new file" 형태로 저장
   for pair in "${pairs[@]}"; do
     old="${pair%% *}"
     new="${pair##* }"
@@ -107,7 +110,16 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
       exit 1
     fi
 
-    file="${matches[0]}"
+    replacements+=("${old} ${new} ${matches[0]}")
+  done
+
+  # Phase 2: 검증 통과 후 일괄 치환
+  for entry in "${replacements[@]}"; do
+    old="${entry%% *}"
+    rest="${entry#* }"
+    new="${rest%% *}"
+    file="${rest#* }"
+
     echo "  수정: ${file#./}"
     echo "    ${old} → ${new}"
     # Nix SRI hash는 [A-Za-z0-9+/=-]만 포함하여 sed 구분자 '|'와 충돌 없음.
