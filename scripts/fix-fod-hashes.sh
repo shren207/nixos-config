@@ -5,6 +5,13 @@
 # nixpkgs 등 input 업데이트 후 FOD hash가 깨지면
 # 빌드 에러에서 올바른 hash를 추출해 .nix 파일을 자동 교체한다.
 #
+# ── 제한사항 ──
+# 이 스크립트는 현재 실행 머신의 config만 빌드하여 검증한다.
+#   - Mac에서 실행  → darwinConfigurations만 검증 (NixOS FOD 감지 불가)
+#   - MiniPC에서 실행 → nixosConfigurations만 검증 (macOS FOD 감지 불가)
+# 따라서 "예방"이 아니라 "빌드 실패 시 수동 hash 교체를 자동화"하는 도구다.
+# 전체 플랫폼을 커버하려면 각 머신에서 개별 실행해야 한다.
+#
 # 사용법:
 #   ./scripts/fix-fod-hashes.sh          # 독립 실행
 #   nix flake update 후 수동 실행 권장 (update-input.sh 안내 참조)
@@ -14,8 +21,6 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 # 현재 시스템의 flake output attribute 결정
-# 주의: 현재 호스트의 config만 검증. 크로스플랫폼 빌드(예: macOS에서 NixOS config)는
-# 원격 빌더가 필요하므로 각 머신에서 개별 실행해야 함.
 # flake.nix 규칙: hostname = flake attr 키 (nixos-rebuild/darwin-rebuild과 동일 방식)
 if [[ "$(uname)" == "Darwin" ]]; then
   HOST=$(scutil --get LocalHostName)
