@@ -70,7 +70,11 @@ classify_liveness() {
     fi
 
     if ! ps_out=$(LC_ALL=C /bin/ps -p "$pid" -o lstart= 2>/dev/null); then
-        printf '%s\n' "uncertain"
+        if LC_ALL=C /bin/kill -0 "$pid" 2>/dev/null; then
+            printf '%s\n' "uncertain"
+        else
+            printf '%s\n' "dead"
+        fi
         return 0
     fi
 
@@ -102,7 +106,11 @@ classify_pid_only_liveness() {
     fi
 
     if ! ps_out=$(LC_ALL=C /bin/ps -p "$pid" -o lstart= 2>/dev/null); then
-        printf '%s\n' "uncertain"
+        if LC_ALL=C /bin/kill -0 "$pid" 2>/dev/null; then
+            printf '%s\n' "alive"
+        else
+            printf '%s\n' "dead"
+        fi
         return 0
     fi
 

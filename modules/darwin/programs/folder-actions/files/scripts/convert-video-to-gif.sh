@@ -78,7 +78,11 @@ classify_liveness() {
     fi
 
     if ! ps_out=$(LC_ALL=C /bin/ps -p "$pid" -o lstart= 2>/dev/null); then
-        printf '%s\n' "uncertain"
+        if LC_ALL=C /bin/kill -0 "$pid" 2>/dev/null; then
+            printf '%s\n' "uncertain"
+        else
+            printf '%s\n' "dead"
+        fi
         return 0
     fi
 
@@ -110,7 +114,11 @@ classify_pid_only_liveness() {
     fi
 
     if ! ps_out=$(LC_ALL=C /bin/ps -p "$pid" -o lstart= 2>/dev/null); then
-        printf '%s\n' "uncertain"
+        if LC_ALL=C /bin/kill -0 "$pid" 2>/dev/null; then
+            printf '%s\n' "alive"
+        else
+            printf '%s\n' "dead"
+        fi
         return 0
     fi
 
@@ -585,8 +593,9 @@ find "$WATCH_DIR" -type f -maxdepth 1 \( -iname "*.mp4" -o -iname "*.mov" -o -in
     [ -f "$f" ] || continue
 
     filename=$(basename "$f")
-    timestamp=$(/bin/date +"%Y%m%dT%H%M%S%3N")
-    output_path="${DEST_DIR}/${timestamp}.gif"
+    timestamp=$(/bin/date +"%Y%m%dT%H%M%S")
+    output_filename="${timestamp}_${CURRENT_PID}_$RANDOM.gif"
+    output_path="${DEST_DIR}/${output_filename}"
 
     log_info "GIF 변환 시작: $filename (${FPS}fps, ${WIDTH}px)"
 
@@ -598,7 +607,7 @@ find "$WATCH_DIR" -type f -maxdepth 1 \( -iname "*.mp4" -o -iname "*.mov" -o -in
 
         # 원본 삭제
         /bin/rm -f "$f"
-        log_info "GIF 변환 완료: $filename -> ${timestamp}.gif"
+        log_info "GIF 변환 완료: $filename -> ${output_filename}"
     else
         log_error "GIF 변환 실패: $filename"
     fi
