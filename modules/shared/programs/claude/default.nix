@@ -55,57 +55,63 @@ in
     cfg="$HOME/.claude.json"
     lockdir="''${cfg}.lock"
 
-    # 파일 없거나 비어있으면 skip
-    [ -s "$cfg" ] || exit 0
+    # 파일 없거나 비어있으면 skip (서브쉘이 아닌 조건문으로 처리)
+    if [ -s "$cfg" ]; then
 
-    # mkdir 기반 lock (macOS/Linux 모두 POSIX 원자적)
-    acquire_lock() {
-      local waited=0
-      while ! mkdir -- "$lockdir" 2>/dev/null; do
-        if [ -f "$lockdir/pid" ]; then
-          local other_pid
-          other_pid=$(cat "$lockdir/pid" 2>/dev/null || echo "")
-          if [ -n "$other_pid" ] && ! kill -0 "$other_pid" 2>/dev/null; then
+      # mkdir 기반 lock (macOS/Linux 모두 POSIX 원자적)
+      acquire_lock() {
+        local waited=0
+        while ! mkdir -- "$lockdir" 2>/dev/null; do
+          if [ -f "$lockdir/pid" ]; then
+            local other_pid
+            other_pid=$(cat "$lockdir/pid" 2>/dev/null || echo "")
+            if [ -n "$other_pid" ] && ! kill -0 "$other_pid" 2>/dev/null; then
+              rm -rf -- "$lockdir"
+              continue
+            fi
+          elif [ -d "$lockdir" ]; then
+            # PID 파일 없는 stale lock: 즉시 제거
             rm -rf -- "$lockdir"
             continue
           fi
-        fi
-        waited=$((waited + 1))
-        if [ "$waited" -ge 100 ]; then
-          echo "ensureClaudeHooksTrust: lock timeout, skipping"
-          return 1
-        fi
-        sleep 0.1
-      done
-      echo $$ > "$lockdir/pid"
-      return 0
-    }
+          waited=$((waited + 1))
+          if [ "$waited" -ge 100 ]; then
+            echo "ensureClaudeHooksTrust: lock timeout, skipping"
+            return 1
+          fi
+          sleep 0.1
+        done
+        echo $$ > "$lockdir/pid"
+        return 0
+      }
 
-    if acquire_lock; then
-      tmp=$(mktemp "''${cfg}.tmp.XXXXXX")
-      trap 'rm -f "$tmp"; rm -rf -- "$lockdir"' EXIT INT TERM
+      if acquire_lock; then
+        tmp=$(mktemp "''${cfg}.tmp.XXXXXX")
+        trap 'rm -f "$tmp"; rm -rf -- "$lockdir"' EXIT INT TERM
 
-      if $DRY_RUN_CMD ${jqBin} '
-        if (.projects | type) != "object" then .
-        else
-          .projects |= with_entries(
-            .value |= (
-              if (type == "object")
-              then . + { hasTrustDialogAccepted: true, hasTrustDialogHooksAccepted: true }
-              else .
-              end
+        if $DRY_RUN_CMD ${jqBin} '
+          if (.projects | type) != "object" then .
+          else
+            .projects |= with_entries(
+              .value |= (
+                if (type == "object")
+                then . + { hasTrustDialogAccepted: true, hasTrustDialogHooksAccepted: true }
+                else .
+                end
+              )
             )
-          )
-        end
-      ' "$cfg" > "$tmp" && ${jqBin} empty "$tmp" >/dev/null 2>&1; then
-        $DRY_RUN_CMD mv -- "$tmp" "$cfg"
-      else
-        echo "ensureClaudeHooksTrust: jq patch failed, skipping"
-        rm -f "$tmp"
+          end
+        ' "$cfg" > "$tmp" && [ -s "$tmp" ] && ${jqBin} empty "$tmp" >/dev/null 2>&1; then
+          $DRY_RUN_CMD mv -- "$tmp" "$cfg"
+        else
+          echo "ensureClaudeHooksTrust: jq patch failed, skipping"
+          rm -f "$tmp"
+        fi
+
+        rm -rf -- "$lockdir"
+        trap - EXIT INT TERM
       fi
 
-      rm -rf -- "$lockdir"
-      trap - EXIT INT TERM
     fi
   '';
 
