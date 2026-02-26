@@ -16,6 +16,7 @@ cd "$ROOT_DIR"
 # 현재 시스템의 flake output attribute 결정
 # 주의: 현재 호스트의 config만 검증. 크로스플랫폼 빌드(예: macOS에서 NixOS config)는
 # 원격 빌더가 필요하므로 각 머신에서 개별 실행해야 함.
+# flake.nix 규칙: hostname = flake attr 키 (nixos-rebuild/darwin-rebuild과 동일 방식)
 if [[ "$(uname)" == "Darwin" ]]; then
   HOST=$(scutil --get LocalHostName)
   ATTR="darwinConfigurations.\"${HOST}\".config.system.build.toplevel"
@@ -50,41 +51,34 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
     exit 1
   fi
 
-  # hash mismatch 파싱 (nix 출력 형식: "  specified: <hash>" / "  got: <hash>")
+  # hash mismatch 블록 단위 파싱:
+  #   "hash mismatch in fixed-output derivation" → specified → got 순서로 1쌍씩 추출
   # Bash 3.2 호환을 위해 mapfile 대신 while-read 사용
-  old_hashes=()
-  while IFS= read -r h; do
-    old_hashes+=("$h")
-  done < <(awk '/^[[:space:]]+specified:/{print $2}' <<< "$build_output")
+  pairs=()
+  while IFS= read -r pair; do
+    [[ -n "$pair" ]] && pairs+=("$pair")
+  done < <(awk '
+    /hash mismatch in fixed-output derivation/ { in_block=1; next }
+    in_block && /specified:/ { old=$2; next }
+    in_block && /got:/ { print old, $2; in_block=0 }
+  ' <<< "$build_output")
 
-  new_hashes=()
-  while IFS= read -r h; do
-    new_hashes+=("$h")
-  done < <(awk '/^[[:space:]]+got:/{print $2}' <<< "$build_output")
-
-  if (( ${#old_hashes[@]} == 0 )); then
+  if (( ${#pairs[@]} == 0 )); then
     echo "❌ hash mismatch가 아닌 빌드 에러:"
     echo "$build_output" | tail -20
     exit 1
   fi
 
-  # specified/got 쌍 개수 검증
-  if (( ${#old_hashes[@]} != ${#new_hashes[@]} )); then
-    echo "❌ specified(${#old_hashes[@]})와 got(${#new_hashes[@]}) 개수 불일치 — 수동 확인 필요"
-    echo "$build_output" | tail -20
-    exit 1
-  fi
+  for pair in "${pairs[@]}"; do
+    old="${pair%% *}"
+    new="${pair##* }"
 
-  for i in "${!old_hashes[@]}"; do
-    old="${old_hashes[$i]}"
-    new="${new_hashes[$i]}"
-
-    # find + grep -Fl: POSIX 호환 (macOS BSD grep에 --include 없음)
+    # git ls-files: 추적 파일만 대상 (비의도 파일 수정 방지)
     # || true: 매치 0개일 때 set -e 방어
     matches=()
     while IFS= read -r f; do
       [[ -n "$f" ]] && matches+=("$f")
-    done < <(find . -name '*.nix' -type f -exec grep -Fl -- "$old" {} + 2>/dev/null || true)
+    done < <(git ls-files '*.nix' | xargs grep -Fl -- "$old" 2>/dev/null || true)
     match_count=${#matches[@]}
 
     if (( match_count == 0 )); then
@@ -101,9 +95,9 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
     echo "  수정: ${file#./}"
     echo "    ${old} → ${new}"
     # Nix SRI hash는 [A-Za-z0-9+/=-]만 포함하여 sed 구분자 '|'와 충돌 없음.
-    # macOS BSD sed 호환을 위해 tmpfile 패턴 사용.
+    # macOS BSD sed 호환을 위해 tmpfile 패턴 사용. g 플래그로 파일 내 모든 매치 교체.
     tmp=$(mktemp)
-    sed "s|${old}|${new}|" "$file" > "$tmp" && mv "$tmp" "$file"
+    sed "s|${old}|${new}|g" "$file" > "$tmp" && mv "$tmp" "$file"
     fixed=$((fixed + 1))
   done
 done
