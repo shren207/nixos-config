@@ -7,7 +7,7 @@
 #
 # 사용법:
 #   ./scripts/fix-fod-hashes.sh          # 독립 실행
-#   ./scripts/update-input.sh nixpkgs    # 내부에서 자동 호출
+#   nix flake update 후 수동 실행 권장 (update-input.sh 안내 참조)
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -48,9 +48,17 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
     exit 1
   fi
 
-  # hash mismatch 파싱 (nix 출력 형식: "  specified: sha256-..." / "  got: sha256-...")
-  mapfile -t old_hashes < <(awk '/specified:.*sha256-/{print $2}' <<< "$build_output")
-  mapfile -t new_hashes < <(awk '/got:.*sha256-/{print $2}' <<< "$build_output")
+  # hash mismatch 파싱 (nix 출력 형식: "  specified: <hash>" / "  got: <hash>")
+  # Bash 3.2 호환을 위해 mapfile 대신 while-read 사용
+  old_hashes=()
+  while IFS= read -r h; do
+    old_hashes+=("$h")
+  done < <(awk '/^[[:space:]]+specified:/{print $2}' <<< "$build_output")
+
+  new_hashes=()
+  while IFS= read -r h; do
+    new_hashes+=("$h")
+  done < <(awk '/^[[:space:]]+got:/{print $2}' <<< "$build_output")
 
   if (( ${#old_hashes[@]} == 0 )); then
     echo "❌ hash mismatch가 아닌 빌드 에러:"
@@ -70,19 +78,24 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
     new="${new_hashes[$i]}"
 
     # -F: 고정 문자열 매칭 (hash를 정규식으로 해석하지 않음)
-    # -c: 매치 파일이 정확히 1개인지 검증 (다중 매치 시 오치환 방지)
-    match_count=$(grep -Frl --include='*.nix' "$old" . | wc -l)
+    # || true: 매치 0개일 때 set -e/pipefail 방어
+    matches=()
+    while IFS= read -r f; do
+      [[ -n "$f" ]] && matches+=("$f")
+    done < <(grep -Frl --include='*.nix' "$old" . || true)
+    match_count=${#matches[@]}
+
     if (( match_count == 0 )); then
       echo "❌ hash를 포함하는 .nix 파일을 찾을 수 없음: $old"
       exit 1
     fi
     if (( match_count > 1 )); then
       echo "❌ hash가 ${match_count}개 파일에서 발견됨 — 수동 확인 필요: $old"
-      grep -Frl --include='*.nix' "$old" .
+      printf '  %s\n' "${matches[@]}"
       exit 1
     fi
 
-    file=$(grep -Frl --include='*.nix' "$old" .)
+    file="${matches[0]}"
     echo "  수정: ${file#./}"
     echo "    ${old} → ${new}"
     # Nix SRI hash는 [A-Za-z0-9+/=-]만 포함하여 sed 구분자 '|'와 충돌 없음.
