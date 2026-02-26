@@ -589,7 +589,7 @@ acquire_lock
 preflight_stderr_path "$EXPECTED_STDERR_PATH"
 
 # 감시 폴더 내 비디오 파일 처리
-find "$WATCH_DIR" -type f -maxdepth 1 \( -iname "*.mp4" -o -iname "*.mov" -o -iname "*.avi" -o -iname "*.mkv" -o -iname "*.webm" \) | while read -r f; do
+find "$WATCH_DIR" -maxdepth 1 -type f \( -iname "*.mp4" -o -iname "*.mov" -o -iname "*.avi" -o -iname "*.mkv" -o -iname "*.webm" \) | while read -r f; do
     [ -f "$f" ] || continue
 
     filename=$(basename "$f")

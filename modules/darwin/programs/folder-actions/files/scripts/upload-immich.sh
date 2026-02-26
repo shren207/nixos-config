@@ -573,7 +573,7 @@ wait_all_stable() {
         for f in "$WATCH_DIR"/*; do
             [ -f "$f" ] || continue
             [[ "$(basename "$f")" == .* ]] && continue
-            snapshot="${snapshot}$(basename "$f"):$(/usr/bin/stat -f%z "$f" 2>/dev/null)\n"
+            snapshot="${snapshot}$(basename "$f"):$(/usr/bin/stat -f%z "$f" 2>/dev/null)"$'\n'
         done
 
         [ "$snapshot" = "$prev_snapshot" ] && return 0

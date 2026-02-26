@@ -12,7 +12,7 @@ EXPECTED_STDERR_PATH="$HOME/Library/Logs/folder-actions/compress-video.error.log
 LOCK_DIR="/tmp/compress-video.lock.d"
 LEGACY_LOCK_FILE="/tmp/compress-video.lock"
 LOCK_TOKEN_FILE="${LOCK_DIR}/owner.token"
-LOCK_TTL_SECONDS=600
+LOCK_TTL_SECONDS=600  # Base TTL used to derive the missing/corrupt-token reclaim threshold.
 LOCK_CORRUPT_TTL_SECONDS=$((LOCK_TTL_SECONDS * 2))
 
 CURRENT_UID=$(/usr/bin/id -u)

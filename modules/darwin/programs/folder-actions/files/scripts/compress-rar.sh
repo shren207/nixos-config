@@ -11,7 +11,7 @@ DEST_ROOT="$HOME/Downloads"
 LOCK_DIR="/tmp/compress-rar.lock.d"
 LEGACY_LOCK_FILE="/tmp/compress-rar.lock"
 LOCK_TOKEN_FILE="${LOCK_DIR}/owner.token"
-LOCK_TTL_SECONDS=600
+LOCK_TTL_SECONDS=600  # Base TTL used to derive the missing/corrupt-token reclaim threshold.
 LOCK_CORRUPT_TTL_SECONDS=$((LOCK_TTL_SECONDS * 2))
 
 CURRENT_UID=$(/usr/bin/id -u)
@@ -532,7 +532,7 @@ trap 'on_signal TERM' TERM
 acquire_lock
 
 # 감시 폴더 내 파일 처리
-find "$WATCH_DIR" -type f -maxdepth 1 ! -name ".*" | while read -r f; do
+find "$WATCH_DIR" -maxdepth 1 -type f ! -name ".*" | while read -r f; do
     [ -f "$f" ] || continue
 
     filename=$(basename "$f")
