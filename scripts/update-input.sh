@@ -27,5 +27,4 @@ echo "═══ flake.lock 변경사항 ═══"
 git diff flake.lock
 
 echo
-echo "═══ FOD Hash 자동 검증 ═══"
-"$SCRIPT_DIR/fix-fod-hashes.sh"
+echo "💡 FOD hash mismatch 자동 수정: ./scripts/fix-fod-hashes.sh"

@@ -58,24 +58,38 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
     exit 1
   fi
 
+  # specified/got 쌍 개수 검증
+  if (( ${#old_hashes[@]} != ${#new_hashes[@]} )); then
+    echo "❌ specified(${#old_hashes[@]})와 got(${#new_hashes[@]}) 개수 불일치 — 수동 확인 필요"
+    echo "$build_output" | tail -20
+    exit 1
+  fi
+
   for i in "${!old_hashes[@]}"; do
     old="${old_hashes[$i]}"
     new="${new_hashes[$i]}"
 
     # -F: 고정 문자열 매칭 (hash를 정규식으로 해석하지 않음)
-    file=$(grep -Frl --include='*.nix' "$old" . | head -1 || true)
-    if [[ -z "$file" ]]; then
+    # -c: 매치 파일이 정확히 1개인지 검증 (다중 매치 시 오치환 방지)
+    match_count=$(grep -Frl --include='*.nix' "$old" . | wc -l)
+    if (( match_count == 0 )); then
       echo "❌ hash를 포함하는 .nix 파일을 찾을 수 없음: $old"
       exit 1
     fi
+    if (( match_count > 1 )); then
+      echo "❌ hash가 ${match_count}개 파일에서 발견됨 — 수동 확인 필요: $old"
+      grep -Frl --include='*.nix' "$old" .
+      exit 1
+    fi
 
+    file=$(grep -Frl --include='*.nix' "$old" .)
     echo "  수정: ${file#./}"
     echo "    ${old} → ${new}"
     # Nix SRI hash는 [A-Za-z0-9+/=-]만 포함하여 sed 구분자 '|'와 충돌 없음.
     # macOS BSD sed 호환을 위해 tmpfile 패턴 사용.
     tmp=$(mktemp)
     sed "s|${old}|${new}|" "$file" > "$tmp" && mv "$tmp" "$file"
-    ((fixed++))
+    fixed=$((fixed + 1))
   done
 done
 
