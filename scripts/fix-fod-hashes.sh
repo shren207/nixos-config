@@ -21,7 +21,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 # 현재 시스템의 flake output attribute 결정
-# flake.nix 규칙: hostname = flake attr 키 (nixos-rebuild/darwin-rebuild과 동일 방식)
+# nrs(nixos-rebuild/darwin-rebuild wrapper)와 동일한 hostname = flake attr 키 규칙 사용.
+# nrs가 정상 동작하는 환경이면 이 스크립트도 동일하게 동작한다.
 if [[ "$(uname)" == "Darwin" ]]; then
   HOST=$(scutil --get LocalHostName)
   ATTR="darwinConfigurations.\"${HOST}\".config.system.build.toplevel"
@@ -32,6 +33,7 @@ fi
 
 MAX_ROUNDS=3
 fixed=0
+modified_files=()
 
 echo "═══ FOD Hash 검증 ═══"
 echo "대상: ${HOST}"
@@ -63,10 +65,10 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
   while IFS= read -r pair; do
     [[ -n "$pair" ]] && pairs+=("$pair")
   done < <(awk '
-    /hash mismatch in fixed-output derivation/ { in_block=1; next }
+    /hash mismatch in fixed-output derivation/ { in_block=1; old=""; next }
     in_block && /specified:/ { old=$2; next }
-    in_block && /got:/ { print old, $2; in_block=0 }
-  ' <<< "$build_output")
+    in_block && /got:/ { if (old != "") print old, $2; in_block=0 }
+  ' <<< "$build_output" | sort -u)
 
   if (( ${#pairs[@]} == 0 )); then
     echo "❌ hash mismatch가 아닌 빌드 에러:"
@@ -104,6 +106,7 @@ for (( round=1; round<=MAX_ROUNDS+1; round++ )); do
     tmp=$(mktemp)
     sed "s|${old}|${new}|g" "$file" > "$tmp" && mv "$tmp" "$file"
     fixed=$((fixed + 1))
+    modified_files+=("$file")
   done
 done
 
@@ -112,7 +115,7 @@ if (( fixed > 0 )); then
   echo "✓ ${fixed}개 FOD hash 자동 수정 완료"
   echo ""
   echo "변경 파일:"
-  git diff --name-only
+  printf '  %s\n' "${modified_files[@]}"
 else
   echo "✓ FOD hash mismatch 없음"
 fi
