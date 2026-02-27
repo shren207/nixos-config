@@ -4,7 +4,7 @@
 
 ## 배경
 
-- AS-IS 참고 소스: `/Users/glen/Desktop/PROMPTS.md`
+- AS-IS 참고 소스: `local PROMPTS.md` (기존 단일 프롬프트 문서)
 - 목표: 중복 문구를 줄이고, 상황별로 조합 가능한 프롬프트 체계 제공
 
 ## 구조

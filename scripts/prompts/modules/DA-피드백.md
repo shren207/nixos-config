@@ -1,7 +1,6 @@
 # [DA 피드백] 모듈
 
 > Devil's Advocate 루프를 강도/시점/모델로 제어
-
 > 플레이스홀더
 > - `{강도}`: `light` / `standard` / `strict`
 > - `{시점}`: `plan` / `post-impl` / `both`
@@ -31,11 +30,8 @@ DA 피드백 루프를 수행해. {DA도구}를 사용하고 모델은 아래처
 4. DA는 정적 리뷰만 하지 말고, 핵심 동작을 실제 실행해서 검증해.
 5. 실행 불가하면 불가 사유, 대체 검증, 잔여 리스크를 함께 보고해.
 6. 각 피드백에 계획 가설을 반증하는 코드/명령/입출력 예제를 포함해.
-7. 라운드 종료 시 버전 비교 로그를 남겨:
-   - prompt version
-   - model
-   - 새로 발견된 리스크 수
-   - 해결된 리스크 수
+7. 라운드 종료 시 아래 구조화 payload를 반드시 남겨:
+   {"DA_ROUND_LOG":{"prompt_version":"<version>","model":"<model_name>","risks_discovered":<count>,"risks_resolved":<count>}}
 
 DA 출력 형식(항목별):
 - 주장
