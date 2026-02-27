@@ -71,8 +71,8 @@ else
   exit 3
 fi
 
-# --- 코드 블록 추출 ---
-template=$(sed -n '/^```text$/,/^```$/p' "$preset_file" | sed '1d;$d')
+# --- 코드 블록 추출 (첫 번째 ```text``` 블록만) ---
+template=$(awk '/^```text$/{found++; next} found==1 && /^```$/{exit} found==1{print}' "$preset_file")
 
 if [[ -z "$template" ]]; then
   echo "Error: no \`\`\`text code block found in preset: $preset_file" >&2
@@ -131,7 +131,7 @@ if [[ -n "$remaining" ]]; then
 fi
 
 # --- 출력 ---
-echo "$template"
+printf '%s\n' "$template"
 
 # --- Clipboard ---
 if [[ "$stdout_only" == true ]]; then
@@ -148,7 +148,7 @@ elif command -v xclip &>/dev/null; then
 fi
 
 if [[ -n "$clipboard_cmd" ]]; then
-  if echo "$template" | $clipboard_cmd 2>/dev/null; then
+  if printf '%s\n' "$template" | $clipboard_cmd 2>/dev/null; then
     echo "✓ clipboard에 복사됨" >&2
   else
     echo "⚠ clipboard 복사 실패 (stdout 출력은 정상)" >&2
