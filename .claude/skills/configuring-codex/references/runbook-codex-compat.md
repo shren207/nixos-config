@@ -156,9 +156,11 @@ Codex CLI가 **디렉토리 심링크**는 공식 지원함을 확인했다.
 ### 대응 원칙
 
 1. 중첩 디렉토리(`.claude/.claude`, `.agents/.agents`)를 정리한다.
-2. `wt` 복사 로직은 "대상 디렉토리가 이미 있으면 skip"으로 고친다.
+2. `wt` 복사 로직은 `.claude/.agents` 디렉토리 재귀 복사를 금지하고, 필요한 비추적 산출물만 최소 복사하도록 고친다.
 3. 병합 복사(`cp -R source/. target/`)로 대체하지 않는다 (세션 부산물 전파 위험).
-4. 수정 후 `git status --short`, `./scripts/ai/verify-ai-compat.sh`로 확인한다.
+4. `wt()` 내부 중첩 감지 가드(`.claude/.claude`, `.agents/.agents`, `.codex/.codex`)를 유지한다.
+5. `tests/run-wt-regression.sh` + `lefthook` pre-commit 자동 검증으로 회귀를 차단한다.
+6. 수정 후 `git status --short`, `./scripts/ai/verify-ai-compat.sh`로 확인한다.
 
 ## 참고 문서
 

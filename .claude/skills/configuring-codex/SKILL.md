@@ -67,6 +67,7 @@ sandbox_mode = "danger-full-access"
 
 - **스킬이 안 보임**: `.agents/skills/*`가 파일 심링크인지 확인하고 디렉토리 심링크로 교정한다.
 - **`wt` 직후 `?? .agents/.agents/`, `?? .claude/.claude/`**: worktree 복사 회귀다. `.agents/.agents`는 Codex가 기대하는 투영 경로가 아니므로 정리 후 원인(`wt`의 중복 `cp -R`)을 먼저 수정한다.
+- **자동 회귀 방지 확인**: `tests/run-wt-regression.sh`를 실행하고, `lefthook.yml`의 `wt-regression` pre-commit 훅이 활성화되어 있는지 확인한다.
 - **권한 프롬프트 반복**: `~/.codex/config.toml`의 `approval_policy`, `sandbox_mode`를 확인한다.
 - **AGENTS 불일치**: 프로젝트 루트 `AGENTS.md -> CLAUDE.md` 심링크를 복구한다.
 - **활성화 누락**: `nrs` 실행 후 `./scripts/ai/verify-ai-compat.sh`로 재검증한다.

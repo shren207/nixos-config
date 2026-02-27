@@ -20,7 +20,7 @@ git status --short
 ?? .claude/.claude/
 ```
 
-### 원인
+### 원인 (회귀 당시)
 
 `modules/shared/scripts/git-worktree-functions.sh`의 `wt()`에서 worktree 생성 후 `.claude/.codex/.agents`를 `cp -R`로 재복사한다.
 현재 저장소에서는 `.claude`, `.agents`가 이미 git-tracked라 `git worktree add`만으로 생성되므로, 재복사 시 하위 중첩(`.claude/.claude`, `.agents/.agents`)이 만들어진다.
@@ -52,6 +52,12 @@ rm -rf .claude/.claude .agents/.agents
 1. 대상 디렉토리가 이미 존재하면 복사를 스킵한다.
 2. 병합 복사(`cp -R source/. target/`)로 바꾸지 않는다. 세션 부산물/중첩 오염 전파 위험이 더 크다.
 3. 수정 후 `wt -s <temp-branch>`로 생성 테스트하고 `git status --short`가 깨끗한지 확인한다.
+
+### 자동 회귀 방지
+
+1. `wt()` 내부에서 `.claude/.claude`, `.agents/.agents`, `.codex/.codex`를 감지하면 즉시 실패하도록 가드를 둔다.
+2. `tests/run-wt-regression.sh`로 `wt` 생성 후 중첩 디렉토리 회귀를 자동 검증한다.
+3. `lefthook` pre-commit에서 `modules/shared/scripts/git-worktree-functions.sh`가 변경되면 위 테스트를 자동 실행한다.
 
 ## Termius에서 Codex 스크롤 히스토리 소실
 

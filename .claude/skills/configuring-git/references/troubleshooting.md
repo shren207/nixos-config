@@ -25,7 +25,7 @@ git status --short
 ?? .claude/.claude/
 ```
 
-**원인**:
+**원인 (회귀 당시)**:
 
 `modules/shared/scripts/git-worktree-functions.sh`의 `wt()`가 worktree 생성 후 `.claude/.codex/.agents`를 `cp -R`로 재복사한다.
 현재 저장소에서는 `.claude`/`.agents`가 이미 git-tracked라 `git worktree add` 단계에서 존재하므로, 재복사 시 하위 중첩 디렉토리(`.claude/.claude`, `.agents/.agents`)가 생성된다.
@@ -62,6 +62,12 @@ rm -rf .claude/.claude .agents/.agents
 1. 대상 디렉토리가 이미 존재하면 복사를 스킵한다.
 2. 병합 복사(`cp -R source/. target/`)로 바꾸지 않는다.
 3. 수정 후 `wt -s <temp-branch>`로 생성 테스트하고, `git status --short`가 깨끗한지 확인한다.
+
+**자동 회귀 방지**:
+
+1. `wt()` 내부에 중첩 디렉토리 감지 가드가 있어 `.claude/.claude`, `.agents/.agents`, `.codex/.codex` 발견 시 즉시 실패한다.
+2. `tests/run-wt-regression.sh`를 통해 `wt` 생성 후 중첩 여부를 자동 검증한다.
+3. `lefthook` pre-commit에서 `modules/shared/scripts/git-worktree-functions.sh` 변경 시 위 테스트가 자동 실행된다.
 
 ## lazygit에서 delta side-by-side 오버라이드가 안 됨
 
