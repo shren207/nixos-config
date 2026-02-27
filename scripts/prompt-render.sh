@@ -34,6 +34,9 @@ while [[ $# -gt 0 ]]; do
       fi
       key="${2%%=*}"
       val="${2#*=}"
+      if [[ -z "${val//[[:space:]]/}" ]]; then
+        echo "Error: empty value for --var key '${key}'" >&2; exit 1
+      fi
       var_keys+=("$key")
       var_vals+=("$val")
       shift 2 ;;
