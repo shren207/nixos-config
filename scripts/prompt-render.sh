@@ -64,7 +64,7 @@ else
   echo "" >&2
   echo "Available presets:" >&2
   if [[ -d "$PRESETS_DIR" ]]; then
-    find "$PRESETS_DIR" -maxdepth 1 -name '*.md' -print0 2>/dev/null | xargs -0 -I{} basename {} .md | sort | sed 's/^/  /' >&2
+    find "$PRESETS_DIR" -maxdepth 1 -type f -name '*.md' -exec basename {} .md \; 2>/dev/null | sort | sed 's/^/  /' >&2
   else
     echo "  (preset directory not found: $PRESETS_DIR)" >&2
   fi

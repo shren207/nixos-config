@@ -64,8 +64,7 @@ if [[ "${1:-}" == "--prompts" ]]; then
   prompt_render_cmd="$(command -v prompt-render 2>/dev/null || echo "$HOME/.local/bin/prompt-render")"
   [[ -x "$prompt_render_cmd" ]] || { echo "Error: prompt-render not found. Is the Nix config applied?" >&2; exit 1; }
   selected="" fzf_rc=0
-  selected=$(find "$presets_dir" -maxdepth 1 -name '*.md' -print0 2>/dev/null \
-    | xargs -0 -I{} basename {} .md \
+  selected=$(find "$presets_dir" -maxdepth 1 -type f -name '*.md' -exec basename {} .md \; 2>/dev/null \
     | sort \
     | "$fzf_cmd" \
         --ansi \
