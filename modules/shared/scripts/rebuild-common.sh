@@ -112,27 +112,38 @@ preflight_source_build_check() {
     build_drvs=$(echo "$dry_run_output" | grep '\.drv$' || true)
     [[ -z "$build_drvs" ]] && { log_info "  ✓ All packages cached."; return 0; }
 
-    # known-trivial: NixOS 설정 조립 derivation (컴파일 아님)
-    # 패턴은 /nix/store/<hash>-<name>.drv 전체 경로에 매칭됨
-    local trivial_patterns=(
-        '-home-manager-'        '-hm_'                  '-unit-script-'
-        '-unit-.*\.(service|socket|timer|mount|target|path|slice)\.drv$'
-        '-system-units\.drv$'   '-etc\.drv$'
-        '-activate\.drv$'       '-nixos-system-'        '-user-environment\.drv$'
-        '-activation-script\.drv$'
-        '-with-addons-'
+    # known-heavy: 소스 빌드 시 장시간 소요되는 패키지 (Rust 컴파일 등)
+    # 각 항목은 패키지명 접두사. 매칭: ^<name>-[0-9] (버전 번호가 뒤따르는 패키지만 포착)
+    # 예: "anki" → anki-25.09.2, anki-25.09.2-vendor 매칭 (anki-addon-* 등은 제외)
+    # 추가 방법: 배열에 패키지명만 추가 (예: "firefox")
+    #
+    # === Change Intent Record ===
+    # v1 (b9cd235): known-heavy blocklist 구상 → 관리 부담 우려로 known-trivial allowlist 채택
+    # v2 (f09a575): activation-script 등 false positive 발생, trivial 패턴 추가로 대응
+    # v3 (이번 변경): allowlist 방식이 두더지 잡기(끝없는 패턴 추가)임을 확인,
+    #    원래 구상대로 known-heavy blocklist로 회귀. 미등록 패키지는 무시(수동 관리).
+    #    trade-off: 새 무거운 패키지 추가 시 수동 등록 필요하나,
+    #              false positive 0%로 사용자 경험이 압도적으로 나음.
+    local heavy_packages=(
+        anki    # 로컬 overlay (doInstallCheck=false) → Hydra 캐시 없음, 항상 소스 빌드
+        mise    # Rust 패키지 → flake update 후 캐시 미스 시 장시간 빌드
     )
-    local filter_regex
-    filter_regex=$(printf '|%s' "${trivial_patterns[@]}")
-    filter_regex="${filter_regex:1}"
 
-    local nontrivial_drvs
-    nontrivial_drvs=$(echo "$build_drvs" | grep -Ev -- "$filter_regex" || true)
-    [[ -z "$nontrivial_drvs" ]] && { log_info "  ✓ Only trivial builds."; return 0; }
-
-    # 패키지명 추출
+    # 패키지명 추출 (해시 제거, .drv 제거)
     local pkg_names
-    pkg_names=$(echo "$nontrivial_drvs" | sed 's|.*/[a-z0-9]\{32\}-||; s|\.drv$||' | sort -u)
+    pkg_names=$(echo "$build_drvs" | sed 's|.*/[a-z0-9]\{32\}-||; s|\.drv$||' | sort -u)
+
+    # heavy_packages 매칭 regex 생성: ^anki-[0-9]|^mise-[0-9]
+    local heavy_regex
+    heavy_regex=$(printf '|^%s-[0-9]' "${heavy_packages[@]}")
+    heavy_regex="${heavy_regex:1}"
+
+    local matched_heavy
+    matched_heavy=$(echo "$pkg_names" | grep -E -- "$heavy_regex" || true)
+    [[ -z "$matched_heavy" ]] && { log_info "  ✓ No heavy source builds."; return 0; }
+
+    # 보고할 패키지명은 매칭된 heavy 패키지만
+    pkg_names="$matched_heavy"
 
     # --force 또는 warn-only: 경고만 출력하고 진행
     if [[ "$FORCE_FLAG" == true || "$warn_only" == true ]]; then
