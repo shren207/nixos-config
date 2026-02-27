@@ -7,7 +7,7 @@
 > - `{시점}` → `plan` / `post-impl` / `both`
 > - `{DA도구}` → `Opus 4.6 에이전트` / `codex exec`
 
-```
+```text
 DA 피드백 루프를 수행해야 해. {DA도구}를 사용하여 Devil's Advocate 역할의 엄격한 피드백을 요청하도록 해.
 
 강도: {강도}
