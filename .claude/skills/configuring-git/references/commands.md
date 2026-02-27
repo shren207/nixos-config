@@ -153,6 +153,40 @@ wt --stay <브랜치명>    # 동일 (긴 형식)
 7. 해당 디렉토리로 cd 이동 (`--stay` 미지정 시)
 8. 에디터 열기 (macOS: cursor, NixOS: 경로 출력)
 
+### Known Regression (2026-02-27)
+
+`wt` 실행 직후 아래 untracked가 생기면 중첩 복사 회귀다:
+
+```bash
+?? .agents/.agents/
+?? .claude/.claude/
+```
+
+원인:
+- `git worktree add`로 이미 생성된 `.claude`, `.agents` 위에
+- `cp -R "$source_root/$_dir" "$worktree_dir/$_dir"`를 다시 수행해
+- `.claude/.claude`, `.agents/.agents`가 중첩 생성됨
+
+특히 source worktree가 이미 중첩 상태이면, 다음 `wt`에서 `.claude/.claude/.claude`처럼 재귀적으로 악화될 수 있다.
+
+빠른 진단:
+
+```bash
+git status --short
+find .claude -maxdepth 3 -type d -name .claude
+find .agents -maxdepth 3 -type d -name .agents
+```
+
+임시 정리:
+
+```bash
+rm -rf .claude/.claude .agents/.agents
+```
+
+영구 수정 원칙:
+- 대상 디렉토리가 이미 존재하면 재복사를 건너뛴다.
+- `cp -R source/. target/` 같은 병합 복사로 바꾸지 않는다 (세션 부산물/중첩 오염 전파 위험).
+
 **브랜치 충돌 처리:**
 
 - 브랜치가 이미 존재하면 선택 프롬프트 표시:
