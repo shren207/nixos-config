@@ -113,7 +113,7 @@ preflight_source_build_check() {
     [[ -z "$build_drvs" ]] && { log_info "  ✓ All packages cached."; return 0; }
 
     # known-heavy: 소스 빌드 시 장시간 소요되는 패키지 (Rust 컴파일 등)
-    # 각 항목은 패키지명 접두사. 매칭: ^<name>-[0-9] (버전 번호가 뒤따르는 패키지만 포착)
+    # 각 항목은 패키지명 접두사. 매칭: ^<name>-[0-9]+\.[0-9]+ (semver 시작 필수)
     # 예: "anki" → anki-25.09.2, anki-25.09.2-vendor 매칭 (anki-addon-* 등은 제외)
     # 추가 방법: 배열에 패키지명만 추가 (예: "firefox")
     #
@@ -123,24 +123,38 @@ preflight_source_build_check() {
     # v3 (이번 변경): allowlist 방식이 두더지 잡기(끝없는 패턴 추가)임을 확인,
     #    원래 구상대로 known-heavy blocklist로 회귀. 미등록 패키지는 무시(수동 관리).
     #    trade-off: 새 무거운 패키지 추가 시 수동 등록 필요하나,
-    #              false positive 0%로 사용자 경험이 압도적으로 나음.
+    #              false positive를 크게 줄여 사용자 경험이 압도적으로 나음.
     local heavy_packages=(
         anki    # 로컬 overlay (doInstallCheck=false) → Hydra 캐시 없음, 항상 소스 빌드
         mise    # Rust 패키지 → flake update 후 캐시 미스 시 장시간 빌드
     )
 
+    # 빈 배열 guard — heavy_packages가 비면 체크 자체를 비활성화
+    if ((${#heavy_packages[@]} == 0)); then
+        log_warn "⚠️  heavy_packages is empty; preflight detection disabled."
+        return 0
+    fi
+
     # 패키지명 추출 (해시 제거, .drv 제거)
     local pkg_names
-    pkg_names=$(echo "$build_drvs" | sed 's|.*/[a-z0-9]\{32\}-||; s|\.drv$||' | sort -u)
+    pkg_names=$(printf '%s\n' "$build_drvs" | sed 's|.*/[a-z0-9]\{32\}-||; s|\.drv$||' | sort -u)
 
-    # heavy_packages 매칭 regex 생성: ^anki-[0-9]|^mise-[0-9]
+    # heavy_packages 매칭 regex 생성: ^anki-[0-9]+\.[0-9]+|^mise-[0-9]+\.[0-9]+
+    # semver 시작(X.Y)을 요구하여 anki-addon-*, mise-plugin-* 등 비패키지 제외
     local heavy_regex
-    heavy_regex=$(printf '|^%s-[0-9]' "${heavy_packages[@]}")
+    heavy_regex=$(printf '|^%s-[0-9]+\\.[0-9]+' "${heavy_packages[@]}")
     heavy_regex="${heavy_regex:1}"
 
-    local matched_heavy
-    matched_heavy=$(echo "$pkg_names" | grep -E -- "$heavy_regex" || true)
-    [[ -z "$matched_heavy" ]] && { log_info "  ✓ No heavy source builds."; return 0; }
+    local matched_heavy=""
+    local grep_rc=0
+    matched_heavy=$(printf '%s\n' "$pkg_names" | grep -E -- "$heavy_regex") || grep_rc=$?
+    case $grep_rc in
+        0) ;;  # matches found
+        1) ;;  # no matches (정상)
+        *) log_error "  ✗ Invalid heavy regex: $heavy_regex"; return 1 ;;
+    esac
+
+    [[ -z "$matched_heavy" ]] && { log_info "  ✓ No known-heavy source builds."; return 0; }
 
     # 보고할 패키지명은 매칭된 heavy 패키지만
     pkg_names="$matched_heavy"
