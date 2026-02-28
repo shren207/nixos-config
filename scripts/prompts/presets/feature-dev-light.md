@@ -3,7 +3,7 @@
 > 포함 요소: 원칙 + 계획 + 검증 + DA(light, post-impl) + 커밋
 > 대상: 중소규모 기능
 > 플레이스홀더
-> - `{DA_TOOL}`: `codex exec` 또는 `agent`
+> - `{DA_TOOL}`: `codex exec` 또는 `claude agent`
 > - `{DA_MODEL_2}`: 예) `gpt-5.3-codex` (필수)
 
 ```text

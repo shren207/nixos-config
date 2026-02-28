@@ -5,7 +5,7 @@
 > 버전: `feature-dev-full@v1.0`
 > 플레이스홀더
 > ⚠️ 사용 전 필수 — 반드시 `{DA_TOOL}`, `{DA_MODEL_1}`, `{DA_MODEL_2}`를 실제 값으로 치환
-> - `{DA_TOOL}`: `codex exec` 또는 `agent`
+> - `{DA_TOOL}`: `codex exec` 또는 `claude agent`
 > - `{DA_MODEL_1}`: 예) `gpt-5.3-codex`
 > - `{DA_MODEL_2}`: 예) `gpt-5.3-codex` (필수)
 
