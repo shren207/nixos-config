@@ -16,6 +16,9 @@ set -euo pipefail
 # JSON 모드 계약 (--format json):
 #   항상 exit 0. 성공/실패는 JSON의 ok 필드로 판단.
 #   stdout에 순수 JSON만 출력 (stderr 없음).
+#   예외: 인자 파싱 에러(--var/--format 값 누락 등)는 jq 초기화 전에 발생하므로
+#         text 모드와 동일하게 stderr + non-zero exit 반환. iOS Shortcut에서는
+#         인자를 프로그래밍적으로 구성하므로 이 경로는 도달하지 않는다.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PRESETS_DIR="${PROMPT_PRESETS_DIR:-${SCRIPT_DIR}/prompts/presets}"
