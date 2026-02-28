@@ -13,6 +13,6 @@
 ```
 
 ```vars
-LEARN_TARGET|배우고 싶은 기술/언어||
-FAMILIAR_TECH|내가 익숙한 기술/언어||
+LEARN_TARGET|배우고 싶은 기술/언어 (예: Nix, Rust, Go)||
+FAMILIAR_TECH|내가 익숙한 기술/언어 (예: TypeScript, Python)||
 ```
