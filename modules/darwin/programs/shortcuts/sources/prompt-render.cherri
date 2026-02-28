@@ -33,9 +33,11 @@ if @listOk == "true" {
     // ref: docs/PROMPT_MOBILE_SHORTCUT.md 트러블슈팅 "preset not found: \nbugfix"
     @selected = replaceText("\n", "", @selected)
     @selected = replaceText("\r", "", @selected)
+    // preset 이름의 single quote 이스케이프 (셸 명령 안전성)
+    @selectedEscaped = replaceText("'", "'\\''", @selected)
 
     // Phase 2: 변수 없이 렌더링 시도
-    @renderCmd = "\(@sshPath)prompt-render --preset '\(@selected)' --non-interactive --format json --stdout-only"
+    @renderCmd = "\(@sshPath)prompt-render --preset '\(@selectedEscaped)' --non-interactive --format json --stdout-only"
     @renderResult = runSSHScript(@renderCmd, @empty, @sshHost, @sshPort, @sshUser, "SSH Key", "")
     @renderDict = getDictionary(@renderResult)
     @renderOk = getValue(@renderDict, "ok")
@@ -77,7 +79,7 @@ if @listOk == "true" {
         }
 
         // Phase 5: 변수 포함 최종 렌더링
-        @retryCmd = "\(@sshPath)prompt-render --preset '\(@selected)' \(@varArgs) --non-interactive --format json --stdout-only"
+        @retryCmd = "\(@sshPath)prompt-render --preset '\(@selectedEscaped)' \(@varArgs) --non-interactive --format json --stdout-only"
         @retryResult = runSSHScript(@retryCmd, @empty, @sshHost, @sshPort, @sshUser, "SSH Key", "")
         @retryDict = getDictionary(@retryResult)
         @retryOk = getValue(@retryDict, "ok")
