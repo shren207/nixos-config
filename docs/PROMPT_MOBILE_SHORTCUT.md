@@ -40,7 +40,7 @@ iPhone의 Shortcuts 앱에서 SSH 키를 생성한다:
 
 iOS Shortcuts의 `Run Script over SSH`는 non-interactive shell이므로 PATH를 명시 설정해야 한다:
 
-```
+```bash
 export LC_ALL=en_US.UTF-8; export PATH="/run/current-system/sw/bin:/home/greenhead/.nix-profile/bin:/home/greenhead/.local/bin:$PATH"
 ```
 
@@ -67,7 +67,7 @@ prompt-render --preset feature-dev-full --var DA_TOOL='codex exec' --var DA_MODE
 
 ### Step 1: preset 목록 조회
 
-```
+```text
 [Run Script over SSH]
   Host: 100.79.80.95 | User: greenhead | Auth: SSH Key
   Script: export LC_ALL=en_US.UTF-8; export PATH="/run/current-system/sw/bin:/home/greenhead/.nix-profile/bin:/home/greenhead/.local/bin:$PATH"; prompt-render --list-presets --format json
@@ -75,7 +75,7 @@ prompt-render --preset feature-dev-full --var DA_TOOL='codex exec' --var DA_MODE
 
 ### Step 2: JSON 파싱 + 에러 체크
 
-```
+```text
 [Get Dictionary from Input] → SSH 결과를 Dictionary로 파싱
 
 [Get Dictionary Value] key="ok"
@@ -89,14 +89,14 @@ prompt-render --preset feature-dev-full --var DA_TOOL='codex exec' --var DA_MODE
 
 ### Step 3: preset 선택
 
-```
+```text
 [Get Dictionary Value] key="presets" → 배열
 [Choose from List] prompt="프리셋 선택" → selectedPreset
 ```
 
 ### Step 4: 렌더링 시도
 
-```
+```text
 [Run Script over SSH]
   Script: ...PATH설정...; prompt-render --preset 'selectedPreset' --non-interactive --format json --stdout-only
 ```
@@ -105,7 +105,7 @@ prompt-render --preset feature-dev-full --var DA_TOOL='codex exec' --var DA_MODE
 
 ### Step 5: 결과 처리
 
-```
+```text
 [Get Dictionary from Input]
 [Get Dictionary Value] key="ok" → okValue
 
@@ -119,7 +119,7 @@ prompt-render --preset feature-dev-full --var DA_TOOL='codex exec' --var DA_MODE
 
 ### Step 6: 변수 입력 (ok=false, missing 존재 시)
 
-```
+```text
 [Set Variable] varArgs = ""
 [Repeat with Each Item] in missingVars:
   [Ask for Input] prompt="Repeat Item 입력:"
