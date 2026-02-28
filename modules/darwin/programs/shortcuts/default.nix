@@ -24,7 +24,8 @@ let
   sshHost = constants.network.minipcTailscaleIP; # "100.79.80.95"
   sshUser = "greenhead"; # nixosHosts."greenhead-minipc" 고정 username (flake.nix L101)
   sshPort = "22";
-  sshPathExport = "export LC_ALL=en_US.UTF-8; export PATH='/run/current-system/sw/bin:/etc/profiles/per-user/${sshUser}/bin:/home/${sshUser}/.nix-profile/bin:/home/${sshUser}/.local/bin:$PATH'; ";
+  # \\$PATH: Nix "..." → \$PATH → bash double-quote 내에서 literal $PATH로 전달
+  sshPathExport = "export LC_ALL=en_US.UTF-8; export PATH='/run/current-system/sw/bin:/etc/profiles/per-user/${sshUser}/bin:/home/${sshUser}/.nix-profile/bin:/home/${sshUser}/.local/bin:\\$PATH'; ";
 
   shortcutName = "Prompt Render"; # .cherri의 #define name과 일치해야 함
 
@@ -66,10 +67,9 @@ lib.mkIf (hostType == "personal") {
     if /usr/bin/shortcuts list 2>/dev/null | /usr/bin/grep -qxF "$_shortcut_name"; then
       echo "Shortcut '$_shortcut_name' already exists, skipping import."
     else
-      # mktemp은 빈 파일을 생성 → .shortcut 확장자를 붙인 경로를 사용하므로 원본 제거
-      _temp_base="$(/usr/bin/mktemp -t shortcut-XXXXXX)"
-      _temp_signed="''${_temp_base}.shortcut"
-      /bin/rm -f "$_temp_base"
+      # 서명된 파일명이 Shortcuts.app 표시 이름이 됨 → 의미있는 이름 사용
+      _temp_dir="$(/usr/bin/mktemp -d)"
+      _temp_signed="$_temp_dir/${shortcutName}.shortcut"
 
       # 서명 (non-fatal: Apple ID 미로그인 시 경고만 출력)
       # --mode anyone: macOS 14.4+ 에서 유일하게 작동하는 모드
