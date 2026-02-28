@@ -65,7 +65,10 @@ lib.mkIf (hostType == "personal") {
     if /usr/bin/shortcuts list 2>/dev/null | /usr/bin/grep -qxF "$_shortcut_name"; then
       echo "Shortcut '$_shortcut_name' already exists, skipping import."
     else
-      _temp_signed="$(/usr/bin/mktemp -t shortcut-XXXXXX).shortcut"
+      # mktemp은 빈 파일을 생성 → .shortcut 확장자를 붙인 경로를 사용하므로 원본 제거
+      _temp_base="$(/usr/bin/mktemp -t shortcut-XXXXXX)"
+      _temp_signed="${_temp_base}.shortcut"
+      /bin/rm -f "$_temp_base"
 
       # 서명 (non-fatal: Apple ID 미로그인 시 경고만 출력)
       # --mode anyone: macOS 14.4+ 에서 유일하게 작동하는 모드
