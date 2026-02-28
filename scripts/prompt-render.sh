@@ -232,25 +232,36 @@ if [[ -n "$remaining" ]]; then
       if [[ -n "$vars_meta" ]]; then
         # vars 블록 정의 순서로 메타데이터 포함 객체 배열 생성
         missing_json=$(
-          while IFS='|' read -r meta_name meta_desc meta_opts meta_def; do
-            [[ -z "$meta_name" ]] && continue
-            echo "$remaining" | grep -qF "{${meta_name}}" || continue
-            ctx=$(_extract_var_context "$template" "$meta_name")
-            if [[ -n "$meta_opts" ]]; then
-              opts_json=$(echo "$meta_opts" | tr ',' '\n' | jq -Rnc '[inputs | select(length > 0)]')
-            else
-              opts_json="[]"
-            fi
-            if [[ -n "$meta_def" ]]; then
-              jq -nc --arg n "$meta_name" --arg d "$meta_desc" --arg c "$ctx" \
-                --argjson o "$opts_json" --arg df "$meta_def" \
-                '{name:$n, desc:$d, context:$c, options:$o, default:$df}'
-            else
-              jq -nc --arg n "$meta_name" --arg d "$meta_desc" --arg c "$ctx" \
-                --argjson o "$opts_json" \
-                '{name:$n, desc:$d, context:$c, options:$o, default:null}'
-            fi
-          done <<< "$vars_meta" | jq -sc '.'
+          {
+            while IFS='|' read -r meta_name meta_desc meta_opts meta_def; do
+              [[ -z "$meta_name" ]] && continue
+              echo "$remaining" | grep -qF "{${meta_name}}" || continue
+              ctx=$(_extract_var_context "$template" "$meta_name")
+              if [[ -n "$meta_opts" ]]; then
+                opts_json=$(echo "$meta_opts" | tr ',' '\n' | jq -Rnc '[inputs | select(length > 0)]')
+              else
+                opts_json="[]"
+              fi
+              if [[ -n "$meta_def" ]]; then
+                jq -nc --arg n "$meta_name" --arg d "$meta_desc" --arg c "$ctx" \
+                  --argjson o "$opts_json" --arg df "$meta_def" \
+                  '{name:$n, desc:$d, context:$c, options:$o, default:$df}'
+              else
+                jq -nc --arg n "$meta_name" --arg d "$meta_desc" --arg c "$ctx" \
+                  --argjson o "$opts_json" \
+                  '{name:$n, desc:$d, context:$c, options:$o, default:null}'
+              fi
+            done <<< "$vars_meta"
+            # vars 블록에 누락된 remaining 변수를 fallback 객체로 추가
+            while IFS= read -r placeholder; do
+              [[ -z "$placeholder" ]] && continue
+              key="${placeholder//[\{\}]/}"
+              echo "$vars_meta" | grep -q "^${key}|" && continue
+              ctx=$(_extract_var_context "$template" "$key")
+              jq -nc --arg n "$key" --arg c "$ctx" \
+                '{name:$n, desc:"", context:$c, options:[], default:null}'
+            done <<< "$remaining"
+          } | jq -sc '.'
         )
       else
         # fallback: vars 블록 없으면 기존 문자열 배열
