@@ -60,6 +60,8 @@
     macbook = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDN048Qg9ABnM26jU0X0w2mG9pqcrwuVrcihvDbkRVX8 greenhead-home-mac-2025-10";
     # MiniPC (greenhead-minipc)
     minipc = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIN64oEThAvKkI806sMRcIXOJxiaT2A8BbqcO4DfWlirO greenhead@minipc";
+    # iPhone Shortcuts (iOS Shortcuts SSH 접속용 — 실제 키로 교체 필요)
+    iphoneShortcuts = "ssh-ed25519 PLACEHOLDER-iOS-Shortcuts-key";
   };
 
   # ═══════════════════════════════════════════════════════════════
