@@ -11,7 +11,6 @@
 #include 'actions/network'
 #include 'actions/text'
 #include 'actions/sharing'
-#include 'actions/basic'
 
 // SSH 공통 설정 — Nix substituteInPlace로 상수 주입
 @sshPath = "@SSH_PATH_EXPORT@"
@@ -54,15 +53,17 @@ if @listOk == "true" {
 
         // Phase 4: 변수 입력 루프
         for item in @missing {
-            @itemDict = getDictionary(item)
+            @itemDict = getDictionary(@item)
             @varName = getValue(@itemDict, "name")
             @varDesc = getValue(@itemDict, "desc")
             @varContext = getValue(@itemDict, "context")
             @varDefault = getValue(@itemDict, "default")
             @varOptions = @itemDict['options']
             @optionCount = count(@varOptions)
+            // count()는 action 타입 반환 → 숫자 비교(>) 불가, 문자열 변환 후 비교
+            @optionCountText = "\(@optionCount)"
 
-            if @optionCount > 0 {
+            if @optionCountText != "0" {
                 // options 있음 → 선택형 UI (Choose from List)
                 @input = chooseFromList(@varOptions, "\(@varName): \(@varDesc)")
             } else {

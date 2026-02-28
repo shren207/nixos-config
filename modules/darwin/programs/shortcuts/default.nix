@@ -45,12 +45,13 @@ let
 
       # --skip-sign: Nix sandbox에서 Apple ID 접근 불가
       # --derive-uuids: 동일 소스 → 동일 UUID (Nix 캐싱 최적화)
-      cherri --skip-sign --derive-uuids --output=prompt-render_unsigned.shortcut prompt-render.cherri
+      # NOTE: --output 플래그 미작동 확인 (Cherri v2.1.0) → 기본 출력명 사용
+      cherri prompt-render.cherri --skip-sign --derive-uuids
     '';
 
     installPhase = ''
       mkdir -p $out
-      cp prompt-render_unsigned.shortcut $out/prompt-render.shortcut
+      cp *_unsigned.shortcut $out/prompt-render.shortcut
     '';
   };
 in
@@ -67,7 +68,7 @@ lib.mkIf (hostType == "personal") {
     else
       # mktemp은 빈 파일을 생성 → .shortcut 확장자를 붙인 경로를 사용하므로 원본 제거
       _temp_base="$(/usr/bin/mktemp -t shortcut-XXXXXX)"
-      _temp_signed="${_temp_base}.shortcut"
+      _temp_signed="''${_temp_base}.shortcut"
       /bin/rm -f "$_temp_base"
 
       # 서명 (non-fatal: Apple ID 미로그인 시 경고만 출력)
