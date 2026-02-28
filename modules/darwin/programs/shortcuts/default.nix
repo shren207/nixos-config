@@ -45,9 +45,10 @@ let
         --replace-fail "@SSH_PATH_EXPORT@" "${sshPathExport}"
 
       # --skip-sign: Nix sandbox에서 Apple ID 접근 불가
-      # --derive-uuids: 동일 소스 → 동일 UUID (Nix 캐싱 최적화)
+      # NOTE: --derive-uuids 사용 금지 — 모든 conditional/each의 GroupingIdentifier를
+      #   동일 UUID로 만들어 Shortcuts.app이 if/else/endif 블록을 구분 불가 (PR #133)
       # NOTE: --output 플래그 미작동 확인 (Cherri v2.1.0) → 기본 출력명 사용
-      cherri prompt-render.cherri --skip-sign --derive-uuids
+      cherri prompt-render.cherri --skip-sign
     '';
 
     installPhase = ''
