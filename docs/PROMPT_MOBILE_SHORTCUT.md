@@ -664,7 +664,8 @@ Preset 선택 → exploration 탭
 | 증상 | 원인 | 해결 |
 |------|------|------|
 | SSH 연결 시간 초과 | VPN 미연결 | Tailscale 앱에서 VPN 연결 확인 |
-| "Permission denied" | SSH 키 미등록 | `libraries/constants.nix` → `sshKeys.iphoneShortcuts` 확인 후 `nrs` |
+| "Permission denied" | SSH 키 미등록 | `libraries/constants.nix` → `sshKeys.iphoneShortcuts` / `macShortcuts` 확인 후 `nrs` |
+| "SSH 키 인증 실패" (macOS) | 잘못된 공개키 등록 | 아래 **macOS 단축어 SSH 키 주의사항** 참조 |
 | "command not found: prompt-render" | PATH 미설정 | SSH 명령에 PATH export 포함 확인 |
 | "jq not found" | Home Manager PATH 누락 | PATH에 `/etc/profiles/per-user/greenhead/bin` 포함 확인 |
 | `preset not found: \nbugfix` | "목록에서 선택"이 줄바꿈 추가 | SSH 명령에 `printf '%s' ... \| tr -d '\n\r'` 사용 |
@@ -673,6 +674,31 @@ Preset 선택 → exploration 탭
 | 변수 입력 화면이 여러 개 동시 표시 | SSH 액션의 "입력" 필드에 값이 들어감 | SSH 액션의 **"입력" 필드를 비워둠** |
 | "제공된 입력" 변수를 못 찾음 | 매직 변수 탐색 방법 모름 | 키보드 상단 변수 바에서 "입력 요청" 출력 탭 |
 | Tailscale SSH 사용 시 에러 | Tailscale SSH 버그 | 전통 sshd 사용 (기본 설정) |
+
+### macOS 단축어 SSH 키 주의사항
+
+macOS 단축어 앱의 SSH 키는 iOS와 다르게 동작한다.
+
+**"새로운 키 생성" 버튼을 누르지 말 것.**
+
+- macOS 단축어 앱은 기기에 **고정된 기본 SSH 키**를 가지고 있다.
+- "새로운 키 생성" 버튼으로 새 키를 발급할 수 있지만, **앱을 종료 후 재시작하면 기본 키로 리셋**된다.
+- 즉, 새로 발급한 키의 공개키를 서버에 등록해도, 다음 실행 시 리셋된 기본 키로 접속을 시도하므로 인증 실패.
+
+**올바른 등록 절차:**
+
+1. 단축어 앱에서 SSH 액션의 "SSH 키" 클릭
+2. **"새로운 키 생성"을 누르지 않고** 기본 키 상태에서 "공개 키 복사"
+3. 해당 키를 `libraries/constants.nix` → `sshKeys.macShortcuts`에 등록
+4. `nrs` 적용
+
+**진단 방법 (핑거프린트 불일치 시):**
+
+```bash
+# sshd LogLevel을 임시로 DEBUG로 변경 후 nrs 적용, 단축어 실행, 로그 확인:
+sudo journalctl -u sshd -n 30 --no-pager | grep "pubkey\|Failed"
+# → "pkblob ED25519 SHA256:xxx" 의 핑거프린트와 등록된 키의 핑거프린트를 대조
+```
 
 ---
 
