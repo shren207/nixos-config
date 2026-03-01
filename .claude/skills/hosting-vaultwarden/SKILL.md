@@ -149,7 +149,7 @@ homeserver.vaultwardenUpdate.enable = true;    # 버전 체크 + 업데이트 �
 - 재부팅 시 예기치 않은 버전 변경 방지
 - `homeserver.vaultwardenUpdate.enable = true`로 매일 06:30 자동 버전 체크 + Pushover 알림
 - 수동 업데이트: `sudo vaultwarden-update` (pinned tag pull → digest 비교 → 재시작 → 헬스체크)
-- 통합 업데이트 시스템 상세: `running-containers` 스킬의 [service-update-system.md] 참조
+- 통합 업데이트 시스템 상세: `running-containers` 스킬의 [service-update-system.md](../running-containers/references/service-update-system.md) 참조
 
 **Master Password 복구 불가**
 - Bitwarden은 클라이언트 측 암호화 (서버에 키 저장 안 함)
