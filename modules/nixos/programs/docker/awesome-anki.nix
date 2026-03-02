@@ -108,7 +108,10 @@ in
       after = [ "awesome-anki-env.service" ];
       wants = [ "awesome-anki-env.service" ];
       unitConfig = {
-        ConditionPathExists = openaiKeyPath;
+        ConditionPathExists = [
+          openaiKeyPath
+          geminiKeyPath
+        ];
       };
     };
   };
