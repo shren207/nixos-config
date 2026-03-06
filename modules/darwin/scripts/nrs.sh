@@ -116,6 +116,7 @@ main() {
     cleanup_launchd_agents
     run_darwin_rebuild
     restart_hammerspoon
+    cleanup_build_artifacts
     echo ""
     log_info "✅ Done! (${SECONDS}s)"
 }

@@ -56,6 +56,7 @@ main() {
         return 0
     fi
     run_nixos_rebuild
+    cleanup_build_artifacts
 
     echo ""
     log_info "✅ Done! (${SECONDS}s)"
