@@ -228,7 +228,7 @@ cleanup_build_artifacts() {
     local links
     links=$(find "$FLAKE_PATH" -maxdepth 1 -name 'result*' -type l 2>/dev/null)
     local count
-    count=$(echo "$links" | grep -c . 2>/dev/null || echo 0)
+    count=$(echo "$links" | grep -c . 2>/dev/null || true)
 
     if [[ "$count" -gt 0 ]]; then
         log_info "🧹 Cleaning up build artifacts..."
