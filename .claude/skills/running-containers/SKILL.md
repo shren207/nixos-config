@@ -6,12 +6,12 @@ description: |
   service updates, or database backups.
   Triggers: "update immich", "immich 업데이트", "immich-update",
   "check immich version", "immich 버전 확인", upgrading Immich server,
-  "uptime-kuma-update", "copyparty-update", "vaultwarden-update", "karakeep-update",
+  "uptime-kuma-update",
   "서비스 업데이트", "service-lib", "version-check", unified service update system,
   container OOM, "Tailscale IP binding" timing, OCI backend config,
-  "immich-db-backup", "DB 백업", "vaultwarden-backup", "백업 타이머",
+  "immich-db-backup", "DB 백업", "백업 타이머",
   "컨테이너", Caddy reverse proxy.
-  For Anki sync details use hosting-anki. For Vaultwarden details use hosting-vaultwarden.
+  For service-specific workflows use hosting-anki, hosting-copyparty, hosting-vaultwarden, hosting-karakeep.
 ---
 
 # 컨테이너 관리 (Podman/홈서버)
