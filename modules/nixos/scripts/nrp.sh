@@ -20,9 +20,9 @@ parse_args "$@"
 #───────────────────────────────────────────────────────────────────────────────
 main() {
     cd "$FLAKE_PATH" || exit 1
+    trap cleanup_build_artifacts EXIT
     preflight_source_build_check --warn-only
     preview_changes "preview only" "Changes (preview only, not applied):"
-    cleanup_build_artifacts
     echo ""
     log_info "✅ Preview complete (no changes applied)"
 }

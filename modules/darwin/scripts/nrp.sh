@@ -19,8 +19,8 @@ parse_args "$@"
 #───────────────────────────────────────────────────────────────────────────────
 main() {
     cd "$FLAKE_PATH" || exit 1
+    trap cleanup_build_artifacts EXIT
     preview_changes "preview only" "Changes (preview only, not applied):"
-    cleanup_build_artifacts
     echo ""
     log_info "💡 Run 'nrs' to apply these changes."
 }
