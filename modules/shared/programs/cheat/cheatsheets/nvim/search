@@ -12,6 +12,13 @@ tags: [ neovim, lazyvim, search, telescope ]
   <leader>fr    최근 파일 목록             (Recent Files)
   <leader>e     파일 탐색기 토글           (Explorer 패널)
 
+검색 범위 (모노레포에서 중요)
+
+  소문자 = LSP root (현재 패키지), 대문자 = cwd (모노레포 전체)
+
+  <leader>ff    파일 찾기 — 현재 패키지    <leader>fF    파일 찾기 — 모노레포 전체
+  <leader>/     텍스트 검색 — 현재 패키지   <leader>sG    텍스트 검색 — 모노레포 전체
+
 탐색기 (Explorer)
 
   <C-h>         Explorer에서 Buffer로 포커스 이동
