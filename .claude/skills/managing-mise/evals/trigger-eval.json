@@ -17,6 +17,5 @@
   {"query": "NixOS 컨테이너 서비스 업데이트", "should_trigger": false},
   {"query": "Claude Code MCP 설정하려면?", "should_trigger": false},
   {"query": "agenix 시크릿 관리", "should_trigger": false},
-  {"query": "Hammerspoon 핫키 추가", "should_trigger": false},
-  {"query": "Atuin 히스토리 동기화 오류", "should_trigger": false}
+  {"query": "Hammerspoon 핫키 추가", "should_trigger": false}
 ]

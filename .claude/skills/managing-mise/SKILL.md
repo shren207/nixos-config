@@ -16,7 +16,7 @@ mise를 사용한 Node.js, pnpm 등 런타임 버전 관리 가이드.
 ## 목적과 범위
 
 런타임 버전 선택, shims 경로, SSH 비대화형 셸 이슈를 안정적으로 운영하는 절차를 다룬다.
-macOS에서는 Homebrew python3을 사용하고, NixOS에서만 `pkgs.mise`를 설치한다.
+macOS에서는 Homebrew로 mise를 설치하고, NixOS에서는 `pkgs.mise`를 사용한다.
 
 ## 빠른 참조
 

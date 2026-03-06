@@ -9,7 +9,8 @@ description: |
   "copyparty CORS", "copyparty-update", "파일 서버 로그인 실패",
   ACL permissions, config generation, password injection issues,
   ENTRYPOINT override, initcfg conflict, session 403 error.
-  For container-level operations (Podman, OOM, update system), use running-containers instead.
+  For generic container-level operations (Podman, OOM, shared update framework internals), use running-containers instead.
+  Service-specific Copyparty workflows such as `copyparty-update` stay here.
 ---
 
 # Copyparty 파일 서버 관리

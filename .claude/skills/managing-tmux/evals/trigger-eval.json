@@ -17,6 +17,5 @@
   {"query": "Hammerspoon 단축키 추가", "should_trigger": false},
   {"query": "Neovim 플러그인 설치", "should_trigger": false},
   {"query": "launchd agent가 실행 안 돼", "should_trigger": false},
-  {"query": "shell history 백업하고 싶어", "should_trigger": false},
-  {"query": "sudo 사용 시 SSH 인증 실패", "should_trigger": false}
+  {"query": "shell history 백업하고 싶어", "should_trigger": false}
 ]

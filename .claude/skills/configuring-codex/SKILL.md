@@ -9,7 +9,7 @@ description: |
   NOT for Claude Code hooks/plugins/settings.json (use configuring-claude-code),
   codex exec runtime (use using-codex-exec), or harness sync (use syncing-codex-harness).
   Triggers: "codex config", "codex setup", "codex trust", "Codex 설정",
-  "AGENTS.md", ".agents/skills", "project-scope skill", "스킬 투영",
+  "AGENTS.md", ".agents/skills", "project-scope skill", ".agents/skills 심링크",
   "approval_policy", "sandbox_mode", "Codex compatibility",
   "verify-ai-compat", "디렉토리 심링크", "config.toml".
 ---

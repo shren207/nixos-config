@@ -4,7 +4,7 @@
   {"query": "codex exec review --base main", "should_trigger": true},
   {"query": "codex 리뷰 해줘", "should_trigger": true},
   {"query": "codex CLI로 프롬프트 전달", "should_trigger": true},
-  {"query": "코드 리뷰 피드백 받자", "should_trigger": true},
+  {"query": "codex로 코드 리뷰 피드백 받자", "should_trigger": true},
   {"query": "codex exec -o result.md 결과 저장", "should_trigger": true},
   {"query": "non-interactive codex로 자동 리뷰", "should_trigger": true},
   {"query": "codex exec review --uncommitted", "should_trigger": true},

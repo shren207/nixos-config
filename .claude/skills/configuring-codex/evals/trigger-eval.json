@@ -25,7 +25,7 @@
   },
   {
     "query": "스킬 투영 구조를 알려줘",
-    "should_trigger": true
+    "should_trigger": false
   },
   {
     "query": "sandbox_mode를 danger-full-access로 바꾸려면",

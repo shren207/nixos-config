@@ -3,8 +3,9 @@
 ## 1. CSS 렌더링 깨짐 (아카이브 인라인 뷰)
 
 Karakeep의 CSP 헤더가 iframe 내 CSS를 차단하는 알려진 버그.
-Caddy에서 CSP 제거로 해결 (`caddy.nix` -- `header -Content-Security-Policy`).
-Tailscale VPN 전용이므로 XSS 위험 무시 가능.
+임시 우회책으로 Caddy에서 CSP 제거 가능 (`caddy.nix` -- `header -Content-Security-Policy`).
+다만 이는 인라인 아카이브 뷰의 XSS 방어를 약화시키므로, Tailscale 내부 전용 환경에서만 제한적으로 적용하고
+업스트림 수정이 가능해지면 원복하는 편이 안전하다.
 ref: https://github.com/karakeep-app/karakeep/issues/1977
 
 ## 2. 웹훅 전달 실패
@@ -18,7 +19,7 @@ journalctl -u karakeep-webhook-bridge -f
 ## 3. SingleFile ZodError (field name 누락)
 
 SingleFile 확장에서 push 시 아래 에러 발생:
-```
+```json
 {"success":false,"error":{"issues":[{"code":"invalid_type","expected":"string","received":"undefined","path":["url"],"message":"Required"},{"code":"custom","message":"Input not instance of File","fatal":true,"path":["file"]}],"name":"ZodError"}}
 ```
 **원인**: SingleFile 확장 설정에서 `archive data field name`, `archive URL field name` 필드가 비어있음.

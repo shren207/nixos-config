@@ -10,7 +10,8 @@ description: |
   "vaultwarden.greenhead.dev", "Bitwarden Self-hosted",
   "vaultwarden-update", "vaultwarden exit code 4",
   Bitwarden client connection issues, vault sync problems.
-  For container-level operations (Podman, OOM, update system), use running-containers instead.
+  For generic container-level operations (Podman, OOM, shared update framework internals), use running-containers instead.
+  Service-specific Vaultwarden workflows such as `vaultwarden-update`, backup/restore stay here.
   For agenix secret management, use managing-secrets instead.
 ---
 
