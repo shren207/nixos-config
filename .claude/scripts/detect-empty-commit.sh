@@ -3,32 +3,25 @@
 # tree hash 비교로 staging area 초기화 버그 감지 (Issue #125)
 set -euo pipefail
 
-input=$(cat)
-tool_name=$(echo "$input" | jq -r '.tool_name')
-[[ "$tool_name" == "Bash" ]] || exit 0
-
-command=$(echo "$input" | jq -r '.tool_input.command // empty')
+# settings.local.json의 matcher: "Bash"가 이미 tool_name 필터링
+command=$(cat | jq -r '.tool_input.command // empty')
 [[ -n "$command" ]] || exit 0
 
 # git commit 감지 (직접 또는 nix develop 래핑)
 is_commit=false
 if [[ "$command" =~ git[[:space:]]+commit ]]; then
   is_commit=true
-elif [[ "$command" =~ base64.*nix[[:space:]]+develop ]]; then
-  encoded=$(echo "$command" | sed -n 's/.*echo \([A-Za-z0-9+/=]*\) .*/\1/p')
-  if [[ -n "$encoded" ]]; then
-    decoded=$(echo "$encoded" | base64 -d 2>/dev/null || true)
-    [[ "$decoded" =~ git[[:space:]]+commit ]] && is_commit=true
-  fi
+elif [[ "$command" =~ echo[[:space:]]+([A-Za-z0-9+/=]+)[[:space:]].*nix[[:space:]]+develop ]]; then
+  decoded=$(echo "${BASH_REMATCH[1]}" | base64 -d 2>/dev/null || true)
+  [[ "$decoded" =~ git[[:space:]]+commit ]] && is_commit=true
 fi
 [[ "$is_commit" == "true" ]] || exit 0
 
 # --amend는 tree 변경 없이 메시지만 수정할 수 있으므로 제외
 [[ "$command" =~ --amend ]] && exit 0
 
-# 첫 커밋 또는 merge commit은 비교 불가/불필요
-git rev-parse HEAD~1 &>/dev/null || exit 0
-git rev-parse HEAD^2 &>/dev/null 2>&1 && exit 0
+# merge commit은 parent와 tree가 같아도 정상
+git rev-parse HEAD^2 &>/dev/null && exit 0
 
 head_tree=$(git rev-parse "HEAD^{tree}" 2>/dev/null) || exit 0
 parent_tree=$(git rev-parse "HEAD~1^{tree}" 2>/dev/null) || exit 0
