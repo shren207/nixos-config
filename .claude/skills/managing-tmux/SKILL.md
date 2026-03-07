@@ -101,7 +101,7 @@ repo: nixos-config
 
 - `wt <branch>`: worktree 생성 + tmux window 생성/전환 + pane title 설정
 - `wt -s <branch>`: 백그라운드 window 생성 (현재 window 유지)
-- `wt-cleanup`: worktree 삭제 시 연결된 tmux window도 자동 종료
+- `wt-cleanup`: worktree 삭제 시 연결된 tmux window 자동 종료 (현재 window는 건너뜀)
 
 Window 매칭 전략: 이름 우선 매칭 + pane current_path fallback.
 `prefix + ,`로 window 이름을 변경하면 이름 매칭 실패 → 경로 fallback 사용.

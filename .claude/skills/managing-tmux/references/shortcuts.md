@@ -220,7 +220,7 @@ prefix + d
 | ---- | ---- |
 | `wt <branch>` | worktree + tmux window 생성/전환 |
 | `wt -s <branch>` | worktree + tmux window 백그라운드 생성 |
-| `wt-cleanup` | worktree 삭제 시 연결된 window도 자동 종료 |
+| `wt-cleanup` | worktree 삭제 시 연결된 window 자동 종료 (현재 window는 건너뜀) |
 
 **Window 매칭**: 이름 우선(exact match) → pane current_path fallback.
 `prefix + ,`로 window 이름 변경 시 이름 매칭 불가 → 경로로 fallback.
