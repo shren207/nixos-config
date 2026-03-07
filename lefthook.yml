@@ -16,7 +16,6 @@ pre-commit:
     wt-regression:
       glob: "modules/shared/scripts/git-worktree-functions.sh"
       run: bash ./tests/run-wt-regression.sh
-      skip: true  # Issue #125 진단: 빈 커밋 원인 확인 후 제거
 
 pre-push:
   commands:

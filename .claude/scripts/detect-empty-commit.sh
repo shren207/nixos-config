@@ -33,7 +33,7 @@ if [[ "$head_tree" == "$parent_tree" ]]; then
   head_sha=$(git rev-parse --short HEAD)
   jq -n \
     --arg reason "EMPTY COMMIT DETECTED: commit $head_sha has identical tree as parent. Staging area was likely corrupted by lefthook. Run 'git reset HEAD~1' to undo, re-stage files, and retry." \
-    --arg ctx "This is GitHub Issue #125. Current HEAD tree: $head_tree, Parent tree: $parent_tree (identical). Recovery: git reset HEAD~1 && git add <files> && git commit --no-verify -m 'message'" \
+    --arg ctx "This is GitHub Issue #125. Current HEAD tree: $head_tree, Parent tree: $parent_tree (identical). Recovery: git reset HEAD~1 && git add <files> && git commit -m 'message'" \
     '{
       decision: "block",
       reason: $reason,
