@@ -159,6 +159,7 @@ in
             echo "Error: Pushover credentials not found" >&2
             return 1
           fi
+          local PUSHOVER_TOKEN="" PUSHOVER_USER=""
           source "$cred"
           [ -n "''${PUSHOVER_TOKEN:-}" ] && [ -n "''${PUSHOVER_USER:-}" ] || {
             echo "Error: Pushover credentials are incomplete" >&2
