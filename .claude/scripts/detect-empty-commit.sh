@@ -23,8 +23,12 @@ elif [[ "$command" =~ base64.*nix[[:space:]]+develop ]]; then
 fi
 [[ "$is_commit" == "true" ]] || exit 0
 
-# 첫 커밋이면 비교 불가
+# --amend는 tree 변경 없이 메시지만 수정할 수 있으므로 제외
+[[ "$command" =~ --amend ]] && exit 0
+
+# 첫 커밋 또는 merge commit은 비교 불가/불필요
 git rev-parse HEAD~1 &>/dev/null || exit 0
+git rev-parse HEAD^2 &>/dev/null 2>&1 && exit 0
 
 head_tree=$(git rev-parse "HEAD^{tree}" 2>/dev/null) || exit 0
 parent_tree=$(git rev-parse "HEAD~1^{tree}" 2>/dev/null) || exit 0
