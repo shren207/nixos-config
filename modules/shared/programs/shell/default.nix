@@ -160,14 +160,25 @@ in
             return 1
           fi
           source "$cred"
-          curl -s -X POST \
+          [ -n "''${PUSHOVER_TOKEN:-}" ] && [ -n "''${PUSHOVER_USER:-}" ] || {
+            echo "Error: Pushover credentials are incomplete" >&2
+            return 1
+          }
+
+          local response
+          if response=$(curl --fail-with-body --show-error --silent --max-time 10 -X POST \
             -H "Content-Type: application/x-www-form-urlencoded; charset=utf-8" \
             --data-urlencode "token=$PUSHOVER_TOKEN" \
             --data-urlencode "user=$PUSHOVER_USER" \
             --data-urlencode "title=📋 텍스트 공유 (''${#text}자)" \
             --data-urlencode "message=$text" \
-            https://api.pushover.net/1/messages.json > /dev/null
-          echo "✓ Pushover 전송 (''${#text}자)"
+            https://api.pushover.net/1/messages.json); then
+            echo "✓ Pushover 전송 (''${#text}자)"
+          else
+            echo "Error: Pushover 전송 실패" >&2
+            [ -n "$response" ] && echo "$response" >&2
+            return 1
+          fi
         }
       ''
     ];
