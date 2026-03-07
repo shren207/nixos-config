@@ -502,17 +502,22 @@ class SingleFileBridgeHandler(BaseHTTPRequestHandler):
                     return
 
                 if status == 200:
-                    resp = parse_json_body(body)
-                    if resp.get("alreadyExists"):
-                        title = resp.get("title") or resp.get("content", {}).get("title") or ""
-                        created = format_created_at(resp.get("createdAt"))
-                        short = shorten_url(source_url)
-                        send_pushover(
-                            f"이미 아카이빙됨: {short}\n제목: {title}\n저장일: {created}",
-                            0,
-                        )
-                    elif not resp:
-                        log(f"duplicate check: failed to parse response for {source_url}")
+                    try:
+                        resp = parse_json_body(body)
+                        if resp.get("alreadyExists"):
+                            content = resp.get("content")
+                            nested_title = content.get("title") if isinstance(content, dict) else ""
+                            title = resp.get("title") or nested_title or ""
+                            created = format_created_at(resp.get("createdAt"))
+                            short = shorten_url(source_url)
+                            send_pushover(
+                                f"이미 아카이빙됨: {short}\n제목: {title}\n저장일: {created}",
+                                0,
+                            )
+                        elif not resp:
+                            log(f"duplicate check: failed to parse response for {source_url}")
+                    except Exception as notify_exc:  # noqa: BLE001
+                        log(f"duplicate notification failed for {source_url}: {notify_exc}")
 
                 self.respond_bytes(status or 502, body, content_type)
                 return
