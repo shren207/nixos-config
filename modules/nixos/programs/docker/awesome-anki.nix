@@ -187,7 +187,7 @@ in
       description = "Auto-update awesome-anki container image";
       after = [ "podman-awesome-anki.service" ];
       unitConfig = {
-        ConditionPathExists = [ pushoverCredPath ];
+        ConditionPathExists = pushoverCredPath;
       };
       serviceConfig = {
         Type = "oneshot";
