@@ -38,6 +38,26 @@ in
     "d ${dockerData} 0755 root root -"
   ];
 
+  # ═══════════════════════════════════════════════════════════════
+  # podman auto-update (5분마다 registry 태그 변경 감지 → 컨테이너 재시작)
+  # ═══════════════════════════════════════════════════════════════
+  systemd.services.podman-auto-update = {
+    description = "Podman auto-update containers";
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.podman}/bin/podman auto-update";
+    };
+  };
+
+  systemd.timers.podman-auto-update = {
+    description = "Podman auto-update timer";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "*:0/5";
+      Persistent = true;
+    };
+  };
+
   # 시스템 패키지
   environment.systemPackages = with pkgs; [
     podman-compose

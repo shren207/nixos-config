@@ -96,6 +96,9 @@ in
         ANKI_SPLITTER_REQUIRE_API_KEY = "false";
         PORT = toString cfg.port;
       };
+      labels = {
+        "io.containers.autoupdate" = "registry";
+      };
       extraOptions = [
         "--network=host"
         "--memory=${awesomeAnki.memory}"
