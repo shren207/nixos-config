@@ -44,6 +44,16 @@ let
       # shellcheck source=/dev/null
       source "$SERVICE_LIB"
 
+      # 예기치 않은 크래시 시 Pushover 알림 (모니터링 서비스는 자체 장애를 보고해야 함)
+      trap_on_error() {
+        local exit_code=$?
+        if [ $exit_code -ne 0 ]; then
+          send_notification "Smoke Test" \
+            "스크립트 크래시 (exit $exit_code). journalctl -u homeserver-smoke-test 확인 필요." 1
+        fi
+      }
+      trap trap_on_error EXIT
+
       FAILURES=""
       CHECKS=0
       PASSED=0
@@ -56,19 +66,21 @@ let
           PASSED=$((PASSED + 1))
           echo "OK: $name"
         else
-          FAILURES="$FAILURES  - $name\n"
+          FAILURES="''${FAILURES}  - ''${name}"$'\n'
           echo "FAIL: $name"
         fi
       }
 
       # ─── 1. Caddy 핵심 엔드포인트 헬스체크 ───
       # Tailscale IP + SNI로 직접 접근, DNS 불필요
+      # -s: silent, -o /dev/null: body 버림, -w: HTTP 코드만 추출
+      # -f 없음: 4xx/5xx에서도 실제 코드를 캡처하기 위해 (DA #3)
       for endpoint in $ENDPOINT_LIST; do
         DOMAIN="''${endpoint%%:*}"
         REST="''${endpoint#*:}"
         EXPECTED_CODE="''${REST%%:*}"
         PATH_SUFFIX="''${REST#*:}"
-        HTTP_CODE=$(curl -sf -o /dev/null -w '%{http_code}' \
+        HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' \
           --resolve "''${DOMAIN}:443:''${TAILSCALE_IP}" \
           --max-time 10 \
           "https://''${DOMAIN}''${PATH_SUFFIX}" 2>/dev/null) || HTTP_CODE="000"
@@ -81,8 +93,9 @@ let
       BACKUP_DIR="${mediaData}/backups"
 
       # immich: flat directory에 immich-db-*.dump 파일
+      # || true: 디렉토리 미존재 시 find 비정상 종료 + pipefail 방지 (DA #1)
       LATEST_IMMICH=$(find "$BACKUP_DIR/immich" -maxdepth 1 -name "immich-db-*.dump" \
-        -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+        -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2- || true)
       if [ -n "$LATEST_IMMICH" ]; then
         AGE_HOURS=$(( ($(date +%s) - $(stat -c %Y "$LATEST_IMMICH")) / 3600 ))
         RESULT=0
@@ -94,7 +107,7 @@ let
 
       # vaultwarden: 날짜별 디렉토리의 db.sqlite3.gz
       LATEST_VW_DIR=$(find "$BACKUP_DIR/vaultwarden" -maxdepth 1 -type d -name "20*" \
-        -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+        -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2- || true)
       if [ -n "$LATEST_VW_DIR" ] && [ -f "$LATEST_VW_DIR/db.sqlite3.gz" ]; then
         AGE_HOURS=$(( ($(date +%s) - $(stat -c %Y "$LATEST_VW_DIR/db.sqlite3.gz")) / 3600 ))
         RESULT=0
@@ -106,7 +119,7 @@ let
 
       # karakeep: 날짜별 디렉토리의 db.db.gz
       LATEST_KK_DIR=$(find "$BACKUP_DIR/karakeep" -maxdepth 1 -type d -name "20*" \
-        -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+        -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2- || true)
       if [ -n "$LATEST_KK_DIR" ] && [ -f "$LATEST_KK_DIR/db.db.gz" ]; then
         AGE_HOURS=$(( ($(date +%s) - $(stat -c %Y "$LATEST_KK_DIR/db.db.gz")) / 3600 ))
         RESULT=0
@@ -120,7 +133,7 @@ let
       echo "=== Smoke test: ''${PASSED}/''${CHECKS} passed ==="
       if [ -n "$FAILURES" ]; then
         send_notification "Smoke Test" \
-          "''${PASSED}/''${CHECKS} passed\n''${FAILURES}" 0
+          "$(printf '%s/%s passed\n%s' "$PASSED" "$CHECKS" "$FAILURES")" 0
       fi
     '';
   };
@@ -150,6 +163,9 @@ in
         Type = "oneshot";
         TimeoutSec = "120";
         ExecStart = "${smokeScript}/bin/homeserver-smoke-test";
+        ProtectSystem = "strict";
+        ReadOnlyPaths = [ "${mediaData}/backups" ];
+        ProtectHome = true;
         PrivateTmp = true;
         NoNewPrivileges = true;
       };
