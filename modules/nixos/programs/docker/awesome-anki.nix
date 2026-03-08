@@ -99,7 +99,7 @@ in
     # awesome-anki 컨테이너
     # ═══════════════════════════════════════════════════════════════
     virtualisation.oci-containers.containers.awesome-anki = {
-      image = "ghcr.io/greenheadhq/awesome-anki:latest";
+      image = imageName;
       autoStart = true;
       volumes = [
         "${dockerData}/awesome-anki/data:/app/data"
