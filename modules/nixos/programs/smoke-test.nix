@@ -20,16 +20,27 @@ let
   pushoverCredPath = config.age.secrets.pushover-system-monitor.path;
   serviceLib = import ../lib/service-lib.nix { inherit pkgs; };
 
-  # 활성 서비스 기준 헬스체크 엔드포인트
+  # 활성 서비스만 헬스체크 (비활성 서비스 false positive 방지)
   # 형식: "DOMAIN:EXPECTED_CODE:PATH"
-  endpoints = [
-    "${subdomains.immich}.${base}:200:/"
-    "${subdomains.uptimeKuma}.${base}:302:/"
-    "${subdomains.copyparty}.${base}:200:/"
-    "${subdomains.vaultwarden}.${base}:200:/alive"
-    "${subdomains.karakeep}.${base}:307:/"
-    "${subdomains.awesomeAnki}.${base}:200:/"
-  ];
+  endpoints =
+    lib.optionals config.homeserver.immich.enable [
+      "${subdomains.immich}.${base}:200:/"
+    ]
+    ++ lib.optionals config.homeserver.uptimeKuma.enable [
+      "${subdomains.uptimeKuma}.${base}:302:/"
+    ]
+    ++ lib.optionals config.homeserver.copyparty.enable [
+      "${subdomains.copyparty}.${base}:200:/"
+    ]
+    ++ lib.optionals config.homeserver.vaultwarden.enable [
+      "${subdomains.vaultwarden}.${base}:200:/alive"
+    ]
+    ++ lib.optionals config.homeserver.karakeep.enable [
+      "${subdomains.karakeep}.${base}:307:/"
+    ]
+    ++ lib.optionals config.homeserver.awesomeAnki.enable [
+      "${subdomains.awesomeAnki}.${base}:200:/"
+    ];
 
   smokeScript = pkgs.writeShellApplication {
     name = "homeserver-smoke-test";
@@ -89,45 +100,51 @@ let
         check "HTTP ''${DOMAIN}''${PATH_SUFFIX} = ''${EXPECTED_CODE} (got ''${HTTP_CODE})" "$RESULT"
       done
 
-      # ─── 2. 백업 신선도 검증 ───
+      # ─── 2. 백업 신선도 검증 (활성 백업만, 비활성 서비스 false positive 방지) ───
       BACKUP_DIR="${mediaData}/backups"
 
-      # immich: flat directory에 immich-db-*.dump 파일
-      # || true: 디렉토리 미존재 시 find 비정상 종료 + pipefail 방지 (DA #1)
-      LATEST_IMMICH=$(find "$BACKUP_DIR/immich" -maxdepth 1 -name "immich-db-*.dump" \
-        -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2- || true)
-      if [ -n "$LATEST_IMMICH" ]; then
-        AGE_HOURS=$(( ($(date +%s) - $(stat -c %Y "$LATEST_IMMICH")) / 3600 ))
-        RESULT=0
-        [ "$AGE_HOURS" -le "$BACKUP_MAX_AGE" ] || RESULT=1
-        check "Immich backup freshness (''${AGE_HOURS}h <= ''${BACKUP_MAX_AGE}h)" "$RESULT"
-      else
-        check "Immich backup exists" 1
-      fi
+      ${lib.optionalString config.homeserver.immichBackup.enable ''
+        # immich: flat directory에 immich-db-*.dump 파일
+        # || true: 디렉토리 미존재 시 find 비정상 종료 + pipefail 방지 (DA #1)
+        LATEST_IMMICH=$(find "$BACKUP_DIR/immich" -maxdepth 1 -name "immich-db-*.dump" \
+          -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2- || true)
+        if [ -n "$LATEST_IMMICH" ]; then
+          AGE_HOURS=$(( ($(date +%s) - $(stat -c %Y "$LATEST_IMMICH")) / 3600 ))
+          RESULT=0
+          [ "$AGE_HOURS" -le "$BACKUP_MAX_AGE" ] || RESULT=1
+          check "Immich backup freshness (''${AGE_HOURS}h <= ''${BACKUP_MAX_AGE}h)" "$RESULT"
+        else
+          check "Immich backup exists" 1
+        fi
+      ''}
 
-      # vaultwarden: 날짜별 디렉토리의 db.sqlite3.gz
-      LATEST_VW_DIR=$(find "$BACKUP_DIR/vaultwarden" -maxdepth 1 -type d -name "20*" \
-        -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2- || true)
-      if [ -n "$LATEST_VW_DIR" ] && [ -f "$LATEST_VW_DIR/db.sqlite3.gz" ]; then
-        AGE_HOURS=$(( ($(date +%s) - $(stat -c %Y "$LATEST_VW_DIR/db.sqlite3.gz")) / 3600 ))
-        RESULT=0
-        [ "$AGE_HOURS" -le "$BACKUP_MAX_AGE" ] || RESULT=1
-        check "Vaultwarden backup freshness (''${AGE_HOURS}h <= ''${BACKUP_MAX_AGE}h)" "$RESULT"
-      else
-        check "Vaultwarden backup exists" 1
-      fi
+      ${lib.optionalString config.homeserver.vaultwarden.enable ''
+        # vaultwarden: 날짜별 디렉토리의 db.sqlite3.gz
+        LATEST_VW_DIR=$(find "$BACKUP_DIR/vaultwarden" -maxdepth 1 -type d -name "20*" \
+          -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2- || true)
+        if [ -n "$LATEST_VW_DIR" ] && [ -f "$LATEST_VW_DIR/db.sqlite3.gz" ]; then
+          AGE_HOURS=$(( ($(date +%s) - $(stat -c %Y "$LATEST_VW_DIR/db.sqlite3.gz")) / 3600 ))
+          RESULT=0
+          [ "$AGE_HOURS" -le "$BACKUP_MAX_AGE" ] || RESULT=1
+          check "Vaultwarden backup freshness (''${AGE_HOURS}h <= ''${BACKUP_MAX_AGE}h)" "$RESULT"
+        else
+          check "Vaultwarden backup exists" 1
+        fi
+      ''}
 
-      # karakeep: 날짜별 디렉토리의 db.db.gz
-      LATEST_KK_DIR=$(find "$BACKUP_DIR/karakeep" -maxdepth 1 -type d -name "20*" \
-        -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2- || true)
-      if [ -n "$LATEST_KK_DIR" ] && [ -f "$LATEST_KK_DIR/db.db.gz" ]; then
-        AGE_HOURS=$(( ($(date +%s) - $(stat -c %Y "$LATEST_KK_DIR/db.db.gz")) / 3600 ))
-        RESULT=0
-        [ "$AGE_HOURS" -le "$BACKUP_MAX_AGE" ] || RESULT=1
-        check "Karakeep backup freshness (''${AGE_HOURS}h <= ''${BACKUP_MAX_AGE}h)" "$RESULT"
-      else
-        check "Karakeep backup exists" 1
-      fi
+      ${lib.optionalString config.homeserver.karakeepBackup.enable ''
+        # karakeep: 날짜별 디렉토리의 db.db.gz
+        LATEST_KK_DIR=$(find "$BACKUP_DIR/karakeep" -maxdepth 1 -type d -name "20*" \
+          -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2- || true)
+        if [ -n "$LATEST_KK_DIR" ] && [ -f "$LATEST_KK_DIR/db.db.gz" ]; then
+          AGE_HOURS=$(( ($(date +%s) - $(stat -c %Y "$LATEST_KK_DIR/db.db.gz")) / 3600 ))
+          RESULT=0
+          [ "$AGE_HOURS" -le "$BACKUP_MAX_AGE" ] || RESULT=1
+          check "Karakeep backup freshness (''${AGE_HOURS}h <= ''${BACKUP_MAX_AGE}h)" "$RESULT"
+        else
+          check "Karakeep backup exists" 1
+        fi
+      ''}
 
       # ─── 결과 요약 + Pushover ───
       echo "=== Smoke test: ''${PASSED}/''${CHECKS} passed ==="
