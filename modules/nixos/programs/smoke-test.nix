@@ -24,10 +24,10 @@ let
   # 형식: "DOMAIN:EXPECTED_CODE:PATH"
   endpoints = [
     "${subdomains.immich}.${base}:200:/"
-    "${subdomains.uptimeKuma}.${base}:200:/"
+    "${subdomains.uptimeKuma}.${base}:302:/"
     "${subdomains.copyparty}.${base}:200:/"
     "${subdomains.vaultwarden}.${base}:200:/alive"
-    "${subdomains.karakeep}.${base}:200:/"
+    "${subdomains.karakeep}.${base}:307:/"
     "${subdomains.awesomeAnki}.${base}:200:/"
   ];
 
