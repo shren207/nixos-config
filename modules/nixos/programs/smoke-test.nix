@@ -55,6 +55,12 @@ let
       # shellcheck source=/dev/null
       source "$SERVICE_LIB"
 
+      # Pushover credential 검증 (smartd.nix, check-temp.sh와 동일 패턴)
+      if [ -z "''${PUSHOVER_TOKEN:-}" ] || [ -z "''${PUSHOVER_USER:-}" ]; then
+        echo "ERROR: PUSHOVER_TOKEN or PUSHOVER_USER empty" >&2
+        exit 1
+      fi
+
       # 예기치 않은 크래시 시 Pushover 알림 (모니터링 서비스는 자체 장애를 보고해야 함)
       trap_on_error() {
         local exit_code=$?
