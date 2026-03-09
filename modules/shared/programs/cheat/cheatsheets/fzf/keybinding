@@ -18,6 +18,10 @@ fzf 셸 단축키
   kill **<Tab>     프로세스 이름으로 검색 → PID 자동 입력
   ssh **<Tab>      SSH 호스트 검색
 
+[미리보기]
+  파일(Ctrl+T)      bat 구문 강조 미리보기 (우측 60%)
+  디렉토리(Ctrl+G)  eza 트리 미리보기 (depth 2)
+
 [fzf 내부 조작]
   Tab         multi: 선택/해제 + 아래로 이동
   Shift+Tab   multi: 선택/해제 + 위로 이동
