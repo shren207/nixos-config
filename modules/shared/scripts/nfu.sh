@@ -62,6 +62,11 @@ if [[ "$UPDATE_ALL" == true ]]; then
   nix flake update
 else
   log_info "═══ 업데이트할 input 선택 ═══"
+  # flake.lock 파싱 검증 (process substitution 내부 에러 방지)
+  if ! jq -e '.nodes.root.inputs' "$FLAKE_PATH/flake.lock" >/dev/null 2>&1; then
+    log_error "❌ flake.lock 파싱 실패"
+    exit 1
+  fi
   selected=()
   while IFS= read -r item; do
     [[ -n "$item" ]] && selected+=("$item")
@@ -106,5 +111,6 @@ log_info "═══ 시스템 적용 (nrs) ═══"
 
 echo ""
 log_info "═══ 업데이트 완료 ═══"
+log_warn "⚠️  FOD hash는 현재 호스트만 검증됨. 다른 머신에서도 nfu를 실행하세요."
 echo "💡 변경사항을 커밋하세요:"
 echo "   git add -u && git commit -m 'chore: update flake inputs'"
