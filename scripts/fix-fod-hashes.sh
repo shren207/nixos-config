@@ -52,7 +52,7 @@ cache_precheck() {
     return 0
   fi
 
-  # .drv 경로 추출 (rebuild-common.sh:112와 동일 패턴)
+  # .drv 경로 추출 (rebuild-common.sh preflight_source_build_check()와 동일 패턴)
   local build_drvs
   build_drvs=$(echo "$dry_output" | grep '\.drv$' || true)
 
@@ -61,7 +61,7 @@ cache_precheck() {
     return 0
   fi
 
-  # 패키지명 추출 (rebuild-common.sh:140과 동일 패턴)
+  # 패키지명 추출 (rebuild-common.sh preflight_source_build_check()와 동일 패턴)
   local pkg_names pkg_count
   pkg_names=$(printf '%s\n' "$build_drvs" | sed 's|.*/[a-z0-9]\{32\}-||; s|\.drv$||' | sort -u)
   pkg_count=$(printf '%s\n' "$pkg_names" | wc -l | tr -d ' ')
@@ -82,7 +82,7 @@ cache_precheck() {
   case "$answer" in
     [yY]|[yY][eE][sS]) return 0 ;;
     *)
-      echo "빌드를 취소합니다."
+      echo "빌드를 취소합니다. (flake.lock 변경은 롤백됩니다)"
       exit 1
       ;;
   esac
