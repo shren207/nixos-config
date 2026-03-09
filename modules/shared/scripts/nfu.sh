@@ -30,7 +30,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     -a|--all)    UPDATE_ALL=true ;;
     --cores)
-      [[ -z "${2:-}" || ! "$2" =~ ^[0-9]+$ ]] && { log_error "--cores: positive integer required"; exit 1; }
+      [[ -z "${2:-}" || ! "$2" =~ ^[1-9][0-9]*$ ]] && { log_error "--cores: positive integer required"; exit 1; }
       NRS_ARGS+=("--cores" "$2"); shift ;;
     -h|--help)
       echo "사용법: nfu [-a|--all] [--cores N]"
