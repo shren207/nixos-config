@@ -80,19 +80,17 @@ if acquire_lock; then
           else . end
         )
       ' "$cfg" > "$tmp" 2>/dev/null && [ -s "$tmp" ] && jq empty "$tmp" >/dev/null 2>&1; then
-        mv -- "$tmp" "$cfg" 2>/dev/null || true
-        tmp=""  # mv 성공 시 cleanup에서 삭제하지 않도록
+        if mv -- "$tmp" "$cfg" 2>/dev/null; then
+          tmp=""  # mv 성공 시 cleanup에서 삭제하지 않도록
+        fi
       else
         echo "claude-wrapper: jq patch failed, skipping trust injection" >&2
       fi
     fi
   fi
 
-  # trap 먼저 제거: bash 5.3에서 compound command 경계(fi)에서
-  # EXIT trap이 재발동하는 버그 방지
+  # trap 먼저 제거 후 명시적 cleanup: exec 전에 불필요한 child process fork 방지
   trap - EXIT INT TERM
-
-  # lock 해제 (tmp은 대부분 비어있으므로 가드로 불필요한 fork 방지)
   [[ -n "${tmp:-}" ]] && rm -f "$tmp" 2>/dev/null
   [[ -d "$lockdir" ]] && rm -rf -- "$lockdir" 2>/dev/null
 fi
