@@ -55,8 +55,8 @@ acquire_lock() {
 }
 
 cleanup() {
-  rm -f "${tmp:-}" 2>/dev/null
-  rm -rf -- "$lockdir" 2>/dev/null
+  [[ -n "${tmp:-}" ]] && rm -f "$tmp" 2>/dev/null
+  [[ -d "$lockdir" ]] && rm -rf -- "$lockdir" 2>/dev/null
 }
 
 tmp=""
@@ -88,10 +88,13 @@ if acquire_lock; then
     fi
   fi
 
-  # lock 해제 (trap도 있지만 명시적으로)
-  rm -f "${tmp:-}" 2>/dev/null
-  rm -rf -- "$lockdir" 2>/dev/null
+  # trap 먼저 제거: bash 5.3에서 compound command 경계(fi)에서
+  # EXIT trap이 재발동하는 버그 방지
   trap - EXIT INT TERM
+
+  # lock 해제 (tmp은 대부분 비어있으므로 가드로 불필요한 fork 방지)
+  [[ -n "${tmp:-}" ]] && rm -f "$tmp" 2>/dev/null
+  [[ -d "$lockdir" ]] && rm -rf -- "$lockdir" 2>/dev/null
 fi
 
 exec "$claude_bin" "$@"
