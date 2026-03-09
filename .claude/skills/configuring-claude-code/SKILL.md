@@ -163,7 +163,6 @@ c = "command claude${if pkgs.stdenv.isDarwin then " --chrome" else ""} --dangero
 주요 activation:
 - `installClaudeCode` - Claude Code 바이너리 설치 (curl)
 - `ensureClaudeHooksTrust` - hooks trust 자동 주입 (`hasTrustDialogHooksAccepted`)
-- `cleanStaleWorktreeSymlinks` - worktree stale 심링크 정리
 
 모든 설정 파일은 `mkOutOfStoreSymlink`로 관리되어 양방향 수정이 가능하다.
 
