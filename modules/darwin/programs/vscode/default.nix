@@ -1,5 +1,18 @@
 # VSCode 설정
 # Nix로 확장 관리, settings/keybindings는 mkOutOfStoreSymlink (양방향)
+#
+# === Change Intent Record ===
+# Cursor → VSCode 마이그레이션 (Issue #171, PR #181)
+#
+# 1) 설정 관리: profiles.default.userSettings(Nix store 읽기전용)는 mkOutOfStoreSymlink과
+#    충돌하므로 사용하지 않음. settings/keybindings만 mkOutOfStoreSymlink으로 양방향 편집 보장.
+# 2) 확장 소스: open-vsx 우선, 미등록 4개만 vscode-marketplace. Cursor는 전부
+#    vscode-marketplace였으나 VSCode는 open-vsx 호환이므로 오픈소스 소스 선호.
+# 3) 스니펫: Cursor의 별도 JSON 4개를 languageSnippets로 통합 (DRY).
+# 4) 설치 방식: Nix 단독 (Homebrew Cask 미사용). Cursor는 Cask+Nix 병행 시
+#    Spotlight 중복 문제가 있었음 (homebrew.nix:66-69 주석 참조).
+# 5) Nix LSP: VSCode=nixd, Neovim=nil로 에디터별 독립 운용.
+#    trade-off: LSP 2종 관리 부담이 있으나, 각 에디터에 최적화된 경험 제공.
 {
   config,
   pkgs,
@@ -129,9 +142,10 @@ in
         typescriptreact = logSnippet;
       };
 
-      # userSettings, keybindings는 설정하지 않음
-      # → HM 모듈이 Nix store 기반 읽기전용 파일을 생성하여
-      #   mkOutOfStoreSymlink과 충돌하기 때문
+      # CIR: profiles.default.userSettings/keybindings 의도적 미사용
+      # → HM 모듈이 Nix store 기반 읽기전용 파일을 생성하여 mkOutOfStoreSymlink과 충돌.
+      #   enableUpdateCheck/enableExtensionUpdateCheck도 내부적으로 userSettings를 생성하므로 사용 금지.
+      #   대신 settings.json에 직접 "update.mode": "none" 등을 기입.
     };
   };
 
