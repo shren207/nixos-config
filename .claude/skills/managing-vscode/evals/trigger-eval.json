@@ -18,5 +18,5 @@
   {"query": "lazygit 설정 바꾸려면?", "should_trigger": false},
   {"query": "NixOS에서 Podman 컨테이너 설정", "should_trigger": false},
   {"query": "Nix flake update 방법 알려줘", "should_trigger": false},
-  {"query": "Cursor 관련 설정 변경하려면?", "should_trigger": false}
+  {"query": "Hammerspoon 단축키 변경하려면?", "should_trigger": false}
 ]
