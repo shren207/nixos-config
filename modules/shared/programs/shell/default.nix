@@ -57,8 +57,9 @@ in
     # === Change Intent Record ===
     # v1: --chrome(Claude in Chrome) 기본 활성화 — 브라우저 자동화를 항상 사용하려 했고,
     #     당시 chrome-devtools MCP를 적극 활용하지 않았음
-    # v2 (이번 변경): --chrome 제거 — chrome-devtools MCP를 적극 활용하게 되면서
-    #     Claude in Chrome과 동일 탭 제어가 경합. chrome-devtools가 응답 속도도 빠르고
+    # v2 (PR #74 이후, 이번 변경): --chrome 제거 — PR #74에서 chrome-devtools MCP
+    #     autoConnect 전략이 확립된 이후 적극 활용하게 되면서, Claude in Chrome과
+    #     동일 탭 제어가 경합. chrome-devtools가 응답 속도도 빠르고
     #     MCP 서버로 유연하게 on/off 가능하여 --chrome 불필요.
     #     trade-off: Claude in Chrome 전용 편의 기능(gif_creator 등)을 잃지만,
     #               chrome-devtools MCP가 동등 이상의 기능을 더 유연하게 제공.
