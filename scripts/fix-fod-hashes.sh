@@ -130,7 +130,11 @@ cache_precheck() {
       + (if ($has_cmake or $has_meson) and $lib_count >= 10 then 2 else 0 end)
     ) as $score |
 
-    # 분류: HEAVY(score≥3), MODERATE(빌드 도구 있으나 소규모), 나머지 무시
+    # 분류: HEAVY(score≥3), MODERATE(컴파일 언어 빌드 도구 있으나 소규모), 나머지 무시
+    # Python/Node는 MODERATE 조건에서 의도적으로 제외:
+    #   순수 Python(setuptools)/Node(npm) 빌드는 파일 복사 중심이라 빌드 시간 무시 가능.
+    #   C extension이 있는 Python 패키지는 cmake/meson을 동반하므로 이미 조건에 포함됨.
+    #   Python/Node는 multi-lang scoring signal(+2)로만 활용.
     if $score >= 3 then "\($pkg)\tHEAVY"
     elif ($has_rust or $has_cmake or $has_meson or $has_go) and $score > 0 then "\($pkg)\tMODERATE"
     else empty
