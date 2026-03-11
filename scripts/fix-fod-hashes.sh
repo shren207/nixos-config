@@ -76,7 +76,7 @@ cache_precheck() {
   # v2 (이번 변경): Multi-Signal Scoring — inputDrvs의 비인프라 라이브러리 수 +
   #   heavy framework(Qt/WebKit/Electron/LLVM) + 다중 언어 빌드 감지.
   #   2-tier 경고: HEAVY(빨강 ⚠️, score≥3) / MODERATE(노랑 🔶, Rust/C++ 빌드이나 소규모)
-  #   16/16 검증 정확도. ~0.17s 오버헤드 (66 drvs 기준).
+  #   20/20 검증 정확도 (Mac arm64 + MiniPC x86_64 실측). ~0.17s 오버헤드 (66 drvs 기준).
   #
   # trade-off: jq 스코어링 로직이 복잡해졌지만, false positive 제거 +
   #            severity 구분으로 사용자 판단력 향상이 더 가치 있음.
@@ -132,8 +132,11 @@ cache_precheck() {
 
     # 분류: HEAVY(score≥3), MODERATE(컴파일 언어 빌드 도구 있으나 소규모), 나머지 무시
     # Python/Node는 MODERATE 조건에서 의도적으로 제외:
-    #   순수 Python(setuptools)/Node(npm) 빌드는 파일 복사 중심이라 빌드 시간 무시 가능.
-    #   C extension이 있는 Python 패키지는 cmake/meson을 동반하므로 이미 조건에 포함됨.
+    #   MODERATE는 "컴파일 언어 소규모 빌드"를 의미 — Python(setuptools)/Node(npm)은
+    #   파일 복사 중심이라 단독으로는 빌드 시간 무시 가능.
+    #   python3/nodejs-slim 자체 빌드는 무겁지만(MiniPC: 15분/2분), 이들은 lib_count≥15라
+    #   score≥3 → HEAVY 경로를 타므로 MODERATE 조건과 무관.
+    #   C extension Python 패키지는 cmake/meson 동반 → 이미 조건에 포함됨.
     #   Python/Node는 multi-lang scoring signal(+2)로만 활용.
     if $score >= 3 then "\($pkg)\tHEAVY"
     elif ($has_rust or $has_cmake or $has_meson or $has_go) and $score > 0 then "\($pkg)\tMODERATE"
