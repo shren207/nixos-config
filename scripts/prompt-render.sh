@@ -330,11 +330,15 @@ if [[ -n "$frontmatter_modules" ]]; then
   module_text=$(_compose_modules "$frontmatter_modules" 2>"$_compose_errfile") || {
     _compose_err="$(cat "$_compose_errfile")"
     rm -f "$_compose_errfile"
-    if [[ "$format" == "json" ]]; then
-      _json_exit false "$preset" "" "${_compose_err:-module composition failed}"
+    # CIR: validate 모드에서는 여기서 hard-fail하지 않고 validate 경로로 넘김
+    # — validate는 자체 module 존재 확인이 있으므로, 일관된 {ok, errors, warnings} 스키마 유지
+    if [[ "$validate_mode" != true ]]; then
+      if [[ "$format" == "json" ]]; then
+        _json_exit false "$preset" "" "${_compose_err:-module composition failed}"
+      fi
+      [[ -n "$_compose_err" ]] && printf '%s\n' "$_compose_err" >&2
+      exit 1
     fi
-    [[ -n "$_compose_err" ]] && printf '%s\n' "$_compose_err" >&2
-    exit 1
   }
   rm -f "$_compose_errfile"
 fi
@@ -369,7 +373,7 @@ if [[ "$validate_mode" == true ]]; then
       [[ -z "$mod" ]] && continue
       if [[ ! -f "${MODULES_DIR}/${mod}.md" ]]; then
         error_msgs+=("module not found: ${mod}")
-        ((errors++))
+        errors=$((errors + 1))
       fi
     done <<< "$frontmatter_modules"
   fi
