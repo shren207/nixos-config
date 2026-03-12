@@ -351,11 +351,18 @@ elif [[ -n "$module_text" ]]; then
 elif [[ -n "$preset_template" ]]; then
   template="$preset_template"
 else
-  if [[ "$format" == "json" ]]; then
-    _json_exit false "$preset" "" "no text code block found in preset: $preset_file"
+  # CIR: validate 모드에서는 조기 종료하지 않고 validate 섹션으로 위임
+  # — 모듈 조합 실패 시 여기서 "no text block" 에러로 종료하면
+  #   validate 섹션의 "module not found" 검사에 도달하지 못함
+  if [[ "$validate_mode" == true ]]; then
+    template=""
+  else
+    if [[ "$format" == "json" ]]; then
+      _json_exit false "$preset" "" "no text code block found in preset: $preset_file"
+    fi
+    echo "Error: no \`\`\`text code block found in preset: $preset_file" >&2
+    exit 1
   fi
-  echo "Error: no \`\`\`text code block found in preset: $preset_file" >&2
-  exit 1
 fi
 
 # ============================================================================
@@ -366,6 +373,12 @@ if [[ "$validate_mode" == true ]]; then
   errors=0
   declare -a error_msgs=()
   declare -a warn_msgs=()
+
+  # 0. 빈 template 경고 (모듈 조합 실패로 인해 도달 가능)
+  if [[ -z "$template" ]]; then
+    error_msgs+=("no text content — module composition may have failed")
+    errors=$((errors + 1))
+  fi
 
   # 1. frontmatter modules 존재 확인
   if [[ -n "$frontmatter_modules" ]]; then
