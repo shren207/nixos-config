@@ -2,7 +2,6 @@
 modules:
   - principles
   - planning
-  - da-feedback
   - verification
   - commit
 ---
@@ -18,8 +17,5 @@ DA 피드백은 사용자 지시라는 이유로 기각하지 말고, 실행 근
 
 ```vars
 DA_TOOL|코드 실행 도구|codex exec,claude agent|codex exec
-DA_MODEL_1|1차 DA 모델|gpt-5.4,claude-opus-4-6|gpt-5.4
 DA_MODEL_2|DA 모델|gpt-5.4,claude-opus-4-6|gpt-5.4
-DA_INTENSITY|DA 강도|light,standard,strict|light
-DA_TIMING|DA 시점|plan,post-impl,both|post-impl
 ```

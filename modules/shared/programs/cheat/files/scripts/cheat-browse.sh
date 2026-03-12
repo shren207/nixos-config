@@ -135,10 +135,12 @@ if [[ "${1:-}" == "--prompts" ]]; then
     elif command -v wl-copy &>/dev/null; then clipboard_cmd="wl-copy"
     elif command -v xclip &>/dev/null; then clipboard_cmd="xclip -selection clipboard"
     fi
-    if [[ -n "$clipboard_cmd" ]]; then
-      printf '%s\n' "$render_output" | $clipboard_cmd 2>/dev/null
+    if [[ -n "$clipboard_cmd" ]] && printf '%s\n' "$render_output" | $clipboard_cmd 2>/dev/null; then
+      echo "✓ 클립보드 복사 완료: $selected"
+    else
+      printf '%s\n' "$render_output"
+      echo "⚠ 클립보드 복사 실패 — stdout 출력: $selected" >&2
     fi
-    echo "✓ 클립보드 복사 완료: $selected"
     exit 0
   fi
 

@@ -24,8 +24,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SELF="${SCRIPT_DIR}/$(basename "$0")"
 PRESETS_DIR="${PROMPT_PRESETS_DIR:-${SCRIPT_DIR}/prompts/presets}"
-# CIR: modules/ 경로는 presets/ 의 형제 디렉토리로 고정 — Nix 빌드·iOS Shortcut 양측에서 동일 레이아웃 보장
-MODULES_DIR="${PRESETS_DIR%/*}/modules"
+# MODULES_DIR은 preset_file 해석 후 동적 결정 (아래 "Preset 해석" 섹션 참조)
 
 # ============================================================================
 # 내부 서브커맨드 (fzf 콜백용)
@@ -85,6 +84,8 @@ fi
 # __preview VAR_FILE TPL_FILE — 현재 변수 값으로 치환한 템플릿 프리뷰
 if [[ "${1:-}" == "__preview" ]]; then
   var_file="$2" tpl_file="$3"
+  # CIR: 본 렌더 경로와 동일한 & 문자 안전 치환 적용 — preview/render 불일치 방지
+  shopt -u patsub_replacement 2>/dev/null || true
   result="$(cat "$tpl_file")"
   while IFS='=' read -r key val; do
     [[ -z "$key" || -z "$val" ]] && continue
@@ -309,6 +310,11 @@ else
   exit 3
 fi
 
+# CIR: modules/ 경로는 실제 preset 파일 위치의 형제 디렉토리로 결정
+# — name 기반(PRESETS_DIR 해석)이든 path 기반(직접 지정)이든 동일 로직
+# 기존: PRESETS_DIR 고정 → 외부 path preset에서 module not found 발생
+MODULES_DIR="$(cd "$(dirname "$preset_file")/.." 2>/dev/null && pwd)/modules"
+
 # ============================================================================
 # YAML frontmatter 파싱 + 모듈 조합
 # ============================================================================
@@ -320,12 +326,17 @@ vars_meta=$(_extract_vars_meta "$preset_file")
 # 모듈 텍스트 조합 + 프리셋 텍스트 합성
 module_text=""
 if [[ -n "$frontmatter_modules" ]]; then
-  module_text=$(_compose_modules "$frontmatter_modules") || {
+  _compose_errfile="$(mktemp)"
+  module_text=$(_compose_modules "$frontmatter_modules" 2>"$_compose_errfile") || {
+    _compose_err="$(cat "$_compose_errfile")"
+    rm -f "$_compose_errfile"
     if [[ "$format" == "json" ]]; then
-      _json_exit false "$preset" "" "module composition failed"
+      _json_exit false "$preset" "" "${_compose_err:-module composition failed}"
     fi
+    [[ -n "$_compose_err" ]] && printf '%s\n' "$_compose_err" >&2
     exit 1
   }
+  rm -f "$_compose_errfile"
 fi
 
 if [[ -n "$module_text" && -n "$preset_template" ]]; then
@@ -349,13 +360,15 @@ fi
 
 if [[ "$validate_mode" == true ]]; then
   errors=0
+  declare -a error_msgs=()
+  declare -a warn_msgs=()
 
   # 1. frontmatter modules 존재 확인
   if [[ -n "$frontmatter_modules" ]]; then
     while IFS= read -r mod; do
       [[ -z "$mod" ]] && continue
       if [[ ! -f "${MODULES_DIR}/${mod}.md" ]]; then
-        echo "ERROR: module not found: ${mod}" >&2
+        error_msgs+=("module not found: ${mod}")
         ((errors++))
       fi
     done <<< "$frontmatter_modules"
@@ -369,10 +382,10 @@ if [[ "$validate_mode" == true ]]; then
       key="${ph//[\{\}]/}"
       if [[ -n "$vars_meta" ]]; then
         if ! echo "$vars_meta" | grep -q "^${key}|"; then
-          echo "WARN: placeholder ${ph} has no vars metadata" >&2
+          warn_msgs+=("placeholder ${ph} has no vars metadata")
         fi
       else
-        echo "WARN: placeholder ${ph} found but no vars block defined" >&2
+        warn_msgs+=("placeholder ${ph} found but no vars block defined")
       fi
     done <<< "$placeholders"
   fi
@@ -382,11 +395,32 @@ if [[ "$validate_mode" == true ]]; then
     while IFS='|' read -r meta_name _rest; do
       [[ -z "$meta_name" ]] && continue
       if [[ -z "$placeholders" ]] || ! echo "$placeholders" | grep -qF "{${meta_name}}"; then
-        echo "WARN: var '${meta_name}' defined in vars block but not used in template" >&2
+        warn_msgs+=("var '${meta_name}' defined in vars block but not used in template")
       fi
     done <<< "$vars_meta"
   fi
 
+  if [[ "$format" == "json" ]]; then
+    errs_json="[]"
+    warns_json="[]"
+    if [[ ${#error_msgs[@]} -gt 0 ]]; then
+      errs_json=$(printf '%s\n' "${error_msgs[@]}" | jq -Rnc '[inputs]')
+    fi
+    if [[ ${#warn_msgs[@]} -gt 0 ]]; then
+      warns_json=$(printf '%s\n' "${warn_msgs[@]}" | jq -Rnc '[inputs]')
+    fi
+    if [[ $errors -gt 0 ]]; then
+      jq -nc --argjson errors "$errs_json" --argjson warnings "$warns_json" \
+        '{ok: false, errors: $errors, warnings: $warnings}'
+    else
+      jq -nc --argjson warnings "$warns_json" \
+        '{ok: true, errors: [], warnings: $warnings}'
+    fi
+    exit 0
+  fi
+
+  for msg in "${error_msgs[@]}"; do echo "ERROR: $msg" >&2; done
+  for msg in "${warn_msgs[@]}"; do echo "WARN: $msg" >&2; done
   if [[ $errors -gt 0 ]]; then
     echo "Validation FAILED: $errors error(s)" >&2
     exit 1

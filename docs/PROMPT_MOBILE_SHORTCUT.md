@@ -43,7 +43,7 @@ Cherri 소스 변경 후 기존 단축어를 업데이트하려면:
 
 1. Tailscale VPN 연결 확인
 2. Shortcut 실행 → `bugfix` 선택 → 클립보드에 프롬프트가 복사되는지 확인
-3. `feature-dev-full` 선택 → 변수 3개를 목록에서 선택 → 클립보드 확인
+3. `feature-dev-full` 선택 → 변수 5개를 목록에서 선택 → 클립보드 확인
 4. `exploration` 선택 → 자유 텍스트 입력 → 클립보드 확인
 
 ## SSH 키 설정
@@ -245,7 +245,9 @@ prompt-render --preset feature-dev-full --non-interactive --format json --stdout
 prompt-render --preset feature-dev-full \
   --var 'DA_TOOL=codex exec' \
   --var 'DA_MODEL_1=gpt-5.4' \
-  --var 'DA_MODEL_2=gpt-5.4' \
+  --var 'DA_MODEL_2=claude-opus-4-6' \
+  --var 'DA_INTENSITY=strict' \
+  --var 'DA_TIMING=both' \
   --non-interactive --format json --stdout-only
 # → {"ok":true,"rendered":"...","missing":[],...}
 ```
@@ -554,8 +556,8 @@ export PATH="/run/current-system/sw/bin:/etc/profiles/per-user/greenhead/bin:/ho
 
 > `[varArgs]`, `[varName]`, `[chosenValue]`는 각각 매직 변수로 삽입한다.
 >
-> 누적 예시 (feature-dev-full, 3번 반복 후):
-> `--var 'DA_TOOL=codex exec' --var 'DA_MODEL_1=gpt-5.4' --var 'DA_MODEL_2=gpt-5.4'`
+> 누적 예시 (feature-dev-full, 5번 반복 후):
+> `--var 'DA_TOOL=codex exec' --var 'DA_MODEL_1=gpt-5.4' --var 'DA_MODEL_2=claude-opus-4-6' --var 'DA_INTENSITY=strict' --var 'DA_TIMING=both'`
 
 #### 액션 36. 변수 설정
 
@@ -592,7 +594,7 @@ export PATH="/run/current-system/sw/bin:/etc/profiles/per-user/greenhead/bin:/ho
 >
 > 최종 명령 예시:
 > ```bash
-> prompt-render --preset "$(printf '%s' 'feature-dev-full' | tr -d '\n\r')" --var 'DA_TOOL=codex exec' --var 'DA_MODEL_1=gpt-5.4' --var 'DA_MODEL_2=gpt-5.4' --non-interactive --format json --stdout-only
+> prompt-render --preset "$(printf '%s' 'feature-dev-full' | tr -d '\n\r')" --var 'DA_TOOL=codex exec' --var 'DA_MODEL_1=gpt-5.4' --var 'DA_MODEL_2=claude-opus-4-6' --var 'DA_INTENSITY=strict' --var 'DA_TIMING=both' --non-interactive --format json --stdout-only
 > ```
 
 #### 액션 39. 사전에서 값 가져오기
@@ -632,13 +634,15 @@ Preset 선택 → bugfix 탭
 → 알림: "Prompt 복사 완료 — bugfix"
 ```
 
-### feature-dev-full (선택형 변수 3개)
+### feature-dev-full (선택형 변수 5개)
 
 ```text
 Preset 선택 → feature-dev-full 탭
 → "코드 실행 도구" — [codex exec / claude agent] 중 선택
 → "1차 DA 모델"   — [gpt-5.4 / claude-opus-4-6] 중 선택
 → "2차 DA 모델"   — [gpt-5.4 / claude-opus-4-6] 중 선택
+→ "DA 강도"       — [light / standard / strict] 중 선택
+→ "DA 시점"       — [plan / post-impl / both] 중 선택
 → 클립보드에 복사
 → 알림: "Prompt 복사 완료 — feature-dev-full"
 ```
