@@ -380,13 +380,20 @@ if [[ "$validate_mode" == true ]]; then
     errors=$((errors + 1))
   fi
 
-  # 1. frontmatter modules 존재 확인
+  # 1. frontmatter modules 존재 및 내용 확인
   if [[ -n "$frontmatter_modules" ]]; then
     while IFS= read -r mod; do
       [[ -z "$mod" ]] && continue
-      if [[ ! -f "${MODULES_DIR}/${mod}.md" ]]; then
+      mod_file="${MODULES_DIR}/${mod}.md"
+      if [[ ! -f "$mod_file" ]]; then
         error_msgs+=("module not found: ${mod}")
         errors=$((errors + 1))
+      else
+        mod_text=$(_extract_template "$mod_file")
+        if [[ -z "$mod_text" ]]; then
+          error_msgs+=("module has no text block: ${mod} (${mod_file})")
+          errors=$((errors + 1))
+        fi
       fi
     done <<< "$frontmatter_modules"
   fi
