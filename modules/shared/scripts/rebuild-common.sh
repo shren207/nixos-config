@@ -231,6 +231,7 @@ preflight_cask_conflict_check() {
 
     # 각 새 cask의 conflicts_with 메타데이터 개별 조회
     # 배치 호출(brew info --cask A B)은 미지 cask 포함 시 전체 실패하므로 개별 호출
+    log_info "🔍 Checking cask conflicts (${#new_casks[@]} new cask(s))..."
     local conflicts=()
     for new_cask in "${new_casks[@]}"; do
         local cask_json
