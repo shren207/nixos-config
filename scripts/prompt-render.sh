@@ -556,6 +556,8 @@ if [[ -n "$remaining" ]]; then
     done <<< "$remaining"
 
     # fzf 실행
+    # CIR: </dev/tty 제거 — pipe stdin을 덮어쓰므로 변수 목록이 fzf에 전달되지 않음
+    # fzf는 내부적으로 /dev/tty를 열어 키보드 입력을 처리함
     fzf_result=0
     "$SELF" __render_list "$_var_tmpfile" "$_meta_tmpfile" | \
       fzf \
@@ -567,13 +569,24 @@ if [[ -n "$remaining" ]]; then
         --preview-window=right:60%:wrap \
         --bind "enter:execute($SELF __edit_var '$_var_tmpfile' '$_meta_tmpfile' {1})+reload($SELF __render_list '$_var_tmpfile' '$_meta_tmpfile')" \
         --bind "ctrl-d:accept" \
-      </dev/tty >/dev/null 2>&1 || fzf_result=$?
+      >/dev/null 2>&1 || fzf_result=$?
 
     # Esc/Ctrl-C → 취소
     if [[ $fzf_result -eq 130 ]]; then
       _cleanup
       trap - EXIT
       exit 0
+    fi
+
+    # fzf 비정상 종료 (tty 미접근, 내부 에러 등) → 미확인 기본값 적용 방지
+    if [[ $fzf_result -ne 0 ]]; then
+      _cleanup
+      trap - EXIT
+      if [[ "$format" == "json" ]]; then
+        _json_exit false "$preset" "" "interactive variable editor failed (fzf exit: $fzf_result)"
+      fi
+      echo "Error: interactive variable editor failed (fzf exit: $fzf_result)" >&2
+      exit 1
     fi
 
     # 변수 적용
