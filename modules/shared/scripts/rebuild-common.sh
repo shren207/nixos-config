@@ -229,20 +229,15 @@ preflight_cask_conflict_check() {
     done <<< "$declared_casks"
     [[ ${#new_casks[@]} -gt 0 ]] || return 0
 
-    # 새 cask들의 conflicts_with 메타데이터 배치 조회
-    local conflict_json
-    conflict_json=$(brew info --json=v2 --cask "${new_casks[@]}" 2>/dev/null) || {
-        log_warn "⚠️  Cask conflict check: brew info failed. Skipping."
-        return 0
-    }
-
-    # 충돌 감지: conflicts_with에 설치된 cask이 있는지 확인
+    # 각 새 cask의 conflicts_with 메타데이터 개별 조회
+    # 배치 호출(brew info --cask A B)은 미지 cask 포함 시 전체 실패하므로 개별 호출
     local conflicts=()
     for new_cask in "${new_casks[@]}"; do
+        local cask_json
+        cask_json=$(brew info --json=v2 --cask "$new_cask" 2>/dev/null) || continue
         local conflict_casks
-        conflict_casks=$(echo "$conflict_json" | \
-            jq -r --arg token "$new_cask" \
-            '.casks[] | select(.token == $token) | .conflicts_with.cask // empty | .[]' \
+        conflict_casks=$(echo "$cask_json" | \
+            jq -r '.casks[0].conflicts_with.cask // empty | .[]' \
             2>/dev/null) || continue
         while IFS= read -r conflict_cask; do
             [[ -z "$conflict_cask" ]] && continue
@@ -259,11 +254,19 @@ preflight_cask_conflict_check() {
         local old_cask="${conflict%%:*}"
         local new_cask="${conflict##*:}"
         echo "  $old_cask (installed) conflicts with $new_cask (declared)"
-        if pgrep -xi "${old_cask%%@*}" &>/dev/null; then
-            log_warn "  ⚠️  ${old_cask} appears to be running. Uninstalling may force-quit it."
-        fi
     done
     echo ""
+
+    # 동일 old_cask이 여러 new_cask과 충돌할 수 있으므로 중복 제거
+    local uniq_old_casks=()
+    local seen_casks=""
+    for conflict in "${conflicts[@]}"; do
+        local c="${conflict%%:*}"
+        if ! echo "$seen_casks" | grep -qx "$c"; then
+            uniq_old_casks+=("$c")
+            seen_casks+="$c"$'\n'
+        fi
+    done
 
     # 충돌 해소 — uninstall
     local do_uninstall=false
@@ -275,8 +278,7 @@ preflight_cask_conflict_check() {
     fi
 
     if [[ "$do_uninstall" == true ]]; then
-        for conflict in "${conflicts[@]}"; do
-            local old_cask="${conflict%%:*}"
+        for old_cask in "${uniq_old_casks[@]}"; do
             log_info "  Uninstalling $old_cask..."
             if ! brew uninstall --cask "$old_cask"; then
                 log_error "❌ Failed to uninstall $old_cask"
@@ -290,8 +292,8 @@ preflight_cask_conflict_check() {
     else
         log_error "❌ Cask conflict not resolved. Aborting."
         echo "  Resolve manually:"
-        for conflict in "${conflicts[@]}"; do
-            echo "    brew uninstall --cask ${conflict%%:*}"
+        for old_cask in "${uniq_old_casks[@]}"; do
+            echo "    brew uninstall --cask $old_cask"
         done
         exit 1
     fi
