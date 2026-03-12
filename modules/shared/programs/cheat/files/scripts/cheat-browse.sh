@@ -47,7 +47,7 @@ if [[ "${1:-}" == "--preview-prompt" ]]; then
     in_mod && /^[[:space:]]*-[[:space:]]+/ {
       sub(/^[[:space:]]*-[[:space:]]+/, "")
       sub(/[[:space:]]*$/, "")
-      printf "%s", (NR>3 ? ", " : "") $0
+      printf "%s", (mod_count++ > 0 ? ", " : "") $0
       next
     }
     in_mod { exit }
