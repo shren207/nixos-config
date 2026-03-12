@@ -6,6 +6,7 @@ set -euo pipefail
 # Usage:
 #   prompt-render.sh --preset <name-or-path> [--var KEY=VALUE ...] [--non-interactive] [--stdout-only] [--format text|json]
 #   prompt-render.sh --list-presets [--format json]
+#   prompt-render.sh --validate <name-or-path>
 #
 # Exit codes (text 모드):
 #   0 — 성공 (clipboard 실패 시에도 stdout 출력 성공이면 0)
@@ -21,9 +22,81 @@ set -euo pipefail
 #         인자를 프로그래밍적으로 구성하므로 이 경로는 도달하지 않는다.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SELF="${SCRIPT_DIR}/$(basename "$0")"
 PRESETS_DIR="${PROMPT_PRESETS_DIR:-${SCRIPT_DIR}/prompts/presets}"
+# CIR: modules/ 경로는 presets/ 의 형제 디렉토리로 고정 — Nix 빌드·iOS Shortcut 양측에서 동일 레이아웃 보장
+MODULES_DIR="${PRESETS_DIR%/*}/modules"
 
-# --- 헬퍼 함수 ---
+# ============================================================================
+# 내부 서브커맨드 (fzf 콜백용)
+# ============================================================================
+
+# __render_list VAR_FILE META_FILE — 변수 목록을 fzf 표시용으로 출력
+if [[ "${1:-}" == "__render_list" ]]; then
+  var_file="$2" meta_file="$3"
+  while IFS='=' read -r key val; do
+    [[ -z "$key" ]] && continue
+    desc=""
+    while IFS='|' read -r mn md _mo _mdf; do
+      if [[ "$mn" == "$key" ]]; then desc="$md"; break; fi
+    done < "$meta_file"
+    if [[ -n "$val" ]]; then status="✓"; else status="…"; fi
+    printf '%-20s = %-30s  %s  %s\n' "$key" "${val:-(미설정)}" "$status" "${desc:+($desc)}"
+  done < "$var_file"
+  exit 0
+fi
+
+# __edit_var VAR_FILE META_FILE KEY — 개별 변수 편집 (중첩 fzf 또는 read)
+if [[ "${1:-}" == "__edit_var" ]]; then
+  var_file="$2" meta_file="$3" key="$4"
+  desc="" opts="" def=""
+  while IFS='|' read -r mn md mo mdf; do
+    if [[ "$mn" == "$key" ]]; then
+      desc="$md"; opts="$mo"; def="$mdf"; break
+    fi
+  done < "$meta_file"
+  # 현재 값
+  current=""
+  while IFS='=' read -r k v; do
+    if [[ "$k" == "$key" ]]; then current="$v"; break; fi
+  done < "$var_file"
+  # options가 있으면 fzf로 선택
+  if [[ -n "$opts" ]]; then
+    header="${key}"
+    [[ -n "$desc" ]] && header+=" — ${desc}"
+    new_val=$(fzf --height=10 --header="$header" --prompt="선택> " --no-sort < <(echo "$opts" | tr ',' '\n')) || exit 0
+  else
+    prompt="${key}"
+    [[ -n "$desc" ]] && prompt+=" ($desc)"
+    prompt+=": "
+    printf '%s' "$prompt" >/dev/tty
+    read -re -i "${current:-$def}" new_val </dev/tty
+  fi
+  [[ -z "$new_val" ]] && exit 0
+  # 값 업데이트
+  tmpf="$(mktemp)"
+  while IFS='=' read -r k v; do
+    if [[ "$k" == "$key" ]]; then echo "${k}=${new_val}"; else echo "${k}=${v}"; fi
+  done < "$var_file" > "$tmpf"
+  mv "$tmpf" "$var_file"
+  exit 0
+fi
+
+# __preview VAR_FILE TPL_FILE — 현재 변수 값으로 치환한 템플릿 프리뷰
+if [[ "${1:-}" == "__preview" ]]; then
+  var_file="$2" tpl_file="$3"
+  result="$(cat "$tpl_file")"
+  while IFS='=' read -r key val; do
+    [[ -z "$key" || -z "$val" ]] && continue
+    result="${result//\{${key}\}/${val}}"
+  done < "$var_file"
+  printf '%s\n' "$result"
+  exit 0
+fi
+
+# ============================================================================
+# 헬퍼 함수
+# ============================================================================
 
 # 첫 번째 ```text``` 블록에서 템플릿 추출
 _extract_template() {
@@ -48,6 +121,38 @@ _extract_var_context() {
     | sed 's/{\([A-Z0-9_]*\)}/\1/g'
 }
 
+# CIR: YAML frontmatter 파싱 — 순수 awk. yq 의존성 없이 고정된 modules: 배열만 추출.
+_extract_frontmatter_modules() {
+  awk '
+    NR==1 && /^---[[:space:]]*$/ { in_fm=1; next }
+    in_fm && /^---[[:space:]]*$/ { exit }
+    in_fm && /^modules:/ { in_mod=1; next }
+    in_mod && /^[[:space:]]*-[[:space:]]+/ {
+      sub(/^[[:space:]]*-[[:space:]]+/, "")
+      sub(/[[:space:]]*$/, "")
+      print
+      next
+    }
+    in_mod { exit }
+  ' "$1"
+}
+
+# CIR: 모듈 조합 — modules 디렉토리에서 각 모듈의 ```text``` 블록을 순서대로 합성
+_compose_modules() {
+  local modules_str="$1"
+  [[ -z "$modules_str" ]] && return 0
+  while IFS= read -r mod; do
+    [[ -z "$mod" ]] && continue
+    local mod_file="${MODULES_DIR}/${mod}.md"
+    if [[ ! -f "$mod_file" ]]; then
+      echo "Error: module not found: ${mod} (${mod_file})" >&2
+      return 1
+    fi
+    _extract_template "$mod_file"
+    echo ""
+  done <<< "$modules_str"
+}
+
 # JSON 모드: 응답 생성 후 exit 0
 _json_exit() {
   trap - ERR
@@ -65,6 +170,10 @@ _json_exit() {
   exit 0
 }
 
+# ============================================================================
+# 인자 파싱
+# ============================================================================
+
 preset=""
 declare -a var_keys=()
 declare -a var_vals=()
@@ -72,8 +181,8 @@ non_interactive=false
 stdout_only=false
 format="text"
 list_presets=false
+validate_mode=false
 
-# --- 인자 파싱 ---
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --preset)
@@ -101,10 +210,19 @@ while [[ $# -gt 0 ]]; do
       format="$2"; shift 2 ;;
     --list-presets)
       list_presets=true; shift ;;
+    --validate)
+      validate_mode=true
+      if [[ $# -ge 2 && "${2:0:1}" != "-" ]]; then
+        preset="$2"; shift 2
+      else
+        shift
+      fi
+      ;;
     *)
       echo "Error: unknown argument: $1" >&2
       echo "Usage: prompt-render.sh --preset <name-or-path> [--var KEY=VALUE ...] [--non-interactive] [--stdout-only] [--format text|json]" >&2
       echo "       prompt-render.sh --list-presets [--format json]" >&2
+      echo "       prompt-render.sh --validate <name-or-path>" >&2
       exit 1 ;;
   esac
 done
@@ -114,7 +232,10 @@ if [[ "$format" != "text" && "$format" != "json" ]]; then
   exit 1
 fi
 
-# --- JSON 모드 초기화 ---
+# ============================================================================
+# JSON 모드 초기화
+# ============================================================================
+
 if [[ "$format" == "json" ]]; then
   # jq 가용성 체크 (실제 실행으로 확인 — shadow jq 테스트와 호환)
   if ! jq --version &>/dev/null; then
@@ -126,7 +247,10 @@ if [[ "$format" == "json" ]]; then
   trap '_json_exit false "${preset:-}" "" "unexpected error"' ERR
 fi
 
-# --- --list-presets ---
+# ============================================================================
+# --list-presets
+# ============================================================================
+
 if [[ "$list_presets" == true ]]; then
   presets=()
   if [[ -d "$PRESETS_DIR" ]]; then
@@ -149,7 +273,10 @@ if [[ "$list_presets" == true ]]; then
   fi
 fi
 
-# --- --preset 필수 체크 ---
+# ============================================================================
+# --preset / --validate 필수 체크
+# ============================================================================
+
 if [[ -z "$preset" ]]; then
   if [[ "$format" == "json" ]]; then
     _json_exit false "" "" "--preset is required"
@@ -159,7 +286,10 @@ if [[ -z "$preset" ]]; then
   exit 1
 fi
 
-# --- Preset 해석 ---
+# ============================================================================
+# Preset 해석
+# ============================================================================
+
 if [[ -f "$preset" ]]; then
   preset_file="$preset"
 elif [[ -f "${PRESETS_DIR}/${preset}.md" ]]; then
@@ -179,11 +309,33 @@ else
   exit 3
 fi
 
-# --- 코드 블록 추출 ---
-template=$(_extract_template "$preset_file")
+# ============================================================================
+# YAML frontmatter 파싱 + 모듈 조합
+# ============================================================================
+
+frontmatter_modules=$(_extract_frontmatter_modules "$preset_file")
+preset_template=$(_extract_template "$preset_file")
 vars_meta=$(_extract_vars_meta "$preset_file")
 
-if [[ -z "$template" ]]; then
+# 모듈 텍스트 조합 + 프리셋 텍스트 합성
+module_text=""
+if [[ -n "$frontmatter_modules" ]]; then
+  module_text=$(_compose_modules "$frontmatter_modules") || {
+    if [[ "$format" == "json" ]]; then
+      _json_exit false "$preset" "" "module composition failed"
+    fi
+    exit 1
+  }
+fi
+
+if [[ -n "$module_text" && -n "$preset_template" ]]; then
+  template="${module_text}
+${preset_template}"
+elif [[ -n "$module_text" ]]; then
+  template="$module_text"
+elif [[ -n "$preset_template" ]]; then
+  template="$preset_template"
+else
   if [[ "$format" == "json" ]]; then
     _json_exit false "$preset" "" "no text code block found in preset: $preset_file"
   fi
@@ -191,10 +343,64 @@ if [[ -z "$template" ]]; then
   exit 1
 fi
 
-# --- Placeholder 수집 ---
+# ============================================================================
+# --validate 모드
+# ============================================================================
+
+if [[ "$validate_mode" == true ]]; then
+  errors=0
+
+  # 1. frontmatter modules 존재 확인
+  if [[ -n "$frontmatter_modules" ]]; then
+    while IFS= read -r mod; do
+      [[ -z "$mod" ]] && continue
+      if [[ ! -f "${MODULES_DIR}/${mod}.md" ]]; then
+        echo "ERROR: module not found: ${mod}" >&2
+        ((errors++))
+      fi
+    done <<< "$frontmatter_modules"
+  fi
+
+  # 2. {PLACEHOLDER}와 vars 블록 불일치 검출
+  placeholders=$(_extract_vars "$template")
+  if [[ -n "$placeholders" ]]; then
+    while IFS= read -r ph; do
+      [[ -z "$ph" ]] && continue
+      key="${ph//[\{\}]/}"
+      if [[ -n "$vars_meta" ]]; then
+        if ! echo "$vars_meta" | grep -q "^${key}|"; then
+          echo "WARN: placeholder ${ph} has no vars metadata" >&2
+        fi
+      else
+        echo "WARN: placeholder ${ph} found but no vars block defined" >&2
+      fi
+    done <<< "$placeholders"
+  fi
+
+  # 3. vars 블록에 정의됐지만 템플릿에 없는 변수
+  if [[ -n "$vars_meta" ]]; then
+    while IFS='|' read -r meta_name _rest; do
+      [[ -z "$meta_name" ]] && continue
+      if [[ -z "$placeholders" ]] || ! echo "$placeholders" | grep -qF "{${meta_name}}"; then
+        echo "WARN: var '${meta_name}' defined in vars block but not used in template" >&2
+      fi
+    done <<< "$vars_meta"
+  fi
+
+  if [[ $errors -gt 0 ]]; then
+    echo "Validation FAILED: $errors error(s)" >&2
+    exit 1
+  fi
+  echo "Validation passed" >&2
+  exit 0
+fi
+
+# ============================================================================
+# Placeholder 수집 + --var 키 검증
+# ============================================================================
+
 placeholders=$(_extract_vars "$template")
 
-# --- --var 키 검증 ---
 for i in "${!var_keys[@]}"; do
   key="${var_keys[$i]}"
   if [[ -z "$placeholders" ]] || ! echo "$placeholders" | grep -qF "{${key}}"; then
@@ -212,7 +418,10 @@ for i in "${!var_keys[@]}"; do
   fi
 done
 
-# --- --var로 전달된 키를 먼저 치환 ---
+# ============================================================================
+# --var로 전달된 키를 먼저 치환
+# ============================================================================
+
 # bash 5.x의 patsub_replacement 안전 치환 (& 문자 보호)
 shopt -u patsub_replacement 2>/dev/null || true
 
@@ -222,7 +431,10 @@ for i in "${!var_keys[@]}"; do
   template="${template//\{${key}\}/${val}}"
 done
 
-# --- 미해결 변수 처리 ---
+# ============================================================================
+# 미해결 변수 처리
+# ============================================================================
+
 remaining=$(_extract_vars "$template")
 
 if [[ -n "$remaining" ]]; then
@@ -273,28 +485,117 @@ if [[ -n "$remaining" ]]; then
     exit 2
   fi
 
-  # 대화형 입력
-  echo "Variables to fill:" >&2
-  while IFS= read -r placeholder; do
-    [[ -z "$placeholder" ]] && continue
-    key="${placeholder//[\{\}]/}"
-    read -rp "  {${key}}: " value </dev/tty
-    if [[ -z "${value// /}" ]]; then
-      echo "Error: empty value for {${key}}" >&2
-      exit 2
+  # ==========================================================================
+  # CIR: fzf 기반 변수 편집 UI
+  # 대안 비교 → 단일 fzf 세션에서 모든 변수를 한눈에 보고 원하는 순서로 편집.
+  # read -p 순차 입력보다 직관적이고, 실시간 프리뷰로 치환 결과를 즉시 확인 가능.
+  # ==========================================================================
+
+  if command -v fzf &>/dev/null; then
+    _var_tmpfile="$(mktemp /tmp/prompt-vars-XXXXX)"
+    _tpl_tmpfile="$(mktemp /tmp/prompt-tpl-XXXXX)"
+    _meta_tmpfile="$(mktemp /tmp/prompt-meta-XXXXX)"
+    _cleanup() { rm -f "$_var_tmpfile" "$_tpl_tmpfile" "$_meta_tmpfile"; }
+    trap '_cleanup' EXIT
+
+    # 템플릿 저장 (프리뷰용)
+    printf '%s\n' "$template" > "$_tpl_tmpfile"
+
+    # 메타데이터 저장 (콜백용)
+    printf '%s\n' "$vars_meta" > "$_meta_tmpfile"
+
+    # 초기 변수 값 설정 (기본값 적용)
+    while IFS= read -r placeholder; do
+      [[ -z "$placeholder" ]] && continue
+      key="${placeholder//[\{\}]/}"
+      def_val=""
+      if [[ -n "$vars_meta" ]]; then
+        while IFS='|' read -r mn _md _mo mdf; do
+          if [[ "$mn" == "$key" ]]; then def_val="$mdf"; break; fi
+        done <<< "$vars_meta"
+      fi
+      echo "${key}=${def_val}" >> "$_var_tmpfile"
+    done <<< "$remaining"
+
+    # fzf 실행
+    fzf_result=0
+    "$SELF" __render_list "$_var_tmpfile" "$_meta_tmpfile" | \
+      fzf \
+        --ansi \
+        --disabled \
+        --no-sort \
+        --header "  Enter: 변수 편집 | Ctrl-D: 완료 | Esc: 취소" \
+        --preview "$SELF __preview '$_var_tmpfile' '$_tpl_tmpfile'" \
+        --preview-window=right:60%:wrap \
+        --bind "enter:execute($SELF __edit_var '$_var_tmpfile' '$_meta_tmpfile' {1})+reload($SELF __render_list '$_var_tmpfile' '$_meta_tmpfile')" \
+        --bind "ctrl-d:accept" \
+      </dev/tty >/dev/null 2>&1 || fzf_result=$?
+
+    # Esc/Ctrl-C → 취소
+    if [[ $fzf_result -eq 130 ]]; then
+      _cleanup
+      trap - EXIT
+      exit 0
     fi
-    template="${template//\{${key}\}/${value}}"
-  done <<< "$remaining"
+
+    # 변수 적용
+    while IFS='=' read -r key val; do
+      [[ -z "$key" ]] && continue
+      if [[ -z "$val" ]]; then
+        echo "Error: empty value for {${key}}" >&2
+        exit 2
+      fi
+      template="${template//\{${key}\}/${val}}"
+    done < "$_var_tmpfile"
+
+    _cleanup
+    trap - EXIT
+  else
+    # fzf 없으면 기존 read 루프 fallback
+    echo "Variables to fill:" >&2
+    while IFS= read -r placeholder; do
+      [[ -z "$placeholder" ]] && continue
+      key="${placeholder//[\{\}]/}"
+      # vars 메타에서 기본값/설명/옵션 찾기
+      var_default="" var_desc="" var_opts=""
+      if [[ -n "$vars_meta" ]]; then
+        while IFS='|' read -r mn md mo mdf; do
+          if [[ "$mn" == "$key" ]]; then
+            var_default="$mdf"; var_desc="$md"; var_opts="$mo"
+            break
+          fi
+        done <<< "$vars_meta"
+      fi
+      prompt_str="  {${key}}"
+      [[ -n "$var_desc" ]] && prompt_str+=" ($var_desc)"
+      [[ -n "$var_opts" ]] && prompt_str+=" [${var_opts}]"
+      [[ -n "$var_default" ]] && prompt_str+=" (default: ${var_default})"
+      prompt_str+=": "
+      read -rp "$prompt_str" value </dev/tty
+      [[ -z "${value// /}" && -n "$var_default" ]] && value="$var_default"
+      if [[ -z "${value// /}" ]]; then
+        echo "Error: empty value for {${key}}" >&2
+        exit 2
+      fi
+      template="${template//\{${key}\}/${value}}"
+    done <<< "$remaining"
+  fi
 fi
 
-# --- 출력 ---
+# ============================================================================
+# 출력
+# ============================================================================
+
 if [[ "$format" == "json" ]]; then
   _json_exit true "$preset" "$template" ""
 fi
 
 printf '%s\n' "$template"
 
-# --- Clipboard ---
+# ============================================================================
+# Clipboard
+# ============================================================================
+
 if [[ "$stdout_only" == true ]]; then
   exit 0
 fi
