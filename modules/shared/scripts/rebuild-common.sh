@@ -7,12 +7,14 @@
 #
 # 제공 함수:
 #   parse_args, log_info, log_warn, log_error,
-#   preflight_source_build_check, preview_changes, cleanup_build_artifacts
+#   preflight_source_build_check, preflight_cask_conflict_check,
+#   preview_changes, cleanup_build_artifacts
 #
 # 출력 변수:
 #   NO_CHANGES - preview_changes() 실행 후 true/false (store 경로 비교)
 #   FORCE_FLAG - --force 전달 시 true
 #   CORES_FLAG - --cores N 전달 시 "--cores N"
+#   UNINSTALLED_CASKS - preflight_cask_conflict_check에서 제거한 cask 목록 (복구용)
 
 # fail-fast: REBUILD_CMD 미설정 시 즉시 실패
 if [[ -z "${REBUILD_CMD:-}" ]]; then
@@ -23,6 +25,8 @@ fi
 FLAKE_PATH="@flakePath@"
 # shellcheck disable=SC2034  # NO_CHANGES는 source한 nrs.sh에서 사용
 NO_CHANGES=false
+# shellcheck disable=SC2034  # UNINSTALLED_CASKS는 nrs.sh의 run_darwin_rebuild에서 참조
+UNINSTALLED_CASKS=""
 
 # 색상 정의
 GREEN='\033[0;32m'
@@ -181,6 +185,116 @@ preflight_source_build_check() {
     echo ""
     echo "또는 Hydra 캐시가 준비될 때까지 대기하세요."
     exit 1
+}
+
+#───────────────────────────────────────────────────────────────────────────────
+# Homebrew cask 충돌 사전 감지 (darwin 전용, nrs.sh에서 호출)
+# preview_changes 이후 호출 — ./result/activate에서 새 Brewfile을 파싱하여
+# 선언된 cask과 설치된 cask 간 conflicts_with 충돌을 감지.
+# 충돌 발견 시 사용자 확인 후 이전 cask 제거, --force 시 프롬프트 없이 자동 해소.
+# 감지/파싱 실패 시 fallthrough (빌드를 차단하지 않음)
+#───────────────────────────────────────────────────────────────────────────────
+preflight_cask_conflict_check() {
+    command -v brew &>/dev/null || return 0
+    command -v jq &>/dev/null || return 0
+
+    # ./result/activate에서 Brewfile 경로 추출
+    [[ -f ./result/activate ]] || return 0
+    local brewfile_path
+    brewfile_path=$(sed -n "s/.*brew bundle --file='\([^']*\)'.*/\1/p" ./result/activate) || return 0
+    if [[ -z "$brewfile_path" || ! -f "$brewfile_path" ]]; then
+        log_warn "⚠️  Cask conflict check: Brewfile path extraction failed. Skipping."
+        return 0
+    fi
+
+    # Brewfile에서 선언된 cask 목록 파싱
+    local declared_casks
+    declared_casks=$(sed -n 's/^cask "\([^"]*\)".*/\1/p' "$brewfile_path") || return 0
+    [[ -n "$declared_casks" ]] || return 0
+
+    # 설치된 cask 목록 조회
+    local installed_casks
+    installed_casks=$(brew list --cask 2>/dev/null) || {
+        log_warn "⚠️  Cask conflict check: brew list failed. Skipping."
+        return 0
+    }
+
+    # 새로 설치할 cask 식별 (선언됨 - 설치됨)
+    local new_casks=()
+    while IFS= read -r cask; do
+        [[ -z "$cask" ]] && continue
+        if ! echo "$installed_casks" | grep -qx "$cask"; then
+            new_casks+=("$cask")
+        fi
+    done <<< "$declared_casks"
+    [[ ${#new_casks[@]} -gt 0 ]] || return 0
+
+    # 새 cask들의 conflicts_with 메타데이터 배치 조회
+    local conflict_json
+    conflict_json=$(brew info --json=v2 --cask "${new_casks[@]}" 2>/dev/null) || {
+        log_warn "⚠️  Cask conflict check: brew info failed. Skipping."
+        return 0
+    }
+
+    # 충돌 감지: conflicts_with에 설치된 cask이 있는지 확인
+    local conflicts=()
+    for new_cask in "${new_casks[@]}"; do
+        local conflict_casks
+        conflict_casks=$(echo "$conflict_json" | \
+            jq -r --arg token "$new_cask" \
+            '.casks[] | select(.token == $token) | .conflicts_with.cask // empty | .[]' \
+            2>/dev/null) || continue
+        while IFS= read -r conflict_cask; do
+            [[ -z "$conflict_cask" ]] && continue
+            if echo "$installed_casks" | grep -qx "$conflict_cask"; then
+                conflicts+=("${conflict_cask}:${new_cask}")
+            fi
+        done <<< "$conflict_casks"
+    done
+    [[ ${#conflicts[@]} -gt 0 ]] || return 0
+
+    # 충돌 발견 — 사용자에게 안내
+    log_warn "🍺 Homebrew cask conflict detected:"
+    for conflict in "${conflicts[@]}"; do
+        local old_cask="${conflict%%:*}"
+        local new_cask="${conflict##*:}"
+        echo "  $old_cask (installed) conflicts with $new_cask (declared)"
+        if pgrep -xi "${old_cask%%@*}" &>/dev/null; then
+            log_warn "  ⚠️  ${old_cask} appears to be running. Uninstalling may force-quit it."
+        fi
+    done
+    echo ""
+
+    # 충돌 해소 — uninstall
+    local do_uninstall=false
+    if [[ "$FORCE_FLAG" == true ]]; then
+        do_uninstall=true
+    else
+        read -p "  Uninstall conflicting cask(s) to resolve? [y/N]: " -r
+        [[ $REPLY =~ ^[Yy]$ ]] && do_uninstall=true
+    fi
+
+    if [[ "$do_uninstall" == true ]]; then
+        for conflict in "${conflicts[@]}"; do
+            local old_cask="${conflict%%:*}"
+            log_info "  Uninstalling $old_cask..."
+            if ! brew uninstall --cask "$old_cask"; then
+                log_error "❌ Failed to uninstall $old_cask"
+                echo "  Resolve manually: brew uninstall --cask $old_cask"
+                return 1
+            fi
+            log_info "  ✓ Uninstalled $old_cask"
+            UNINSTALLED_CASKS+="$old_cask "
+        done
+        echo ""
+    else
+        log_error "❌ Cask conflict not resolved. Aborting."
+        echo "  Resolve manually:"
+        for conflict in "${conflicts[@]}"; do
+            echo "    brew uninstall --cask ${conflict%%:*}"
+        done
+        exit 1
+    fi
 }
 
 #───────────────────────────────────────────────────────────────────────────────
