@@ -566,11 +566,15 @@ cmd_cd() {
   local search="${1:-}"
 
   if [[ -n "$search" ]]; then
-    # substring 매치
+    # substring 매치: 디렉토리명 + 브랜치명 + sanitized 검색어 모두 시도
+    local sanitized_search
+    sanitized_search=$(_sanitize_name "$search")
     for wt in "${worktrees[@]}"; do
-      local name
+      local name branch
       name=$(basename "$wt")
-      if [[ "$name" == *"$search"* ]]; then
+      branch=$(_wt_branch "$wt")
+      if [[ "$name" == *"$search"* ]] || [[ "$name" == *"$sanitized_search"* ]] \
+        || [[ "$branch" == *"$search"* ]]; then
         target_path="$wt"
         break
       fi
@@ -644,12 +648,12 @@ cmd_ls() {
   done
 
   # 임시 디렉토리 (PR 상태 병렬 조회)
-  local tmp_dir
-  tmp_dir=$(mktemp -d)
-  trap 'jobs -p | xargs -r kill 2>/dev/null || true; rm -rf "$tmp_dir"' EXIT
+  # global 변수: EXIT trap은 함수 종료 후 실행되므로 local은 set -u에서 unbound
+  _wt_ls_tmp=$(mktemp -d)
+  trap 'jobs -p | xargs -r kill 2>/dev/null || true; rm -rf "${_wt_ls_tmp:-}"' EXIT
 
   # PR 상태 병렬 조회
-  _fetch_pr_statuses "$git_root" "$tmp_dir" "${worktrees[@]}"
+  _fetch_pr_statuses "$git_root" "$_wt_ls_tmp" "${worktrees[@]}"
 
   # 데이터 수집 + 정렬 (age 기준, 최신 우선)
   local entries=()
@@ -661,7 +665,7 @@ cmd_ls() {
     age=$(_relative_age "$ts")
 
     pr_status="NONE"
-    [[ -f "$tmp_dir/$name.pr" ]] && pr_status=$(cat "$tmp_dir/$name.pr")
+    [[ -f "$_wt_ls_tmp/$name.pr" ]] && pr_status=$(cat "$_wt_ls_tmp/$name.pr")
 
     dirty_mark=""
     _wt_is_dirty "$wt" && dirty_mark="●"
@@ -738,12 +742,12 @@ cmd_cleanup() {
   fi
 
   # 임시 디렉토리 (PR 상태 병렬 조회)
-  local tmp_dir
-  tmp_dir=$(mktemp -d)
-  trap 'jobs -p | xargs -r kill 2>/dev/null || true; rm -rf "$tmp_dir"' EXIT
+  # global 변수: EXIT trap은 함수 종료 후 실행되므로 local은 set -u에서 unbound
+  _wt_cleanup_tmp=$(mktemp -d)
+  trap 'jobs -p | xargs -r kill 2>/dev/null || true; rm -rf "${_wt_cleanup_tmp:-}"' EXIT
 
   # PR 상태 병렬 조회
-  _fetch_pr_statuses "$git_root" "$tmp_dir" "${worktrees[@]}"
+  _fetch_pr_statuses "$git_root" "$_wt_cleanup_tmp" "${worktrees[@]}"
 
   # 데이터 수집
   local items=()        # gum choose 라벨
@@ -763,7 +767,7 @@ cmd_cleanup() {
     age=$(_relative_age "$ts")
 
     pr_status="NONE"
-    [[ -f "$tmp_dir/$name.pr" ]] && pr_status=$(cat "$tmp_dir/$name.pr")
+    [[ -f "$_wt_cleanup_tmp/$name.pr" ]] && pr_status=$(cat "$_wt_cleanup_tmp/$name.pr")
 
     dirty_flag=false
     _wt_is_dirty "$wt" && dirty_flag=true
@@ -822,7 +826,7 @@ cmd_cleanup() {
         continue
       fi
 
-      _remove_worktree "$wt_path" "$branch" "$git_root"
+      _remove_worktree "$wt_path" "$branch" "$git_root" || true
     done
 
     git worktree prune 2>/dev/null || true
