@@ -705,8 +705,10 @@ cmd_cd() {
       done
       printf "번호: " >&2
       read -r choice_num
-      selected="${names[$((choice_num - 1))]:-}"
-      [[ -z "$selected" ]] && _die "잘못된 선택"
+      if ! [[ "$choice_num" =~ ^[0-9]+$ ]] || (( choice_num < 1 || choice_num > ${#names[@]} )); then
+        _die "잘못된 선택"
+      fi
+      selected="${names[$((choice_num - 1))]}"
     fi
 
     target_path="$wt_base/$selected"
