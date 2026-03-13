@@ -3,11 +3,12 @@
 # 사용법: wt [--stay] [--claude] <branch> | wt cd [name] | wt ls | wt cleanup [--auto]
 
 # === Change Intent Record ===
-# v1 (2026-01-25 ~ PR #153): 커스텀 wt/wt-cleanup 셸 함수 838줄 (zsh, fzf 기반)
+# v1 (2025년 초~): 커스텀 wt/wt-cleanup 셸 함수 838줄 (zsh, fzf 기반)
 #    .wt/ 경로, tmux 윈도우 통합, .wt-parent 부모 브랜치 추적
-# v2 (PR #180, 2026-03-09): Claude Code v2.x 내장 --worktree --tmux로 완전 대체, -1441줄 삭제
+# v2 (PR #176, CLOSED): claude-wrapper.sh Killed: 9 수정 시도, wrapper 복잡성 한계 확인
+# v3 (PR #180): Claude Code v2.x 내장 --worktree --tmux로 완전 대체, -1441줄 삭제
 #    판단 근거: 내장 기능이 동일 역할을 수행하므로 코드 제거가 합리적
-# v3 (이번 변경, #203): 내장 --worktree의 치명적 한계 확인 후 커스텀 구현 복구+고도화
+# v4 (이번 변경, #203): 내장 --worktree의 치명적 한계 확인 후 커스텀 구현 복구+고도화
 #    한계 1: 항상 default branch 기준 분기 (Git Flow 환경에서 치명적, GitHub Issue #28958)
 #    한계 2: Ctrl+C/Z 시 main worktree cwd로 복귀 (worktree 컨텍스트 유실)
 #    한계 3: worktree 정리 도구 부재 (stale worktree 누적)
