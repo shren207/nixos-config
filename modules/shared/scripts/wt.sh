@@ -228,9 +228,13 @@ _wt_has_unpushed() {
 }
 
 # PR 상태 조회 (gh CLI)
+# 인자: branch, git_root, [wt_path]
+# wt_path가 주어지면 branch name reuse 감지: MERGED PR의 headRefOid와
+# 현재 브랜치 HEAD를 비교하여, 다르면 NONE 반환 (동명의 다른 브랜치)
 _wt_pr_status() {
   local branch="$1"
   local git_root="$2"
+  local wt_path="${3:-}"
 
   if ! command -v gh &>/dev/null; then
     echo "NONE"
@@ -240,9 +244,24 @@ _wt_pr_status() {
   local remote_url
   remote_url=$(git -C "$git_root" remote get-url origin 2>/dev/null) || { echo "NONE"; return; }
 
-  local pr_state
-  pr_state=$(gh pr list --head "$branch" --state all --json state --jq '.[0].state' \
+  local pr_data
+  pr_data=$(gh pr list --head "$branch" --state all --json state,headRefOid \
+    --jq '.[0] | "\(.state) \(.headRefOid // "")"' \
     --repo "$remote_url" 2>/dev/null) || true
+
+  local pr_state="${pr_data%% *}"
+  local pr_head_oid="${pr_data#* }"
+
+  # Branch name reuse guard: MERGED PR의 headRefOid가 현재 브랜치 HEAD와 다르면
+  # 동일 이름의 새 브랜치이므로 NONE 처리 (stale PR로 auto-cleanup 방지)
+  if [[ "$pr_state" == "MERGED" ]] && [[ -n "$wt_path" ]] && [[ -n "$pr_head_oid" ]]; then
+    local branch_head
+    branch_head=$(git -C "$wt_path" rev-parse HEAD 2>/dev/null) || true
+    if [[ -n "$branch_head" && "$pr_head_oid" != "$branch_head" ]]; then
+      echo "NONE"
+      return
+    fi
+  fi
 
   case "$pr_state" in
     MERGED) echo "MERGED" ;;
@@ -275,7 +294,7 @@ _fetch_pr_statuses() {
     name=$(basename "$wt")
     (
       local pr_status
-      pr_status=$(_wt_pr_status "$branch" "$git_root")
+      pr_status=$(_wt_pr_status "$branch" "$git_root" "$wt")
       echo "$pr_status" > "$tmp_dir/$name.pr"
     ) &
     pids+=($!)
