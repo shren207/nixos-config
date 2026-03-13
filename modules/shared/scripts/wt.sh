@@ -545,6 +545,20 @@ _handle_existing_branch() {
   local dir_name
   dir_name=$(basename "$worktree_dir")
 
+  # 브랜치가 다른 worktree에 이미 checkout되어 있는지 확인
+  # (checkout된 브랜치는 worktree add/branch -D 모두 실패)
+  local branch_ref="refs/heads/$branch_name"
+  local checked_out_at
+  checked_out_at=$(git worktree list --porcelain 2>/dev/null | awk -v ref="$branch_ref" '
+    /^worktree / { wt = substr($0, 10) }
+    /^branch / && substr($0, 8) == ref { print wt; exit }
+  ')
+  if [[ -n "$checked_out_at" ]]; then
+    _info "브랜치 '$branch_name'이(가) 이미 checkout되어 있습니다: $checked_out_at"
+    _info "다른 브랜치로 전환 후 다시 시도하세요"
+    return 1
+  fi
+
   local choices=("기존 브랜치 사용" "새로 생성" "취소")
   local choice
 
