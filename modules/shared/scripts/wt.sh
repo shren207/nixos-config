@@ -126,7 +126,7 @@ _wt_tmux_open() {
   echo "$new_window"
 }
 
-# tmux 윈도우에 셸 이외의 포그라운드 프로세스가 있는지 확인
+# tmux 윈도우에 셸 이외의 포그라운드 프로세스가 있는지 확인 (전체 pane 검사)
 # 있으면 return 0 (true), 없으면 return 1 (false)
 _wt_has_active_process() {
   local wt_path="$1"
@@ -135,16 +135,19 @@ _wt_has_active_process() {
   local window_id
   window_id=$(_wt_find_tmux_window "$wt_path") || return 1
 
+  # 모든 pane 검사 (분할 pane의 비활성 pane도 포함)
   local pane_cmd
-  pane_cmd=$(tmux display-message -t "$window_id" -p '#{pane_current_command}' 2>/dev/null) || return 1
+  while IFS= read -r pane_cmd; do
+    case "$pane_cmd" in
+      zsh|bash|fish) ;;  # 셸 — 안전
+      *)
+        _info "스킵: $(basename "$wt_path") — 실행 중인 프로세스: $pane_cmd"
+        return 0
+        ;;
+    esac
+  done < <(tmux list-panes -t "$window_id" -F '#{pane_current_command}' 2>/dev/null)
 
-  # 셸 프로세스만 있으면 안전 (활성 프로세스 없음)
-  case "$pane_cmd" in
-    zsh|bash|fish) return 1 ;;
-  esac
-
-  _info "스킵: $(basename "$wt_path") — 실행 중인 프로세스: $pane_cmd"
-  return 0
+  return 1
 }
 
 # tmux 윈도우 안전하게 닫기
@@ -875,9 +878,11 @@ cmd_cleanup() {
       local name
       name=$(basename "$wt_path")
 
-      # dirty/unpushed → 스킵
-      if [[ "${item_dirty[$i]}" == "true" ]] || [[ "${item_unpushed[$i]}" == "true" ]]; then
-        _info "스킵: $name (dirty/unpushed 있음)"
+      # dirty → 스킵 (MERGED라도 uncommitted changes는 보호)
+      # unpushed 체크 생략: MERGED PR의 커밋은 이미 main에 있으므로 무의미
+      # upstream 삭제 시(GitHub auto-delete) false positive 방지
+      if [[ "${item_dirty[$i]}" == "true" ]]; then
+        _info "스킵: $name (dirty 있음)"
         continue
       fi
 
