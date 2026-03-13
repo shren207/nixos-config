@@ -223,8 +223,10 @@ _wt_pr_status() {
 }
 
 # 마지막 커밋 메시지 (한 줄, 50자 제한)
+# 마지막 커밋 메시지 (한 줄, 50자 제한, 쉼표 제거)
+# gum choose --selected가 쉼표로 값을 분리하므로 라벨 안전을 위해 제거
 _wt_last_commit_msg() {
-  git -C "$1" log -1 --format='%s' 2>/dev/null | head -c 50
+  git -C "$1" log -1 --format='%s' 2>/dev/null | head -c 50 | tr ',' ' '
 }
 
 # ── PR 상태 병렬 조회 ────────────────────────────────────────────────────────
@@ -464,6 +466,15 @@ _handle_existing_worktree() {
         [[ "$confirmed" == "false" ]] && { _info "취소됨"; return 1; }
       fi
 
+      # cwd 가드: 현재 셸이 대상 worktree 안에 있으면 재생성 불가
+      local current_dir
+      current_dir=$(pwd -P)
+      if [[ "$current_dir" == "$worktree_dir" || "$current_dir" == "$worktree_dir/"* ]]; then
+        _info "재생성 불가: 현재 작업 디렉토리가 이 worktree 안에 있습니다"
+        _info "다른 디렉토리에서 다시 시도하세요"
+        return 1
+      fi
+
       _wt_tmux_close "$worktree_dir" || true
       git worktree remove --force "$worktree_dir" 2>/dev/null || rm -rf "$worktree_dir"
       git worktree prune 2>/dev/null || true
@@ -635,7 +646,7 @@ cmd_ls() {
   # 임시 디렉토리 (PR 상태 병렬 조회)
   local tmp_dir
   tmp_dir=$(mktemp -d)
-  trap 'kill $(jobs -p) 2>/dev/null; rm -rf "$tmp_dir"' EXIT
+  trap 'jobs -p | xargs -r kill 2>/dev/null || true; rm -rf "$tmp_dir"' EXIT
 
   # PR 상태 병렬 조회
   _fetch_pr_statuses "$git_root" "$tmp_dir" "${worktrees[@]}"
@@ -729,7 +740,7 @@ cmd_cleanup() {
   # 임시 디렉토리 (PR 상태 병렬 조회)
   local tmp_dir
   tmp_dir=$(mktemp -d)
-  trap 'kill $(jobs -p) 2>/dev/null; rm -rf "$tmp_dir"' EXIT
+  trap 'jobs -p | xargs -r kill 2>/dev/null || true; rm -rf "$tmp_dir"' EXIT
 
   # PR 상태 병렬 조회
   _fetch_pr_statuses "$git_root" "$tmp_dir" "${worktrees[@]}"
