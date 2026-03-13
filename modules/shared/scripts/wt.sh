@@ -310,6 +310,7 @@ _open_worktree() {
     fi
   else
     # tmux 밖: 경로 stdout 출력 (래퍼가 cd)
+    [[ "$run_claude" == "true" ]] && _info "경고: --claude는 tmux 세션 안에서만 동작합니다"
     echo "$wt_path"
   fi
 }
@@ -320,6 +321,14 @@ _remove_worktree() {
   local wt_path="$1" branch="$2" git_root="$3"
   local name
   name=$(basename "$wt_path")
+
+  # cwd 가드: 현재 셸이 삭제 대상 worktree 안에 있으면 중단
+  local current_dir
+  current_dir=$(pwd -P)
+  if [[ "$current_dir" == "$wt_path" || "$current_dir" == "$wt_path/"* ]]; then
+    _info "스킵: $name — 현재 작업 디렉토리가 이 worktree 안에 있습니다"
+    return 1
+  fi
 
   # tmux 윈도우 닫기 (실패해도 worktree는 삭제)
   _wt_tmux_close "$wt_path" || true
@@ -392,7 +401,7 @@ cmd_create() {
 
   # 새 worktree 생성 (현재 HEAD 기준)
   mkdir -p "$(dirname "$worktree_dir")"
-  git worktree add -b "$branch_name" "$worktree_dir" || _die "worktree 생성 실패"
+  git worktree add -b "$branch_name" "$worktree_dir" >&2 || _die "worktree 생성 실패"
 
   echo "$parent_branch" > "$worktree_dir/.wt-parent"
   _bootstrap_worktree "$worktree_dir" "$git_root"
@@ -460,7 +469,7 @@ _handle_existing_worktree() {
       git worktree prune 2>/dev/null || true
       git branch -D "$branch_name" 2>/dev/null || true
 
-      git worktree add -b "$branch_name" "$worktree_dir" || _die "worktree 재생성 실패"
+      git worktree add -b "$branch_name" "$worktree_dir" >&2 || _die "worktree 재생성 실패"
       echo "$parent_branch" > "$worktree_dir/.wt-parent"
       _bootstrap_worktree "$worktree_dir" "$git_root"
       _info "worktree 재생성: $branch_name (from $parent_branch)"
@@ -503,7 +512,7 @@ _handle_existing_branch() {
   case "$choice" in
     "기존 브랜치 사용")
       mkdir -p "$(dirname "$worktree_dir")"
-      git worktree add "$worktree_dir" "$branch_name" || _die "worktree 생성 실패"
+      git worktree add "$worktree_dir" "$branch_name" >&2 || _die "worktree 생성 실패"
       echo "$parent_branch" > "$worktree_dir/.wt-parent"
       _bootstrap_worktree "$worktree_dir" "$git_root"
       _info "worktree 생성 (기존 브랜치): $branch_name"
@@ -512,7 +521,7 @@ _handle_existing_branch() {
     "새로 생성")
       git branch -D "$branch_name" 2>/dev/null || true
       mkdir -p "$(dirname "$worktree_dir")"
-      git worktree add -b "$branch_name" "$worktree_dir" || _die "worktree 생성 실패"
+      git worktree add -b "$branch_name" "$worktree_dir" >&2 || _die "worktree 생성 실패"
       echo "$parent_branch" > "$worktree_dir/.wt-parent"
       _bootstrap_worktree "$worktree_dir" "$git_root"
       _info "worktree 생성 (브랜치 재생성): $branch_name (from $parent_branch)"
