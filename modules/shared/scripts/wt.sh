@@ -12,7 +12,7 @@
 #    한계 2: Ctrl+C/Z 시 main worktree cwd로 복귀 (worktree 컨텍스트 유실)
 #    한계 3: worktree 정리 도구 부재 (stale worktree 누적)
 #    고도화: gum TUI, wt cd/ls 서브커맨드, --claude 플래그, bash 전환(zsh job table 버그 해소)
-#    trade-off: ~700줄 커스텀 코드 재도입이지만,
+#    trade-off: ~950줄 커스텀 코드 재도입이지만,
 #              claude --worktree가 커버하지 못하는 범용 워크플로우 + Git Flow 지원이 필수적.
 
 set -euo pipefail
@@ -895,7 +895,7 @@ cmd_cleanup() {
     fi
 
     _remove_worktree "$wt_path" "$branch" "$git_root"
-    ((removed++))
+    removed=$((removed + 1))
   done
 
   git worktree prune 2>/dev/null || true
