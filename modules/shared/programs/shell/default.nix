@@ -19,6 +19,10 @@ in
     source = "${sharedScriptsDir}/git-cleanup.sh";
     executable = true;
   };
+  home.file.".local/bin/wt" = {
+    source = "${sharedScriptsDir}/wt.sh";
+    executable = true;
+  };
   home.file.".local/bin/nfu.sh" = {
     source = pkgs.replaceVars "${sharedScriptsDir}/nfu.sh" {
       flakePath = nixosConfigDefaultPath;
@@ -72,6 +76,9 @@ in
 
     # cheat content search 단축
     cs = "cheat -c -s";
+
+    # 워크트리 정리 단축
+    wt-cleanup = "wt cleanup";
 
     # 디렉토리 이동 단축
     ".." = "cd ..";
@@ -180,6 +187,22 @@ in
         zstyle ':fzf-tab:complete:git-diff:*' fzf-preview \
           'git diff --color=always $word 2>/dev/null | head -50'
       '')
+
+      #─────────────────────────────────────────────────────────────────────────
+      # wt 래퍼 함수 (cd 서브커맨드: caller 셸 cwd 변경 필요)
+      #─────────────────────────────────────────────────────────────────────────
+      ''
+        wt() {
+          if [[ "''${1:-}" == "cd" ]]; then
+            shift
+            local target
+            target=$(command wt cd "$@") || return $?
+            [[ -n "$target" ]] && cd "$target"
+          else
+            command wt "$@"
+          fi
+        }
+      ''
 
       #─────────────────────────────────────────────────────────────────────────
       # Pushover 텍스트 공유 (MiniPC -> iPhone)
