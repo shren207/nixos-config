@@ -515,6 +515,12 @@ _handle_existing_worktree() {
         return 1
       fi
 
+      # 활성 프로세스 가드: tmux 윈도우에 실행 중인 프로세스가 있으면 재생성 불가
+      if _wt_has_active_process "$worktree_dir"; then
+        _info "다른 프로세스를 종료한 뒤 다시 시도하세요"
+        return 1
+      fi
+
       _wt_tmux_close "$worktree_dir" || true
       git worktree remove --force "$worktree_dir" 2>/dev/null || rm -rf "$worktree_dir"
       git worktree prune 2>/dev/null || true
