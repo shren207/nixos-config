@@ -98,6 +98,7 @@ _wt_tmux_open() {
   [[ -z "${TMUX:-}" ]] && return 1
 
   # 이미 존재하는 윈도우 확인
+  # return 2 = 기존 윈도우 재사용 (caller가 --claude send-keys 스킵 판단에 사용)
   local existing_window
   if existing_window=$(_wt_find_tmux_window "$wt_path"); then
     if [[ "$stay" == "true" ]]; then
@@ -107,7 +108,7 @@ _wt_tmux_open() {
       _info "기존 tmux 윈도우로 전환: $window_name"
     fi
     echo "$existing_window"
-    return 0
+    return 2
   fi
 
   # 새 윈도우 생성
@@ -301,14 +302,19 @@ _open_worktree() {
   local wt_path="$1" window_name="$2" stay="$3" run_claude="$4"
 
   if [[ -n "${TMUX:-}" ]]; then
-    local window_id
-    window_id=$(_wt_tmux_open "$wt_path" "$window_name" "$stay") || true
+    local window_id open_rc=0
+    window_id=$(_wt_tmux_open "$wt_path" "$window_name" "$stay") || open_rc=$?
 
-    # --claude: 셸에서 claude 실행
+    # --claude: 새 윈도우에서만 claude 실행 (open_rc == 0)
+    # 기존 윈도우(open_rc == 2)에는 send-keys 하지 않음 — 실행 중인 프로세스에 주입 방지
     # send-keys로 큐잉 — 셸 초기화 완료 후 버퍼에서 읽어 실행 (레이스 안전)
     if [[ "$run_claude" == "true" ]] && [[ -n "${window_id:-}" ]]; then
-      tmux send-keys -t "$window_id" \
-        "claude --dangerously-skip-permissions --mcp-config ~/.claude/mcp.json" Enter
+      if (( open_rc == 0 )); then
+        tmux send-keys -t "$window_id" \
+          "claude --dangerously-skip-permissions --mcp-config ~/.claude/mcp.json" Enter
+      else
+        _info "기존 윈도우 — --claude 스킵 (실행 중인 프로세스 보호)"
+      fi
     fi
   else
     # tmux 밖: 경로 stdout 출력 (래퍼가 cd)
@@ -530,6 +536,24 @@ _handle_existing_branch() {
       _open_worktree "$worktree_dir" "$dir_name" "$stay" "$run_claude"
       ;;
     "새로 생성")
+      # 커밋 유실 경고: 현재 HEAD에서 도달 불가능한 커밋이 있으면 확인
+      local ahead_count
+      ahead_count=$(git rev-list --count "HEAD..$branch_name" 2>/dev/null) || true
+      if (( ${ahead_count:-0} > 0 )); then
+        _info "경고: '$branch_name'에 현재 HEAD에 없는 커밋 ${ahead_count}개가 있습니다"
+        local delete_confirmed=false
+        if _has_gum; then
+          gum confirm "브랜치를 삭제하고 새로 생성하시겠습니까?" && delete_confirmed=true
+        else
+          printf "브랜치를 삭제하고 새로 생성하시겠습니까? (y/N): " >&2
+          local yn; read -r yn
+          [[ "$yn" =~ ^[yY] ]] && delete_confirmed=true
+        fi
+        if [[ "$delete_confirmed" == "false" ]]; then
+          _info "취소됨"
+          return 1
+        fi
+      fi
       git branch -D "$branch_name" 2>/dev/null || true
       mkdir -p "$(dirname "$worktree_dir")"
       git worktree add -b "$branch_name" "$worktree_dir" >&2 || _die "worktree 생성 실패"
@@ -919,7 +943,7 @@ cmd_cleanup() {
       fi
     fi
 
-    _remove_worktree "$wt_path" "$branch" "$git_root"
+    _remove_worktree "$wt_path" "$branch" "$git_root" || true
     removed=$((removed + 1))
   done
 
