@@ -884,12 +884,19 @@ cmd_cleanup() {
       local name
       name=$(basename "$wt_path")
 
-      # dirty → 스킵 (MERGED라도 uncommitted changes는 보호)
-      # unpushed 체크 생략: MERGED PR의 커밋은 이미 main에 있으므로 무의미
-      # upstream 삭제 시(GitHub auto-delete) false positive 방지
+      # dirty → 스킵
       if [[ "${item_dirty[$i]}" == "true" ]]; then
         _info "스킵: $name (dirty 있음)"
         continue
+      fi
+
+      # unpushed 체크: upstream이 존재하는 경우에만 (merge 후 추가 커밋 보호)
+      # upstream 삭제(GitHub auto-delete + git fetch -p) 시 false positive이므로 스킵
+      if [[ "${item_unpushed[$i]}" == "true" ]]; then
+        if git -C "$wt_path" rev-parse --abbrev-ref "@{upstream}" &>/dev/null; then
+          _info "스킵: $name (merge 후 추가 커밋 있음)"
+          continue
+        fi
       fi
 
       _remove_worktree "$wt_path" "$branch" "$git_root" || true
