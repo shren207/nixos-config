@@ -77,9 +77,10 @@ _wt_find_tmux_window() {
   local wt_path="$1"
   tmux list-sessions &>/dev/null || return 1
 
-  # -a: 모든 세션의 윈도우 검색 (tmux 밖에서도 동작)
+  # list-panes -a: 모든 세션의 모든 pane 검색 (분할 pane의 비활성 pane도 포함)
+  # list-windows는 활성 pane 경로만 반환하므로 비활성 pane의 worktree를 놓칠 수 있음
   local window_id
-  window_id=$(tmux list-windows -a -F '#{window_id} #{pane_current_path}' 2>/dev/null \
+  window_id=$(tmux list-panes -a -F '#{window_id} #{pane_current_path}' 2>/dev/null \
     | while read -r wid wpath; do
         if [[ "$wpath" == "$wt_path" || "$wpath" == "$wt_path/"* ]]; then
           echo "$wid"
@@ -352,6 +353,14 @@ _open_worktree() {
   if [[ -n "${TMUX:-}" ]]; then
     local window_id open_rc=0
     window_id=$(_wt_tmux_open "$wt_path" "$window_name" "$stay") || open_rc=$?
+
+    # tmux 연결 실패 (stale TMUX 환경변수 등) → fallback: 경로 stdout 출력
+    if (( open_rc == 1 )); then
+      _info "경고: tmux 윈도우 생성 실패 — 경로로 fallback합니다"
+      [[ "$run_claude" == "true" ]] && _info "경고: --claude는 tmux 윈도우가 필요합니다"
+      echo "$wt_path"
+      return
+    fi
 
     # --claude: 새 윈도우에서만 claude 실행 (open_rc == 0)
     # 기존 윈도우(open_rc == 2)에는 send-keys 하지 않음 — 실행 중인 프로세스에 주입 방지
@@ -932,7 +941,7 @@ cmd_cleanup() {
         fi
       fi
 
-      _remove_worktree "$wt_path" "$branch" "$git_root" || true
+      _remove_worktree "$wt_path" "$branch" "$git_root" || _info "경고: $name 삭제 실패"
     done
 
     git worktree prune 2>/dev/null || true
@@ -1025,8 +1034,9 @@ cmd_cleanup() {
       fi
     fi
 
-    _remove_worktree "$wt_path" "$branch" "$git_root" || true
-    removed=$((removed + 1))
+    if _remove_worktree "$wt_path" "$branch" "$git_root"; then
+      removed=$((removed + 1))
+    fi
   done
 
   git worktree prune 2>/dev/null || true
