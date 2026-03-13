@@ -199,7 +199,19 @@ in
             target=$(command wt cd "$@") || return $?
             [[ -n "$target" ]] && cd "$target"
           else
-            command wt "$@"
+            # stdout 캡처: tmux 밖에서 create/cd 시 경로가 출력되면 cd
+            local output
+            output=$(command wt "$@")
+            local rc=$?
+            if [[ $rc -ne 0 ]]; then
+              [[ -n "$output" ]] && echo "$output"
+              return $rc
+            fi
+            if [[ -n "$output" && -d "$output" ]]; then
+              cd "$output"
+            elif [[ -n "$output" ]]; then
+              echo "$output"
+            fi
           fi
         }
       ''

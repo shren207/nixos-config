@@ -12,7 +12,7 @@
 #    한계 2: Ctrl+C/Z 시 main worktree cwd로 복귀 (worktree 컨텍스트 유실)
 #    한계 3: worktree 정리 도구 부재 (stale worktree 누적)
 #    고도화: gum TUI, wt cd/ls 서브커맨드, --claude 플래그, bash 전환(zsh job table 버그 해소)
-#    trade-off: ~500줄 커스텀 코드 재도입이지만,
+#    trade-off: ~700줄 커스텀 코드 재도입이지만,
 #              claude --worktree가 커버하지 못하는 범용 워크플로우 + Git Flow 지원이 필수적.
 
 set -euo pipefail
@@ -166,7 +166,9 @@ _collect_worktrees() {
 
 # worktree의 브랜치명
 _wt_branch() {
-  git -C "$1" branch --show-current 2>/dev/null || echo "detached"
+  local b
+  b=$(git -C "$1" branch --show-current 2>/dev/null) || true
+  echo "${b:-detached}"
 }
 
 # worktree의 마지막 커밋 타임스탬프
@@ -279,9 +281,10 @@ _bootstrap_worktree() {
     cp "$src_settings" "$dst_claude_dir/settings.local.json"
   fi
 
-  # .codex/ 디렉토리 복사
+  # .codex/ 디렉토리 복사 (기존 제거 후 복사 — 중첩 방지)
   local src_codex="$git_root/.codex"
   if [[ -d "$src_codex" ]]; then
+    rm -rf "$wt_path/.codex"
     cp -r "$src_codex" "$wt_path/.codex"
   fi
 
@@ -763,7 +766,8 @@ cmd_cleanup() {
     local unpushed_mark=""
     [[ "$unpushed_flag" == "true" ]] && unpushed_mark=" ↑unpushed"
 
-    local label="$st_icon $name ($age, $pr_status${dirty_mark}${unpushed_mark}) — $last_msg"
+    # gum choose --selected는 쉼표로 값을 분리하므로 라벨에 쉼표 사용 금지
+    local label="$st_icon $name [$age $pr_status${dirty_mark}${unpushed_mark}] — $last_msg"
 
     items+=("$label")
     item_paths+=("$wt")
@@ -774,7 +778,7 @@ cmd_cleanup() {
 
     [[ "$pr_status" == "MERGED" ]] && merged_indices+=("$idx")
 
-    ((idx++))
+    idx=$((idx + 1))
   done
 
   if [[ "$auto" == "true" ]]; then
