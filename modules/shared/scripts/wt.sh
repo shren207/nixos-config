@@ -72,12 +72,14 @@ _info() {
 # ── tmux 헬퍼 ────────────────────────────────────────────────────────────────
 
 # worktree 디렉토리에 해당하는 tmux 윈도우 찾기
+# tmux 안/밖 모두 동작 — 서버 실행 여부만 확인
 _wt_find_tmux_window() {
   local wt_path="$1"
-  [[ -z "${TMUX:-}" ]] && return 1
+  tmux list-sessions &>/dev/null || return 1
 
+  # -a: 모든 세션의 윈도우 검색 (tmux 밖에서도 동작)
   local window_id
-  window_id=$(tmux list-windows -F '#{window_id} #{pane_current_path}' 2>/dev/null \
+  window_id=$(tmux list-windows -a -F '#{window_id} #{pane_current_path}' 2>/dev/null \
     | while read -r wid wpath; do
         if [[ "$wpath" == "$wt_path" || "$wpath" == "$wt_path/"* ]]; then
           echo "$wid"
@@ -124,26 +126,50 @@ _wt_tmux_open() {
   echo "$new_window"
 }
 
+# tmux 윈도우에 셸 이외의 포그라운드 프로세스가 있는지 확인
+# 있으면 return 0 (true), 없으면 return 1 (false)
+_wt_has_active_process() {
+  local wt_path="$1"
+  tmux list-sessions &>/dev/null || return 1
+
+  local window_id
+  window_id=$(_wt_find_tmux_window "$wt_path") || return 1
+
+  local pane_cmd
+  pane_cmd=$(tmux display-message -t "$window_id" -p '#{pane_current_command}' 2>/dev/null) || return 1
+
+  # 셸 프로세스만 있으면 안전 (활성 프로세스 없음)
+  case "$pane_cmd" in
+    zsh|bash|fish) return 1 ;;
+  esac
+
+  _info "스킵: $(basename "$wt_path") — 실행 중인 프로세스: $pane_cmd"
+  return 0
+}
+
 # tmux 윈도우 안전하게 닫기
+# tmux 안/밖 모두 동작 — 서버 실행 중이면 윈도우 정리 가능
 _wt_tmux_close() {
   local wt_path="$1"
-  [[ -z "${TMUX:-}" ]] && return 0
+  tmux list-sessions &>/dev/null || return 0
 
   local window_id
   window_id=$(_wt_find_tmux_window "$wt_path") || return 0
 
-  # 현재 윈도우는 닫지 않음
-  local current_window
-  current_window=$(tmux display-message -p '#{window_id}')
-  if [[ "$window_id" == "$current_window" ]]; then
-    _info "현재 윈도우는 닫을 수 없습니다: $(basename "$wt_path")"
-    return 1
+  # 현재 윈도우는 닫지 않음 (tmux 세션 안에서만 해당)
+  if [[ -n "${TMUX:-}" ]]; then
+    local current_window
+    current_window=$(tmux display-message -p '#{window_id}')
+    if [[ "$window_id" == "$current_window" ]]; then
+      _info "현재 윈도우는 닫을 수 없습니다: $(basename "$wt_path")"
+      return 1
+    fi
   fi
 
-  # 마지막 윈도우 체크 (tmux 세션 종료 방지)
-  local window_count
-  window_count=$(tmux list-windows | wc -l)
-  if (( window_count <= 1 )); then
+  # 마지막 윈도우 체크 (해당 세션 종료 방지)
+  local session_windows
+  session_windows=$(tmux display-message -t "$window_id" -p '#{session_windows}' 2>/dev/null) || true
+  if (( ${session_windows:-0} <= 1 )); then
     _info "마지막 윈도우는 닫을 수 없습니다"
     return 1
   fi
@@ -335,6 +361,11 @@ _remove_worktree() {
   current_dir=$(pwd -P)
   if [[ "$current_dir" == "$wt_path" || "$current_dir" == "$wt_path/"* ]]; then
     _info "스킵: $name — 현재 작업 디렉토리가 이 worktree 안에 있습니다"
+    return 1
+  fi
+
+  # 활성 프로세스 가드: tmux 윈도우에 실행 중인 프로세스(nvim, claude 등)가 있으면 중단
+  if _wt_has_active_process "$wt_path"; then
     return 1
   fi
 
