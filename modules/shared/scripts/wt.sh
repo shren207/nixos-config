@@ -74,7 +74,7 @@ _die() {
 }
 
 _info() {
-  echo ":: $*" >&2
+  echo "$*" >&2
 }
 
 # y/N 확인 프롬프트 (gum confirm 대체)
