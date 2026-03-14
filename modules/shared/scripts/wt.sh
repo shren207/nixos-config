@@ -23,7 +23,7 @@
 #    보존: gum table/style은 표시 전용(wide char 무관)이므로 wt ls에서 유지.
 # v6 (이번 변경): --tmux 플래그 추가 — tmux 밖에서 독립 tmux 세션 생성+attach
 #    동기: claude --worktree --tmux와 유사한 경험을 wt에서도 제공
-#    세션 이름: wt-<dir_name> (하이픈 구분 — tmux의 : 구분자 충돌 방지)
+#    세션 이름: wt-<repo>-<dir_name> (repo별 네임스페이스 — 멀티 repo 충돌 방지)
 #    핵심 제약: 래퍼의 subshell $() 안에서 exec tmux 불가 → --tmux 감지 시 우회
 #    tmux 안에서 --tmux: 기존 윈도우 모드로 fallback (의도적 정책 — 세션 전환보다 윈도우가 워크플로우에 적합)
 
@@ -205,9 +205,14 @@ _wt_has_active_process() {
 
 # ── tmux 세션 헬퍼 (--tmux 플래그용) ──────────────────────────────────────
 
-# 세션 이름 생성: wt- 접두사 + sanitized 디렉토리명
+# 세션 이름 생성: wt-<repo>-<dir> (repo별 네임스페이스로 충돌 방지)
 _wt_session_name() {
-  echo "wt-$1"
+  local dir_name="$1"
+  local repo_name
+  repo_name=$(basename "$(_get_repo_root)" 2>/dev/null) || repo_name="default"
+  # tmux target 구분자(. :)를 언더스코어로 치환
+  repo_name="${repo_name//[.:]/_}"
+  echo "wt-${repo_name}-${dir_name}"
 }
 
 # 세션 존재 확인 (= prefix: exact match — tmux default prefix matching 방지)
