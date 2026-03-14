@@ -272,7 +272,6 @@ _wt_pr_status() {
   esac
 }
 
-# 마지막 커밋 메시지 (한 줄, 50자 제한)
 # 마지막 커밋 메시지 (한 줄, 50자 제한, 쉼표 제거)
 # gum choose --selected가 쉼표로 값을 분리하므로 라벨 안전을 위해 제거
 _wt_last_commit_msg() {
