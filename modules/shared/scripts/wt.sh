@@ -18,8 +18,9 @@
 #               잘려서 인코딩이 깨짐 (CJK 2-column width 미고려)
 #    전환 이유 2: fzf의 --preview 지원 — 선택 전 worktree 상태(커밋 로그, dirty) 미리보기 가능
 #    전환 이유 3: 사용자가 fzf에 더 익숙하고, 프로젝트 전체가 이미 fzf 기반 (cheat, tmux, nfu)
-#    trade-off: gum의 gum style/table 시각적 장식을 잃지만,
+#    trade-off: gum의 대화형 컴포넌트(choose/filter/confirm)를 잃지만,
 #              fzf의 preview + 정확한 유니코드 처리가 실용적으로 더 우수.
+#    보존: gum table/style은 표시 전용(wide char 무관)이므로 wt ls에서 유지.
 
 set -euo pipefail
 
@@ -31,6 +32,7 @@ WT_LAST_FILE=".claude/worktrees/.wt-last"
 # ── 유틸리티 ─────────────────────────────────────────────────────────────────
 
 _has_fzf() { command -v fzf &>/dev/null; }
+_has_gum() { command -v gum &>/dev/null; }
 
 # worktree 내부에서도 항상 main repo root를 정확히 찾음
 _get_repo_root() {
@@ -812,15 +814,27 @@ cmd_ls() {
   # age 기준 정렬 (최신 우선 = timestamp 내림차순)
   IFS=$'\n' read -r -d '' -a sorted < <(printf '%s\n' "${entries[@]}" | sort -t'|' -k1 -rn && printf '\0') || true
 
-  # 출력 (printf 포맷팅)
-  _info "Worktrees (${#sorted[@]})"
-  printf "  %-30s %-25s %-5s %-12s %s\n" "NAME" "BRANCH" "AGE" "PR" "DIRTY" >&2
-  printf "  " >&2; printf '%.0s─' {1..78} >&2; echo >&2
-  for entry in "${sorted[@]}"; do
-    IFS='|' read -r _ name branch age pr dirty <<< "$entry"
-    (( ${#branch} > 25 )) && branch="${branch:0:22}..."
-    printf "  %-30s %-25s %-5s %-12s %s\n" "$name" "$branch" "$age" "$pr" "$dirty" >&2
-  done
+  # 출력
+  if _has_gum; then
+    local header="NAME,BRANCH,AGE,PR,DIRTY"
+    local rows=""
+    for entry in "${sorted[@]}"; do
+      IFS='|' read -r _ name branch age pr dirty <<< "$entry"
+      (( ${#branch} > 25 )) && branch="${branch:0:22}..."
+      rows+="$name,$branch,$age,$pr,$dirty"$'\n'
+    done
+    gum style --bold --border double --padding "0 1" "Worktrees (${#sorted[@]})" >&2
+    echo "${header}"$'\n'"${rows%$'\n'}" | gum table --print >&2
+  else
+    _info "Worktrees (${#sorted[@]})"
+    printf "  %-30s %-25s %-5s %-12s %s\n" "NAME" "BRANCH" "AGE" "PR" "DIRTY" >&2
+    printf "  " >&2; printf '%.0s─' {1..78} >&2; echo >&2
+    for entry in "${sorted[@]}"; do
+      IFS='|' read -r _ name branch age pr dirty <<< "$entry"
+      (( ${#branch} > 25 )) && branch="${branch:0:22}..."
+      printf "  %-30s %-25s %-5s %-12s %s\n" "$name" "$branch" "$age" "$pr" "$dirty" >&2
+    done
+  fi
 }
 
 # ── 서브커맨드: cleanup ──────────────────────────────────────────────────────
