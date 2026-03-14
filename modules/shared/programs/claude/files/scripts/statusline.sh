@@ -16,7 +16,7 @@ if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
   # agent plan 파일명(-agent-) 제외
   PLAN_FILE=$(grep -v '"type":"agent_progress"' "$TRANSCRIPT" 2>/dev/null \
     | grep -oE '"(filePath|file_path)":"[^"]*\.claude/plans/[^"]*\.md"' \
-    | grep -v '\-agent-' \
+    | grep -v 'plans/[^"]*-agent-' \
     | tail -1 | sed 's/^"[^"]*":"//;s/"$//')
 fi
 
