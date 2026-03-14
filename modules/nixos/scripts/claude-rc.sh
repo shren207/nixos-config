@@ -57,11 +57,12 @@ EOF
 #───────────────────────────────────────────────────────────────────────────────
 inside_rc_session() {
     [[ "${CLAUDE_RC_INSIDE:-}" == "1" ]] && return 0
-    # env var 없이도 감지: claude-rc 세션 내부에서 직접 재실행 시
+    # env var 없이도 감지: claude-rc 세션의 idle pane에서 직접 재실행 시
+    # 다른 pane에서 실행 + wrapper 활성 중이면 false → do_start_outer가 "이미 실행 중" 처리
     if [[ -n "${TMUX:-}" ]]; then
         local current_session
         current_session=$(tmux display-message -p '#{session_name}' 2>/dev/null) || return 1
-        [[ "$current_session" == "$TMUX_SESSION" ]] && return 0
+        [[ "$current_session" == "$TMUX_SESSION" ]] && is_session_stale && return 0
     fi
     return 1
 }
@@ -105,9 +106,14 @@ parse_args() {
             --help|-h) usage; exit 0 ;;
             --permission-mode)
                 [[ $# -ge 2 ]] || { log_error "$1 requires an argument"; exit 1; }
+                case "$2" in
+                    acceptEdits|bypassPermissions|default|dontAsk|plan) ;;
+                    *) log_error "Invalid permission mode: $2"; exit 1 ;;
+                esac
                 RC_PERMISSION_MODE="$2"; shift 2 ;;
             --capacity)
                 [[ $# -ge 2 ]] || { log_error "$1 requires an argument"; exit 1; }
+                [[ "$2" =~ ^[0-9]+$ ]] || { log_error "capacity must be a number: $2"; exit 1; }
                 RC_CAPACITY="$2"; shift 2 ;;
             --name)
                 [[ $# -ge 2 ]] || { log_error "$1 requires an argument"; exit 1; }
