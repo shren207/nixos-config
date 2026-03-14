@@ -56,7 +56,14 @@ EOF
 # tmux 세션 내부 감지
 #───────────────────────────────────────────────────────────────────────────────
 inside_rc_session() {
-    [[ "${CLAUDE_RC_INSIDE:-}" == "1" ]]
+    [[ "${CLAUDE_RC_INSIDE:-}" == "1" ]] && return 0
+    # env var 없이도 감지: claude-rc 세션 내부에서 직접 재실행 시
+    if [[ -n "${TMUX:-}" ]]; then
+        local current_session
+        current_session=$(tmux display-message -p '#{session_name}' 2>/dev/null) || return 1
+        [[ "$current_session" == "$TMUX_SESSION" ]] && return 0
+    fi
+    return 1
 }
 
 #───────────────────────────────────────────────────────────────────────────────
@@ -64,7 +71,8 @@ inside_rc_session() {
 #───────────────────────────────────────────────────────────────────────────────
 is_session_stale() {
     local fg_cmd default_shell
-    fg_cmd=$(tmux list-panes -t "$TMUX_SESSION" -F '#{pane_current_command}' 2>/dev/null) || return 0
+    # 첫 번째 pane만 확인 (멀티 pane 안전, base-index 무관)
+    fg_cmd=$(tmux list-panes -t "$TMUX_SESSION" -F '#{pane_current_command}' 2>/dev/null | head -1) || return 0
     # wrapper(bash)나 claude가 실행 중이면 active
     # 사용자 기본 셸만 남아있으면 stale (wrapper 종료 후 idle)
     default_shell=$(basename "${SHELL:-zsh}")
@@ -96,10 +104,13 @@ parse_args() {
             --detach)  DETACH=true; shift ;;
             --help|-h) usage; exit 0 ;;
             --permission-mode)
+                [[ $# -ge 2 ]] || { log_error "$1 requires an argument"; exit 1; }
                 RC_PERMISSION_MODE="$2"; shift 2 ;;
             --capacity)
+                [[ $# -ge 2 ]] || { log_error "$1 requires an argument"; exit 1; }
                 RC_CAPACITY="$2"; shift 2 ;;
             --name)
+                [[ $# -ge 2 ]] || { log_error "$1 requires an argument"; exit 1; }
                 RC_NAME="$2"; shift 2 ;;
             *)
                 log_error "Unknown option: $1"
