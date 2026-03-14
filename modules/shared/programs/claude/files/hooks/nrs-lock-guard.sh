@@ -35,8 +35,16 @@ if echo "$COMMAND" | grep -qE '(^|[[:space:]]|&&|\||;)(sudo[[:space:]]+)?([^[:sp
     CURRENT_WORKTREE=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
     LOCK_WORKTREE=$(jq -r '.worktree' "$NRS_LOCK_FILE" 2>/dev/null || echo "")
 
-    # 같은 worktree면 통과 (nrs.sh 내부에서 re-entry 처리)
+    # 같은 worktree: nrs.sh 경유 시 내부 PID 체크로 보호되지만,
+    # raw darwin-rebuild/nixos-rebuild는 acquire_nrs_lock을 거치지 않음.
+    # DA 3차: 같은 worktree에서도 lock PID가 살아있으면 차단
     if [[ -n "$CURRENT_WORKTREE" && "$CURRENT_WORKTREE" == "$LOCK_WORKTREE" ]]; then
+        LOCK_PID=$(jq -r '.pid' "$NRS_LOCK_FILE" 2>/dev/null || echo "0")
+        if [[ "$LOCK_PID" != "0" ]] && kill -0 "$LOCK_PID" 2>/dev/null; then
+            jq -n --arg pid "$LOCK_PID" \
+                '{decision: "block", reason: ("nrs 프로세스(PID " + $pid + ")가 실행 중입니다. 완료를 기다리거나 nrs-unlock을 실행하세요.")}'
+            exit 0
+        fi
         exit 0
     fi
 

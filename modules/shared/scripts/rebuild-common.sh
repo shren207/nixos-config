@@ -129,7 +129,8 @@ acquire_nrs_lock() {
         fi
     fi
 
-    # Lock 생성 (noclobber로 원자적)
+    # Lock 생성: tmpfile에 쓰고 ln으로 원자적 생성 (DA 3차: partial-read 방지)
+    # ln은 대상이 이미 존재하면 실패 → noclobber와 동일한 경쟁 방지
     local branch
     branch=$(git -C "$FLAKE_PATH" branch --show-current 2>/dev/null || echo "unknown")
     local json
@@ -140,10 +141,15 @@ acquire_nrs_lock() {
         --argjson p "$$" \
         '{worktree: $w, branch: $b, timestamp: $t, pid: $p}')
 
-    if ! (set -C; echo "$json" > "$NRS_LOCK_FILE") 2>/dev/null; then
+    local tmpfile
+    tmpfile=$(mktemp "${NRS_LOCK_FILE}.XXXXXX")
+    echo "$json" > "$tmpfile"
+    if ! ln "$tmpfile" "$NRS_LOCK_FILE" 2>/dev/null; then
+        rm -f "$tmpfile"
         log_error "❌ Race condition: another process acquired the lock."
         exit 1
     fi
+    rm -f "$tmpfile"
 
     NRS_LOCK_ACQUIRED=true
     log_info "🔒 Lock acquired: $branch ($FLAKE_PATH)"
