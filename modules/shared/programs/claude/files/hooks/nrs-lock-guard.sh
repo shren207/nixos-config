@@ -25,6 +25,12 @@ if echo "$COMMAND" | grep -qE 'rm[[:space:]].*nrs-state'; then
     exit 0
 fi
 
+# 규칙 0: nrs-status / nrs-lock.sh status는 항상 통과 (읽기 전용)
+# DA 4차: nrs\b가 nrs-status 내에서도 매칭되어 lock 시 status 조회가 차단되는 버그 수정
+if echo "$COMMAND" | grep -qE '(nrs-status|nrs-lock\.sh[[:space:]]+status)'; then
+    exit 0
+fi
+
 # 규칙 1: nrs/darwin-rebuild/nixos-rebuild 실행 시 lock 충돌 확인
 # DA 2차 P2: 절대경로(/run/.../darwin-rebuild 등)도 매칭
 if echo "$COMMAND" | grep -qE '(^|[[:space:]]|&&|\||;)(sudo[[:space:]]+)?([^[:space:]]*/)?(nrs(\.sh)?|darwin-rebuild|nixos-rebuild)\b'; then
@@ -32,6 +38,12 @@ if echo "$COMMAND" | grep -qE '(^|[[:space:]]|&&|\||;)(sudo[[:space:]]+)?([^[:sp
     [[ ! -f "$NRS_LOCK_FILE" ]] && exit 0
 
     # 현재 worktree 판별
+    # === CIR (PR #213, DA 4차) ===
+    # hook CWD 기반 판별 한계: `cd /other-wt && nrs`는 cd 전 CWD로 판별되어 오판 가능.
+    # 대안 검토: 명령어 문자열에서 cd 대상 경로 파싱 → 기각.
+    #   이유: 셸 문법 파싱이 fragile (변수 치환, 중첩 subshell 등 고려 불가),
+    #         Claude Code 세션은 단일 worktree에서 동작하여 발생 가능성 극히 낮음.
+    # trade-off: `cd other-wt && nrs` 패턴에서 false block 가능성 수용.
     CURRENT_WORKTREE=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
     LOCK_WORKTREE=$(jq -r '.worktree' "$NRS_LOCK_FILE" 2>/dev/null || echo "")
 
