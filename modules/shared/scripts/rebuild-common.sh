@@ -88,7 +88,7 @@ acquire_nrs_lock() {
             rm -f "$NRS_LOCK_FILE"
         elif [[ "$lock_worktree" == "$FLAKE_PATH" ]]; then
             # 같은 worktree — re-entry
-            # DA 2차 P2: 기존 lock의 PID가 아직 살아있으면 동시 실행 → 차단
+            # 기존 lock의 PID가 아직 살아있으면 동시 실행 → 차단
             local lock_pid
             lock_pid=$(jq -r '.pid' "$NRS_LOCK_FILE" 2>/dev/null || echo "0")
             if [[ "$lock_pid" != "0" ]] && kill -0 "$lock_pid" 2>/dev/null; then
@@ -109,7 +109,7 @@ acquire_nrs_lock() {
                 --argjson t "$now" \
                 --argjson p "$$" \
                 '{worktree: $w, branch: $b, timestamp: $t, pid: $p}')
-            # DA 2차 P1: tmpfile + mv로 원자적 교체 (truncate 중 partial read 방지)
+            # tmpfile + mv로 원자적 교체 (truncate 중 partial read 방지)
             local tmpfile
             tmpfile=$(mktemp "${NRS_LOCK_FILE}.XXXXXX")
             echo "$json" > "$tmpfile"
@@ -129,7 +129,7 @@ acquire_nrs_lock() {
         fi
     fi
 
-    # Lock 생성: tmpfile에 쓰고 ln으로 원자적 생성 (DA 3차: partial-read 방지)
+    # Lock 생성: tmpfile에 쓰고 ln으로 원자적 생성 (partial-read 방지)
     # ln은 대상이 이미 존재하면 실패 → noclobber와 동일한 경쟁 방지
     local branch
     branch=$(git -C "$FLAKE_PATH" branch --show-current 2>/dev/null || echo "unknown")
@@ -166,7 +166,7 @@ release_nrs_lock_on_failure() {
     #   1. 이 프로세스가 lock을 획득한 경우
     #   2. switch가 성공하지 않은 경우
     #   3. re-entry가 아닌 경우 (기존 lock 보호)
-    #   4. 현재 lock 파일의 PID가 자기 것인 경우 (DA P2: owner-blind rm 방지)
+    #   4. 현재 lock 파일의 PID가 자기 것인 경우 (owner-blind rm 방지)
     if [[ "$NRS_LOCK_ACQUIRED" == true && "${NRS_LOCK_SWITCH_SUCCESS:-}" != true && "$NRS_LOCK_REENTRY" != true ]]; then
         local lock_pid
         lock_pid=$(jq -r '.pid' "$NRS_LOCK_FILE" 2>/dev/null || echo "0")
