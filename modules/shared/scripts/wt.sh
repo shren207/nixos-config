@@ -573,7 +573,7 @@ _handle_existing_worktree() {
       _wt_tmux_close "$worktree_dir" || true
       git worktree remove --force "$worktree_dir" 2>/dev/null || rm -rf "$worktree_dir"
       git worktree prune 2>/dev/null || true
-      git branch -D "$branch_name" 2>/dev/null || true
+      git branch -D "$branch_name" >&2 2>/dev/null || true
 
       git worktree add -b "$branch_name" "$worktree_dir" >&2 || _die "worktree 재생성 실패"
       echo "$parent_branch" > "$worktree_dir/.wt-parent"
@@ -628,7 +628,7 @@ _handle_existing_branch() {
         _info "경고: '$branch_name'에 현재 HEAD에 없는 커밋 ${ahead_count}개가 있습니다"
         _confirm "브랜치를 삭제하고 새로 생성하시겠습니까?" || { _info "취소됨"; return 1; }
       fi
-      git branch -D "$branch_name" 2>/dev/null || true
+      git branch -D "$branch_name" >&2 2>/dev/null || true
       mkdir -p "$(dirname "$worktree_dir")"
       git worktree add -b "$branch_name" "$worktree_dir" >&2 || _die "worktree 생성 실패"
       echo "$parent_branch" > "$worktree_dir/.wt-parent"
