@@ -13,6 +13,7 @@ TRANSCRIPT=$(echo "$input" | jq -r '.transcript_path // empty')
 PLAN_FILE=""
 if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
   PLAN_FILE=$(grep -oE '"(filePath|file_path)":"[^"]*\.claude/plans/[^"]*\.md"' "$TRANSCRIPT" 2>/dev/null \
+    | grep -v '\-agent-' \
     | tail -1 | sed 's/^"[^"]*":"//;s/"$//')
 fi
 
