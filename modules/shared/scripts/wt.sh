@@ -873,6 +873,17 @@ cmd_cleanup() {
   # PR 상태 병렬 조회
   _fetch_pr_statuses "$git_root" "$_wt_cleanup_tmp" "${worktrees[@]}"
 
+  # 현재 worktree 감지 (cleanup 목록에서 제외)
+  local current_wt=""
+  local current_dir
+  current_dir=$(pwd -P)
+  for wt in "${worktrees[@]}"; do
+    if [[ "$current_dir" == "$wt" || "$current_dir" == "$wt/"* ]]; then
+      current_wt="$wt"
+      break
+    fi
+  done
+
   # 데이터 수집
   local items=()        # fzf 라벨
   local item_paths=()   # worktree 경로
@@ -884,6 +895,9 @@ cmd_cleanup() {
 
   local idx=0
   for wt in "${worktrees[@]}"; do
+    # 현재 worktree는 cleanup 대상에서 제외
+    [[ "$wt" == "$current_wt" ]] && continue
+
     local name branch ts age pr_status dirty_flag unpushed_flag last_msg
     name=$(basename "$wt")
     branch=$(_wt_branch "$wt")
