@@ -408,7 +408,12 @@ _open_worktree() {
   else
     # tmux 밖: 경로 stdout 출력 (래퍼가 cd)
     [[ "$run_claude" == "true" ]] && _info "경고: --claude는 tmux 세션 안에서만 동작합니다"
-    echo "$wt_path"
+    if [[ "$stay" == "true" ]]; then
+      # --stay: 현재 디렉토리 유지, 경로만 안내
+      _info "worktree 경로: $wt_path"
+    else
+      echo "$wt_path"
+    fi
   fi
 }
 
