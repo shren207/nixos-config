@@ -518,10 +518,13 @@ _remove_worktree() {
   # tmux 윈도우 닫기 (실패해도 worktree는 삭제)
   _wt_tmux_close "$wt_path" || true
 
-  # tmux 세션 정리 (wt- 접두사 세션)
+  # tmux 세션 정리 (wt- 접두사 세션, 연결된 클라이언트 있으면 삭제 중단)
   local session_name
   session_name=$(_wt_session_name "$name")
-  _wt_tmux_session_close "$session_name"
+  _wt_tmux_session_close "$session_name" || {
+    _info "스킵: $name — 연결된 tmux 세션이 있어 삭제하지 않습니다"
+    return 1
+  }
 
   # worktree 제거
   git -C "$git_root" worktree remove --force "$wt_path" 2>/dev/null || rm -rf "$wt_path"
@@ -755,7 +758,12 @@ cmd_cd() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --tmux) use_tmux_session=true ;;
-      *)      search="$1" ;;
+      -)      search="-" ;;
+      -*)     _die "알 수 없는 옵션: $1" ;;
+      *)
+        [[ -n "$search" ]] && _die "검색어가 이미 지정됨: $search (추가: $1)"
+        search="$1"
+        ;;
     esac
     shift
   done
