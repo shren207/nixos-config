@@ -73,6 +73,9 @@ _die() {
   exit 1
 }
 
+# CIR: echo → printf ANSI 선택 — echo "$*"는 간결하지만 스타일링 불가.
+#   gum style은 표시 전용에는 적합하나 매 호출마다 프로세스 fork 부담.
+#   printf + 인라인 ANSI가 fork 없이 즉시 출력되어 가장 효율적.
 _info() {
   printf '\033[38;5;179m› \033[38;5;245m%s\033[0m\n' "$*" >&2
 }
