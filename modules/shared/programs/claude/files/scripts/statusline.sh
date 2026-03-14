@@ -15,7 +15,7 @@ if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
   # agent_progress 이벤트 제외 (subagent가 다른 세션 plan을 읽은 기록 필터링)
   # agent plan 파일명(-agent-) 제외
   PLAN_FILE=$(grep -v '"type":"agent_progress"' "$TRANSCRIPT" 2>/dev/null \
-    | grep -oE '"(filePath|file_path)":"[^"]*\.claude/plans/[^"]*\.md"' \
+    | grep -oE '"(filePath|file_path|planFilePath)":"[^"]*\.claude/plans/[^"]*\.md"' \
     | grep -v 'plans/[^"]*-agent-' \
     | tail -1 | sed 's/^"[^"]*":"//;s/"$//')
 fi
