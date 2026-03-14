@@ -452,6 +452,11 @@ cmd_create() {
   dir_name=$(_sanitize_name "$branch_name")
   local worktree_dir="$git_root/$WORKTREE_DIR/$dir_name"
 
+  # 슬래시 포함 브랜치: 디렉토리명 매핑 안내 (슬래시→언더스코어 변환 인지용)
+  if [[ "$dir_name" != "$branch_name" ]]; then
+    _info "디렉토리명: $dir_name (← $branch_name)"
+  fi
+
   # 기존 디렉토리 처리
   if [[ -d "$worktree_dir" ]]; then
     if [[ -f "$worktree_dir/.git" ]]; then
