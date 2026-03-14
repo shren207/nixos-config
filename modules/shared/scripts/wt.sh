@@ -708,7 +708,7 @@ cmd_cd() {
       selected=$(printf '%s\n' "${names[@]}" | fzf --no-multi \
         --header "worktree 선택" --prompt "cd> " \
         --preview "git -C '$wt_base/{}' log --oneline -5 2>/dev/null; echo '---'; git -C '$wt_base/{}' status --short 2>/dev/null" \
-        --preview-label "worktree 상태") || return 1
+        --preview-window right,75% --preview-label "worktree 상태") || return 1
     else
       echo "worktree 선택:" >&2
       local i=1
@@ -1004,7 +1004,7 @@ cmd_cleanup() {
       --header "정리할 worktree 선택 (Tab 토글, Enter 확인)" \
       --prompt "cleanup> " \
       --preview 'git -C {2} log --oneline -5 2>/dev/null; echo "---"; git -C {2} status --short 2>/dev/null' \
-      --preview-label "worktree 상태") || { _info "취소됨"; return 0; }
+      --preview-window right,75% --preview-label "worktree 상태") || { _info "취소됨"; return 0; }
 
     # 선택된 항목에서 worktree 이름 추출
     while IFS=$'\t' read -r label path; do
