@@ -96,7 +96,7 @@ _choose() {
   local options=("$@")
 
   if _has_fzf; then
-    printf '%s\n' "${options[@]}" | fzf --no-multi --height ~$((${#options[@]} + 2)) \
+    printf '%s\n' "${options[@]}" | fzf --no-multi --height ~$((${#options[@]} + 4)) \
       --prompt "선택> " --header "$header"
   else
     echo "$header:" >&2
