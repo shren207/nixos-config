@@ -71,13 +71,11 @@ inside_rc_session() {
 # stale 세션 감지: foreground가 shell이면 stale
 #───────────────────────────────────────────────────────────────────────────────
 is_session_stale() {
-    local fg_cmd default_shell
-    # 첫 번째 pane만 확인 (멀티 pane 안전, base-index 무관)
-    fg_cmd=$(tmux list-panes -t "$TMUX_SESSION" -F '#{pane_current_command}' 2>/dev/null | head -1) || return 0
-    # wrapper(bash)나 claude가 실행 중이면 active
-    # 사용자 기본 셸만 남아있으면 stale (wrapper 종료 후 idle)
-    default_shell=$(basename "${SHELL:-zsh}")
-    [[ "$fg_cmd" == "$default_shell" ]]
+    # tmux 환경변수로 wrapper 활성 여부 판별 (pane command보다 정확)
+    local rc_active
+    rc_active=$(tmux show-environment -t "$TMUX_SESSION" CLAUDE_RC_ACTIVE 2>/dev/null) || return 0
+    # CLAUDE_RC_ACTIVE=1 → active, 그 외 → stale
+    [[ "$rc_active" != "CLAUDE_RC_ACTIVE=1" ]]
 }
 
 #───────────────────────────────────────────────────────────────────────────────
@@ -196,6 +194,10 @@ do_start_outer() {
 #───────────────────────────────────────────────────────────────────────────────
 do_start_inner() {
     cd "$WORK_DIR" || exit 1
+
+    # wrapper 활성 표시 (stale 감지용, 종료 시 해제)
+    tmux set-environment -t "$TMUX_SESSION" CLAUDE_RC_ACTIVE 1
+    trap 'tmux set-environment -t "$TMUX_SESSION" -u CLAUDE_RC_ACTIVE 2>/dev/null' EXIT
 
     local failure_count=0
     local backoff=$BACKOFF_INITIAL
