@@ -669,7 +669,10 @@ cmd_cd() {
     [[ -f "$last_file" ]] || _die "이전 worktree 기록이 없습니다"
     local last_path
     last_path=$(cat "$last_file")
-    [[ -d "$last_path" ]] || _die "이전 worktree가 존재하지 않습니다: $last_path"
+    if [[ ! -d "$last_path" ]]; then
+      _info "이전 worktree가 삭제됨: $(basename "$last_path") → main repo로 이동"
+      last_path="$git_root"
+    fi
     # 현재 위치 저장 후 이동
     local current_dir
     current_dir=$(pwd -P)
