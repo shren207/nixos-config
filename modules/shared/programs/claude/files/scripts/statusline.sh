@@ -4,49 +4,27 @@
 
 input=$(cat)
 
-# --- 필드 추출 ---
-SESSION_ID=$(echo "$input" | jq -r '.session_id // empty')
-TRANSCRIPT=$(echo "$input" | jq -r '.transcript_path // empty')
-MODEL=$(echo "$input" | jq -r '.model.display_name // "?"')
+CWD=$(echo "$input" | jq -r '.cwd // empty')
 
-# --- Plan 파일 감지 (세션별 캐싱, transcript 크기 변화 시 재탐색) ---
-# CIR: "filePath":"..." 패턴 선택 — 광범위 패턴('/[^"]*\.claude/plans/[^"]*\.md')은
-#   transcript JSONL 내 git diff, CIR 주석, 파일 목록 등에서 대량의 false positive 발생.
-#   "filePath":"..." 패턴은 Write/Edit tool result에만 존재하므로 정확히 plan 파일만 매치됨.
-# CIR: tail -1로 최신 plan 파일 추출 — grep -m1은 첫 매치를 캐싱하여 세션 중 plan 변경 시
-#   stale 경로를 표시. tail -1로 최신(마지막) plan 파일을 취하고, transcript 크기 변화 시
-#   캐시를 무효화하여 재탐색.
+# --- Plan 파일 감지 ---
+# .claude/plans/ 에서 가장 최근 수정된 plan 파일을 찾는다.
+# worktree에서는 plans가 main repo에만 존재하므로 fallback 탐색.
 PLAN_FILE=""
-if [ -n "$SESSION_ID" ] && [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
-  CACHE="/tmp/claude-plan-${SESSION_ID}"
-  T_SIZE=$(wc -c < "$TRANSCRIPT" 2>/dev/null || echo 0)
+if [ -n "$CWD" ]; then
+  PLAN_FILE=$(ls -t "$CWD/.claude/plans/"*.md 2>/dev/null | head -1)
 
-  # Cache hit: transcript 크기 불변 → plan 변경 없음
-  if [ -f "$CACHE" ]; then
-    { read -r CACHED_SIZE; read -r CACHED_PLAN; } < "$CACHE"
-    if [ "$T_SIZE" = "$CACHED_SIZE" ]; then
-      PLAN_FILE="$CACHED_PLAN"
-    fi
-  fi
-
-  # Cache miss 또는 transcript 변경: 최신 plan 경로 재탐색
+  # Worktree fallback: CWD가 .claude/worktrees/ 하위이면 main repo의 plans 확인
   if [ -z "$PLAN_FILE" ]; then
-    PLAN_FILE=$(grep -o '"filePath":"[^"]*\.claude/plans/[^"]*\.md"' "$TRANSCRIPT" 2>/dev/null \
-      | tail -1 | sed 's/^"filePath":"//;s/"$//')
-    if [ -n "$PLAN_FILE" ]; then
-      printf '%s\n%s' "$T_SIZE" "$PLAN_FILE" > "$CACHE"
+    MAIN_REPO=${CWD%/.claude/worktrees/*}
+    if [ "$MAIN_REPO" != "$CWD" ]; then
+      PLAN_FILE=$(ls -t "$MAIN_REPO/.claude/plans/"*.md 2>/dev/null | head -1)
     fi
   fi
 fi
 
 # --- 출력 ---
-LINE="[$MODEL]"
-
-# Plan 파일이 존재하면 OSC 8 클릭 가능 링크로 경로 추가
 if [ -n "$PLAN_FILE" ] && [ -f "$PLAN_FILE" ]; then
-  DISPLAY_PATH="${PLAN_FILE/#$HOME/~}"
-  # printf '%b' 일관 사용: echo -e와 혼용 시 이중 해석 위험
-  printf '%b' "[$MODEL] | \e]8;;file://${PLAN_FILE}\a${DISPLAY_PATH}\e]8;;\a\n"
-else
-  printf '%s\n' "$LINE"
+  # OSC 8 하이퍼링크로 Cmd+Click 시 plan 파일 열림
+  # \e[4;36m = underline + cyan → 클릭 가능한 링크 느낌
+  printf '%b' "\e[4;36m\e]8;;file://${PLAN_FILE}\a\xf0\x9f\x93\x9d Plan\e]8;;\a\e[0m\n"
 fi
