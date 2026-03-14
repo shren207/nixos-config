@@ -210,9 +210,9 @@ _wt_session_name() {
   echo "wt-$1"
 }
 
-# 세션 존재 확인
+# 세션 존재 확인 (= prefix: exact match — tmux default prefix matching 방지)
 _wt_tmux_session_exists() {
-  tmux has-session -t "$1" 2>/dev/null
+  tmux has-session -t "=$1" 2>/dev/null
 }
 
 # 세션 생성/attach
@@ -226,20 +226,20 @@ _wt_tmux_session_open() {
       return 0
     fi
     _info "기존 tmux 세션으로 전환: $session_name"
-    exec tmux attach-session -t "$session_name"
+    exec tmux attach-session -t "=$session_name"
   fi
 
   # 새 세션 생성
   if [[ "$run_claude" == "true" ]]; then
     tmux new-session -d -s "$session_name" -c "$wt_path"
-    tmux send-keys -t "$session_name" \
+    tmux send-keys -t "=$session_name" \
       "claude --dangerously-skip-permissions --mcp-config ~/.claude/mcp.json" Enter
     if [[ "$stay" == "true" ]]; then
       _info "tmux 세션 생성 (detached): $session_name"
       _info "접속: tmux attach -t $session_name"
       return 0
     fi
-    exec tmux attach-session -t "$session_name"
+    exec tmux attach-session -t "=$session_name"
   fi
 
   if [[ "$stay" == "true" ]]; then
@@ -252,10 +252,10 @@ _wt_tmux_session_open() {
   exec tmux new-session -s "$session_name" -c "$wt_path"
 }
 
-# 세션 정리 (cleanup용)
+# 세션 정리 (cleanup용, = prefix: exact match)
 _wt_tmux_session_close() {
   local session_name="$1"
-  tmux kill-session -t "$session_name" 2>/dev/null || true
+  tmux kill-session -t "=$session_name" 2>/dev/null || true
 }
 
 # tmux 윈도우 안전하게 닫기
@@ -761,6 +761,15 @@ cmd_cd() {
     local current_dir
     current_dir=$(pwd -P)
     echo "$current_dir" > "$last_file"
+
+    # --tmux: 세션 모드 (tmux 밖에서만)
+    if [[ "$use_tmux_session" == "true" ]] && [[ -z "${TMUX:-}" ]]; then
+      local session_name
+      session_name=$(_wt_session_name "$(basename "$last_path")")
+      _wt_tmux_session_open "$last_path" "$session_name" "false" "false"
+      return 0
+    fi
+
     echo "$last_path"
     return 0
   fi

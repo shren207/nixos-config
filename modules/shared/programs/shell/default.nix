@@ -197,7 +197,8 @@ in
             [[ "$_wt_arg" == "--tmux" ]] && _wt_has_tmux=true
           done
 
-          if [[ "$_wt_has_tmux" == "true" ]]; then
+          # tmux 밖에서만 bypass (tmux 안이면 exec tmux 불가 → 기존 cd 로직 필요)
+          if [[ "$_wt_has_tmux" == "true" ]] && [[ -z "''${TMUX:-}" ]]; then
             command wt "$@"
             return $?
           fi
