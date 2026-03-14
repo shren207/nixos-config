@@ -88,6 +88,16 @@ acquire_nrs_lock() {
             rm -f "$NRS_LOCK_FILE"
         elif [[ "$lock_worktree" == "$FLAKE_PATH" ]]; then
             # 같은 worktree — re-entry
+            # DA 2차 P2: 기존 lock의 PID가 아직 살아있으면 동시 실행 → 차단
+            local lock_pid
+            lock_pid=$(jq -r '.pid' "$NRS_LOCK_FILE" 2>/dev/null || echo "0")
+            if [[ "$lock_pid" != "0" ]] && kill -0 "$lock_pid" 2>/dev/null; then
+                if [[ "$lock_pid" != "$$" ]]; then
+                    log_error "❌ Another nrs process (PID $lock_pid) is running in this worktree."
+                    echo "  Wait for it to finish or run 'nrs-unlock' to force release."
+                    exit 1
+                fi
+            fi
             NRS_LOCK_REENTRY=true
             NRS_LOCK_ACQUIRED=true
             local branch
@@ -99,7 +109,11 @@ acquire_nrs_lock() {
                 --argjson t "$now" \
                 --argjson p "$$" \
                 '{worktree: $w, branch: $b, timestamp: $t, pid: $p}')
-            echo "$json" > "$NRS_LOCK_FILE"
+            # DA 2차 P1: tmpfile + mv로 원자적 교체 (truncate 중 partial read 방지)
+            local tmpfile
+            tmpfile=$(mktemp "${NRS_LOCK_FILE}.XXXXXX")
+            echo "$json" > "$tmpfile"
+            mv -f "$tmpfile" "$NRS_LOCK_FILE"
             log_info "🔒 Lock re-entry: $branch ($FLAKE_PATH)"
             return 0
         else

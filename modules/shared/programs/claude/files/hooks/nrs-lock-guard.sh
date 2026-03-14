@@ -26,7 +26,8 @@ if echo "$COMMAND" | grep -qE 'rm[[:space:]].*nrs-state'; then
 fi
 
 # 규칙 1: nrs/darwin-rebuild/nixos-rebuild 실행 시 lock 충돌 확인
-if echo "$COMMAND" | grep -qE '(^|[[:space:]]|&&|\||;)(sudo[[:space:]]+)?(nrs|darwin-rebuild|nixos-rebuild)\b'; then
+# DA 2차 P2: 절대경로(/run/.../darwin-rebuild 등)도 매칭
+if echo "$COMMAND" | grep -qE '(^|[[:space:]]|&&|\||;)(sudo[[:space:]]+)?([^[:space:]]*/)?(nrs(\.sh)?|darwin-rebuild|nixos-rebuild)\b'; then
     # lock 없으면 통과
     [[ ! -f "$NRS_LOCK_FILE" ]] && exit 0
 
