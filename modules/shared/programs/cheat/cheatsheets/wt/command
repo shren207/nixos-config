@@ -21,7 +21,7 @@ wt — Git worktree 관리 (fzf TUI, tmux 통합)
 
   세션 이름: wt-<dir_name> (예: wt-feat_login)
   기존 세션 있으면 재생성 없이 attach
-  tmux 안에서 --tmux → 기존 윈도우 모드로 fallback (nested tmux 방지)
+  tmux 안에서 --tmux → 기존 윈도우 모드로 fallback (의도적 정책)
   cleanup 시 wt- 세션도 함께 정리
 
 [이미 존재할 때]

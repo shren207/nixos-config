@@ -25,7 +25,7 @@
 #    동기: claude --worktree --tmux와 유사한 경험을 wt에서도 제공
 #    세션 이름: wt-<dir_name> (하이픈 구분 — tmux의 : 구분자 충돌 방지)
 #    핵심 제약: 래퍼의 subshell $() 안에서 exec tmux 불가 → --tmux 감지 시 우회
-#    tmux 안에서 --tmux: nested tmux 방지를 위해 기존 윈도우 모드로 fallback
+#    tmux 안에서 --tmux: 기존 윈도우 모드로 fallback (의도적 정책 — 세션 전환보다 윈도우가 워크플로우에 적합)
 
 set -euo pipefail
 
@@ -253,8 +253,13 @@ _wt_tmux_session_open() {
 }
 
 # 세션 정리 (cleanup용, = prefix: exact match)
+# 연결된 클라이언트가 있으면 세션을 죽이지 않음 (활성 사용 보호)
 _wt_tmux_session_close() {
   local session_name="$1"
+  if tmux list-clients -t "=$session_name" 2>/dev/null | grep -q .; then
+    _info "스킵: tmux 세션 '$session_name'에 연결된 클라이언트가 있습니다"
+    return 1
+  fi
   tmux kill-session -t "=$session_name" 2>/dev/null || true
 }
 
@@ -447,7 +452,7 @@ _bootstrap_worktree() {
 _open_worktree() {
   local wt_path="$1" window_name="$2" stay="$3" run_claude="$4" use_tmux_session="${5:-false}"
 
-  # --tmux: tmux 밖에서만 세션 모드 활성화 (tmux 안이면 기존 윈도우 모드로 fallback)
+  # --tmux: tmux 밖에서만 세션 모드 활성화 (tmux 안이면 윈도우 모드로 fallback — 의도적 정책)
   if [[ "$use_tmux_session" == "true" ]] && [[ -z "${TMUX:-}" ]]; then
     local session_name
     session_name=$(_wt_session_name "$window_name")
@@ -646,6 +651,10 @@ _handle_existing_worktree() {
       fi
 
       _wt_tmux_close "$worktree_dir" || true
+      # tmux 세션 정리 (stale 세션 방지 — 연결된 클라이언트 있으면 스킵)
+      local _recreate_session
+      _recreate_session=$(_wt_session_name "$dir_name")
+      _wt_tmux_session_close "$_recreate_session" || true
       git worktree remove --force "$worktree_dir" 2>/dev/null || rm -rf "$worktree_dir"
       git worktree prune 2>/dev/null || true
       git branch -D "$branch_name" >&2 2>/dev/null || true
