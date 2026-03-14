@@ -142,13 +142,18 @@ release_nrs_lock() {
 }
 
 release_nrs_lock_on_failure() {
-    # 3가지 조건 모두 충족 시에만 lock 삭제:
+    # 4가지 조건 모두 충족 시에만 lock 삭제:
     #   1. 이 프로세스가 lock을 획득한 경우
     #   2. switch가 성공하지 않은 경우
     #   3. re-entry가 아닌 경우 (기존 lock 보호)
+    #   4. 현재 lock 파일의 PID가 자기 것인 경우 (DA P2: owner-blind rm 방지)
     if [[ "$NRS_LOCK_ACQUIRED" == true && "${NRS_LOCK_SWITCH_SUCCESS:-}" != true && "$NRS_LOCK_REENTRY" != true ]]; then
-        rm -f "$NRS_LOCK_FILE"
-        log_warn "🔓 Lock released (build failed)"
+        local lock_pid
+        lock_pid=$(jq -r '.pid' "$NRS_LOCK_FILE" 2>/dev/null || echo "0")
+        if [[ "$lock_pid" == "$$" ]]; then
+            rm -f "$NRS_LOCK_FILE"
+            log_warn "🔓 Lock released (build failed)"
+        fi
     fi
 }
 
