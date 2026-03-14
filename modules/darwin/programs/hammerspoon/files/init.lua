@@ -52,8 +52,10 @@ local function convertToEngAndSendKey(bind, mods, key, restore)
     local currentInput = hs.keycodes.currentSourceID()
     local needSwitch = currentInput ~= inputEnglish
 
-    if restore and needSwitch then
-        savedInputSource = currentInput
+    if restore then
+        if needSwitch then
+            savedInputSource = currentInput
+        end
         local app = hs.application.frontmostApplication()
         restoreAppBundleID = app and app:bundleID()
     end
