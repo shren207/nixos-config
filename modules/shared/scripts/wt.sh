@@ -651,10 +651,14 @@ _handle_existing_worktree() {
       fi
 
       _wt_tmux_close "$worktree_dir" || true
-      # tmux 세션 정리 (stale 세션 방지 — 연결된 클라이언트 있으면 스킵)
+      # tmux 세션 정리 (연결된 클라이언트 있으면 재생성 중단)
       local _recreate_session
       _recreate_session=$(_wt_session_name "$dir_name")
-      _wt_tmux_session_close "$_recreate_session" || true
+      _wt_tmux_session_close "$_recreate_session" || {
+        _info "재생성 불가: tmux 세션에 연결된 클라이언트가 있습니다"
+        _info "세션을 종료한 뒤 다시 시도하세요"
+        return 1
+      }
       git worktree remove --force "$worktree_dir" 2>/dev/null || rm -rf "$worktree_dir"
       git worktree prune 2>/dev/null || true
       git branch -D "$branch_name" >&2 2>/dev/null || true
