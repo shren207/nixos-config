@@ -119,7 +119,7 @@ local ghosttyCtrlKeys = {'c', 'u', 'k', 'w', 'a', 'e', 'l', 'f', 's', 'v', 'z', 
 
 for _, key in ipairs(ghosttyCtrlKeys) do
     local bind
-    bind = hs.hotkey.bind({'ctrl'}, key, function()
+    local function handler()
         if isGhostty() then
             convertToEngAndSendKey(bind, {'ctrl'}, key, true)
         else
@@ -127,7 +127,8 @@ for _, key in ipairs(ghosttyCtrlKeys) do
             hs.eventtap.keyStroke({'ctrl'}, key, KEYSTROKE_DELAY)
             bind:enable()
         end
-    end)
+    end
+    bind = hs.hotkey.bind({'ctrl'}, key, handler, nil, handler)
 end
 
 --------------------------------------------------------------------------------
@@ -139,7 +140,7 @@ local terminalOptKeys = {'b', 'f'}
 
 for _, key in ipairs(terminalOptKeys) do
     local bind
-    bind = hs.hotkey.bind({'alt'}, key, function()
+    local function handler()
         if isTerminalApp() then
             convertToEngAndSendKey(bind, {'alt'}, key, true)
         else
@@ -147,7 +148,8 @@ for _, key in ipairs(terminalOptKeys) do
             hs.eventtap.keyStroke({'alt'}, key, KEYSTROKE_DELAY)
             bind:enable()
         end
-    end)
+    end
+    bind = hs.hotkey.bind({'alt'}, key, handler, nil, handler)
 end
 
 --------------------------------------------------------------------------------
