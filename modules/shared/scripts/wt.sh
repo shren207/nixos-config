@@ -21,6 +21,7 @@ set -euo pipefail
 # ── 상수 ─────────────────────────────────────────────────────────────────────
 
 WORKTREE_DIR=".claude/worktrees"
+WT_LAST_FILE=".claude/worktrees/.wt-last"
 
 # ── 유틸리티 ─────────────────────────────────────────────────────────────────
 
@@ -675,6 +676,21 @@ cmd_cd() {
   local target_path=""
   local search="${1:-}"
 
+  # wt cd - : 이전 worktree로 이동 (cd -, git checkout - 와 동일 패턴)
+  if [[ "$search" == "-" ]]; then
+    local last_file="$git_root/$WT_LAST_FILE"
+    [[ -f "$last_file" ]] || _die "이전 worktree 기록이 없습니다"
+    local last_path
+    last_path=$(cat "$last_file")
+    [[ -d "$last_path" ]] || _die "이전 worktree가 존재하지 않습니다: $last_path"
+    # 현재 위치 저장 후 이동
+    local current_dir
+    current_dir=$(pwd -P)
+    echo "$current_dir" > "$last_file"
+    echo "$last_path"
+    return 0
+  fi
+
   if [[ -n "$search" ]]; then
     # substring 매치: 디렉토리명 + 브랜치명 + sanitized 검색어 모두 시도
     local sanitized_search
@@ -717,6 +733,11 @@ cmd_cd() {
 
     target_path="$wt_base/$selected"
   fi
+
+  # 이전 worktree 경로 저장 (wt cd - 용)
+  local current_dir
+  current_dir=$(pwd -P)
+  echo "$current_dir" > "$git_root/$WT_LAST_FILE"
 
   # tmux 안이면 윈도우 전환 시도
   if [[ -n "${TMUX:-}" ]]; then
@@ -785,17 +806,21 @@ cmd_ls() {
     current_mark=""
     [[ "$wt" == "$current_wt" ]] && current_mark="*"
 
-    # ST 아이콘
-    local st_icon
+    # PR 상태 표시 (이모지 + 텍스트 통합)
+    local pr_display
     case "$pr_status" in
-      MERGED) st_icon="✅" ;;
-      OPEN)   st_icon="🔵" ;;
-      CLOSED) st_icon="🔴" ;;
-      *)      st_icon="⚪" ;;
+      MERGED) pr_display="✅ MERGED" ;;
+      OPEN)   pr_display="🔵 OPEN" ;;
+      CLOSED) pr_display="🔴 CLOSED" ;;
+      *)      pr_display="⚪ NONE" ;;
     esac
 
-    # timestamp|icon|name|branch|age|pr|dirty 형식으로 저장
-    entries+=("$ts|$st_icon|$current_mark$name|$branch|$age|$pr_status|$dirty_mark")
+    # 현재 worktree 표시: name (*) 접미사
+    local display_name="$name"
+    [[ -n "$current_mark" ]] && display_name="$name (*)"
+
+    # timestamp|name|branch|age|pr_display|dirty 형식으로 저장
+    entries+=("$ts|$display_name|$branch|$age|$pr_display|$dirty_mark")
   done
 
   # age 기준 정렬 (최신 우선 = timestamp 내림차순)
@@ -803,24 +828,24 @@ cmd_ls() {
 
   # 출력
   if _has_gum; then
-    local header="ST,NAME,BRANCH,AGE,PR,DIRTY"
+    local header="NAME,BRANCH,AGE,PR,DIRTY"
     local rows=""
     for entry in "${sorted[@]}"; do
-      IFS='|' read -r _ icon name branch age pr dirty <<< "$entry"
+      IFS='|' read -r _ name branch age pr dirty <<< "$entry"
       (( ${#branch} > 25 )) && branch="${branch:0:22}..."
-      rows+="$icon,$name,$branch,$age,$pr,$dirty"$'\n'
+      rows+="$name,$branch,$age,$pr,$dirty"$'\n'
     done
 
     gum style --bold --border double --padding "0 1" "Worktrees (${#sorted[@]})" >&2
     echo "${header}"$'\n'"${rows%$'\n'}" | gum table --print >&2
   else
-    printf "%-4s %-30s %-25s %-5s %-8s %s\n" "ST" "NAME" "BRANCH" "AGE" "PR" "DIRTY" >&2
+    printf "%-30s %-25s %-5s %-12s %s\n" "NAME" "BRANCH" "AGE" "PR" "DIRTY" >&2
     printf '%.0s─' {1..80} >&2
     echo >&2
     for entry in "${sorted[@]}"; do
-      IFS='|' read -r _ icon name branch age pr dirty <<< "$entry"
+      IFS='|' read -r _ name branch age pr dirty <<< "$entry"
       (( ${#branch} > 25 )) && branch="${branch:0:22}..."
-      printf "%-4s %-30s %-25s %-5s %-8s %s\n" "$icon" "$name" "$branch" "$age" "$pr" "$dirty" >&2
+      printf "%-30s %-25s %-5s %-12s %s\n" "$name" "$branch" "$age" "$pr" "$dirty" >&2
     done
   fi
 }
@@ -1003,10 +1028,14 @@ cmd_cleanup() {
   # 선택된 항목 처리
   local removed=0
   for label in "${selected_labels[@]}"; do
-    # 라벨에서 원본 인덱스 찾기
+    # 라벨에서 worktree 이름 추출: "ICON NAME [..." → "NAME"
+    # 이모지(3~4바이트) + 공백 이후, 첫 ' [' 이전까지가 이름
+    local label_name="${label#* }"
+    label_name="${label_name%% \[*}"
+
     local found_idx=-1
     for ((i=0; i<${#items[@]}; i++)); do
-      if [[ "${items[$i]}" == "$label" ]]; then
+      if [[ "$(basename "${item_paths[$i]}")" == "$label_name" ]]; then
         found_idx=$i
         break
       fi
