@@ -206,6 +206,17 @@ _wt_has_active_process() {
 # ── tmux 세션 헬퍼 (--tmux 플래그용) ──────────────────────────────────────
 
 # 세션 이름 생성: wt-<repo>-<dir> (repo별 네임스페이스로 충돌 방지)
+# === Change Intent Record ===
+# v1 (45aa39e): wt-<dir> — repo 구분 없이 dir_name만 사용.
+#    멀티 repo에서 동명 브랜치 시 잘못된 세션 attach/kill (DA 피드백으로 발견)
+# v2 (이번 변경, f862deb): wt-<repo>-<dir> — basename 네임스페이스 추가
+#    거부한 대안 1: 이중 하이픈 구분자 (wt-repo--dir) — 하이픈 조합 충돌은 해결하나
+#                  같은 basename의 다른 경로 repo 충돌은 미해결 (부분 수정)
+#    거부한 대안 2: 경로 해시 접두사 (wt-a1b2c3-repo-dir) — 모든 충돌 해결하나
+#                  세션 이름의 의미 없는 해시가 가독성을 해침
+#    trade-off: 같은 basename repo 충돌은 미해결이지만,
+#              ~/Workspace 내 프로젝트명이 고유하므로 실질적 충돌 없음.
+#              가독성(tmux ls에서 한눈에 파악)이 완전한 유일성보다 가치 있음.
 _wt_session_name() {
   local dir_name="$1"
   local repo_name
