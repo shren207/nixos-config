@@ -24,6 +24,11 @@ if [[ "$GIT_TOPLEVEL" == "$LOCK_WORKTREE" ]]; then
     if [[ "$LOCK_PID" != "0" ]] && kill -0 "$LOCK_PID" 2>/dev/null; then
         exit 0
     fi
+    # DA Fix R2: TOCTOU 방지 — rm 직전 PID 재확인 (다른 프로세스가 lock을 재취득했을 수 있음)
+    RECHECK_PID=$(jq -r '.pid' "$NRS_LOCK_FILE" 2>/dev/null || echo "0")
+    if [[ "$RECHECK_PID" != "$LOCK_PID" ]]; then
+        exit 0  # lock이 다른 프로세스에 의해 재취득됨
+    fi
     rm -f "$NRS_LOCK_FILE"
 fi
 

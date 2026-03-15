@@ -62,6 +62,14 @@ if echo "$COMMAND" | grep -qE '(^|[[:space:]]|&&|\||;)(sudo[[:space:]]+)?([^[:sp
         exit 0
     fi
 
+    # Main worktree: lock 충돌 미차단 (acquire_nrs_lock이 경고만 표시하고 진행)
+    # DA Fix: main worktree에서 Claude가 nrs 실행할 때도 worktree lock에 차단되지 않도록
+    GIT_DIR_ABS=$(cd "$(git rev-parse --git-dir 2>/dev/null)" 2>/dev/null && pwd || echo "")
+    GIT_COMMON_ABS=$(cd "$(git rev-parse --git-common-dir 2>/dev/null)" 2>/dev/null && pwd || echo "")
+    if [[ -n "$GIT_DIR_ABS" && "$GIT_DIR_ABS" == "$GIT_COMMON_ABS" ]]; then
+        exit 0  # main worktree — allow through
+    fi
+
     # Stale check: worktree 미존재 OR 타임아웃 → 통과 (nrs.sh가 자동 정리)
     LOCK_TS=$(jq -r '.timestamp' "$NRS_LOCK_FILE" 2>/dev/null || echo "0")
     NOW=$(date +%s)
