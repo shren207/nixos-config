@@ -181,10 +181,17 @@ do_cleanup() {
     local wt_dir="${WORK_DIR}/.claude/worktrees"
     if [[ -d "$wt_dir" ]]; then
         # prune 후 git worktree list에 등록된 경로 수집
+        local porcelain_output
+        if ! porcelain_output=$(git worktree list --porcelain 2>&1); then
+            log_error "git worktree list 실패 — orphan sweep 건너뜀"
+            log_info "정리 완료 — claude-rc 또는 claude-rc --detach 로 서버 재시작"
+            return
+        fi
+
         local -a live_worktrees=()
         while IFS= read -r line; do
             [[ "$line" == worktree\ * ]] && live_worktrees+=("${line#worktree }")
-        done < <(git worktree list --porcelain)
+        done <<< "$porcelain_output"
 
         for dir in "$wt_dir"/*/; do
             [[ -d "$dir" ]] || continue
