@@ -153,6 +153,13 @@ do_attach() {
 
 #───────────────────────────────────────────────────────────────────────────────
 # 서브커맨드: cleanup
+#
+# Workaround: claude remote-control의 disconnect ≠ end session 설계로 인해
+# bridge 프로세스가 종료되지 않아 capacity 슬롯이 영구 점유되는 문제.
+# upstream에서 세션 revoke(#28917) 또는 idle timeout(#32050)이 구현되면
+# 이 서브커맨드는 불필요해질 수 있다 — 그때 제거를 검토할 것.
+# refs: https://github.com/anthropics/claude-code/issues/28917
+#       https://github.com/anthropics/claude-code/issues/32050
 #───────────────────────────────────────────────────────────────────────────────
 do_cleanup() {
     # 세션 내부 실행 감지: do_stop이 현재 셸을 kill하므로 cleanup을 먼저 수행
