@@ -36,7 +36,7 @@ _discover_hmf() {
         local target
         target=$(readlink "$probe")
         if [[ "$target" == /nix/store/*-home-manager-files/* ]]; then
-            echo "${target%%/home-manager-files/*}/home-manager-files"
+            echo "${target%%-home-manager-files/*}-home-manager-files"
             return 0
         fi
     done
