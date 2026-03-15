@@ -147,8 +147,8 @@ main() {
     run_darwin_rebuild
     # shellcheck disable=SC2034
     NRS_LOCK_SWITCH_SUCCESS=true
-    release_rebuild_lock
     maybe_relink_or_restore
+    release_rebuild_lock
     restart_hammerspoon
     cleanup_build_artifacts
     echo ""
