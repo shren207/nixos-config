@@ -49,6 +49,16 @@ if echo "$COMMAND" | grep -qE '(^|[[:space:]]|&&|\||;)(sudo[[:space:]]+)?([^[:sp
     CURRENT_WORKTREE=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
     LOCK_WORKTREE=$(jq -r '.worktree' "$NRS_LOCK_FILE" 2>/dev/null || echo "")
 
+    # Main worktree: lock 충돌 미차단 (acquire_nrs_lock이 경고만 표시하고 진행)
+    # same-worktree 체크보다 먼저 실행해야 함:
+    #   리팩터링 이전 lock이 main을 가리키고 PID가 재활용된 경우,
+    #   same-worktree 분기가 false block을 발생시키는 것을 방지
+    GIT_DIR_ABS=$(cd "$(git rev-parse --git-dir 2>/dev/null)" 2>/dev/null && pwd || echo "")
+    GIT_COMMON_ABS=$(cd "$(git rev-parse --git-common-dir 2>/dev/null)" 2>/dev/null && pwd || echo "")
+    if [[ -n "$GIT_DIR_ABS" && "$GIT_DIR_ABS" == "$GIT_COMMON_ABS" ]]; then
+        exit 0  # main worktree — allow through
+    fi
+
     # 같은 worktree: nrs.sh 경유 시 내부 PID 체크로 보호되지만,
     # raw darwin-rebuild/nixos-rebuild는 acquire_nrs_lock을 거치지 않음.
     # 같은 worktree에서도 lock PID가 살아있으면 차단
@@ -60,14 +70,6 @@ if echo "$COMMAND" | grep -qE '(^|[[:space:]]|&&|\||;)(sudo[[:space:]]+)?([^[:sp
             exit 0
         fi
         exit 0
-    fi
-
-    # Main worktree: lock 충돌 미차단 (acquire_nrs_lock이 경고만 표시하고 진행)
-    # DA Fix: main worktree에서 Claude가 nrs 실행할 때도 worktree lock에 차단되지 않도록
-    GIT_DIR_ABS=$(cd "$(git rev-parse --git-dir 2>/dev/null)" 2>/dev/null && pwd || echo "")
-    GIT_COMMON_ABS=$(cd "$(git rev-parse --git-common-dir 2>/dev/null)" 2>/dev/null && pwd || echo "")
-    if [[ -n "$GIT_DIR_ABS" && "$GIT_DIR_ABS" == "$GIT_COMMON_ABS" ]]; then
-        exit 0  # main worktree — allow through
     fi
 
     # Stale check: worktree 미존재 OR 타임아웃 → 통과 (nrs.sh가 자동 정리)
