@@ -136,7 +136,7 @@ echo "아주 긴 에세이를 5000단어로 써줘" | claude -p --max-budget-usd
 
 ### #18. `--max-turns`는 `--help`에 표시되지 않는 숨겨진 플래그
 
-`claude -p --help` 출력에 `--max-turns`가 없지만 실제로 동작한다. 환경변수 `CLAUDE_CODE_MAX_TURNS`로도 제어 가능.
+`claude -p --help` 출력에 `--max-turns`가 없지만 실제로 동작한다. ⚠️ `CLAUDE_CODE_MAX_TURNS` 환경변수는 v2.1.76 바이너리에 존재하지 않음 (실측 + 소스 분석으로 확인). CLI flag `--max-turns`가 유일한 제어 수단이다.
 
 ### #19. `--max-turns` 도달 시 `is_error: false`
 
