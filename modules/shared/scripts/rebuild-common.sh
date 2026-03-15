@@ -376,7 +376,12 @@ run_rebuild_with_lock() {
     if command -v flock &>/dev/null; then
         flock --timeout "$NRS_REBUILD_LOCK_TIMEOUT" "$NRS_REBUILD_LOCK" "$@"
     else
-        _acquire_rebuild_lock
+        # DA Fix #1: || rc=$? 문맥에서 bash가 함수 내부 errexit를 비활성화하므로,
+        # _acquire_rebuild_lock의 return 1이 무시되어 lock 없이 rebuild가 실행됨.
+        # if ! 가드로 반환값을 명시적으로 체크.
+        if ! _acquire_rebuild_lock; then
+            return 1
+        fi
         local _rc=0
         "$@" || _rc=$?
         rm -f "$NRS_REBUILD_LOCK"
@@ -396,7 +401,12 @@ _acquire_rebuild_lock() {
         holder_pid=$(cat "$NRS_REBUILD_LOCK" 2>/dev/null || echo "")
         if [[ -z "$holder_pid" ]] || ! kill -0 "$holder_pid" 2>/dev/null; then
             # Stale lock (프로세스 종료됨) — 제거 후 재시도
-            rm -f "$NRS_REBUILD_LOCK"
+            # DA Fix #2: re-read 가드 — rm 전에 PID 변경 여부 확인 (TOCTOU 방어)
+            local current_pid
+            current_pid=$(cat "$NRS_REBUILD_LOCK" 2>/dev/null || echo "")
+            if [[ "$current_pid" == "$holder_pid" ]]; then
+                rm -f "$NRS_REBUILD_LOCK"
+            fi
             continue
         fi
         if (( waited == 0 )); then
