@@ -188,11 +188,11 @@ echo "ls /tmp | head -2" | claude -p --permission-mode bypassPermissions
 
 ### #12/25. `--dangerously-skip-permissions`는 hooks의 block을 무시하지 않음
 
-Permission prompt만 건너뛰고, hooks의 block 결정은 그대로 반영된다. hooks를 우회하려면 별도로 `--disable-hooks`가 필요하다.
+Permission prompt만 건너뛰고, hooks 자체는 호출된다. 단, `bypassPermissions` 모드에서는 hooks의 결정이 passthrough로 무시된다 (#26 참조). ⚠️ `--disable-hooks` 플래그는 v2.1.76에 존재하지 않음.
 
 ### #26. `bypassPermissions` 모드에서 hooks는 호출되지만 결정이 passthrough로 무시됨
 
-hooks 자체는 실행되지만, hooks의 allow/deny/block 결정이 결과에 반영되지 않는다.
+hooks 자체는 실행되지만, hooks의 allow/deny/block 결정이 결과에 반영되지 않는다. 이는 #12/25와 일관됨: `--dangerously-skip-permissions`(= `bypassPermissions`)는 permission prompt를 건너뛰고, hooks 결정도 무시한다.
 
 ### #27. `default` 모드에서 hooks의 allow/deny/block 결정은 정상 반영됨
 
@@ -213,7 +213,7 @@ echo "현재 디렉토리의 파일 목록을 보여줘" | claude -p --tools ""
 # "Figma 관련 MCP 도구만 사용할 수 있는 상태입니다."
 ```
 
-MCP 도구까지 비활성화하려면 `--mcp-servers ""`도 함께 사용한다. (또는 `--no-mcp`)
+⚠️ `--mcp-servers ""` / `--no-mcp` 플래그는 v2.1.76에 존재하지 않음. MCP 도구를 비활성화하는 공식 방법은 `claude -p --help` 출력을 확인한다.
 
 ### #13. `--disable-slash-commands`로 스킬 비활성화 시 "Unknown skill"
 
@@ -286,7 +286,7 @@ echo "내 비밀 코드가 뭐였어?" | claude -p --resume "$SESSION_ID"
 
 ```bash
 echo "언어 설정은?" | claude -p --append-system-prompt "Always respond in English only."
-# 한국어로 응답 (CLAUDE.md의 "Always respond in Korean" 유지)
+# 한국어로 응답 (settings.json의 "language": "Korean" 설정이 유지됨)
 ```
 
 기존 시스템 프롬프트에 추가되므로, 기존 지시를 덮어쓰지 못한다.
@@ -349,9 +349,9 @@ wait
 
 `--no-session-persistence`로 세션 파일 충돌을 방지한다.
 
-### #34. 공식 명칭 변경: "headless mode" → "Agent SDK CLI"
+### #34. 공식 명칭 변경: "headless mode" → "Agent SDK"
 
-공식 문서가 `headless`에서 `Agent SDK CLI`로 명칭을 변경했다. 하지만 CLI 인터페이스(`-p`/`--print`)는 동일.
+공식 문서가 `headless mode`에서 `Agent SDK`로 명칭을 변경했다. CLI(`-p`/`--print`)는 Agent SDK의 하위 사용 방식이며, Python/TS SDK도 Agent SDK에 포함된다. CLI 인터페이스 자체는 동일.
 
 ### #31. `CLAUDE_CODE_MAX_RETRIES` 환경변수로 API 재시도 횟수 제어
 
