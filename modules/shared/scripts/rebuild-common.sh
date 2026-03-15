@@ -640,28 +640,33 @@ maybe_relink_or_restore() {
         done < <(find "$HOME/.claude" "$HOME/.codex" -maxdepth 3 -type l -print0 2>/dev/null)
         if [[ $_wt_cleaned -gt 0 ]]; then
             log_info "🧹 Removed $_wt_cleaned stale worktree symlink(s)"
-        fi
-
-        # Phase 2: 기존 엔트리 nix store 체인 복원
-        # NO_CHANGES 경로에서는 rebuild가 스킵되어 HM activation이 실행되지 않고,
-        # --force rebuild에서도 동일 generation이면 HM이 심링크를 재생성하지 않으므로
-        # 명시적 복원이 필요
-        # 다중 probe: sed -i 등으로 대표 파일이 일반 파일로 바뀌거나,
-        # relink skip으로 partial mismatch가 발생한 경우를 방어
-        local _needs_restore=false
-        local _p
-        for _p in "$HOME/.claude/settings.json" "$HOME/.claude/mcp.json" "$HOME/.codex/config.toml"; do
-            [[ ! -L "$_p" ]] && continue
-            local _target
-            _target=$(readlink "$_p" 2>/dev/null) || continue
-            if [[ "$_target" != /nix/store/* ]]; then
-                _needs_restore=true
-                break
-            fi
-        done
-        if [[ "$_needs_restore" == true ]]; then
+            # Phase 1이 probe 파일(settings.json 등)을 삭제하면 Phase 2의 probe 탐지가
+            # 실패하여 restore를 건너뛸 수 있음. NO_CHANGES 경로에서는 HM activation이
+            # 실행되지 않아 심링크가 영구 유실됨. Phase 1이 작동했으면 무조건 restore 실행.
             log_info "🔗 Restoring symlinks to nix store chain..."
             "$HOME/.local/bin/nrs-relink" restore || log_warn "⚠️  nrs-relink restore failed (non-fatal)"
+        else
+            # Phase 2: 기존 엔트리 nix store 체인 복원 (Phase 1 미작동 시 fallback)
+            # NO_CHANGES 경로에서는 rebuild가 스킵되어 HM activation이 실행되지 않고,
+            # --force rebuild에서도 동일 generation이면 HM이 심링크를 재생성하지 않으므로
+            # 명시적 복원이 필요
+            # 다중 probe: sed -i 등으로 대표 파일이 일반 파일로 바뀌거나,
+            # relink skip으로 partial mismatch가 발생한 경우를 방어
+            local _needs_restore=false
+            local _p
+            for _p in "$HOME/.claude/settings.json" "$HOME/.claude/mcp.json" "$HOME/.codex/config.toml"; do
+                [[ ! -L "$_p" ]] && continue
+                local _target
+                _target=$(readlink "$_p" 2>/dev/null) || continue
+                if [[ "$_target" != /nix/store/* ]]; then
+                    _needs_restore=true
+                    break
+                fi
+            done
+            if [[ "$_needs_restore" == true ]]; then
+                log_info "🔗 Restoring symlinks to nix store chain..."
+                "$HOME/.local/bin/nrs-relink" restore || log_warn "⚠️  nrs-relink restore failed (non-fatal)"
+            fi
         fi
     fi
 }
