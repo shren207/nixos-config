@@ -12,6 +12,8 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 [[ -z "$COMMAND" ]] && exit 0
 
 NRS_LOCK_FILE="/tmp/nrs-state"
+# 주의: 이 값은 rebuild-common.sh, nrs-lock.sh, nrs-lock-guard.sh 3곳에서 동일하게 유지해야 함
+NRS_LOCK_TIMEOUT_MINUTES=30
 
 # 규칙 3: nrs-unlock / nrs-lock.sh unlock 시도 차단
 if echo "$COMMAND" | grep -qE '(nrs-unlock|nrs-lock\.sh[[:space:]]+unlock)'; then
@@ -58,6 +60,17 @@ if echo "$COMMAND" | grep -qE '(^|[[:space:]]|&&|\||;)(sudo[[:space:]]+)?([^[:sp
             exit 0
         fi
         exit 0
+    fi
+
+    # Stale check: worktree 미존재 OR 타임아웃 → 통과 (nrs.sh가 자동 정리)
+    LOCK_TS=$(jq -r '.timestamp' "$NRS_LOCK_FILE" 2>/dev/null || echo "0")
+    NOW=$(date +%s)
+
+    if [[ -n "$LOCK_WORKTREE" && ! -d "$LOCK_WORKTREE" ]]; then
+        exit 0  # stale — allow through
+    fi
+    if (( NOW > LOCK_TS + NRS_LOCK_TIMEOUT_MINUTES * 60 )); then
+        exit 0  # stale — allow through
     fi
 
     LOCK_BRANCH=$(jq -r '.branch' "$NRS_LOCK_FILE" 2>/dev/null || echo "?")

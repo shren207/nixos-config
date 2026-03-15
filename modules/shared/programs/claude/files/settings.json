@@ -61,6 +61,21 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/stop-notification.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/nrs-session-cleanup.sh"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/nrs-session-cleanup.sh"
           }
         ]
       }
