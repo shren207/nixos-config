@@ -155,8 +155,18 @@ do_attach() {
 # 서브커맨드: cleanup
 #───────────────────────────────────────────────────────────────────────────────
 do_cleanup() {
-    # 1단계: 서버 종료 (tmux kill-session → 모든 프로세스 일괄 종료)
-    do_stop
+    # 세션 내부 실행 감지: do_stop이 현재 셸을 kill하므로 cleanup을 먼저 수행
+    local inside=false
+    if [[ -n "${TMUX:-}" ]]; then
+        local current_session
+        current_session=$(tmux display-message -p '#{session_name}' 2>/dev/null) || true
+        [[ "$current_session" == "$TMUX_SESSION" ]] && inside=true
+    fi
+
+    # 1단계: 서버 종료 (외부 실행 시만 — 내부 실행 시 마지막에 처리)
+    if [[ "$inside" == false ]]; then
+        do_stop
+    fi
 
     # 2단계: git worktree prune
     cd "$WORK_DIR" || exit 1
@@ -191,7 +201,13 @@ do_cleanup() {
         done
     fi
 
-    log_info "정리 완료 — claude-rc 또는 claude-rc --detach 로 서버 재시작"
+    # 세션 내부: cleanup 완료 후 세션 종료 (이 셸도 함께 종료됨)
+    if [[ "$inside" == true ]]; then
+        log_info "정리 완료 — 세션 종료 중..."
+        tmux kill-session -t "$TMUX_SESSION"
+    else
+        log_info "정리 완료 — claude-rc 또는 claude-rc --detach 로 서버 재시작"
+    fi
 }
 
 #───────────────────────────────────────────────────────────────────────────────
