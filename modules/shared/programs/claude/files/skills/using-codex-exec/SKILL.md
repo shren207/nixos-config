@@ -4,6 +4,7 @@ description: |
   Codex CLI non-interactive execution (codex exec, codex exec review, codex e,
   codex exec resume, codex review) in Claude Code sessions: running prompts,
   code reviews, result capture, --yolo bypass.
+  Claude Code 전용 — Codex CLI 에이전트는 이 스킬을 사용하지 않는다.
   NOT for syncing harness/projecting skills to .agents/ (use syncing-codex-harness).
   NOT for Codex config.toml or trust settings (use configuring-codex).
   Triggers: "codex exec", "codex 실행", "codex CLI", "비대화형 codex",
