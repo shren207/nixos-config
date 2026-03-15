@@ -136,6 +136,11 @@ main() {
     run_darwin_rebuild
     # shellcheck disable=SC2034
     NRS_LOCK_SWITCH_SUCCESS=true
+    # Worktree 심링크 전환: rebuild 성공 후 ~/.claude/* 등을 worktree 경로로 relink
+    if [[ "$FLAKE_PATH" != "$MAIN_FLAKE_PATH" ]]; then
+        log_info "🔗 Relinking symlinks to worktree..."
+        "$HOME/.local/bin/nrs-relink.sh" relink || log_warn "⚠️  nrs-relink failed (non-fatal)"
+    fi
     restart_hammerspoon
     cleanup_build_artifacts
     echo ""

@@ -57,6 +57,11 @@ main() {
     fi
     worktree_symlink_guard
     run_nixos_rebuild
+    # Worktree 심링크 전환
+    if [[ "$FLAKE_PATH" != "$MAIN_FLAKE_PATH" ]]; then
+        log_info "🔗 Relinking symlinks to worktree..."
+        "$HOME/.local/bin/nrs-relink.sh" relink || log_warn "⚠️  nrs-relink failed (non-fatal)"
+    fi
     cleanup_build_artifacts
 
     echo ""
