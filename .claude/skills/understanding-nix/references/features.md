@@ -226,7 +226,7 @@ NixOS는 추가로 `modules/nixos/configuration.nix`에서 `nix.gc.dates = "week
 | Alias         | 용도                                        |
 | ------------- | ------------------------------------------- |
 | `nrh`         | 최근 10개 세대 히스토리 (스크립트) |
-| `nrh-all`     | 전체 세대 히스토리 (스크립트) |
+| `nrh --all`   | 전체 세대 히스토리 (스크립트) |
 | `hs`          | Hammerspoon CLI                             |
 | `hsr`         | Hammerspoon 설정 리로드 (완료 시 알림 표시) |
 
@@ -305,7 +305,7 @@ nrs            # 일반 모드 (다운로드 필요)
 
 **소스 참조 방식 (로컬 vs Remote):**
 
-> **중요**: `nrs`와 `nrs-offline` **모두** `flake.lock`에 잠긴 **Remote Git URL**에서 소스를 참조합니다.
+> **중요**: `nrs`와 `nrs --offline` **모두** `flake.lock`에 잠긴 **Remote Git URL**에서 소스를 참조합니다.
 
 | 항목 | 설명 |
 |------|------|
@@ -335,7 +335,7 @@ nrs            # 일반 모드 (다운로드 필요)
 | `nrp` | 빌드 후 변경사항 미리보기 (적용 안 함) |
 | `nrp --offline` | 오프라인 미리보기 |
 | `nrh` (macOS) | 최근 10개 세대 히스토리 |
-| `nrh-all` (macOS) | 전체 세대 히스토리 (`nrh --all`) |
+| `nrh --all` (macOS) | 전체 세대 히스토리 |
 | `nrh` (NixOS) | 최근 10개 세대 (`nix-env --list-generations ...` 후 tail 10) |
 | `nrh-all` (NixOS) | 전체 세대 (`nix-env ...`) |
 

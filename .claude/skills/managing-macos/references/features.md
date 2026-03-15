@@ -136,7 +136,7 @@ locale charmap  # UTF-8 확인
 | `nrp` | `~/.local/bin/nrp` | 미리보기 전용 |
 | `nrp --offline` | `~/.local/bin/nrp --offline` | 오프라인 미리보기 |
 | `nrh` | `~/.local/bin/nrh` | 최근 10개 세대 |
-| `nrh-all` | `~/.local/bin/nrh --all` | 전체 세대 |
+| `nrh --all` | `~/.local/bin/nrh --all` | 전체 세대 |
 
 **Rebuild 스크립트 아키텍처:**
 
