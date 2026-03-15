@@ -27,7 +27,7 @@ run_nixos_rebuild() {
 
     local rc=0
     # shellcheck disable=SC2086
-    sudo "$REBUILD_CMD" switch --flake "$FLAKE_PATH" $OFFLINE_FLAG $CORES_FLAG || rc=$?
+    run_rebuild_with_lock sudo "$REBUILD_CMD" switch --flake "$FLAKE_PATH" $OFFLINE_FLAG $CORES_FLAG || rc=$?
 
     if [[ "$rc" -eq 0 ]]; then
         return 0

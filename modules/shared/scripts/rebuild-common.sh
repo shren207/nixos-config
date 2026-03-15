@@ -363,6 +363,55 @@ release_nrs_lock_on_failure() {
 }
 
 #───────────────────────────────────────────────────────────────────────────────
+# Rebuild serialize: main-vs-main 동시 실행 방지
+# rebuild switch 호출을 serialize하여 activation scripts 충돌 방지.
+# 워크트리 간 상호 배제는 기존 NRS lock이 담당하므로, 여기서는 rebuild 자체만 보호.
+# - flock 가용 시 (NixOS): OS 수준 파일 락, 프로세스 종료 시 자동 해제
+# - flock 미가용 시 (macOS): PID 기반 락 + noclobber 원자적 생성
+#───────────────────────────────────────────────────────────────────────────────
+NRS_REBUILD_LOCK="/tmp/nrs-rebuild.lock"
+NRS_REBUILD_LOCK_TIMEOUT=1800  # 30분 — NRS lock 타임아웃과 동일
+
+run_rebuild_with_lock() {
+    if command -v flock &>/dev/null; then
+        flock --timeout "$NRS_REBUILD_LOCK_TIMEOUT" "$NRS_REBUILD_LOCK" "$@"
+    else
+        _acquire_rebuild_lock
+        local _rc=0
+        "$@" || _rc=$?
+        rm -f "$NRS_REBUILD_LOCK"
+        return "$_rc"
+    fi
+}
+
+_acquire_rebuild_lock() {
+    local waited=0
+    while true; do
+        # noclobber: 파일이 없으면 원자적 생성, 있으면 실패
+        if (set -o noclobber; echo "$$" > "$NRS_REBUILD_LOCK") 2>/dev/null; then
+            return 0
+        fi
+        # Lock 존재 — holder PID 확인
+        local holder_pid
+        holder_pid=$(cat "$NRS_REBUILD_LOCK" 2>/dev/null || echo "")
+        if [[ -z "$holder_pid" ]] || ! kill -0 "$holder_pid" 2>/dev/null; then
+            # Stale lock (프로세스 종료됨) — 제거 후 재시도
+            rm -f "$NRS_REBUILD_LOCK"
+            continue
+        fi
+        if (( waited == 0 )); then
+            log_warn "⏳ Another rebuild in progress (PID $holder_pid). Waiting..."
+        fi
+        if (( waited >= NRS_REBUILD_LOCK_TIMEOUT )); then
+            log_error "❌ Timed out waiting for rebuild lock (${NRS_REBUILD_LOCK_TIMEOUT}s)"
+            return 1
+        fi
+        sleep 5
+        ((waited += 5))
+    done
+}
+
+#───────────────────────────────────────────────────────────────────────────────
 # 인수 파싱 (OFFLINE_FLAG, FORCE_FLAG, CORES_FLAG 설정)
 #───────────────────────────────────────────────────────────────────────────────
 parse_args() {
