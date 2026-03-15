@@ -132,11 +132,12 @@ main() {
         return 0
     fi
     worktree_symlink_guard
-    preflight_cask_conflict_check
 
-    # Critical section: cleanup + restore + switch를 serialize
+    # Critical section: cask conflict resolve + cleanup + restore + switch를 serialize
     # DA Fix #3: cleanup이 lock 밖에 있으면 다른 프로세스의 switch와 겹칠 수 있음
+    # CodeRabbit: preflight_cask_conflict_check의 brew uninstall도 lock 안에서 실행
     acquire_rebuild_lock
+    preflight_cask_conflict_check
     cleanup_launchd_agents
     # Pre-rebuild restore (darwin 전용):
     # HM activation의 checkLinkTargets가 non-HMF 심링크(worktree 타깃)를
