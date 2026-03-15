@@ -616,6 +616,18 @@ maybe_relink_or_restore() {
         # nrs-relink restore는 현재 HMF 기반이라, 워크트리에서 새로 추가된 엔트리를 모름.
         # 워크트리 경로를 직접 가리키는 심링크는 nrs-relink relink이 생성한 것이므로
         # main에서는 항상 stale → 제거하면 HM activation이 새 심링크를 정상 생성.
+        #
+        # === Change Intent Record ===
+        # v1 (PR #239): probe 3개(settings.json, mcp.json, config.toml) 기반 복원 도입.
+        #    기존 엔트리 전환/복원은 충분했으나, 워크트리에서 새로 추가된 엔트리는 현재
+        #    HMF에 없어 nrs-relink restore가 인식 불가 → HM clobber 에러 발생.
+        # v2 (이번 변경): 대안 검토:
+        #    (a) probe 목록 확장 → 새 엔트리가 추가될 때마다 수동 관리 필요, 근본 해결 아님
+        #    (b) nrs-relink restore가 ./result의 새 HMF 참조 → 플랫폼별 경로 해석 복잡
+        #    (c) dangling 심링크만 제거 → 워크트리가 살아있으면 dangling 아니라 탐지 실패
+        #    (d) 워크트리 경로 패턴 매칭으로 직접 제거 → 채택
+        #    trade-off: .claude/worktrees/ 외부에 수동 생성된 워크트리는 탐지 불가하지만,
+        #              wt 스크립트가 .claude/worktrees/에만 생성하므로 실용적으로 충분.
         local _wt_cleaned=0
         local _wt_pattern="$MAIN_FLAKE_PATH/.claude/worktrees/"
         while IFS= read -r -d '' _link; do
