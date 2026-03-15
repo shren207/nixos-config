@@ -215,8 +215,12 @@ RESULT_NO_PERM=$(echo "ls /tmp | head -1을 실행하고 결과만 출력해" | 
 HAS_TOOL_USE=$(echo "$RESULT_NO_PERM" | python3 -c "
 import sys, json
 data = json.loads(sys.stdin.read())
-tool_uses = [d for d in data if isinstance(d, dict) and d.get('type')=='assistant' and 'tool_use' in str(d)]
-print('yes' if tool_uses else 'no')" 2>/dev/null)
+for d in data:
+    if isinstance(d, dict) and d.get('type')=='assistant':
+        for block in d.get('message', {}).get('content', []):
+            if isinstance(block, dict) and block.get('type')=='tool_use':
+                print('yes'); exit()
+print('no')" 2>/dev/null)
 
 if [ "$HAS_TOOL_USE" = "no" ]; then
   echo "  ✓ 5a: Tool blocked without permissions"
