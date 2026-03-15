@@ -43,6 +43,7 @@ claude-rc: Claude Code Remote Control tmux wrapper
   claude-rc --detach                     서버 시작 (백그라운드)
   claude-rc --attach                     기존 세션 접속
   claude-rc --stop                       서버 종료
+  claude-rc --cleanup                    zombie 세션 + stale worktree 정리
 
 옵션:
   --permission-mode <mode>   권한 모드 (default: bypassPermissions)
@@ -99,6 +100,7 @@ parse_args() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --stop)    ACTION="stop"; shift ;;
+            --cleanup) ACTION="cleanup"; shift ;;
             --attach)  ACTION="attach"; shift ;;
             --detach)  DETACH=true; shift ;;
             --help|-h) usage; exit 0 ;;
@@ -147,6 +149,49 @@ do_attach() {
         log_error "실행 중인 세션 없음 (claude-rc로 시작하세요)"
         exit 1
     fi
+}
+
+#───────────────────────────────────────────────────────────────────────────────
+# 서브커맨드: cleanup
+#───────────────────────────────────────────────────────────────────────────────
+do_cleanup() {
+    # 1단계: 서버 종료 (tmux kill-session → 모든 프로세스 일괄 종료)
+    do_stop
+
+    # 2단계: git worktree prune
+    cd "$WORK_DIR" || exit 1
+    local prune_output
+    prune_output=$(git worktree prune --expire=now --verbose 2>&1) || true
+    if [[ -n "$prune_output" ]]; then
+        log_info "worktree prune:"
+        echo "$prune_output"
+    fi
+
+    # 3단계: orphan worktree 디렉토리 정리
+    local wt_dir="${WORK_DIR}/.claude/worktrees"
+    if [[ -d "$wt_dir" ]]; then
+        # prune 후 git worktree list에 등록된 경로 수집
+        local -a live_worktrees=()
+        while IFS= read -r line; do
+            [[ "$line" == worktree\ * ]] && live_worktrees+=("${line#worktree }")
+        done < <(git worktree list --porcelain)
+
+        for dir in "$wt_dir"/*/; do
+            [[ -d "$dir" ]] || continue
+            local canonical
+            canonical=$(realpath "$dir")
+            local is_live=false
+            for live in "${live_worktrees[@]}"; do
+                [[ "$(realpath "$live" 2>/dev/null)" == "$canonical" ]] && { is_live=true; break; }
+            done
+            if [[ "$is_live" == false ]]; then
+                log_info "orphan 디렉토리 삭제: $(basename "$dir")"
+                rm -rf "$dir"
+            fi
+        done
+    fi
+
+    log_info "정리 완료 — claude-rc 또는 claude-rc --detach 로 서버 재시작"
 }
 
 #───────────────────────────────────────────────────────────────────────────────
@@ -258,8 +303,9 @@ do_start_inner() {
 parse_args "$@"
 
 case "$ACTION" in
-    stop)   do_stop ;;
-    attach) do_attach ;;
+    stop)    do_stop ;;
+    attach)  do_attach ;;
+    cleanup) do_cleanup ;;
     start)
         if inside_rc_session; then
             do_start_inner
