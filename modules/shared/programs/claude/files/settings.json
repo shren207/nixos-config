@@ -44,15 +44,6 @@
           }
         ]
       },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/nrs-lock-guard.sh"
-          }
-        ]
-      }
     ],
     "Stop": [
       {
