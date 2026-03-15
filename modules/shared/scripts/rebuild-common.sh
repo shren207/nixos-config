@@ -611,6 +611,26 @@ maybe_relink_or_restore() {
         "$HOME/.local/bin/nrs-relink" relink || log_warn "⚠️  nrs-relink failed (non-fatal)"
     else
         # Main repo: worktree 심링크가 잔존하면 nix store 체인으로 복원
+
+        # Phase 1: stale 워크트리 심링크 제거
+        # nrs-relink restore는 현재 HMF 기반이라, 워크트리에서 새로 추가된 엔트리를 모름.
+        # 워크트리 경로를 직접 가리키는 심링크는 nrs-relink relink이 생성한 것이므로
+        # main에서는 항상 stale → 제거하면 HM activation이 새 심링크를 정상 생성.
+        local _wt_cleaned=0
+        local _wt_pattern="$MAIN_FLAKE_PATH/.claude/worktrees/"
+        while IFS= read -r -d '' _link; do
+            local _lt
+            _lt=$(readlink "$_link" 2>/dev/null) || continue
+            if [[ "$_lt" == "$_wt_pattern"* ]]; then
+                rm -f "$_link"
+                ((++_wt_cleaned))
+            fi
+        done < <(find "$HOME/.claude" "$HOME/.codex" -maxdepth 3 -type l -print0 2>/dev/null)
+        if [[ $_wt_cleaned -gt 0 ]]; then
+            log_info "🧹 Removed $_wt_cleaned stale worktree symlink(s)"
+        fi
+
+        # Phase 2: 기존 엔트리 nix store 체인 복원
         # NO_CHANGES 경로에서는 rebuild가 스킵되어 HM activation이 실행되지 않고,
         # --force rebuild에서도 동일 generation이면 HM이 심링크를 재생성하지 않으므로
         # 명시적 복원이 필요
