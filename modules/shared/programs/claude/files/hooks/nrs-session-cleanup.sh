@@ -19,6 +19,11 @@ GIT_TOPLEVEL=$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null) || exit 0
 LOCK_WORKTREE=$(jq -r '.worktree' "$NRS_LOCK_FILE" 2>/dev/null) || exit 0
 
 if [[ "$GIT_TOPLEVEL" == "$LOCK_WORKTREE" ]]; then
+    # DA Fix: PID가 살아있으면 lock 보존 (다른 터미널에서 nrs 실행 중일 수 있음)
+    LOCK_PID=$(jq -r '.pid' "$NRS_LOCK_FILE" 2>/dev/null || echo "0")
+    if [[ "$LOCK_PID" != "0" ]] && kill -0 "$LOCK_PID" 2>/dev/null; then
+        exit 0
+    fi
     rm -f "$NRS_LOCK_FILE"
 fi
 

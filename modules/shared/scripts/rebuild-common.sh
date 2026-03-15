@@ -210,10 +210,12 @@ NRS_LOCK_REENTRY=false     # 기존 lock에 대한 재진입인가?
 
 is_stale_lock() {
     # Returns 0 (true) if stale, 1 (false) if active
-    # Stale 조건 (OR): worktree 경로 미존재 OR 타임아웃 초과
-    local lock_worktree lock_ts now
+    # Stale 조건 (OR): worktree 경로 미존재 OR (타임아웃 초과 AND PID 미생존)
+    # DA Fix: PID가 살아있으면 타임아웃 초과해도 stale 아님 (장시간 빌드 보호)
+    local lock_worktree lock_ts lock_pid now
     lock_worktree=$(jq -r '.worktree' "$NRS_LOCK_FILE" 2>/dev/null || echo "")
     lock_ts=$(jq -r '.timestamp' "$NRS_LOCK_FILE" 2>/dev/null || echo "0")
+    lock_pid=$(jq -r '.pid' "$NRS_LOCK_FILE" 2>/dev/null || echo "0")
     now=$(date +%s)
 
     if [[ -n "$lock_worktree" && ! -d "$lock_worktree" ]]; then
@@ -222,6 +224,10 @@ is_stale_lock() {
 
     local expiry=$(( lock_ts + NRS_LOCK_TIMEOUT_MINUTES * 60 ))
     if (( now > expiry )); then
+        # PID가 살아있으면 stale 아님 (장시간 빌드 보호)
+        if [[ "$lock_pid" != "0" ]] && kill -0 "$lock_pid" 2>/dev/null; then
+            return 1
+        fi
         return 0
     fi
 

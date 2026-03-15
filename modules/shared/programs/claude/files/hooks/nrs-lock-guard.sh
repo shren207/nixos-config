@@ -70,7 +70,11 @@ if echo "$COMMAND" | grep -qE '(^|[[:space:]]|&&|\||;)(sudo[[:space:]]+)?([^[:sp
         exit 0  # stale — allow through
     fi
     if (( NOW > LOCK_TS + NRS_LOCK_TIMEOUT_MINUTES * 60 )); then
-        exit 0  # stale — allow through
+        # DA Fix: PID가 살아있으면 stale 아님 (장시간 빌드 보호)
+        LOCK_PID_STALE=$(jq -r '.pid' "$NRS_LOCK_FILE" 2>/dev/null || echo "0")
+        if [[ "$LOCK_PID_STALE" == "0" ]] || ! kill -0 "$LOCK_PID_STALE" 2>/dev/null; then
+            exit 0  # stale — allow through
+        fi
     fi
 
     LOCK_BRANCH=$(jq -r '.branch' "$NRS_LOCK_FILE" 2>/dev/null || echo "?")

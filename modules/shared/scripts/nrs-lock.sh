@@ -61,7 +61,10 @@ cmd_status() {
         echo -e "  ${YELLOW}Process:  NOT RUNNING${NC}"
     fi
     if (( remaining <= 0 )); then
-        stale=true
+        # PID가 살아있으면 타임아웃 초과해도 stale 아님 (장시간 빌드)
+        if [[ "$lock_pid" == "?" ]] || ! kill -0 "$lock_pid" 2>/dev/null; then
+            stale=true
+        fi
     fi
     if [[ "$stale" == true ]]; then
         echo -e "  ${YELLOW}Status:   STALE (will be auto-cleaned on next nrs run)${NC}"
