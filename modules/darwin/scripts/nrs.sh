@@ -124,6 +124,11 @@ main() {
         echo ""
         log_info "✅ No changes to apply. Skipping rebuild."
         log_info "  (Use 'nrs --force' to force full rebuild including activation scripts)"
+        # Nix 변경 없어도 worktree 심링크는 전환 (hook/skill 소스 PoC 테스트용)
+        if [[ "$FLAKE_PATH" != "$MAIN_FLAKE_PATH" ]]; then
+            log_info "🔗 Relinking symlinks to worktree..."
+            "$HOME/.local/bin/nrs-relink.sh" relink || log_warn "⚠️  nrs-relink failed (non-fatal)"
+        fi
         # re-entry가 아닐 때만 lock 해제
         if [[ "$NRS_LOCK_ACQUIRED" == true && "$NRS_LOCK_REENTRY" != true ]]; then
             release_nrs_lock

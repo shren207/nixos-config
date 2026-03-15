@@ -18,14 +18,29 @@ NC='\033[0m'
 # Discovery: home-manager-files nix store 경로 추출
 #───────────────────────────────────────────────────────────────────────────────
 _discover_hmf() {
-    local probe="$HOME/.claude/settings.json"
-    [[ -L "$probe" ]] || return 1
-    local hmf
-    hmf=$(readlink "$probe")
-    # /nix/store/<hash>-home-manager-files/.claude/settings.json → 디렉토리 부분만
-    hmf="${hmf%/.claude/settings.json}"
-    [[ "$hmf" == /nix/store/*-home-manager-files ]] || return 1
-    echo "$hmf"
+    # 방법 1: HM gcroots (relink 후에도 안정적, HM activation이 관리)
+    local gc="$HOME/.local/state/home-manager/gcroots/current-home"
+    if [[ -L "$gc" ]]; then
+        local gen hmf
+        gen=$(readlink "$gc")
+        hmf=$(readlink "$gen/home-files" 2>/dev/null) || true
+        if [[ "$hmf" == /nix/store/*-home-manager-files ]]; then
+            echo "$hmf"
+            return 0
+        fi
+    fi
+    # 방법 2: fallback — 임의의 HM 관리 심링크를 probe로 역추적
+    local probe
+    for probe in "$HOME/.claude/settings.json" "$HOME/.config/git/config"; do
+        [[ -L "$probe" ]] || continue
+        local target
+        target=$(readlink "$probe")
+        if [[ "$target" == /nix/store/*-home-manager-files/* ]]; then
+            echo "${target%%/home-manager-files/*}/home-manager-files"
+            return 0
+        fi
+    done
+    return 1
 }
 
 #───────────────────────────────────────────────────────────────────────────────
@@ -128,15 +143,13 @@ cmd_status() {
         elif [[ ! -e "$home_path" ]]; then
             echo -e "  ${YELLOW}[DANGLING]${NC}    $home_rel"
         else
-            local current_target
-            current_target=$(readlink -f "$home_path" 2>/dev/null) || current_target=""
+            # direct readlink (1-hop)로 판정: nix store → [main], 그 외 → [worktree]
+            local direct_target
+            direct_target=$(readlink "$home_path" 2>/dev/null) || direct_target=""
 
-            if [[ "$current_target" == "$MAIN_REPO"/* ]]; then
+            if [[ "$direct_target" == /nix/store/* ]]; then
                 echo -e "  ${GREEN}[main]${NC}        $home_rel"
             else
-                # worktree 경로인지 확인
-                local direct_target
-                direct_target=$(readlink "$home_path" 2>/dev/null) || direct_target=""
                 echo -e "  ${YELLOW}[worktree]${NC}    $home_rel → $direct_target"
             fi
         fi
