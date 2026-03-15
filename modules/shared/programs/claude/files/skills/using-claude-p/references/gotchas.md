@@ -36,9 +36,11 @@ echo "ls /tmp | head -2를 실행해" | claude -p --dangerously-skip-permissions
 ### #23. 빈 줄 vs 빈 문자열 입력 차이
 
 ```bash
-echo "" | claude -p          # 유효 입력 → API 호출 발생
-claude -p ""                 # 에러 → exit 1
+echo "" | claude -p          # 빈 줄 전송 → hang (무한 대기, 출력 없음)
+claude -p ""                 # 빈 문자열 인수 → 에러, exit 1
 ```
+
+⚠️ `echo "" | claude -p`는 "유효 입력"이 아니라 무한 대기 상태에 빠진다 (v2.1.76 실측). 두 패턴 모두 사용하지 않는다.
 
 ### #24. 인라인 인수만 쓸 때 stdin이 tty면 EOF 대기하며 hang
 
