@@ -191,28 +191,26 @@ do_cleanup() {
         local porcelain_output
         if ! porcelain_output=$(git worktree list --porcelain 2>&1); then
             log_error "git worktree list 실패 — orphan sweep 건너뜀"
-            log_info "정리 완료 — claude-rc 또는 claude-rc --detach 로 서버 재시작"
-            return
-        fi
+        else
+            local -a live_worktrees=()
+            while IFS= read -r line; do
+                [[ "$line" == worktree\ * ]] && live_worktrees+=("${line#worktree }")
+            done <<< "$porcelain_output"
 
-        local -a live_worktrees=()
-        while IFS= read -r line; do
-            [[ "$line" == worktree\ * ]] && live_worktrees+=("${line#worktree }")
-        done <<< "$porcelain_output"
-
-        for dir in "$wt_dir"/*/; do
-            [[ -d "$dir" ]] || continue
-            local canonical
-            canonical=$(realpath "$dir")
-            local is_live=false
-            for live in "${live_worktrees[@]}"; do
-                [[ "$(realpath "$live" 2>/dev/null)" == "$canonical" ]] && { is_live=true; break; }
+            for dir in "$wt_dir"/*/; do
+                [[ -d "$dir" ]] || continue
+                local canonical
+                canonical=$(realpath "$dir")
+                local is_live=false
+                for live in "${live_worktrees[@]}"; do
+                    [[ "$(realpath "$live" 2>/dev/null)" == "$canonical" ]] && { is_live=true; break; }
+                done
+                if [[ "$is_live" == false ]]; then
+                    log_info "orphan 디렉토리 삭제: $(basename "$dir")"
+                    rm -rf "$dir"
+                fi
             done
-            if [[ "$is_live" == false ]]; then
-                log_info "orphan 디렉토리 삭제: $(basename "$dir")"
-                rm -rf "$dir"
-            fi
-        done
+        fi
     fi
 
     # 세션 내부: cleanup 완료 후 세션 종료 (이 셸도 함께 종료됨)
