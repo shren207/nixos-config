@@ -73,7 +73,7 @@ run_darwin_rebuild() {
 
     local rc=0
     # shellcheck disable=SC2086
-    run_rebuild_with_lock sudo "$REBUILD_CMD" switch --flake "$FLAKE_PATH" $OFFLINE_FLAG || rc=$?
+    sudo "$REBUILD_CMD" switch --flake "$FLAKE_PATH" $OFFLINE_FLAG || rc=$?
 
     if [[ "$rc" -ne 0 ]]; then
         log_error "❌ darwin-rebuild switch failed (exit code: $rc)"
@@ -115,7 +115,7 @@ NRS_LOCK_SWITCH_SUCCESS=false
 main() {
     # darwin-rebuild build가 pwd에 ./result를 생성하므로 디렉토리 이동 필수
     cd "$FLAKE_PATH" || exit 1
-    trap 'cleanup_build_artifacts; release_nrs_lock_on_failure' EXIT
+    trap 'cleanup_build_artifacts; release_rebuild_lock_on_failure; release_nrs_lock_on_failure' EXIT
 
     echo ""
     acquire_nrs_lock
@@ -133,6 +133,10 @@ main() {
     fi
     worktree_symlink_guard
     preflight_cask_conflict_check
+
+    # Critical section: cleanup + restore + switch를 serialize
+    # DA Fix #3: cleanup이 lock 밖에 있으면 다른 프로세스의 switch와 겹칠 수 있음
+    acquire_rebuild_lock
     cleanup_launchd_agents
     # Pre-rebuild restore (darwin 전용):
     # HM activation의 checkLinkTargets가 non-HMF 심링크(worktree 타깃)를
@@ -143,6 +147,7 @@ main() {
     run_darwin_rebuild
     # shellcheck disable=SC2034
     NRS_LOCK_SWITCH_SUCCESS=true
+    release_rebuild_lock
     maybe_relink_or_restore
     restart_hammerspoon
     cleanup_build_artifacts
