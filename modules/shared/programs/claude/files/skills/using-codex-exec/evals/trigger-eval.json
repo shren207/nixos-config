@@ -13,6 +13,8 @@
   {"query": "codex e \"prompt\"", "should_trigger": true},
   {"query": "codex exec review --base main --full-auto", "should_trigger": true},
   {"query": "codex exec --yolo \"prompt\"", "should_trigger": true},
+  {"query": "codex review --base main 실행", "should_trigger": true},
+  {"query": "codex exec 구조화 출력 --output-schema", "should_trigger": true},
   {"query": "codex sync 실행", "should_trigger": false},
   {"query": "codex 하네스 동기화", "should_trigger": false},
   {"query": ".agents/skills 프로젝션", "should_trigger": false},
