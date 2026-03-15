@@ -63,10 +63,10 @@ scope flag 없이 PROMPT을 stdin으로 전달하여 review를 실행한다.
 cat prompt.md | codex exec review - --full-auto > /tmp/result.md 2>&1
 ```
 
-> **⚠️ diff 스코핑 없음**: PROMPT 사용 시 scope flag(`--uncommitted`/`--base`/`--commit`)와
-> 상호 배타이므로, review의 내장 Git diff 스코핑이 적용되지 않는다.
-> diff 대상은 전적으로 프롬프트 내용에 의존한다.
-> 브랜치/커밋 기준 리뷰가 필요하면 패턴 2 (scope flag) 또는 패턴 4 (exec 우회)를 사용한다.
+> **⚠️ scope flag 미사용**: PROMPT 사용 시 scope flag(`--uncommitted`/`--base`/`--commit`)와
+> 상호 배타이므로 내장 scope flag의 정밀한 diff 스코핑이 적용되지 않는다.
+> review 세션이 자체적으로 diff를 참조할 수 있지만, 어떤 diff가 대상인지는 보장되지 않는다.
+> 정밀한 브랜치/커밋 기준 리뷰가 필요하면 패턴 2 (scope flag) 또는 패턴 4 (exec 우회)를 사용한다.
 
 ## 패턴 3: 커스텀 리뷰 — AGENTS.md 활용 (영구 지시)
 
