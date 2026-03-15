@@ -63,7 +63,7 @@ main() {
     # Safety: HM gcroot가 유효할 때만 실행 — gcroot 파손 시 Phase 1(rm)만 되고
     # Phase 2(restore) 실패하여 심링크 유실 방지
     if [[ "$FLAKE_PATH" == "$MAIN_FLAKE_PATH" ]] \
-       && [[ -L "$HOME/.local/state/home-manager/gcroots/current-home" ]]; then
+       && [[ -e "$HOME/.local/state/home-manager/gcroots/current-home" ]]; then
         maybe_relink_or_restore
     fi
     run_nixos_rebuild
