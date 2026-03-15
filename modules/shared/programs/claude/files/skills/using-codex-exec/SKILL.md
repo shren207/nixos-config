@@ -199,7 +199,7 @@ scope flag으로 review를 실행하면 지시가 자동 적용된다.
 ```bash
 codex exec resume --last          # 마지막 세션 재개
 codex exec resume <session-id>    # 특정 세션 재개
-codex exec resume --all           # 모든 세션 목록 표시
+codex exec resume --last --all    # cwd 필터 해제하여 전체 세션 중 최신 재개
 ```
 
 ⚠️ `--ephemeral` 세션은 파일이 저장되지 않으므로 resume 불가. `No saved session found` 에러 발생.
