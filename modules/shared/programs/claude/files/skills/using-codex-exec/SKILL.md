@@ -9,7 +9,7 @@ description: |
   Triggers: "codex exec", "codex 실행", "codex CLI", "비대화형 codex",
   "non-interactive codex", "codex review", "codex 리뷰", "코드 리뷰 피드백",
   "codex exec review", "codex 결과 저장", "-o result.md", "codex e",
-  "codex exec resume", "--yolo".
+  "codex exec resume", "codex --yolo".
 ---
 
 # Codex Exec 사용
