@@ -44,7 +44,7 @@ CLI에 없는 플래그. 사용 시도 시 에러 발생.
 
 | 환경변수 | 설명 | 비고 |
 |----------|------|------|
-| `CLAUDE_CODE_MAX_TURNS` | `--max-turns`와 동일 효과 | 플래그보다 우선 |
+| `CLAUDE_CODE_MAX_TURNS` | `--max-turns`와 동일 효과 | `--max-turns` 미지정 시 적용 |
 | `CLAUDE_CODE_MAX_RETRIES` | API 재시도 횟수 | 기본값 오버라이드 |
 | `ANTHROPIC_API_KEY` | API 키 | 인증 필수 |
 
