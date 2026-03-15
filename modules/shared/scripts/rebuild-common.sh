@@ -368,7 +368,7 @@ release_nrs_lock_on_failure() {
 # activation scripts 충돌 방지.
 # 워크트리 간 상호 배제는 기존 NRS lock이 담당하므로, 여기서는 rebuild 자체만 보호.
 # - flock 가용 시 (NixOS): fd 기반 파일 락, 프로세스 종료 시 자동 해제
-# - flock 미가용 시 (macOS): PID 기반 락 + noclobber 원자적 생성
+# - lockf 가용 시 (macOS): fd 기반 파일 락 (BSD flock(2) 기반), 프로세스 종료 시 자동 해제
 #
 # 사용법: acquire_rebuild_lock → critical section → release_rebuild_lock
 #         EXIT trap에 release_rebuild_lock_on_failure 등록 필수
@@ -378,38 +378,31 @@ NRS_REBUILD_LOCK_TIMEOUT=1800  # 30분 — NRS lock 타임아웃과 동일
 NRS_REBUILD_LOCK_HELD=false
 
 acquire_rebuild_lock() {
+    exec 200>"$NRS_REBUILD_LOCK"
     if command -v flock &>/dev/null; then
-        # fd 기반 flock — 프로세스 종료 시 fd 닫히면서 자동 해제
-        exec 200>"$NRS_REBUILD_LOCK"
+        # Linux (NixOS): flock fd 기반, 프로세스 종료 시 자동 해제
         if ! flock --timeout "$NRS_REBUILD_LOCK_TIMEOUT" 200; then
             log_error "❌ Timed out waiting for rebuild lock (${NRS_REBUILD_LOCK_TIMEOUT}s)"
             return 1
         fi
-    else
-        # DA Fix #1: 호출부의 || rc=$? 문맥에서 bash가 errexit를 비활성화하므로,
-        # _acquire_rebuild_lock_pid의 return 1이 무시될 수 있음.
-        # nrs.sh에서 acquire_rebuild_lock을 직접 호출하므로 || 문맥이 아님.
-        # 그래도 방어적으로 명시적 체크.
-        if ! _acquire_rebuild_lock_pid; then
+    elif command -v lockf &>/dev/null; then
+        # macOS (Darwin): lockf fd 기반, BSD flock(2) 사용, 프로세스 종료 시 자동 해제
+        # DA Fix #2: PID 기반 fallback의 TOCTOU를 lockf로 완전 제거
+        # -s: silent (에러 메시지 억제, 자체 메시지 사용)
+        if ! lockf -s -t "$NRS_REBUILD_LOCK_TIMEOUT" 200; then
+            log_error "❌ Timed out waiting for rebuild lock (${NRS_REBUILD_LOCK_TIMEOUT}s)"
             return 1
         fi
+    else
+        log_warn "⚠️  Neither flock nor lockf available. Rebuild lock disabled."
     fi
     NRS_REBUILD_LOCK_HELD=true
 }
 
 release_rebuild_lock() {
     [[ "$NRS_REBUILD_LOCK_HELD" != true ]] && return 0
-    if command -v flock &>/dev/null; then
-        # fd 닫으면 flock 자동 해제
-        exec 200>&- 2>/dev/null || true
-    else
-        # Owner check — 자기 PID일 때만 삭제 (다른 프로세스의 lock 보호)
-        local lock_pid
-        lock_pid=$(cat "$NRS_REBUILD_LOCK" 2>/dev/null || echo "")
-        if [[ "$lock_pid" == "$$" ]]; then
-            rm -f "$NRS_REBUILD_LOCK"
-        fi
-    fi
+    # fd 닫으면 flock/lockf 자동 해제
+    exec 200>&- 2>/dev/null || true
     NRS_REBUILD_LOCK_HELD=false
 }
 
@@ -417,38 +410,6 @@ release_rebuild_lock_on_failure() {
     if [[ "$NRS_REBUILD_LOCK_HELD" == true ]]; then
         release_rebuild_lock
     fi
-}
-
-_acquire_rebuild_lock_pid() {
-    local waited=0
-    while true; do
-        # noclobber: 파일이 없으면 원자적 생성, 있으면 실패
-        if (set -o noclobber; echo "$$" > "$NRS_REBUILD_LOCK") 2>/dev/null; then
-            return 0
-        fi
-        # Lock 존재 — holder PID 확인
-        local holder_pid
-        holder_pid=$(cat "$NRS_REBUILD_LOCK" 2>/dev/null || echo "")
-        if [[ -z "$holder_pid" ]] || ! kill -0 "$holder_pid" 2>/dev/null; then
-            # Stale lock (프로세스 종료됨) — 제거 후 재시도
-            # DA Fix #2: re-read 가드 — rm 전에 PID 변경 여부 확인 (TOCTOU 방어)
-            local current_pid
-            current_pid=$(cat "$NRS_REBUILD_LOCK" 2>/dev/null || echo "")
-            if [[ "$current_pid" == "$holder_pid" ]]; then
-                rm -f "$NRS_REBUILD_LOCK"
-            fi
-            continue
-        fi
-        if (( waited == 0 )); then
-            log_warn "⏳ Another rebuild in progress (PID $holder_pid). Waiting..."
-        fi
-        if (( waited >= NRS_REBUILD_LOCK_TIMEOUT )); then
-            log_error "❌ Timed out waiting for rebuild lock (${NRS_REBUILD_LOCK_TIMEOUT}s)"
-            return 1
-        fi
-        sleep 5
-        ((waited += 5))
-    done
 }
 
 #───────────────────────────────────────────────────────────────────────────────
