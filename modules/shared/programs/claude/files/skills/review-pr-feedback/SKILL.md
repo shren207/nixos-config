@@ -47,6 +47,27 @@ gh api repos/{owner}/{repo}/issues/{pr_number}/comments --paginate
 gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews --paginate
 ```
 
+REST API는 review thread의 resolved 상태를 제공하지 않는다. resolved 상태를 확인하려면 GraphQL `reviewThreads` 쿼리의 `isResolved` 필드를 사용한다.
+
+```bash
+gh api graphql -f query='
+  query($owner: String!, $repo: String!, $pr: Int!) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $pr) {
+        reviewThreads(first: 100) {
+          nodes {
+            isResolved
+            comments(first: 10) {
+              nodes { body author { login } path line }
+            }
+          }
+        }
+      }
+    }
+  }
+' -f owner='{owner}' -f repo='{repo}' -F pr='{pr_number}'
+```
+
 수집한 코멘트 중 이미 resolved된 것은 제외한다.
 나머지를 리뷰어별, 파일별로 정리한다.
 

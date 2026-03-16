@@ -8,7 +8,7 @@
 
 위반 발견 시:
 
-```
+```text
 ## [영역] 위반 발견: [count]건
 
 ### 1. [위반 제목]
@@ -21,7 +21,7 @@
 
 위반 미발견 시:
 
-```
+```text
 [영역]: CLEAR
 ```
 
@@ -30,7 +30,7 @@
 각 DA 에이전트에게 아래 구조의 프롬프트를 전달한다.
 `{DOMAIN}`, `{FOCUS_QUESTION}`, `{FOCUS_TARGETS}`, `{OTHER_DOMAINS}`를 영역별로 치환한다.
 
-```
+```text
 당신은 {DOMAIN} 전문 Devil's Advocate이다. 오직 {DOMAIN} 관점에서만 리뷰한다.
 {FOCUS_QUESTION}
 

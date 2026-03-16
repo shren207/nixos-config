@@ -41,7 +41,7 @@ LLM이 작업 중 판단이 필요할 때 참조하는 최상위 제약이다.
 
 CLI/파일시스템에서 현재 상태를 확인한다. 변경 전 기준선을 수립하는 Phase이다.
 
-```markdown
+````markdown
 ## Phase 1: 사전 확인
 
 다음 명령으로 현재 상태를 확인한다 (병렬 가능):
@@ -55,13 +55,13 @@ cat modules/shared/programs/tool/config.nix | head -20
 
 # 3. 상수 참조 확인
 grep "toolPath" libraries/constants.nix
-`` `
+```
 
 **기대 결과**:
 - version = "1.2.3" (이슈에 "1.2.3"이라 적혀 있지만, 실제 값이 다르면 실제 값 기준으로 진행)
 - config.nix에 `enableFeature = false;` 존재
 - constants.nix에 `toolPath = "/old/path";` 존재
-```
+````
 
 **작성 규칙:**
 - `(병렬 가능)` 힌트를 명시하여 LLM이 독립 명령을 동시 실행하도록 유도한다.
@@ -72,7 +72,7 @@ grep "toolPath" libraries/constants.nix
 
 BEFORE/AFTER 형식으로 변경 내용을 명시한다.
 
-```markdown
+````markdown
 ## Phase 2: 실행
 
 ### 2-1. 버전 업데이트
@@ -82,12 +82,12 @@ BEFORE/AFTER 형식으로 변경 내용을 명시한다.
 BEFORE:
 ```nix
 version = "1.2.3";
-`` `
+```
 
 AFTER:
 ```nix
 version = "1.3.0";
-`` `
+```
 
 ### 2-2. 설정 변경
 
@@ -96,13 +96,13 @@ version = "1.3.0";
 BEFORE:
 ```nix
 enableFeature = false;
-`` `
+```
 
 AFTER:
 ```nix
 enableFeature = true;
-`` `
 ```
+````
 
 **작성 규칙:**
 - BEFORE/AFTER 쌍을 반드시 제공한다. "version을 업데이트한다"같은 모호한 지시는 금지.
@@ -113,7 +113,7 @@ enableFeature = true;
 
 변경 결과를 검증하고 커밋하는 최종 Phase이다.
 
-```markdown
+````markdown
 ## Phase N: 검증 + 커밋
 
 ### 정적 검증
@@ -126,13 +126,13 @@ grep -q 'enableFeature = true' modules/shared/programs/tool/config.nix
 # old 값 부재 확인 (병렬 가능)
 ! grep -q 'version = "1.2.3"' modules/shared/programs/tool/default.nix
 ! grep -q 'enableFeature = false' modules/shared/programs/tool/config.nix
-`` `
+```
 
 ### 빌드 검증
 
 ```bash
 nrs
-`` `
+```
 
 빌드가 성공하면 커밋한다.
 
@@ -149,18 +149,18 @@ feat(tool): enable feature and bump to v1.3.0
 Closes #252
 EOF
 )"
-`` `
+```
 
 ### DA 피드백 (권장)
 
 구현 완료 후, da-feedback 스킬(for_pr 모드)을 실행하여 코드 품질을 검증한 뒤 PR을 생성한다.
-```
+````
 
 ## 커밋 메시지 템플릿
 
 가이드에 포함하는 커밋 메시지는 완전한 형태로 사전 작성한다.
 
-```
+```text
 git commit -m "$(cat <<'EOF'
 <type>(<scope>): <요약>
 

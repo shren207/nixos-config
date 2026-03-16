@@ -14,6 +14,6 @@
 | 계획 수립, 계획 세우기, plan, AskUserQuestion, 스무고개, 요구사항 파악, 불명확점 질문 | `plan-with-questions` |
 | DA, Devil's Advocate, 피드백 루프, DA 피드백, da feedback, 코드 리뷰 루프, YAGNI 리뷰 | `da-feedback` |
 | PR 코멘트, coderabbit, 리뷰 피드백, 코드리뷰 반영, PR 피드백 처리, review feedback | `review-pr-feedback` |
-| PR 본문, PR 작성, PR 상세, pr detailed, PR 업데이트, CIR/ADR, Human Test, Pre-Merge 테스트 | `pr-detailed` |
+| PR 본문, PR 작성, PR 상세, pr detailed, PR 업데이트, PR 본문 CIR, Human Test, Pre-Merge 테스트 | `pr-detailed` |
 | LLM 이행, migration guide, 이행 가이드, 이행 지침, LLM handoff, 이슈 가이드, 인수인계 | `llm-migration-guide` |
 | 전수조사, parallel audit, 사이드이펙트 조사, 회귀 조사, 병렬 감사, 에이전트 N개 조사 | `parallel-audit` |

@@ -101,7 +101,7 @@ Closes #115
 
 ### 예시
 
-```markdown
+````markdown
 ## 구현 상세
 
 | 파일 | 변경 | 내용 |
@@ -120,8 +120,8 @@ local trivial_patterns=("activation-script" "rebuild-common" ...)
 # AFTER: known-heavy blocklist
 local heavy_packages=("anki" "mise")
 # 등록된 패키지만 heavy, 나머지는 모두 trivial → false positive 제로
-`` `
 ```
+````
 
 ### 흔한 실수
 - 모든 파일을 나열하되 변경 내용을 생략하는 것.
@@ -191,7 +191,7 @@ local heavy_packages=("anki" "mise")
 
 ### 예시
 
-```markdown
+````markdown
 ## Pre-Merge E2E 테스트 가이드
 
 ### Phase 0: 정적 검증
@@ -204,7 +204,7 @@ grep -q "heavy_packages=" modules/shared/rebuild.sh
 # 2. old allowlist 패턴 부재 확인
 ! grep -q "trivial_patterns=" modules/shared/rebuild.sh
 # 기대: exit 0 (패턴이 없어야 성공)
-`` `
+```
 
 ### Phase 1: 기능 검증
 
@@ -213,7 +213,7 @@ grep -q "heavy_packages=" modules/shared/rebuild.sh
 ```bash
 # anki가 heavy로 판별되는지 확인
 nrs --dry-run 2>&1 | grep -q "heavy.*anki"
-`` `
+```
 - **기대**: anki가 heavy 패키지로 감지된다.
 - **실패 시**: `heavy_packages` 배열에 "anki"가 포함되어 있는지, regex 매칭 로직이 올바른지 확인한다.
 
@@ -222,7 +222,7 @@ nrs --dry-run 2>&1 | grep -q "heavy.*anki"
 > "기존 trivial derivation이 false positive를 발생시키지 않는지 확인"
 
 - `activation-script`, `rebuild-common.sh` 등 기존 trivial derivation에 대해 경고가 발생하지 않는지 확인한다.
-```
+````
 
 ### 흔한 실수
 - Phase 0 없이 바로 기능 검증으로 들어가는 것 — 정적 검증으로 기본 전제를 먼저 확인해야 한다.
