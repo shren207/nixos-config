@@ -11,6 +11,11 @@ if [ -z "$TRANSCRIPT" ]; then
   exit 0
 fi
 
+# --- Session ID 추출 (Plan, Icons 공통 사용) ---
+# 주의: session_id == basename(transcript_path, .jsonl) 가정
+# statusline stdin에는 session_id 필드가 없으므로 transcript 파일명에서 유도한다.
+SESSION_ID=$(basename "$TRANSCRIPT" .jsonl)
+
 # --- Plan 파일 감지 ---
 # 현재 세션의 transcript에서 plan 파일 Read/Write 기록을 추출한다.
 # ※ 이전 ls -t 방식은 세션과 무관하게 가장 최근 파일을 반환하여
@@ -19,9 +24,9 @@ PLAN_FILE=""
 PLAN_STATE_FILE=""
 
 if [ -n "$TRANSCRIPT" ]; then
-  # 상태 파일: project 디렉토리에 저장 (worktree별 격리)
+  # 상태 파일: session_id 포함하여 세션별 격리
   # context clear 후 새 transcript에 plan 기록이 없을 때 fallback으로 사용
-  PLAN_STATE_FILE="$(dirname "$TRANSCRIPT")/.statusline-plan"
+  PLAN_STATE_FILE="$(dirname "$TRANSCRIPT")/.statusline-plan-${SESSION_ID}"
 fi
 
 if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
@@ -43,10 +48,7 @@ elif [ -z "$PLAN_FILE" ] && [ -n "$PLAN_STATE_FILE" ] && [ -f "$PLAN_STATE_FILE"
 fi
 
 # --- Status icons 읽기 ---
-# 주의: session_id == basename(transcript_path, .jsonl) 가정
-# statusline stdin에는 session_id 필드가 없으므로 transcript 파일명에서 유도한다.
 # SessionStart hook은 session_id로 상태 파일을 생성하므로 이 가정이 깨지면 아이콘이 미표시된다.
-SESSION_ID=$(basename "$TRANSCRIPT" .jsonl)
 ICONS_FILE="$HOME/.claude/status-icons/$SESSION_ID.json"
 
 JIRA_URL="" JIRA_LABEL=""
