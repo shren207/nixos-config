@@ -124,7 +124,7 @@ if [ -n "$TRANSCRIPT" ]; then
     REFERENCED=$(grep -cE '^[[:space:]]*-[[:space:]]*\[.*\.md\]' "$MEMORY_INDEX" 2>/dev/null) || REFERENCED=0
     MEMORY_WARN=""
     [ "$MEMORY_COUNT" -gt "$REFERENCED" ] && MEMORY_WARN=$'\xe2\x9a\xa0'
-    MEMORY_LINK="file://${MEMORY_INDEX}"
+    MEMORY_LINK="file://${PROJECT_MEMORY_DIR}"
     MEMORY_LABEL="Memory (${MEMORY_COUNT}${MEMORY_WARN})"
   fi
 fi
