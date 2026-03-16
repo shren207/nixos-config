@@ -38,7 +38,13 @@ SessionStart hook이 주입한 `additionalContext`에서 상태 파일 경로를
 
 ## 아이콘 설정 (jq 명령어)
 
-SessionStart hook이 주입한 상태 파일 경로를 사용한다.
+SessionStart hook의 `additionalContext`에서 상태 파일 경로를 확인한 후,
+`STATE_FILE` 변수에 할당하여 사용한다:
+
+```bash
+# additionalContext에서 "상태 파일: /path/to/file.json"을 확인 후:
+STATE_FILE="$HOME/.claude/status-icons/<session-id>.json"
+```
 
 ### Jira 설정
 
@@ -49,32 +55,32 @@ URL에서 이슈번호를 자동 추출한다:
 JIRA_URL="https://example.atlassian.net/browse/PROJ-123"
 JIRA_LABEL=$(echo "$JIRA_URL" | grep -oE '[A-Z]+-[0-9]+' | tail -1)
 
-jq --arg url "$JIRA_URL" --arg label "$JIRA_LABEL" \
+tmp=$(mktemp) && jq --arg url "$JIRA_URL" --arg label "$JIRA_LABEL" \
   '.jira = {"url":$url,"label":$label}' \
-  "$STATE_FILE" > /tmp/tmp-icons.json && mv /tmp/tmp-icons.json "$STATE_FILE"
+  "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
 ```
 
 ### Slack 설정
 
 ```bash
-jq --arg url "https://app.slack.com/client/T.../C..." \
+tmp=$(mktemp) && jq --arg url "https://app.slack.com/client/T.../C..." \
   '.slack = {"url":$url,"label":"Slack"}' \
-  "$STATE_FILE" > /tmp/tmp-icons.json && mv /tmp/tmp-icons.json "$STATE_FILE"
+  "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
 ```
 
 ### Figma 설정
 
 ```bash
-jq --arg url "https://www.figma.com/design/..." \
+tmp=$(mktemp) && jq --arg url "https://www.figma.com/design/..." \
   '.figma = {"url":$url,"label":"Figma"}' \
-  "$STATE_FILE" > /tmp/tmp-icons.json && mv /tmp/tmp-icons.json "$STATE_FILE"
+  "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
 ```
 
 ## 아이콘 제거
 
 ```bash
 # 특정 아이콘 제거 (예: figma)
-jq 'del(.figma)' "$STATE_FILE" > /tmp/tmp-icons.json && mv /tmp/tmp-icons.json "$STATE_FILE"
+tmp=$(mktemp) && jq 'del(.figma)' "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
 ```
 
 ## 메모 파일

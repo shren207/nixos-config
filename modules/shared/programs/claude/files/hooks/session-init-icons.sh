@@ -53,14 +53,15 @@ case "$SOURCE" in
     ;;
 
   resume|compact)
-    CURRENT_STATE=""
+    ACTIVE_ICONS="없음"
     if [ -f "$STATE_FILE" ]; then
-      CURRENT_STATE=$(cat "$STATE_FILE" 2>/dev/null) || true
+      ACTIVE_ICONS=$(jq -r 'keys | join(", ")' "$STATE_FILE" 2>/dev/null) || ACTIVE_ICONS="없음"
     fi
 
-    CONTEXT="Status icons 상태: $CURRENT_STATE
+    CONTEXT="Status icons 복원됨.
 상태 파일: $STATE_FILE
-메모: $MEMO_FILE"
+메모: $MEMO_FILE
+활성 아이콘: $ACTIVE_ICONS"
     ;;
 
   *)
