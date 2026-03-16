@@ -50,19 +50,20 @@ case "$SOURCE" in
 상태 파일: $STATE_FILE
 메모: $MEMO_FILE
 
-[ACTION REQUIRED] 첫 응답 시 AskUserQuestion을 3회 순차 호출하여 링크를 개별적으로 물어보세요.
+[ACTION REQUIRED] 첫 응답 시 AskUserQuestion을 1회 호출하세요.
 
-각 질문의 title은 반드시 해당 서비스명으로 지정하세요:
+title: '세션 링크'
+question: |
+  이 세션에서 사용할 링크를 입력해주세요.
+  없는 항목은 생략 가능합니다.
 
-1회차 — title: 'Jira 링크', question: '이 세션에서 사용할 Jira 링크가 있나요?'
-2회차 — title: 'Slack 링크', question: '이 세션에서 사용할 Slack 링크가 있나요?'
-3회차 — title: 'Figma 링크', question: '이 세션에서 사용할 Figma 링크가 있나요?'
-
-각 질문의 options:
+  Jira 링크:
+  Slack 링크:
+  Figma 링크:
+options:
   1. '없음 — 나중에 설정하려면 /managing-status-icons'
 
-사용자가 Type something으로 URL을 입력하면 jq로 상태 파일을 즉시 업데이트하세요.
-'없음' 선택 시 skip하고 다음 질문으로 넘어가세요.
+사용자가 Type something으로 URL을 입력하면 jq로 상태 파일을 업데이트하세요.
 Jira URL에서 이슈번호를 자동 추출하세요 (예: /browse/PROJ-123 → PROJ-123)."
     ;;
 
