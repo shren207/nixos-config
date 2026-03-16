@@ -39,9 +39,14 @@ if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
 fi
 
 # --- Plan state file 관리 ---
+# 마이그레이션: 이전 프로젝트 단위 상태 파일 경로 (세션별 격리 이전)
+LEGACY_PLAN_STATE="$(dirname "$TRANSCRIPT")/.statusline-plan"
+
 if [ -n "$PLAN_FILE" ] && [ -f "$PLAN_FILE" ] && [ -n "$PLAN_STATE_FILE" ]; then
   # transcript에서 plan 감지 성공 + 파일 존재 확인 → 상태 파일에 저장
   printf '%s' "$PLAN_FILE" > "$PLAN_STATE_FILE" 2>/dev/null
+  # 레거시 파일 정리 (세션별 파일이 생성되었으므로 더 이상 불필요)
+  rm -f "$LEGACY_PLAN_STATE" 2>/dev/null
 elif [ -z "$PLAN_FILE" ] && [ -n "$PLAN_STATE_FILE" ] && [ -f "$PLAN_STATE_FILE" ]; then
   # transcript에서 감지 실패 (context clear 등) → 상태 파일에서 복원
   PLAN_FILE=$(cat "$PLAN_STATE_FILE" 2>/dev/null)
@@ -89,12 +94,7 @@ print_icon() {
   HAS_OUTPUT=true
 }
 
-# Plan: cyan underline — 📝
-# stale state file은 [ -f "$PLAN_FILE" ]에 의해 아이콘 미표시,
-# 새 plan 생성 시 자연 덮어쓰기로 갱신됨
-if [ -n "$PLAN_FILE" ] && [ -f "$PLAN_FILE" ]; then
-  print_icon "36" "file://${PLAN_FILE}" "\xf0\x9f\x93\x9d" "Plan"
-fi
+# 아이콘 순서: Jira → Slack → Figma → Plan → Memo → PR
 
 # Jira: yellow underline — ⚡
 if [ -n "$JIRA_URL" ] && [ -n "$JIRA_LABEL" ]; then
@@ -109,6 +109,13 @@ fi
 # Figma: red underline — 🎨
 if [ -n "$FIGMA_URL" ] && [ -n "$FIGMA_LABEL" ]; then
   print_icon "31" "$FIGMA_URL" "\xf0\x9f\x8e\xa8" "$FIGMA_LABEL"
+fi
+
+# Plan: cyan underline — 📝
+# stale state file은 [ -f "$PLAN_FILE" ]에 의해 아이콘 미표시,
+# 새 plan 생성 시 자연 덮어쓰기로 갱신됨
+if [ -n "$PLAN_FILE" ] && [ -f "$PLAN_FILE" ]; then
+  print_icon "36" "file://${PLAN_FILE}" "\xf0\x9f\x93\x9d" "Plan"
 fi
 
 # Memo: green underline — 📓
