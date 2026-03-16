@@ -7,6 +7,7 @@ description: |
   면밀히 검토한다.
   NOT for DA 피드백 루프 (use da-feedback).
   NOT for PR 본문 작성 (use pr-detailed).
+  NOT for 전수조사/감사 (use parallel-audit).
   Triggers: "PR 코멘트", "coderabbit", "코드리뷰 반영", "리뷰 피드백",
   "PR 피드백 처리", "review feedback", "코드리뷰 피드백 반영",
   "리뷰 코멘트 처리", "PR review comments", "AI 리뷰 반영",

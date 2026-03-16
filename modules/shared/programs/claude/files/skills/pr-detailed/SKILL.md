@@ -9,7 +9,7 @@ description: |
   NOT for PR 코멘트 처리 (use review-pr-feedback).
   NOT for LLM 이행 가이드 (use llm-migration-guide).
   Triggers: "PR 본문", "PR 작성", "PR 상세", "pr detailed",
-  "PR 업데이트", "CIR/ADR", "Human Test", "Pre-Merge 테스트",
+  "PR 업데이트", "PR에 CIR 포함", "Human Test", "Pre-Merge 테스트",
   "PR 본문이 부실", "PR 만들어줘", "create PR", "PR 생성",
   "PR body", "상세 PR".
 ---

@@ -18,5 +18,6 @@
   {"query": "스킬 감사", "should_trigger": false},
   {"query": "CIR 기록해줘", "should_trigger": false},
   {"query": "코드 리뷰 루프 돌려", "should_trigger": false},
-  {"query": "커밋해줘", "should_trigger": false}
+  {"query": "커밋해줘", "should_trigger": false},
+  {"query": "LLM 이행 가이드 작성해줘", "should_trigger": false}
 ]
