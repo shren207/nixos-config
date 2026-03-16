@@ -1,6 +1,6 @@
 ---
 name: plan-with-questions
-argument-hint: "[issue-url or task description]"
+argument-hint: "[issue-url | issue-number | task description]"
 description: |
   Clarify all ambiguities through iterative Q&A before creating a detailed plan.
   Validates issue relevance/YAGNI first, then checks side-effect/trade-off awareness.
