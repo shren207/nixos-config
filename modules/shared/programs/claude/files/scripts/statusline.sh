@@ -121,7 +121,7 @@ if [ -n "$TRANSCRIPT" ]; then
 
   if [ "$MEMORY_COUNT" -gt 0 ] && [ -n "$MEMORY_INDEX" ] && [ -f "$MEMORY_INDEX" ]; then
     # orphan 감지: MEMORY.md 참조 수 vs 실제 파일 수
-    REFERENCED=$(grep -cE '^\s*-\s*\[.*\.md\]' "$MEMORY_INDEX" 2>/dev/null) || REFERENCED=0
+    REFERENCED=$(grep -cE '^[[:space:]]*-[[:space:]]*\[.*\.md\]' "$MEMORY_INDEX" 2>/dev/null) || REFERENCED=0
     MEMORY_WARN=""
     [ "$MEMORY_COUNT" -gt "$REFERENCED" ] && MEMORY_WARN=$'\xe2\x9a\xa0'
     MEMORY_LINK="file://${MEMORY_INDEX}"
