@@ -50,18 +50,21 @@ case "$SOURCE" in
 상태 파일: $STATE_FILE
 메모: $MEMO_FILE
 
-[ACTION REQUIRED] 첫 응답 시 AskUserQuestion 도구를 3번 순차적으로 사용하여 각 링크를 개별적으로 물어보세요.
+[ACTION REQUIRED] 첫 응답 시 AskUserQuestion 도구를 1회 사용하여 링크를 물어보세요.
 
-순서: Jira → Slack → Figma
+질문 형식:
+  question: |
+    이 세션에서 사용할 링크가 있나요?
+    아래 형식으로 입력해주세요 (없는 항목은 생략):
 
-각 질문 형식:
-  question: '이 세션에서 사용할 {Jira|Slack|Figma} 링크가 있나요?'
+    Jira: <URL>
+    Slack: <URL>
+    Figma: <URL>
   options:
-    1. '링크 입력 (Type something에 URL을 입력해주세요)'
-    2. '없음 — 나중에 설정하려면 /managing-status-icons'
+    1. '없음 — 나중에 설정하려면 /managing-status-icons'
 
-사용자가 URL을 입력하면 jq로 상태 파일을 즉시 업데이트하세요.
-'없음'을 선택하면 해당 아이콘을 skip하고 다음 질문으로 넘어가세요."
+사용자가 Type something으로 링크를 입력하면 jq로 상태 파일을 즉시 업데이트하세요.
+Jira URL에서 이슈번호를 자동 추출하세요 (예: /browse/PROJ-123 → PROJ-123)."
     ;;
 
   resume|compact)
