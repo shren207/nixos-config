@@ -52,11 +52,11 @@ case "$SOURCE" in
 
 [ACTION REQUIRED] 첫 응답 시 AskUserQuestion을 1회 호출하되, questions 배열에 3개 질문을 넣어 탭 UI로 표시하세요.
 
-AskUserQuestion 호출 형식:
+AskUserQuestion 호출 형식 (options 최소 2개 필수, Other는 자동 추가됨):
   questions: [
-    { header: 'Jira', question: '이 세션에서 사용할 Jira 링크가 있나요?', multiSelect: false, options: [{label: '없음', description: '나중에 /managing-status-icons로 설정'}] },
-    { header: 'Slack', question: '이 세션에서 사용할 Slack 링크가 있나요?', multiSelect: false, options: [{label: '없음', description: '나중에 /managing-status-icons로 설정'}] },
-    { header: 'Figma', question: '이 세션에서 사용할 Figma 링크가 있나요?', multiSelect: false, options: [{label: '없음', description: '나중에 /managing-status-icons로 설정'}] }
+    { header: 'Jira', question: '이 세션에서 사용할 Jira 링크가 있나요?', multiSelect: false, options: [{label: '없음', description: '나중에 /managing-status-icons로 설정'}, {label: 'URL 입력', description: 'Other에 Jira URL을 입력해주세요'}] },
+    { header: 'Slack', question: '이 세션에서 사용할 Slack 링크가 있나요?', multiSelect: false, options: [{label: '없음', description: '나중에 /managing-status-icons로 설정'}, {label: 'URL 입력', description: 'Other에 Slack URL을 입력해주세요'}] },
+    { header: 'Figma', question: '이 세션에서 사용할 Figma 링크가 있나요?', multiSelect: false, options: [{label: '없음', description: '나중에 /managing-status-icons로 설정'}, {label: 'URL 입력', description: 'Other에 Figma URL을 입력해주세요'}] }
   ]
 
 사용자가 URL을 입력하면 jq로 상태 파일을 업데이트하세요.
