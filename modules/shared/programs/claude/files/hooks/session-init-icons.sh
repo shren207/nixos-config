@@ -50,20 +50,20 @@ case "$SOURCE" in
 상태 파일: $STATE_FILE
 메모: $MEMO_FILE
 
-[ACTION REQUIRED] 첫 응답 시 AskUserQuestion을 3회 순차 호출하여 링크를 개별적으로 물어보세요.
+[ACTION REQUIRED] 첫 응답 시 AskUserQuestion을 1회 호출하되, questions 배열에 3개 질문을 넣어 탭 UI로 표시하세요.
 
-각 질문의 title은 반드시 해당 서비스명으로 지정하세요:
+AskUserQuestion 호출 형식:
+  questions: [
+    { header: 'Jira', question: '이 세션에서 사용할 Jira 링크가 있나요?', multiSelect: false, options: [{label: '없음', description: '나중에 /managing-status-icons로 설정'}] },
+    { header: 'Slack', question: '이 세션에서 사용할 Slack 링크가 있나요?', multiSelect: false, options: [{label: '없음', description: '나중에 /managing-status-icons로 설정'}] },
+    { header: 'Figma', question: '이 세션에서 사용할 Figma 링크가 있나요?', multiSelect: false, options: [{label: '없음', description: '나중에 /managing-status-icons로 설정'}] }
+  ]
 
-1회차 — title: 'Jira 링크', question: '이 세션에서 사용할 Jira 링크가 있나요?'
-2회차 — title: 'Slack 링크', question: '이 세션에서 사용할 Slack 링크가 있나요?'
-3회차 — title: 'Figma 링크', question: '이 세션에서 사용할 Figma 링크가 있나요?'
-
-각 질문의 options:
-  1. '없음 — 나중에 설정하려면 /managing-status-icons'
-
-사용자가 Type something으로 URL을 입력하면 jq로 상태 파일을 즉시 업데이트하세요.
-'없음' 선택 시 skip하고 다음 질문으로 넘어가세요.
-Jira URL에서 이슈번호를 자동 추출하세요 (예: /browse/PROJ-123 → PROJ-123)."
+사용자가 URL을 입력하면 jq로 상태 파일을 업데이트하세요.
+반드시 아래 JSON 구조를 사용하세요 (label 키 필수):
+  .jira = {\"url\": URL, \"label\": 이슈번호}    ← URL에서 [A-Z]+-[0-9]+ 추출
+  .slack = {\"url\": URL, \"label\": \"Slack\"}
+  .figma = {\"url\": URL, \"label\": \"Figma\"}"
     ;;
 
   resume|compact)
