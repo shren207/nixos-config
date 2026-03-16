@@ -49,7 +49,10 @@ case "$SOURCE" in
     CONTEXT="Status bar icons 초기화됨.
 상태 파일: $STATE_FILE
 메모: $MEMO_FILE
-사용자가 Jira, Slack, Figma 링크를 설정하려면 /managing-status-icons 를 사용하세요."
+
+[ACTION REQUIRED] 첫 응답 시 AskUserQuestion 도구를 사용하여 이 세션에서 사용할 Jira, Slack, Figma 링크가 있는지 물어보세요.
+사용자가 링크를 제공하면 jq로 상태 파일을 업데이트하고, 필요 없다고 하면 skip하세요.
+자세한 방법: /managing-status-icons"
     ;;
 
   resume|compact)
