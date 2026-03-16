@@ -2,9 +2,9 @@
 name: parallel-audit
 argument-hint: "[agent-count]"
 description: |
-  Opus 에이전트 N개를 병렬 실행하여 사이드이펙트/회귀/엣지케이스를
-  전수조사한다. 기본값 10개. 각 에이전트가 독립적으로 다른 조사 관점을
-  담당하여 변경사항의 안전성을 종합 판정한다.
+  Run N parallel agents (default 10) to exhaustively audit side-effects,
+  regressions, and edge cases. Each agent independently covers a different
+  inspection domain to produce a comprehensive safety verdict.
   NOT for DA 피드백 루프 (use da-feedback).
   NOT for PR 코멘트 처리 (use review-pr-feedback).
   Triggers: "전수조사", "parallel audit", "사이드이펙트 조사",

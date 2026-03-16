@@ -2,9 +2,8 @@
 name: plan-with-questions
 argument-hint: "[issue-url or task description]"
 description: |
-  이슈 또는 작업에 대해 스무고개식 질문으로 모든 불명확점을 해소한 뒤
-  상세 계획을 수립한다. 이슈 유효성/YAGNI를 먼저 판단하고,
-  사이드이펙트/트레이드오프 인지 여부를 확인한다.
+  Clarify all ambiguities through iterative Q&A before creating a detailed plan.
+  Validates issue relevance/YAGNI first, then checks side-effect/trade-off awareness.
   NOT for DA 피드백 루프 실행 (use da-feedback).
   NOT for PR 본문 작성 (use pr-detailed).
   Triggers: "계획 수립", "계획 세우기", "plan", "자세한 계획",

@@ -71,55 +71,14 @@ DA 지적을 수용하여 수정할 때:
 명시적 제한은 두지 않되, 5회 라운드 이후에도 CLEAR에 도달하지 못하면
 사용자에게 현황을 보고하고 계속 진행 여부를 확인한다.
 
-## DA_ROUND_LOG 구조
+## 라운드 요약 기록
 
-각 라운드 종료 시 다음 형식의 구조화 페이로드를 기록한다:
+각 라운드 종료 시 발견/해결/기각 수를 요약한다:
 
-```json
-{
-  "round": 1,
-  "mode": "for_plan",
-  "domains": [
-    {
-      "domain": "YAGNI",
-      "status": "CLEAR",
-      "risks_discovered": 0,
-      "risks_resolved": 0
-    },
-    {
-      "domain": "SECURITY",
-      "status": "FOUND",
-      "risks_discovered": 2,
-      "risks_resolved": 0,
-      "findings": [
-        {
-          "id": "SEC-R1-001",
-          "severity": "HIGH",
-          "location": "modules/darwin/default.nix:42",
-          "summary": "API key가 평문으로 설정 파일에 포함",
-          "action": "pending"
-        }
-      ]
-    }
-  ],
-  "summary": {
-    "total_discovered": 2,
-    "total_resolved": 0,
-    "domains_clear": 7,
-    "domains_remaining": 1
-  }
-}
 ```
-
-후속 라운드에서 `action` 필드를 업데이트한다:
-
-| action 값 | 의미 |
-|-----------|------|
-| `pending` | 미처리 |
-| `resolved` | 수정 완료 |
-| `rejected` | 기각 (근거 필수) |
-| `deferred` | 별도 이슈로 보류 |
-| `escalated` | 3회 반복으로 사용자 결정 위임 |
+Round N 요약: 발견 X건, 해결 Y건, 기각 Z건 (근거 첨부), 보류 W건
+영역별: YAGNI CLEAR, SECURITY 2건(해결 1, 기각 1), ...
+```
 
 ## 탈출 조건
 
