@@ -15,6 +15,11 @@
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 
+# 서브에이전트/팀원 컨텍스트에서는 알림 불필요 — 메인 워커(cli)만 알림
+if [ "${CLAUDE_CODE_ENTRYPOINT:-cli}" != "cli" ]; then
+  exit 0
+fi
+
 # jq 미설치 시 조용히 종료 (방어적 가드)
 command -v jq >/dev/null 2>&1 || exit 0
 
@@ -34,6 +39,12 @@ fi
 
 # stdin에서 JSON 입력 읽기
 INPUT=$(cat)
+
+# agent_id 가드: 서브에이전트 내부에서 PreToolUse가 발동한 경우 알림 불필요
+AGENT_ID=$(printf '%s' "$INPUT" | jq -r '.agent_id // empty' 2>/dev/null || true)
+if [ -n "$AGENT_ID" ]; then
+  exit 0
+fi
 
 # 질문 추출 (최대 4개 가능, printf로 안정적 UTF-8 전달)
 QUESTION_COUNT=$(printf '%s' "$INPUT" | jq -r '.tool_input.questions | length' 2>/dev/null)

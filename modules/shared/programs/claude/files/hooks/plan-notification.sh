@@ -9,6 +9,11 @@
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 
+# 서브에이전트/팀원 컨텍스트에서는 알림 불필요 — 메인 워커(cli)만 알림
+if [ "${CLAUDE_CODE_ENTRYPOINT:-cli}" != "cli" ]; then
+  exit 0
+fi
+
 # Pushover 메시지 최대 길이
 MAX_MESSAGE_CHARS=1024
 
@@ -25,6 +30,16 @@ fi
 # Pushover도 없고 macOS도 아니면 알림 채널이 없으므로 조기 종료
 if [ "$PUSHOVER_AVAILABLE" = false ] && [[ "$OSTYPE" != darwin* ]]; then
   exit 0
+fi
+
+# agent_id 가드: 서브에이전트 내부에서 PreToolUse가 발동한 경우 알림 불필요
+# plan은 stdin을 나중에 읽으므로 여기서 미리 peek (stdin은 소비되지 않도록 주의)
+if [ ! -t 0 ]; then
+  _PLAN_INPUT=$(cat)
+  _PLAN_AGENT_ID=$(printf '%s' "$_PLAN_INPUT" | jq -r '.agent_id // empty' 2>/dev/null || true)
+  if [ -n "$_PLAN_AGENT_ID" ]; then
+    exit 0
+  fi
 fi
 
 # --- 유틸리티 함수 ---
@@ -141,11 +156,8 @@ HS_SENT=false
 if [[ "$OSTYPE" == darwin* ]] && command -v hs >/dev/null 2>&1; then
   # 세션 이름 추출: PreToolUse stdin에서 transcript_path를 가져와 custom-title 파싱
   HS_SESSION_NAME=""
-  HS_TRANSCRIPT=""
-  if [ ! -t 0 ]; then
-    HS_INPUT=$(cat)
-    HS_TRANSCRIPT=$(printf '%s' "$HS_INPUT" | jq -r '.transcript_path // empty' 2>/dev/null || true)
-  fi
+  # stdin은 agent_id 가드에서 이미 $_PLAN_INPUT으로 캡처됨 — 재사용
+  HS_TRANSCRIPT=$(printf '%s' "$_PLAN_INPUT" | jq -r '.transcript_path // empty' 2>/dev/null || true)
   if [ -n "$HS_TRANSCRIPT" ] && [ -f "$HS_TRANSCRIPT" ]; then
     HS_SESSION_NAME=$(grep '"custom-title"' "$HS_TRANSCRIPT" 2>/dev/null | tail -1 | jq -r '.customTitle // empty' 2>/dev/null || true)
   fi

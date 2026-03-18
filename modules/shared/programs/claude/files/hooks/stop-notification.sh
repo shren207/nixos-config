@@ -5,6 +5,12 @@
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 
+# 서브에이전트/팀원 컨텍스트에서는 알림 불필요 — 메인 워커(cli)만 알림
+# CIR: CLAUDE_CODE_ENTRYPOINT 가드 + agent_id 가드 2중 방어 → 이슈 별도 기록 예정
+if [ "${CLAUDE_CODE_ENTRYPOINT:-cli}" != "cli" ]; then
+  exit 0
+fi
+
 # Pushover 메시지 최대 길이
 MAX_MESSAGE_CHARS=1024
 
@@ -138,6 +144,11 @@ if [ ! -t 0 ]; then
 fi
 
 if [ -n "$INPUT" ] && command -v jq >/dev/null 2>&1; then
+  # agent_id 가드: 서브에이전트 내부에서 Stop이 발동한 경우 알림 불필요
+  AGENT_ID=$(printf '%s' "$INPUT" | jq -r '.agent_id // empty' 2>/dev/null || true)
+  if [ -n "$AGENT_ID" ]; then
+    exit 0
+  fi
   TRANSCRIPT_PATH=$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null || true)
 fi
 
