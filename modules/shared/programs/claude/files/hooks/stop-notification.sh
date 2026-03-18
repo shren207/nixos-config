@@ -201,6 +201,11 @@ if [[ "$OSTYPE" == darwin* ]] && command -v hs >/dev/null 2>&1; then
       title = 'Claude Code [✅작업 완료]',
       subTitle = '${HS_SUBTITLE_SAFE}',
       soundName = 'Purr',
+      -- === Change Intent Record ===
+      -- v1: withdrawAfter 미설정(기본값 5초) → 배너 사라진 뒤 NC에서도 완전 증발
+      -- v2: withdrawAfter=0 + Alerts 스타일 → 알림이 화면에 상시 표시되어 둔감화 유발
+      -- v3 (최종): withdrawAfter=0 + Banners 스타일(System Settings) →
+      --   배너는 ~5초 후 자동 사라지되, NC에는 사용자가 직접 제거할 때까지 유지
       withdrawAfter = 0
     })
     local img = hs.image.imageFromPath('${HS_ICON}')

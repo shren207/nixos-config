@@ -101,6 +101,7 @@ if [[ "$OSTYPE" == darwin* ]] && command -v hs >/dev/null 2>&1; then
       title = 'Claude Code [📝질문 대기]',
       subTitle = '${HS_SUBTITLE_SAFE}',
       soundName = 'Glass',
+      -- CIR: withdrawAfter 의사결정 → stop-notification.sh Lua 블록 참조
       withdrawAfter = 0
     })
     local img = hs.image.imageFromPath('${HS_ICON}')
