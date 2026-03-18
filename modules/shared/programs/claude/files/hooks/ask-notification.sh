@@ -90,10 +90,11 @@ MESSAGE="🖥️ $HOST
 $CONTEXT
 $QUESTION_LINE"
 
-# CIR: hs.notify+Pushover 중복 해소 미구현 의사결정 → stop-notification.sh 참조
+# CIR: hs.notify 성공 시 Pushover skip (중복 알림 해소) → stop-notification.sh 참조
 
 # macOS 로컬 데스크탑 알림 (Hammerspoon hs.notify)
-# hs 미설치/에러 시 무시 — Pushover 전송에 영향 주지 않도록
+# hs.notify 성공 시 HS_SENT=true → Pushover skip. 실패 시 Pushover 폴백.
+HS_SENT=false
 if [[ "$OSTYPE" == darwin* ]] && command -v hs >/dev/null 2>&1; then
   # 세션 이름 추출: transcript JSONL의 custom-title 엔트리
   HS_SESSION_NAME=""
@@ -134,10 +135,10 @@ if [[ "$OSTYPE" == darwin* ]] && command -v hs >/dev/null 2>&1; then
     local img = hs.image.imageFromPath('${HS_ICON}')
     if img then n:contentImage(img) end
     n:send()
-  " >/dev/null 2>&1 || true
+  " >/dev/null 2>&1 && HS_SENT=true || true
 fi
 
-if [ "$PUSHOVER_AVAILABLE" = true ]; then
+if [ "$PUSHOVER_AVAILABLE" = true ] && [ "$HS_SENT" = false ]; then
   curl -s --max-time 4 -X POST \
     -H "Content-Type: application/x-www-form-urlencoded; charset=utf-8" \
     --data-urlencode "token=$PUSHOVER_TOKEN" \

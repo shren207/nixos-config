@@ -176,23 +176,25 @@ fi
 # 최종 안전망: 전체 메시지 1024자 상한 보장
 MESSAGE="$(clip_tail_chars "$MESSAGE" "$MAX_MESSAGE_CHARS")"
 
-# === Change Intent Record ===
-# hs.notify(Hammerspoon) 로컬 데스크탑 알림은 Pushover와 독립적으로 항상 실행된다.
-# 개인맥북에서 Pushover(폰) + hs.notify(데스크탑) 중복 알림이 발생하지만,
-# 이를 해소하는 로직은 의도적으로 구현하지 않았다.
+# === Change Intent Record: 중복 알림 해소 ===
+# v1 (초기): Pushover와 hs.notify를 독립 실행 → 개인맥북에서 2중 알림(폰+데스크탑)으로 알림 피로 발생
+# v2 (현재): hs.notify 성공 시 Pushover skip — HS_SENT 플래그 기반 fail-open 패턴
 #
-# 검토한 중복 해소 방안과 거부 이유:
-# - hostname 분기: fragile하고, 머신 추가/변경 시 유지보수 비용 발생
+# 검토한 대안과 거부 이유:
+# - OSTYPE==darwin이면 Pushover 무조건 skip: Hammerspoon 장애 시 알림 블랙홀 (fail-close)
+# - hostname 분기: fragile, 머신 추가/변경 시 유지보수 비용
 # - 환경변수 토글 (CLAUDE_NOTI_CHANNELS): 사용성 나쁨, 머신별 env 관리 필요
-# - Pushover credentials 유무 분기: 의도와 다른 변수가 많음
 # - 자리 감지(screen lock 등): 과도한 복잡성
 #
-# 결정: YAGNI — 며칠 실사용 후 실제로 불편하면 그때 해결.
-#   trade-off: 개인맥북에서 동일 이벤트에 2중 알림(폰+데스크탑)이 오지만,
-#              폰 미연결 환경에서 네이티브 알림을 확보하는 것이 더 시급한 가치.
+# 선택한 방식(HS_SENT 플래그)의 장점:
+# - fail-open: hs.notify 실패(Hammerspoon 꺼짐/크래시/timeout) → HS_SENT=false → Pushover 폴백
+# - NixOS: hs 블록 전체 skip → HS_SENT=false → Pushover만 전송 (기존과 동일)
+# - macOS + Hammerspoon 정상: hs.notify만 전송 (중복 제거)
 
 # macOS 로컬 데스크탑 알림 (Hammerspoon hs.notify)
-# hs 미설치/에러 시 무시 — Pushover 전송에 영향 주지 않도록
+# hs.notify 성공 시 HS_SENT=true → Pushover skip (중복 알림 방지)
+# hs 미설치/에러/timeout 시 HS_SENT=false 유지 → Pushover 폴백
+HS_SENT=false
 if [[ "$OSTYPE" == darwin* ]] && command -v hs >/dev/null 2>&1; then
   # 세션 이름 추출: transcript JSONL의 custom-title 엔트리 (/rename으로 설정된 이름)
   HS_SESSION_NAME=""
@@ -239,10 +241,10 @@ if [[ "$OSTYPE" == darwin* ]] && command -v hs >/dev/null 2>&1; then
     local img = hs.image.imageFromPath('${HS_ICON}')
     if img then n:contentImage(img) end
     n:send()
-  " >/dev/null 2>&1 || true
+  " >/dev/null 2>&1 && HS_SENT=true || true
 fi
 
-if [ "$PUSHOVER_AVAILABLE" = true ]; then
+if [ "$PUSHOVER_AVAILABLE" = true ] && [ "$HS_SENT" = false ]; then
   curl -s --max-time 4 -X POST \
     -H "Content-Type: application/x-www-form-urlencoded; charset=utf-8" \
     --data-urlencode "token=$PUSHOVER_TOKEN" \
