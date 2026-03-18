@@ -3,7 +3,6 @@ name: automating-hammerspoon
 description: |
   Manage Hammerspoon 단축키, launchd agents, Ghostty on macOS.
   Trigger: 'Hammerspoon 단축키', '핫키 설정', 'Ghostty 새 창', 'launchd agent', 'eventtap', '데스크탑 자동화'.
-  NOT for iOS Shortcuts (use managing-shortcuts).
 ---
 
 # Hammerspoon 자동화

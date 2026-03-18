@@ -3,7 +3,6 @@ name: managing-macos
 description: |
   Configure macOS/nix-darwin: Dock, Finder, Homebrew Cask, Folder Actions.
   Trigger: 'darwin-rebuild', 'shottr 설정', 'Folder Actions', '폴더 감시', 'compress-video', 'upload-immich'.
-  NOT for iOS Shortcuts (use managing-shortcuts).
 ---
 
 # macOS 관리 (nix-darwin)
