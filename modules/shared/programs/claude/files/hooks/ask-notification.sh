@@ -20,13 +20,11 @@ command -v jq >/dev/null 2>&1 || exit 0
 
 CREDENTIALS_FILE="$HOME/.config/pushover/claude-code"
 
+PUSHOVER_AVAILABLE=false
 if [ -f "$CREDENTIALS_FILE" ]; then
   # shellcheck source=/dev/null
   source "$CREDENTIALS_FILE"
-else
-  # PreToolUse: exit 0으로 tool call을 정상 통과시킴
-  # (Stop hook의 exit 1과 다름 — credentials 없어도 Claude 동작에 영향 없음)
-  exit 0
+  PUSHOVER_AVAILABLE=true
 fi
 
 # stdin에서 JSON 입력 읽기
@@ -87,14 +85,40 @@ MESSAGE="🖥️ $HOST
 $CONTEXT
 $QUESTION_LINE"
 
-curl -s -X POST \
-  -H "Content-Type: application/x-www-form-urlencoded; charset=utf-8" \
-  --data-urlencode "token=$PUSHOVER_TOKEN" \
-  --data-urlencode "user=$PUSHOVER_USER" \
-  --data-urlencode "title=Claude Code [📝질문 대기]" \
-  --data-urlencode "priority=0" \
-  --data-urlencode "sound=falling" \
-  --data-urlencode "message=$MESSAGE" \
-  https://api.pushover.net/1/messages.json > /dev/null
+# CIR: hs.notify+Pushover 중복 해소 미구현 의사결정 → stop-notification.sh 참조
+
+# macOS 로컬 데스크탑 알림 (Hammerspoon hs.notify)
+# hs 미설치/에러 시 무시 — Pushover 전송에 영향 주지 않도록
+if [[ "$OSTYPE" == darwin* ]] && command -v hs >/dev/null 2>&1; then
+  # REPO가 있으면 "repo · branch", 없으면 빈 subtitle
+  HS_SUBTITLE="${REPO:+$REPO}${BRANCH:+ · $BRANCH}"
+  HS_ICON="$HOME/.claude/assets/notification-icon.png"
+  # Lua string 삽입 시 single quote/backslash를 제거 (hs -c는 IPC 기반이라 os.getenv 불가)
+  HS_SUBTITLE_SAFE="${HS_SUBTITLE//\'/}"
+  HS_SUBTITLE_SAFE="${HS_SUBTITLE_SAFE//\\/}"
+  hs -c "
+    local n = hs.notify.new({
+      title = 'Claude Code [📝질문 대기]',
+      subTitle = '${HS_SUBTITLE_SAFE}',
+      soundName = 'Glass',
+      withdrawAfter = 0
+    })
+    local img = hs.image.imageFromPath('${HS_ICON}')
+    if img then n:contentImage(img) end
+    n:send()
+  " >/dev/null 2>&1 || true
+fi
+
+if [ "$PUSHOVER_AVAILABLE" = true ]; then
+  curl -s -X POST \
+    -H "Content-Type: application/x-www-form-urlencoded; charset=utf-8" \
+    --data-urlencode "token=$PUSHOVER_TOKEN" \
+    --data-urlencode "user=$PUSHOVER_USER" \
+    --data-urlencode "title=Claude Code [📝질문 대기]" \
+    --data-urlencode "priority=0" \
+    --data-urlencode "sound=falling" \
+    --data-urlencode "message=$MESSAGE" \
+    https://api.pushover.net/1/messages.json > /dev/null
+fi
 
 exit 0

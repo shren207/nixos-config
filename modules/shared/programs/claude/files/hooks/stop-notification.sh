@@ -30,12 +30,11 @@ wait_for_stable_transcript() {
 CREDENTIALS_FILE="${PUSHOVER_CREDENTIALS_FILE:-$HOME/.config/pushover/claude-code}"
 PUSHOVER_API_URL="${PUSHOVER_API_URL:-https://api.pushover.net/1/messages.json}"
 
+PUSHOVER_AVAILABLE=false
 if [ -f "$CREDENTIALS_FILE" ]; then
   # shellcheck source=/dev/null
   source "$CREDENTIALS_FILE"
-else
-  echo "Error: Pushover credentials not found at $CREDENTIALS_FILE" >&2
-  exit 1
+  PUSHOVER_AVAILABLE=true
 fi
 
 # UTF-8 길이 계산 (jq 미설치 시 bash 길이로 폴백)
@@ -173,13 +172,52 @@ fi
 # 최종 안전망: 전체 메시지 1024자 상한 보장
 MESSAGE="$(clip_tail_chars "$MESSAGE" "$MAX_MESSAGE_CHARS")"
 
-curl -s --max-time 4 -X POST \
-  -H "Content-Type: application/x-www-form-urlencoded; charset=utf-8" \
-  --data-urlencode "token=$PUSHOVER_TOKEN" \
-  --data-urlencode "user=$PUSHOVER_USER" \
-  --data-urlencode "title=Claude Code [✅작업 완료]" \
-  --data-urlencode "sound=jobs_done" \
-  --data-urlencode "message=$MESSAGE" \
-  "$PUSHOVER_API_URL" > /dev/null
+# === Change Intent Record ===
+# hs.notify(Hammerspoon) 로컬 데스크탑 알림은 Pushover와 독립적으로 항상 실행된다.
+# 개인맥북에서 Pushover(폰) + hs.notify(데스크탑) 중복 알림이 발생하지만,
+# 이를 해소하는 로직은 의도적으로 구현하지 않았다.
+#
+# 검토한 중복 해소 방안과 거부 이유:
+# - hostname 분기: fragile하고, 머신 추가/변경 시 유지보수 비용 발생
+# - 환경변수 토글 (CLAUDE_NOTI_CHANNELS): 사용성 나쁨, 머신별 env 관리 필요
+# - Pushover credentials 유무 분기: 의도와 다른 변수가 많음
+# - 자리 감지(screen lock 등): 과도한 복잡성
+#
+# 결정: YAGNI — 며칠 실사용 후 실제로 불편하면 그때 해결.
+#   trade-off: 개인맥북에서 동일 이벤트에 2중 알림(폰+데스크탑)이 오지만,
+#              폰 미연결 환경에서 네이티브 알림을 확보하는 것이 더 시급한 가치.
+
+# macOS 로컬 데스크탑 알림 (Hammerspoon hs.notify)
+# hs 미설치/에러 시 무시 — Pushover 전송에 영향 주지 않도록
+if [[ "$OSTYPE" == darwin* ]] && command -v hs >/dev/null 2>&1; then
+  # REPO가 있으면 "repo · branch", 없으면 빈 subtitle
+  HS_SUBTITLE="${REPO:+$REPO}${BRANCH:+ · $BRANCH}"
+  HS_ICON="$HOME/.claude/assets/notification-icon.png"
+  # Lua string 삽입 시 single quote/backslash를 제거 (hs -c는 IPC 기반이라 os.getenv 불가)
+  HS_SUBTITLE_SAFE="${HS_SUBTITLE//\'/}"
+  HS_SUBTITLE_SAFE="${HS_SUBTITLE_SAFE//\\/}"
+  hs -c "
+    local n = hs.notify.new({
+      title = 'Claude Code [✅작업 완료]',
+      subTitle = '${HS_SUBTITLE_SAFE}',
+      soundName = 'Purr',
+      withdrawAfter = 0
+    })
+    local img = hs.image.imageFromPath('${HS_ICON}')
+    if img then n:contentImage(img) end
+    n:send()
+  " >/dev/null 2>&1 || true
+fi
+
+if [ "$PUSHOVER_AVAILABLE" = true ]; then
+  curl -s --max-time 4 -X POST \
+    -H "Content-Type: application/x-www-form-urlencoded; charset=utf-8" \
+    --data-urlencode "token=$PUSHOVER_TOKEN" \
+    --data-urlencode "user=$PUSHOVER_USER" \
+    --data-urlencode "title=Claude Code [✅작업 완료]" \
+    --data-urlencode "sound=jobs_done" \
+    --data-urlencode "message=$MESSAGE" \
+    "$PUSHOVER_API_URL" > /dev/null
+fi
 
 exit 0
