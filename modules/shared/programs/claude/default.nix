@@ -41,6 +41,7 @@ in
   #   배경: Claude Code의 알림 토글은 ~/.claude.json에 per-machine으로 저장되며,
   #   settings.json으로 선언 불가. 새 머신 셋업 시 알림이 기본 비활성이므로 nrs로 보장.
   #   - preferredNotifChannel: "auto" — "ghostty" 채널 버그 회피 (upstream #19979)
+  #     기존 "ghostty" 값은 자동으로 "auto"로 교체, 그 외 사용자 값은 보존.
   #   - taskCompleteNotifEnabled / inputNeededNotifEnabled / agentPushNotifEnabled: true
   #   사용자가 UI(Shift+Tab)에서 명시적으로 변경한 값은 덮어쓰지 않음 (has() 가드).
   #
@@ -104,7 +105,10 @@ in
             )
           end)
           # (2) Notification defaults: 키가 없을 때만 기본값 삽입
-          | if has("preferredNotifChannel") then . else .preferredNotifChannel = "auto" end
+          | if .preferredNotifChannel? == "ghostty" then .preferredNotifChannel = "auto"
+            elif has("preferredNotifChannel") then .
+            else .preferredNotifChannel = "auto"
+            end
           | if has("taskCompleteNotifEnabled") then . else .taskCompleteNotifEnabled = true end
           | if has("inputNeededNotifEnabled") then . else .inputNeededNotifEnabled = true end
           | if has("agentPushNotifEnabled") then . else .agentPushNotifEnabled = true end
