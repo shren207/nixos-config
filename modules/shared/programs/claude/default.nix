@@ -43,6 +43,15 @@ in
   #   - preferredNotifChannel: "auto" — "ghostty" 채널 버그 회피 (upstream #19979)
   #   - taskCompleteNotifEnabled / inputNeededNotifEnabled / agentPushNotifEnabled: true
   #   사용자가 UI(Shift+Tab)에서 명시적으로 변경한 값은 덮어쓰지 않음 (has() 가드).
+  #
+  # CIR: ~/.claude.json 직접 패치의 fragility 분석
+  #   - Claude Code는 저장 시 기본값(ZI)과 동일한 키를 삭제한다.
+  #     preferredNotifChannel="auto"는 ZI 기본값과 동일하므로 Claude Code 저장 시 삭제됨.
+  #     → 매 nrs마다 has()가 false → 재삽입 사이클 발생. 기능적으로 무해 (기본값="auto").
+  #   - 3개 토글(taskComplete/inputNeeded/agentPush)은 ZI에 없으므로 삭제되지 않음.
+  #   - 락 메커니즘: mkdir 기반 lock과 Claude Code의 내부 lock이 동일 경로 사용.
+  #     activation이 ms 단위로 완료되므로 실질적 race condition 위험은 극소.
+  #   - 스키마 변경 시: jq empty 검증으로 안전 실패 (원본 보존, 패치 skip).
   home.activation.patchClaudeJson = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     cfg="$HOME/.claude.json"
     lockdir="''${cfg}.lock"
