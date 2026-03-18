@@ -134,8 +134,21 @@ MESSAGE="$(clip_head_chars "$MESSAGE" "$MAX_MESSAGE_CHARS")"
 # macOS 로컬 데스크탑 알림 (Hammerspoon hs.notify)
 # hs 미설치/에러 시 무시 — Pushover 전송에 영향 주지 않도록
 if [[ "$OSTYPE" == darwin* ]] && command -v hs >/dev/null 2>&1; then
-  # REPO가 있으면 "repo · branch", 없으면 빈 subtitle
+  # 세션 이름 추출: PreToolUse stdin에서 transcript_path를 가져와 custom-title 파싱
+  HS_SESSION_NAME=""
+  HS_TRANSCRIPT=""
+  if [ ! -t 0 ]; then
+    HS_INPUT=$(cat)
+    HS_TRANSCRIPT=$(printf '%s' "$HS_INPUT" | jq -r '.transcript_path // empty' 2>/dev/null || true)
+  fi
+  if [ -n "$HS_TRANSCRIPT" ] && [ -f "$HS_TRANSCRIPT" ]; then
+    HS_SESSION_NAME=$(grep '"custom-title"' "$HS_TRANSCRIPT" 2>/dev/null | tail -1 | jq -r '.customTitle // empty' 2>/dev/null || true)
+  fi
+  # REPO가 있으면 "repo · branch", 세션 이름이 있으면 추가
   HS_SUBTITLE="${REPO:+$REPO}${BRANCH:+ · $BRANCH}"
+  if [ -n "$HS_SESSION_NAME" ]; then
+    HS_SUBTITLE="${HS_SUBTITLE:+$HS_SUBTITLE · }$HS_SESSION_NAME"
+  fi
   HS_ICON="$HOME/.claude/assets/notification-icon.png"
   # Lua string 삽입 시 single quote/backslash를 제거 (hs -c는 IPC 기반이라 os.getenv 불가)
   HS_SUBTITLE_SAFE="${HS_SUBTITLE//\'/}"
