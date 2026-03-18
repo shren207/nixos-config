@@ -14,7 +14,6 @@ MAX_MESSAGE_CHARS=1024
 
 # agenix로 관리되는 credentials 로드
 CREDENTIALS_FILE="$HOME/.config/pushover/claude-code"
-PUSHOVER_API_URL="https://api.pushover.net/1/messages.json"
 
 PUSHOVER_AVAILABLE=false
 if [ -f "$CREDENTIALS_FILE" ]; then
@@ -194,7 +193,7 @@ if [ "$PUSHOVER_AVAILABLE" = true ]; then
     --data-urlencode "priority=0" \
     --data-urlencode "sound=falling" \
     --data-urlencode "message=$MESSAGE" \
-    "$PUSHOVER_API_URL" >/dev/null 2>&1
+    https://api.pushover.net/1/messages.json >/dev/null 2>&1
 fi
 
 exit 0
