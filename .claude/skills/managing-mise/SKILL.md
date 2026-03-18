@@ -1,7 +1,7 @@
 ---
 name: managing-mise
 description: |
-  Manage mise 런타임: Node.js, pnpm, shims.
+  Manage mise runtime: Node.js, pnpm, shims.
   Trigger: 'mise 설정', 'pnpm not found', '.nvmrc', 'mise shims', 'mise activate', '런타임 버전 불일치'.
 ---
 

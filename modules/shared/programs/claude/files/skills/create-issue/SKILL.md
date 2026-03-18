@@ -3,7 +3,7 @@ name: create-issue
 argument-hint: "[issue title or description (optional)]"
 description: |
   Create a structured GitHub issue with auto-enriched labels.
-  Trigger: '이슈 등록', '이슈 만들어', 'create issue', 'todo 등록', '버그 등록', '이슈 추가'.
+  Trigger: '이슈 등록', '이슈 만들어', 'todo 등록', '버그 등록', '이슈 추가'.
   NOT for CIR/ADR (use documenting-intent). NOT for PR 본문 (use pr-detailed).
 ---
 

@@ -1,8 +1,8 @@
 ---
 name: hosting-vaultwarden
 description: |
-  Manage Vaultwarden 비밀번호 관리자: 백업, admin 패널.
-  Trigger: '비밀번호 관리자', '볼트워든', 'vaultwarden 백업', 'admin token', 'vaultwarden-update'.
+  Manage Vaultwarden password manager: backup, admin panel.
+  Trigger: '비밀번호 관리자', 'vaultwarden 백업', 'vaultwarden-update'.
   NOT for agenix 시크릿 (use managing-secrets). NOT for 컨테이너/Podman (use running-containers).
 ---
 

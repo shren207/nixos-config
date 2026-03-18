@@ -2,7 +2,7 @@
 name: using-claude-p
 description: |
   Use Claude Code non-interactive (-p/--print) mode.
-  Trigger: 'claude -p', '비대화형 claude', 'headless', '셀프테스트', 'self-test', '프로그래밍적 실행'.
+  Trigger: 'claude -p', '비대화형 claude'.
   NOT for Codex CLI (use using-codex-exec). NOT for Claude Code 설정 (use configuring-claude-code).
 ---
 

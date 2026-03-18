@@ -1,7 +1,7 @@
 ---
 name: managing-secrets
 description: |
-  Manage agenix 시크릿: .age 암호화, re-encrypt, key 관리.
+  Manage agenix secrets: .age encryption, re-encrypt, key management.
   Trigger: '시크릿', '암호화', 'agenix -e', 'secrets.nix', 're-encrypt', 'age key'.
   NOT for Vaultwarden 비밀번호 관리자 (use hosting-vaultwarden).
 ---

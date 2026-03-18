@@ -2,7 +2,7 @@
 name: pr-detailed
 argument-hint: "[update]"
 description: |
-  Create/update PR with CIR/Human Test/Pre-Merge 가이드. Args: (none)=create, update.
+  Create/update PR with CIR/Human Test/Pre-Merge guide. Args: (none)=create, update.
   Trigger: 'PR 본문', 'PR 작성', 'PR 만들어줘', 'PR 업데이트', 'Human Test'.
   NOT for DA (use da-feedback). NOT for PR 코멘트 (use review-pr-feedback).
 ---

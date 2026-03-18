@@ -2,8 +2,8 @@
 name: llm-migration-guide
 argument-hint: "[issue-number or URL]"
 description: |
-  Write LLM 이행 가이드 comment on GitHub issue.
-  Trigger: 'LLM 이행', '이행 가이드', '인수인계', 'LLM handoff', '세션 인수인계'.
+  Write LLM migration guide comment on GitHub issue.
+  Trigger: 'LLM 이행', '이행 가이드', '인수인계', '세션 인수인계'.
   NOT for PR 본문 (use pr-detailed). NOT for 이슈 생성 (use create-issue).
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: sharing-text
 description: |
-  Share text from terminal to iPhone via Pushover push 함수.
+  Share text from terminal to iPhone via Pushover push function.
   Trigger: '텍스트 공유', 'push 명령어', '아이폰으로 보내', 'Pushover로 보내', 'URL 공유'.
 ---
 

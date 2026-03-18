@@ -1,7 +1,7 @@
 ---
 name: running-containers
 description: |
-  Manage Podman 컨테이너, homeserver 서비스 업데이트, OOM, DB 백업.
+  Manage Podman containers, homeserver service updates, OOM, DB backups.
   Trigger: '컨테이너', '서비스 업데이트', 'immich 업데이트', 'container OOM', 'service-lib', 'immich-db-backup', 'Caddy'.
   NOT for 서비스별 워크플로 (use hosting-anki, hosting-copyparty, hosting-vaultwarden, hosting-karakeep).
 ---

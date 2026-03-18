@@ -1,7 +1,7 @@
 ---
 name: managing-minipc
 description: |
-  Manage NixOS MiniPC: disko, rollback, 설정 배치, 하드웨어.
+  Manage NixOS MiniPC: disko, rollback, config placement, hardware.
   Trigger: 'MiniPC', '미니PC', 'nixos-rebuild', '설정 배치', 'WoL', 'smartd', '온도 모니터링'.
   NOT for nix-darwin (use managing-macos). NOT for flake (use understanding-nix).
 ---

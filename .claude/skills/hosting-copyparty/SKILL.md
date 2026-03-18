@@ -1,8 +1,8 @@
 ---
 name: hosting-copyparty
 description: |
-  Manage Copyparty 파일 서버: WebDAV, ACL, 파일 공유.
-  Trigger: '파일 서버', 'copyparty', 'WebDAV', '파일 공유', 'copyparty-update'.
+  Manage Copyparty file server: WebDAV, ACL.
+  Trigger: '파일 서버', 'copyparty', 'WebDAV', 'copyparty-update'.
   NOT for 컨테이너/Podman (use running-containers).
 ---
 

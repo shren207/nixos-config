@@ -1,7 +1,7 @@
 ---
 name: viewing-immich-photo
 description: |
-  View immich photos: container→host 경로 변환, 이미지 표시.
+  View immich photos: container→host path conversion, image display.
   Trigger: 'immich 사진 보여줘', 'immich 파일 보여줘', 'immich 사진 경로', 'upload-cache 파일 확인'.
   NOT for immich 컨테이너 관리 (use running-containers).
 ---

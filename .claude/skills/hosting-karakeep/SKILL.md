@@ -1,7 +1,7 @@
 ---
 name: hosting-karakeep
 description: |
-  Manage Karakeep 웹 아카이브/북마크.
+  Manage Karakeep web archiver/bookmarks.
   Trigger: 'Karakeep', '웹 아카이브', '북마크', '아카이빙', 'archive.greenhead.dev', 'karakeep-update'.
   NOT for 컨테이너/Podman (use running-containers).
 ---
