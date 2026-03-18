@@ -30,11 +30,20 @@ in
     fi
   '';
 
-  # Hooks trust 자동 주입: ~/.claude.json의 기존 프로젝트에 trust 플래그 패치
-  # 배경: upstream #5572, #10409 — hasTrustDialogHooksAccepted를 공식 인터페이스로 설정 불가
-  # v2.1.51 보안 수정으로 interactive hooks 실행에 이 플래그가 필수가 되었으나,
-  # --dangerously-skip-permissions가 trust dialog를 건너뛰면서 플래그도 설정하지 않는 버그 존재
-  home.activation.ensureClaudeHooksTrust = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+  # ~/.claude.json 패치: hooks trust + notification defaults
+  #
+  # (1) Hooks trust 자동 주입
+  #   배경: upstream #5572, #10409 — hasTrustDialogHooksAccepted를 공식 인터페이스로 설정 불가
+  #   v2.1.51 보안 수정으로 interactive hooks 실행에 이 플래그가 필수가 되었으나,
+  #   --dangerously-skip-permissions가 trust dialog를 건너뛰면서 플래그도 설정하지 않는 버그 존재
+  #
+  # (2) Notification defaults 주입 (키가 없을 때만)
+  #   배경: Claude Code의 알림 토글은 ~/.claude.json에 per-machine으로 저장되며,
+  #   settings.json으로 선언 불가. 새 머신 셋업 시 알림이 기본 비활성이므로 nrs로 보장.
+  #   - preferredNotifChannel: "auto" — "ghostty" 채널 버그 회피 (upstream #19979)
+  #   - taskCompleteNotifEnabled / inputNeededNotifEnabled / agentPushNotifEnabled: true
+  #   사용자가 UI(Shift+Tab)에서 명시적으로 변경한 값은 덮어쓰지 않음 (has() 가드).
+  home.activation.patchClaudeJson = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     cfg="$HOME/.claude.json"
     lockdir="''${cfg}.lock"
 
@@ -59,7 +68,7 @@ in
           fi
           waited=$((waited + 1))
           if [ "$waited" -ge 100 ]; then
-            echo "ensureClaudeHooksTrust: lock timeout, skipping"
+            echo "patchClaudeJson: lock timeout, skipping"
             return 1
           fi
           sleep 0.1
@@ -73,7 +82,8 @@ in
         trap 'rm -f "$tmp"; rm -rf -- "$lockdir"' EXIT INT TERM
 
         if $DRY_RUN_CMD ${jqBin} '
-          if (.projects | type) != "object" then .
+          # (1) Hooks trust: 모든 프로젝트에 trust 플래그 주입
+          (if (.projects | type) != "object" then .
           else
             .projects |= with_entries(
               .value |= (
@@ -83,11 +93,16 @@ in
                 end
               )
             )
-          end
+          end)
+          # (2) Notification defaults: 키가 없을 때만 기본값 삽입
+          | if has("preferredNotifChannel") then . else .preferredNotifChannel = "auto" end
+          | if has("taskCompleteNotifEnabled") then . else .taskCompleteNotifEnabled = true end
+          | if has("inputNeededNotifEnabled") then . else .inputNeededNotifEnabled = true end
+          | if has("agentPushNotifEnabled") then . else .agentPushNotifEnabled = true end
         ' "$cfg" > "$tmp" && [ -s "$tmp" ] && ${jqBin} empty "$tmp" >/dev/null 2>&1; then
           $DRY_RUN_CMD mv -- "$tmp" "$cfg"
         else
-          echo "ensureClaudeHooksTrust: jq patch failed, skipping"
+          echo "patchClaudeJson: jq patch failed, skipping"
           rm -f "$tmp"
         fi
 
