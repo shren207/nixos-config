@@ -9,9 +9,6 @@
   ...
 }:
 
-let
-  isPersonal = hostType == "personal";
-in
 {
   homebrew = lib.mkMerge [
     # ── 공통: 모든 darwin 호스트 ─────────────────────────────────
@@ -27,7 +24,7 @@ in
     }
 
     # ── personal 전용 ───────────────────────────────────────────
-    (lib.mkIf isPersonal {
+    (lib.mkIf (hostType == "personal") {
       # 선언되지 않은 앱 정리
       onActivation = {
         autoUpdate = true;
