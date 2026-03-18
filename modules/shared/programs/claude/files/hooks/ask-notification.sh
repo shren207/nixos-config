@@ -27,6 +27,11 @@ if [ -f "$CREDENTIALS_FILE" ]; then
   PUSHOVER_AVAILABLE=true
 fi
 
+# Pushover도 없고 macOS도 아니면 알림 채널이 없으므로 조기 종료
+if [ "$PUSHOVER_AVAILABLE" = false ] && [[ "$OSTYPE" != darwin* ]]; then
+  exit 0
+fi
+
 # stdin에서 JSON 입력 읽기
 INPUT=$(cat)
 
@@ -111,7 +116,7 @@ if [[ "$OSTYPE" == darwin* ]] && command -v hs >/dev/null 2>&1; then
 }📁 ${HS_REPO}${BRANCH:+ · 🌿 $BRANCH}"
   fi
   HS_ICON="$HOME/.claude/assets/notification-icon.png"
-  # Lua string 삽입 시 single quote/backslash를 제거 (hs -c는 IPC 기반이라 os.getenv 불가)
+  # Lua single-quoted string 삽입: ' \ 제거(Lua escape 방어) + " $ ` 제거(bash interpolation 방어)
   HS_BODY_SAFE="${HS_BODY//\'/}"
   HS_BODY_SAFE="${HS_BODY_SAFE//\"/}"
   HS_BODY_SAFE="${HS_BODY_SAFE//\\/}"
@@ -133,7 +138,7 @@ if [[ "$OSTYPE" == darwin* ]] && command -v hs >/dev/null 2>&1; then
 fi
 
 if [ "$PUSHOVER_AVAILABLE" = true ]; then
-  curl -s -X POST \
+  curl -s --max-time 4 -X POST \
     -H "Content-Type: application/x-www-form-urlencoded; charset=utf-8" \
     --data-urlencode "token=$PUSHOVER_TOKEN" \
     --data-urlencode "user=$PUSHOVER_USER" \

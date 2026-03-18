@@ -152,12 +152,12 @@ in
       config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/hooks/nrs-session-cleanup.sh";
     ".claude/hooks/worktree-path-guard.sh".source =
       config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/hooks/worktree-path-guard.sh";
+    ".claude/hooks/session-init-icons.sh".source =
+      config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/hooks/session-init-icons.sh";
 
     # hs.notify contentImage용 아이콘 (Claude.app에서 추출한 128x128 PNG)
     ".claude/assets/notification-icon.png".source =
       config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/assets/notification-icon.png";
-    ".claude/hooks/session-init-icons.sh".source =
-      config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/hooks/session-init-icons.sh";
 
     # syncing-codex-harness 스킬 (user-scope)
     ".claude/skills/syncing-codex-harness".source =

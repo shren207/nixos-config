@@ -14,13 +14,18 @@ MAX_MESSAGE_CHARS=1024
 
 # agenix로 관리되는 credentials 로드
 CREDENTIALS_FILE="$HOME/.config/pushover/claude-code"
-PUSHOVER_API_URL="${PUSHOVER_API_URL:-https://api.pushover.net/1/messages.json}"
+PUSHOVER_API_URL="https://api.pushover.net/1/messages.json"
 
 PUSHOVER_AVAILABLE=false
 if [ -f "$CREDENTIALS_FILE" ]; then
   # shellcheck source=/dev/null
   source "$CREDENTIALS_FILE"
   PUSHOVER_AVAILABLE=true
+fi
+
+# Pushover도 없고 macOS도 아니면 알림 채널이 없으므로 조기 종료
+if [ "$PUSHOVER_AVAILABLE" = false ] && [[ "$OSTYPE" != darwin* ]]; then
+  exit 0
 fi
 
 # --- 유틸리티 함수 ---
@@ -159,7 +164,7 @@ if [[ "$OSTYPE" == darwin* ]] && command -v hs >/dev/null 2>&1; then
 }📁 ${HS_REPO}${BRANCH:+ · 🌿 $BRANCH}"
   fi
   HS_ICON="$HOME/.claude/assets/notification-icon.png"
-  # Lua string 삽입 시 single quote/backslash를 제거 (hs -c는 IPC 기반이라 os.getenv 불가)
+  # Lua single-quoted string 삽입: ' \ 제거(Lua escape 방어) + " $ ` 제거(bash interpolation 방어)
   HS_BODY_SAFE="${HS_BODY//\'/}"
   HS_BODY_SAFE="${HS_BODY_SAFE//\"/}"
   HS_BODY_SAFE="${HS_BODY_SAFE//\\/}"
