@@ -47,6 +47,7 @@ SKILL_PATH_COUNT=$(printf '%s' "$CONTENT" | grep -oE '\.claude/skills/[a-z0-9_-]
 
 [ -z "$WARNINGS" ] && exit 0
 
+# Claude Code PreToolUse hook 차단 형식: {decision: "block", reason: "..."}
 jq -n --arg reason "[Fragile hardcoding] ${WARNINGS}코드에서 동적 확인 가능한 정보입니다. 하드코딩 대신 확인 방법을 기술하세요." \
   '{decision: "block", reason: $reason}'
 exit 0
