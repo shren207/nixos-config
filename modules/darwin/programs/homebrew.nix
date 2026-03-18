@@ -66,7 +66,7 @@
       #      "내가 설치한 것"으로 인식하도록 등록만 수행. 이후 brew upgrade로 관리 가능.
       #
       # 따라서 nrs 실행 전에 직접 설치된 앱을 --adopt로 전환해야 한다:
-      #   brew install --cask --adopt docker-desktop ghostty ...
+      #   brew install --cask --adopt docker-desktop raycast ...
       #
       # adopt 후에는 nrs(darwin-rebuild)가 해당 cask를 정상적으로 인식하여 에러 없이 통과한다.
       # cleanup="none"이므로 미adopt 앱이 남아있어도 삭제되지는 않지만,
