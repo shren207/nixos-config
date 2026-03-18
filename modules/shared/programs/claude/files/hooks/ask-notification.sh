@@ -96,7 +96,7 @@ if [[ "$OSTYPE" == darwin* ]] && command -v hs >/dev/null 2>&1; then
   if [ -n "$HS_TRANSCRIPT" ] && [ -f "$HS_TRANSCRIPT" ]; then
     HS_SESSION_NAME=$(grep '"custom-title"' "$HS_TRANSCRIPT" 2>/dev/null | tail -1 | jq -r '.customTitle // empty' 2>/dev/null || true)
   fi
-  # Pushover 형식 벤치마킹: title=이벤트, subtitle=세션이름, body=레포+브랜치 (호스트 제외)
+  # CIR: 호스트 제외 + subtitle→body 이동 의사결정 → stop-notification.sh 참조
   HS_REPO="$REPO"
   HS_COMMON_DIR=$(git rev-parse --git-common-dir 2>/dev/null)
   if [ -n "$HS_COMMON_DIR" ] && [ "$HS_COMMON_DIR" != ".git" ]; then

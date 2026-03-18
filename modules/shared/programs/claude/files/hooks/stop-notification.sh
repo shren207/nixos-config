@@ -195,7 +195,8 @@ if [[ "$OSTYPE" == darwin* ]] && command -v hs >/dev/null 2>&1; then
   if [ -n "$TRANSCRIPT_PATH" ] && [ -f "$TRANSCRIPT_PATH" ]; then
     HS_SESSION_NAME=$(grep '"custom-title"' "$TRANSCRIPT_PATH" 2>/dev/null | tail -1 | jq -r '.customTitle // empty' 2>/dev/null || true)
   fi
-  # Pushover 형식 벤치마킹: title=이벤트, subtitle=세션이름, body=레포+브랜치 (호스트 제외)
+  # CIR: 호스트(🖥️) 제외 — Hammerspoon은 macOS 전용이라 머신 구분 불필요. Pushover에는 유지(MiniPC 포함).
+  # CIR: subtitle 대신 body에 세션이름+레포 배치 — subtitle은 macOS가 ~30자에서 잘라 세션이름이 말줄임됨.
   # worktree에서 REPO가 worktree 디렉토리명으로 잡히므로, 실제 repo 이름을 사용
   HS_REPO="$REPO"
   HS_COMMON_DIR=$(git rev-parse --git-common-dir 2>/dev/null)
