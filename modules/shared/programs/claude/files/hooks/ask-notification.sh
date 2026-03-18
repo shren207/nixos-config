@@ -113,11 +113,12 @@ if [[ "$OSTYPE" == darwin* ]] && command -v hs >/dev/null 2>&1; then
   HS_ICON="$HOME/.claude/assets/notification-icon.png"
   # Lua string 삽입 시 single quote/backslash를 제거 (hs -c는 IPC 기반이라 os.getenv 불가)
   HS_BODY_SAFE="${HS_BODY//\'/}"
+  HS_BODY_SAFE="${HS_BODY_SAFE//\"/}"
   HS_BODY_SAFE="${HS_BODY_SAFE//\\/}"
   HS_BODY_SAFE="${HS_BODY_SAFE//\`/}"
   HS_BODY_SAFE="${HS_BODY_SAFE//\$/}"
   HS_BODY_SAFE="${HS_BODY_SAFE//$'\n'/\\n}"
-  hs -c "
+  timeout 2 hs -c "
     local n = hs.notify.new({
       title = 'Claude Code [📝질문 대기]',
       informativeText = '${HS_BODY_SAFE}',
@@ -140,7 +141,7 @@ if [ "$PUSHOVER_AVAILABLE" = true ]; then
     --data-urlencode "priority=0" \
     --data-urlencode "sound=falling" \
     --data-urlencode "message=$MESSAGE" \
-    https://api.pushover.net/1/messages.json > /dev/null
+    https://api.pushover.net/1/messages.json >/dev/null 2>&1
 fi
 
 exit 0
