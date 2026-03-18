@@ -216,6 +216,8 @@ if [[ "$OSTYPE" == darwin* ]] && command -v hs >/dev/null 2>&1; then
   # Lua string 삽입 시 single quote/backslash를 제거 (hs -c는 IPC 기반이라 os.getenv 불가)
   HS_BODY_SAFE="${HS_BODY//\'/}"
   HS_BODY_SAFE="${HS_BODY_SAFE//\\/}"
+  HS_BODY_SAFE="${HS_BODY_SAFE//\`/}"
+  HS_BODY_SAFE="${HS_BODY_SAFE//\$/}"
   HS_BODY_SAFE="${HS_BODY_SAFE//$'\n'/\\n}"
   hs -c "
     local n = hs.notify.new({
