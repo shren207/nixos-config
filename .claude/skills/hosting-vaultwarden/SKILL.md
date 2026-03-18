@@ -1,18 +1,9 @@
 ---
 name: hosting-vaultwarden
 description: |
-  This skill should be used when the user needs to manage Vaultwarden/Bitwarden:
-  password manager, admin panel, backup, updates, client setup.
-  Triggers: "비밀번호 관리자", "볼트워든", "vaultwarden 설정",
-  "vaultwarden 백업", "비밀번호 서버", "비밀번호 동기화",
-  "master password", "admin token", "admin 패널",
-  "vaultwarden 업데이트", "vaultwarden 복원", "backup restore",
-  "vaultwarden.greenhead.dev", "Bitwarden Self-hosted",
-  "vaultwarden-update", "vaultwarden exit code 4",
-  Bitwarden client connection issues, vault sync problems.
-  For generic container-level operations (Podman, OOM, shared update framework internals), use running-containers instead.
-  Service-specific Vaultwarden workflows such as `vaultwarden-update`, backup/restore stay here.
-  For agenix secret management, use managing-secrets instead.
+  Manage Vaultwarden 비밀번호 관리자: 백업, admin 패널.
+  Trigger: '비밀번호 관리자', '볼트워든', 'vaultwarden 백업', 'admin token', 'vaultwarden-update'.
+  NOT for agenix 시크릿 (use managing-secrets). NOT for 컨테이너/Podman (use running-containers).
 ---
 
 # Vaultwarden 비밀번호 관리자 관리

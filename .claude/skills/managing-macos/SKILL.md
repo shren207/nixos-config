@@ -1,12 +1,9 @@
 ---
 name: managing-macos
 description: |
-  This skill should be used when the user asks about macOS/nix-darwin system settings,
-  Dock/Finder configuration, Homebrew Cask management, Shottr setup, or Folder Actions.
-  Triggers: "darwin-rebuild", Dock/Finder settings, "/etc/bashrc conflict",
-  "/etc/zshrc conflict", "killall cfprefsd", "primary user does not exist",
-  "shottr 설정", "shottr 단축키", "스크린샷 저장 경로", "shottr 라이센스",
-  "Folder Actions", "폴더 감시", "compress-video", "compress-rar", "upload-immich".
+  Configure macOS/nix-darwin: Dock, Finder, Homebrew Cask, Folder Actions.
+  Trigger: 'darwin-rebuild', 'shottr 설정', 'Folder Actions', '폴더 감시', 'compress-video', 'upload-immich'.
+  NOT for iOS Shortcuts (use managing-shortcuts).
 ---
 
 # macOS 관리 (nix-darwin)

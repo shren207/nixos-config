@@ -1,15 +1,9 @@
 ---
 name: managing-minipc
 description: |
-  This skill should be used when the user asks about NixOS MiniPC management,
-  nixos-rebuild, disko, hardware-configuration.nix, generation rollback,
-  config placement ("설정 배치", "어디에 넣어야", "configuration.nix에 넣을까 host에 넣을까"),
-  or NixOS boot/rebuild errors.
-  Triggers: "MiniPC", "미니PC", "nixos-rebuild", "disko",
-  "hardware-configuration.nix", "rollback", "WoL", "Wake-on-LAN", "watchdog",
-  "호스트 설정", "하드웨어 설정", "설정 배치", "어디에 넣어야", "boot failure",
-  "smartd", "SMART", "디스크 건강", "lm-sensors", "sensors", "온도 모니터링".
-  For nix-darwin use managing-macos. For flake issues use understanding-nix.
+  Manage NixOS MiniPC: disko, rollback, 설정 배치, 하드웨어.
+  Trigger: 'MiniPC', '미니PC', 'nixos-rebuild', '설정 배치', 'WoL', 'smartd', '온도 모니터링'.
+  NOT for nix-darwin (use managing-macos). NOT for flake (use understanding-nix).
 ---
 
 # NixOS MiniPC 관리
