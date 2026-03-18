@@ -96,19 +96,29 @@ if [[ "$OSTYPE" == darwin* ]] && command -v hs >/dev/null 2>&1; then
   if [ -n "$HS_TRANSCRIPT" ] && [ -f "$HS_TRANSCRIPT" ]; then
     HS_SESSION_NAME=$(grep '"custom-title"' "$HS_TRANSCRIPT" 2>/dev/null | tail -1 | jq -r '.customTitle // empty' 2>/dev/null || true)
   fi
-  # REPO가 있으면 "repo · branch", 세션 이름이 있으면 추가
-  HS_SUBTITLE="${REPO:+$REPO}${BRANCH:+ · $BRANCH}"
+  # Pushover 형식 벤치마킹: title=이벤트, subtitle=세션이름, body=레포+브랜치 (호스트 제외)
+  HS_REPO="$REPO"
+  HS_COMMON_DIR=$(git rev-parse --git-common-dir 2>/dev/null)
+  if [ -n "$HS_COMMON_DIR" ] && [ "$HS_COMMON_DIR" != ".git" ]; then
+    HS_REPO=$(basename "$(cd "$HS_COMMON_DIR/.." 2>/dev/null && pwd)")
+  fi
+  HS_BODY=""
   if [ -n "$HS_SESSION_NAME" ]; then
-    HS_SUBTITLE="${HS_SUBTITLE:+$HS_SUBTITLE · }$HS_SESSION_NAME"
+    HS_BODY="$HS_SESSION_NAME"
+  fi
+  if [ -n "$HS_REPO" ]; then
+    HS_BODY="${HS_BODY:+$HS_BODY
+}📁 ${HS_REPO}${BRANCH:+ · 🌿 $BRANCH}"
   fi
   HS_ICON="$HOME/.claude/assets/notification-icon.png"
   # Lua string 삽입 시 single quote/backslash를 제거 (hs -c는 IPC 기반이라 os.getenv 불가)
-  HS_SUBTITLE_SAFE="${HS_SUBTITLE//\'/}"
-  HS_SUBTITLE_SAFE="${HS_SUBTITLE_SAFE//\\/}"
+  HS_BODY_SAFE="${HS_BODY//\'/}"
+  HS_BODY_SAFE="${HS_BODY_SAFE//\\/}"
+  HS_BODY_SAFE="${HS_BODY_SAFE//$'\n'/\\n}"
   hs -c "
     local n = hs.notify.new({
       title = 'Claude Code [📝질문 대기]',
-      subTitle = '${HS_SUBTITLE_SAFE}',
+      informativeText = '${HS_BODY_SAFE}',
       soundName = 'Glass',
       -- CIR: withdrawAfter 의사결정 → stop-notification.sh Lua 블록 참조
       withdrawAfter = 0
