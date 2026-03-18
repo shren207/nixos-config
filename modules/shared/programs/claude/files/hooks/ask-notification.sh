@@ -15,11 +15,6 @@
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 
-# 서브에이전트/팀원 컨텍스트에서는 알림 불필요 — 메인 워커(cli)만 알림
-if [ "${CLAUDE_CODE_ENTRYPOINT:-cli}" != "cli" ]; then
-  exit 0
-fi
-
 # jq 미설치 시 조용히 종료 (방어적 가드)
 command -v jq >/dev/null 2>&1 || exit 0
 
