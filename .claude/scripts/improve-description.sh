@@ -43,9 +43,10 @@ if [[ ! -f "$SKILL_PATH/SKILL.md" ]]; then
 fi
 
 # --- Extract skill metadata ---
-skill_name=$(python3 -c "
-import re
-content = open('$SKILL_PATH/SKILL.md').read()
+# Use env vars for path passing to avoid shell injection in inline Python
+skill_name=$(SKILL_FILE="$SKILL_PATH/SKILL.md" python3 -c "
+import re, os
+content = open(os.environ['SKILL_FILE']).read()
 m = re.search(r'^name:\s*(.+)', content, re.MULTILINE)
 print(m.group(1).strip().strip('\"').strip(\"'\") if m else 'unknown')
 ")
@@ -218,8 +219,12 @@ m = re.search(r'<new_description>(.*?)</new_description>', text, re.DOTALL)
 print(m.group(1).strip().strip('\"') if m else text.strip()[:1024])
 ")
 
-  new_description="$shortened"
-  echo "Shortened to: ${#new_description} chars" >&2
+  if [[ -n "$shortened" ]]; then
+    new_description="$shortened"
+    echo "Shortened to: ${#new_description} chars" >&2
+  else
+    echo "Shortening failed, keeping original (${#new_description} chars, may exceed 1024)" >&2
+  fi
 fi
 
 # --- Build output JSON ---

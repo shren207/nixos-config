@@ -81,8 +81,7 @@ fi
 # --- Core: run a single query ---
 run_query() {
   local query="$1"
-  # $2 = skill name (unused in function, checked by caller)
-  local timeout="$3"
+  local timeout="$2"
 
   # Remove CLAUDECODE (nesting guard) and ANTHROPIC_API_KEY (forces API key mode
   # with Sonnet default instead of subscription Opus) to ensure eval runs use
@@ -121,8 +120,6 @@ for ((i = 0; i < query_count; i++)); do
   done
 done
 
-# Progress tracking
-completed=0
 results_dir=$(mktemp -d)
 trap 'rm -rf "$results_dir"' EXIT
 
@@ -135,7 +132,7 @@ for idx in "${work_items[@]}"; do
   query=$(jq -r ".[$idx].query" "$QUERIES")
 
   (
-    result=$(run_query "$query" "$SKILL" "$TIMEOUT")
+    result=$(run_query "$query" "$TIMEOUT")
     echo "$result" >> "$results_dir/q${idx}.txt"
   ) &
   pids+=($!)
