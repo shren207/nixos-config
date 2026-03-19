@@ -7,8 +7,8 @@ description: |
   paths, fix settings conflicts after nrs, configure nixd LSP for .nix autocompletion, change
   default app for file types (duti, double-click opens wrong app), manage editor snippets, or
   resolve any VSCode-related build/config issues. Trigger: '''VSCode''', '''vscode''', '''확장
-  프로그램''', '''extensions''', '''settings.json''', '''keybindings''', '''키바인딩''', '''에디터 설정''',
-  '''에디터 키바인딩''', '''nixd''', '''nix-ide''', '''open-vsx''', '''기본 앱 연결''', '''duti''', '''더블클릭''',
+  프로그램''', '''extensions''', '''settings.json''', '''keybindings''', '''키바인딩''', '''VSCode 에디터 설정''',
+  '''VSCode 키바인딩''', '''nixd''', '''nix-ide''', '''open-vsx''', '''기본 앱 연결''', '''duti''', '''더블클릭''',
   '''확장 로드''', '''VSCode 스니펫'''. NOT for Neovim/LazyVim (use configuring-neovim). NOT for Claude
   Code editor (use configuring-claude-code).
 ---

@@ -1,7 +1,7 @@
 ---
 name: configuring-claude-code
 description: |
-  Use this skill to configure Claude Code — the AI coding assistant'''s settings, hooks, plugins,
+  Use this skill to configure Claude Code — the AI coding assistant's settings, hooks, plugins,
   MCP servers, and shell alias. Covers editing settings.json (permissions, session cleanup,
   environment variables, language), mcp.json (adding/removing MCP servers), hook scripts
   (PreToolUse, PostToolUse, Stop, Notification, SessionStart, SessionEnd — creation, debugging,

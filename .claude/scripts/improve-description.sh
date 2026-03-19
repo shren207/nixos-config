@@ -6,7 +6,7 @@
 # ANTHROPIC_API_KEY requirement.
 #
 # Usage:
-#   improve-description.sh --skill-path <dir> --eval-results <json> [--history <json>] [--iteration N]
+#   improve-description.sh --skill-path <dir> --eval-results <json> [--history <json>]
 #
 # Output: JSON to stdout with { description, history }
 

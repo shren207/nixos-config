@@ -2,8 +2,7 @@
 name: using-claude-p
 description: |
   Use Claude Code non-interactive (-p/--print) mode for scripting, automation, and headless
-  execution. Trigger: '''claude -p''', '''비대화형 claude''', '''headless claude''', '''스크립트에서
-  claude'''. Covers: CLI flag usage and gotchas (--output-format, --allowedTools, --resume,
+  execution. Trigger: '''claude -p''', '''비대화형 claude''', '''headless claude''', '''스크립트에서 claude'''. Covers: CLI flag usage and gotchas (--output-format, --allowedTools, --resume,
   --dangerously-skip-permissions), JSON output parsing, session chaining, saving results to files,
   SSH remote execution of claude, harness self-testing (T1~T8), and known flag interaction bugs. Use
   when users want to run claude programmatically, pipe output, parse results, automate workflows,

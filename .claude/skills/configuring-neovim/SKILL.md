@@ -6,7 +6,7 @@ description: |
   LSP/autocompletion issues, add or update lazy.nvim plugins, configure formatters (prettier,
   stylua) or linters, change colorscheme/theme (e.g. catppuccin), troubleshoot treesitter parser
   builds, fix Korean input switching (한영 전환, im-select), or modify Nix extraPackages for editor
-  tooling. This is the user'''s primary code editor — queries about "에디터", "코드 편집기", or "편집기 설정"
+  tooling. This is the user's primary code editor — queries about "에디터", "코드 편집기", or "편집기 설정"
   refer to Neovim unless VSCode is explicitly mentioned. NOT for VSCode/확장 (use managing-vscode).
 ---
 
