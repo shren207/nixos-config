@@ -179,8 +179,12 @@ worktree_symlink_guard() {
         # ── 역방향 검사: worktree-only entry 탐지 (정보성) ──────────────
         # worktree에만 추가된 mkOutOfStoreSymlink entry를 감지하여 사용자에게 알린다.
         # _remove_worktree_symlinks()가 pre-rebuild에서 자동 처리하므로 차단하지 않는다.
+        # merge_base..HEAD: worktree 브랜치에서 변경된 .nix 파일 (정방향의 merge_base..main과 반대)
         local wt_changed_nix_files
-        wt_changed_nix_files=$(git -C "$FLAKE_PATH" diff --name-only "$merge_base" HEAD -- '*.nix' 2>/dev/null) || true
+        wt_changed_nix_files=$(git -C "$FLAKE_PATH" diff --name-only "$merge_base" HEAD -- '*.nix' 2>/dev/null) || {
+            log_warn "⚠️  symlink guard (reverse): git diff failed. Skipping."
+            wt_changed_nix_files=""
+        }
         wt_changed_nix_files=$(printf '%s\n' "$wt_changed_nix_files" | grep -E "$platform_filter" || true)
 
         if [[ -n "$wt_changed_nix_files" ]]; then
@@ -195,6 +199,7 @@ worktree_symlink_guard() {
                 [[ -z "$wt_entries" ]] && continue
 
                 base_entries=$(extract_oos_entries "$merge_base:$nix_file")
+                # wt에만 있는 엔트리 = worktree에서 새로 추가된 것 (base에는 없음)
                 local new_in_wt
                 if [[ -z "$base_entries" ]]; then
                     new_in_wt="$wt_entries"
@@ -204,6 +209,7 @@ worktree_symlink_guard() {
                 [[ -z "$new_in_wt" ]] && continue
 
                 main_entries=$(extract_oos_entries "main:$nix_file")
+                # new_in_wt 중 main에도 없는 것 = worktree-only entry
                 local only_in_wt
                 if [[ -z "$main_entries" ]]; then
                     only_in_wt="$new_in_wt"
