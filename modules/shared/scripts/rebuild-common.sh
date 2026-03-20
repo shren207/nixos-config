@@ -115,7 +115,8 @@ worktree_symlink_guard() {
         log_warn "⚠️  symlink guard: git diff failed. Skipping."
         return 0
     }
-    [[ -z "$changed_nix_files" ]] && { log_info "  ✓ No mkOutOfStoreSymlink drift."; return 0; }
+    # early return 생략: changed_nix_files가 비어있어도 역방향 검사(L176+)가 실행되도록
+    # forward loop(L132)는 빈 입력을 [[ -z "$nix_file" ]] && continue로 안전 처리
 
     # DA R1 Fix: 플랫폼별 경로 필터 — darwin nrs가 nixos-only 파일에 차단되지 않도록
     local platform_filter
@@ -125,7 +126,6 @@ worktree_symlink_guard() {
         *)               platform_filter='.' ;;
     esac
     changed_nix_files=$(printf '%s\n' "$changed_nix_files" | grep -E "$platform_filter" || true)
-    [[ -z "$changed_nix_files" ]] && { log_info "  ✓ No mkOutOfStoreSymlink drift."; return 0; }
 
     local all_missing="" missing_count=0
 
