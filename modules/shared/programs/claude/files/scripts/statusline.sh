@@ -4,7 +4,6 @@
 
 input=$(cat)
 
-
 TRANSCRIPT=$(echo "$input" | jq -r '.transcript_path // empty' 2>/dev/null) || true
 
 # transcript_path 비어있으면 전체 skip
@@ -201,8 +200,8 @@ rate_color() {
 
 # format_remaining: 초 → 사람이 읽기 쉬운 형식 (XdYh / XhYYm / Xm)
 format_remaining() {
-  local secs=$1
-  if [ "${secs:-0}" -le 0 ] 2>/dev/null; then echo "0m"; return; fi
+  local secs=${1:-0}
+  if [ "$secs" -le 0 ] 2>/dev/null; then echo "0m"; return; fi
   local d=$((secs / 86400)) h=$(((secs % 86400) / 3600)) m=$(((secs % 3600) / 60))
   if [ "$d" -gt 0 ]; then printf '%dd%dh' $d $h
   elif [ "$h" -gt 0 ]; then printf '%dh%02dm' $h $m
@@ -221,6 +220,7 @@ render_rate_window() {
   # Progress bar (detail ≥ 2)
   if [ "$detail" -ge 2 ]; then
     local filled=$((pct / 10)) empty
+    # 0%가 아니면 최소 1블록으로 시각적 존재감 확보
     [ "$pct" -gt 0 ] 2>/dev/null && [ "$filled" -eq 0 ] && filled=1
     empty=$((10 - filled))
     local i bar_filled="" bar_empty=""
