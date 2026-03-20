@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Claude Code custom statusline - plan 파일 경로 + status icons 표시
+# Claude Code custom statusline - plan 파일 경로, status icons, rate limits 표시
 # stdin으로 JSON 세션 데이터를 받아 statusbar 내용을 stdout으로 출력
 
 input=$(cat)
@@ -214,6 +214,9 @@ format_remaining() {
 # detail: 4=full, 3=no date, 2=no remaining, 1=no bar
 render_rate_window() {
   local pct=${1:-0} window=$2 resets_at=$3 now=$4 detail=${5:-4}
+  # pct를 0-100으로 clamp (음수/초과값 방어)
+  [ "$pct" -lt 0 ] 2>/dev/null && pct=0
+  [ "$pct" -gt 100 ] 2>/dev/null && pct=100
   local color
   color=$(rate_color "$pct")
 
