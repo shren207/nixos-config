@@ -2,9 +2,9 @@
 # Claude Code Stop Hook - Pushover 알림 전송
 
 # === Change Intent Record ===
-# v1: --form-string과 -F를 혼용하여 Pushover 전송 → 간헐적으로 이모지/한글이 ?로 표시.
-#     원인: -F가 multipart/form-data를 강제하여 --form-string과 인코딩 충돌.
-#     echo로 jq 출력을 파이프하면 플랫폼별 escape sequence 처리가 달라 UTF-8 손상.
+# v1: --form-string/-F (multipart/form-data) 방식으로 Pushover 전송 → 간헐적으로 이모지/한글이 ?로 표시.
+#     원인: multipart/form-data 인코딩에서 UTF-8 문자 처리가 불안정.
+#     echo로 jq 출력을 파이프하면 플랫폼별 escape sequence 처리가 달라 UTF-8 추가 손상.
 # v2 (이번): --data-urlencode로 통일 (application/x-www-form-urlencoded; charset=utf-8),
 #     echo 대신 printf '%s'로 입력 그대로 전달, LANG/LC_ALL 강제 설정.
 #     trade-off: 없음 — 세 가지 수정이 모두 호환성 향상.
