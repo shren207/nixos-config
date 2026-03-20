@@ -173,8 +173,20 @@ worktree_symlink_guard() {
     # ── 역방향 검사: worktree-only entry 탐지 (정보성) ──────────────────
     # worktree에만 추가된 mkOutOfStoreSymlink entry를 감지하여 사용자에게 알린다.
     # _remove_worktree_symlinks()가 pre-rebuild에서 자동 처리하므로 차단하지 않는다.
-    # missing_count와 독립적으로 실행: 정보성 검사이므로 정방향 결과에 게이트하지 않는다.
     # merge_base..HEAD: worktree 브랜치에서 변경된 .nix 파일 (정방향의 merge_base..main과 반대)
+    #
+    # === Change Intent Record ===
+    # v1 (6039360, PR #223): worktree_symlink_guard() 최초 도입 — 정방향 검사만
+    # v2 (543acd7, PR #291): _remove_worktree_symlinks() 도입 — worktree-only 자동 제거
+    # v3 (PR #293 초기): 역방향 검사를 missing_count==0 블록 내부에 배치
+    #    → 설계 전제: "정방향 dirty면 역방향 정보는 noise"
+    # v4 (PR #293): early return(L118/L128) 제거 — 빈 changed_nix_files에서도 역방향 도달
+    # v5 (PR #293 최종): hoisting — 역방향을 missing_count 블록 밖으로 이동
+    #    → v3 전제 기각: --force 시 자동 정리 대상의 가시성 확보 불가,
+    #      차단 검사가 정보성 검사를 게이트하는 semantic coupling,
+    #      "No drift" 직후 역방향 발견의 인지 부조화
+    #    trade-off: missing_count>0일 때도 역방향 git diff 추가 실행되나,
+    #              로컬 git 명령 1회로 무시 가능한 비용
     local wt_changed_nix_files
     wt_changed_nix_files=$(git -C "$FLAKE_PATH" diff --name-only "$merge_base" HEAD -- '*.nix' 2>/dev/null) || {
         log_warn "⚠️  symlink guard (reverse): git diff failed. Skipping."
