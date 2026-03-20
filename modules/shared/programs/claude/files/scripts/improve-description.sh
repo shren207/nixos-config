@@ -165,6 +165,7 @@ PROMPT_EOF
 # --- Call claude -p ---
 echo "Improving description for: $skill_name" >&2
 
+# SKILL_EVAL_MODE=1: PreToolUse hooks skip logging (#283)
 raw_output=$(env -u CLAUDECODE -u ANTHROPIC_API_KEY SKILL_EVAL_MODE=1 \
   claude -p "$prompt" \
     --output-format json \
@@ -203,6 +204,7 @@ Previous response: ${new_description}
 ---
 ${shorten_prompt}"
 
+  # SKILL_EVAL_MODE=1: PreToolUse hooks skip logging (#283)
   shorten_output=$(env -u CLAUDECODE -u ANTHROPIC_API_KEY SKILL_EVAL_MODE=1 \
     claude -p "$combined_prompt" \
       --output-format json \
