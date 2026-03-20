@@ -175,6 +175,58 @@ worktree_symlink_guard() {
 
     if [[ $missing_count -eq 0 ]]; then
         log_info "  ✓ No mkOutOfStoreSymlink drift."
+
+        # ── 역방향 검사: worktree-only entry 탐지 (정보성) ──────────────
+        # worktree에만 추가된 mkOutOfStoreSymlink entry를 감지하여 사용자에게 알린다.
+        # _remove_worktree_symlinks()가 pre-rebuild에서 자동 처리하므로 차단하지 않는다.
+        local wt_changed_nix_files
+        wt_changed_nix_files=$(git -C "$FLAKE_PATH" diff --name-only "$merge_base" HEAD -- '*.nix' 2>/dev/null) || true
+        wt_changed_nix_files=$(printf '%s\n' "$wt_changed_nix_files" | grep -E "$platform_filter" || true)
+
+        if [[ -n "$wt_changed_nix_files" ]]; then
+            local all_wt_only="" wt_only_count=0
+
+            while IFS= read -r nix_file; do
+                [[ -z "$nix_file" ]] && continue
+                [[ ! -f "$FLAKE_PATH/$nix_file" ]] && continue
+
+                local wt_entries base_entries main_entries
+                wt_entries=$(extract_oos_entries "$FLAKE_PATH/$nix_file")
+                [[ -z "$wt_entries" ]] && continue
+
+                base_entries=$(extract_oos_entries "$merge_base:$nix_file")
+                local new_in_wt
+                if [[ -z "$base_entries" ]]; then
+                    new_in_wt="$wt_entries"
+                elif ! new_in_wt=$(comm -23 <(printf '%s\n' "$wt_entries") <(printf '%s\n' "$base_entries")); then
+                    new_in_wt="$wt_entries"
+                fi
+                [[ -z "$new_in_wt" ]] && continue
+
+                main_entries=$(extract_oos_entries "main:$nix_file")
+                local only_in_wt
+                if [[ -z "$main_entries" ]]; then
+                    only_in_wt="$new_in_wt"
+                elif ! only_in_wt=$(comm -23 <(printf '%s\n' "$new_in_wt") <(printf '%s\n' "$main_entries")); then
+                    only_in_wt="$new_in_wt"
+                fi
+
+                if [[ -n "$only_in_wt" ]]; then
+                    while IFS= read -r entry; do
+                        [[ -z "$entry" ]] && continue
+                        all_wt_only+="    $nix_file → $entry"$'\n'
+                        ((++wt_only_count))
+                    done <<< "$only_in_wt"
+                fi
+            done <<< "$wt_changed_nix_files"
+
+            if [[ $wt_only_count -gt 0 ]]; then
+                log_info "  ℹ️  $wt_only_count worktree-only mkOutOfStoreSymlink entry(s) detected:"
+                echo -n "$all_wt_only"
+                echo "  (These will be auto-handled by pre-rebuild symlink cleanup)"
+            fi
+        fi
+
         return 0
     fi
 
