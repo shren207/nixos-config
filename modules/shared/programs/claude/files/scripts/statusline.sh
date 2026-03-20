@@ -214,6 +214,9 @@ format_remaining() {
 # detail: 4=full, 3=no date, 2=no remaining, 1=no bar
 render_rate_window() {
   local pct=${1:-0} window=$2 resets_at=$3 now=$4 detail=${5:-4}
+  # 소수점 truncate (bash 산술은 정수만 지원, e.g. "37.5" → "37")
+  pct=${pct%%.*}
+  pct=${pct:-0}
   # pct를 0-100으로 clamp (음수/초과값 방어)
   [ "$pct" -lt 0 ] 2>/dev/null && pct=0
   [ "$pct" -gt 100 ] 2>/dev/null && pct=100
