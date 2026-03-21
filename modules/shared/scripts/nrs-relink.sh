@@ -166,7 +166,7 @@ cmd_status() {
 
 #───────────────────────────────────────────────────────────────────────────────
 # fix-dangling: dangling 감지 시에만 조건부 restore (#294)
-# wt.sh, precmd, PostToolUse hook 등 여러 진입점에서 호출
+# wt.sh, PostToolUse hook에서 호출. precmd는 성능상 인라인 canary 사용 (동일 로직).
 #───────────────────────────────────────────────────────────────────────────────
 cmd_fix_dangling() {
     # settings.json을 대표 canary로 사용:
