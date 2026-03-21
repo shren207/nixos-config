@@ -168,7 +168,7 @@ gh api repos/{owner}/{repo}/issues/{pr_number}/comments \
 
 | 필드 | 필수 | 설명 |
 |------|------|------|
-| **기각 분류** | ✅ | 검증 기준 요약(위) 및 기각 분류 가이드라인(아래) 참조 |
+| **기각 분류** | ✅ | `HALLUCINATION` / `VERIFIED_FALSE_POSITIVE` / `STALE_REVIEW` / `SCOPE_DEFERRAL` / `DESIGN_TRADEOFF` / `TECHNICAL_DISAGREEMENT` / `WRONG_REFERENCE` 중 택1 |
 | **검증 방법** | ✅ | Read 도구로 확인한 파일:줄, 또는 로컬 재현 결과 |
 | **기술적 근거** | ✅ | 1문장 이상 |
 | **신뢰도** | ✅ | HIGH / MEDIUM / LOW (LOW 시 사용자 AskUserQuestion) |
