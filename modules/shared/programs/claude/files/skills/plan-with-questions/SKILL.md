@@ -125,7 +125,7 @@ DA for_plan 결과에서 유효한 지적을 반영한다.
 ### Step 9: ExitPlanMode [승인 요청]
 
 계획이 완성되면 ExitPlanMode 도구를 호출하여 사용자에게 계획 승인을 요청한다.
-사용자가 수정을 요청하면 반영한 뒤 다시 ExitPlanMode를 호출한다.
+사용자가 수정을 요청하면 EnterPlanMode로 다시 진입해 계획 파일을 수정한 뒤 ExitPlanMode를 다시 호출한다.
 
 ## Post-Implementation (승인 후 자동 수행)
 
