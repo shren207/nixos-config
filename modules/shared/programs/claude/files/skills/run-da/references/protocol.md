@@ -174,14 +174,15 @@ DA 지적을 수용하여 수정할 때:
 ## 구조화된 기각 포맷
 
 DA/감사/리뷰 피드백을 기각할 때 다음 필드를 포함한다.
-3건 이상 기각 시 전체 포맷 필수. 단건 기각은 기각 분류 + 검증 방법 + 기술적 근거의 3필드만으로 간소화 허용:
+3건 이상 기각 시 전체 포맷 필수.
+단건 기각은 `기각 분류 + 검증 방법 + 기술적 근거` 3필드 간소화 허용(신뢰도는 선택):
 
 | 필드 | 필수 | 설명 |
 |------|------|------|
-| **기각 분류** | ✅ | `VERIFIED_FALSE_POSITIVE` / `STALE_REVIEW` / `SCOPE_DEFERRAL` / `DESIGN_TRADEOFF` / `TECHNICAL_DISAGREEMENT` / `WRONG_REFERENCE` 중 택1 |
+| **기각 분류** | ✅ | `HALLUCINATION` / `VERIFIED_FALSE_POSITIVE` / `STALE_REVIEW` / `SCOPE_DEFERRAL` / `DESIGN_TRADEOFF` / `TECHNICAL_DISAGREEMENT` / `WRONG_REFERENCE` 중 택1 |
 | **검증 방법** | ✅ | Read 도구로 확인한 파일:줄, 또는 실행한 명령과 결과 |
 | **기술적 근거** | ✅ | 1문장 이상의 기각 이유 (안티패턴 목록의 금지 패턴 사용 불가) |
-| **신뢰도** | ✅ | `HIGH` / `MEDIUM` / `LOW` |
+| **신뢰도** | 조건부 | 3건 이상 기각 시 필수 (`HIGH` / `MEDIUM` / `LOW`) |
 | **사용자 위임** | 조건부 | 신뢰도 `LOW`인 경우 AskUserQuestion으로 사용자 판단 요청 (맥락 설명 의무 적용) |
 
 ### 예시
