@@ -146,6 +146,14 @@ in
           fi
         }
         precmd_functions+=(_update_delta_features)
+
+        # worktree 삭제 후 dangling 심링크 자동 복구 안전망 (#294)
+        # settings.json canary — dangling이면 nrs-relink restore가 전체 OOS 복원
+        _repair_claude_symlinks() {
+          [[ -L "$HOME/.claude/settings.json" && ! -e "$HOME/.claude/settings.json" ]] && \
+            "$HOME/.local/bin/nrs-relink" restore >/dev/null 2>&1
+        }
+        precmd_functions+=(_repair_claude_symlinks)
       '')
 
       #─────────────────────────────────────────────────────────────────────────
