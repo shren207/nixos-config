@@ -3,7 +3,7 @@ name: parallel-audit
 argument-hint: "[agent-count]"
 description: |
   Run N parallel agents for exhaustive side-effect/regression audit. Trigger: '''전수조사''', '''사이드이펙트
-  조사''', '''회귀 조사''', '''병렬 감사''', '''에이전트 N개 조사'''. NOT for DA (use da-feedback).
+  조사''', '''회귀 조사''', '''병렬 감사''', '''에이전트 N개 조사'''. NOT for DA (use run-da).
 ---
 
 # 병렬 에이전트 전수조사
@@ -142,4 +142,4 @@ BUG/REGRESSION/EDGECASE가 있으면 요약 테이블 아래에 상세를 추가
 - 에이전트는 읽기 전용이다. 코드를 직접 수정하지 않는다.
 - 조사 결과를 사용자에게 먼저 제시하고, 수정은 사용자 승인 후 진행한다.
 - 변경 범위가 극히 작은 경우 (1-2줄 수정) 에이전트 수를 줄여 효율을 높인다.
-- DA 피드백 루프(da-feedback)와 목적이 다르다: DA는 설계/코드 품질을 반복 개선하고, 전수조사는 변경의 안전성을 일회성으로 검증한다.
+- DA 피드백 루프(run-da)와 목적이 다르다: DA는 설계/코드 품질을 반복 개선하고, 전수조사는 변경의 안전성을 일회성으로 검증한다.

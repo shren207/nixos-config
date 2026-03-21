@@ -3,7 +3,7 @@ name: review-pr-feedback
 description: |
   Triage PR comments (CodeRabbit, AI, human) and apply valid feedback.
   Trigger: 'PR 코멘트', 'coderabbit', '코드리뷰 반영', '리뷰 피드백', 'PR 피드백 처리'.
-  NOT for DA (use da-feedback). NOT for PR 본문 (use pr-detailed).
+  NOT for DA (use run-da). NOT for PR 본문 (use create-pr).
 ---
 
 # PR 리뷰 피드백 처리

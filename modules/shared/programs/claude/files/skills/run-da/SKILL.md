@@ -1,9 +1,9 @@
 ---
-name: da-feedback
+name: run-da
 argument-hint: "[for_plan|for_pr|both]"
 description: |
   Run Devil's Advocate 8-agent parallel review. Args: for_plan, for_pr, both.
-  Trigger: 'DA', 'DA 피드백', '피드백 루프', 'YAGNI 리뷰', '코드 리뷰 루프'.
+  Trigger: 'DA', 'DA 피드백', '피드백 루프', 'YAGNI 리뷰', '코드 리뷰 루프', 'run-da'.
   NOT for PR 코멘트 (use review-pr-feedback). NOT for 전수조사 (use parallel-audit).
 ---
 
@@ -91,6 +91,21 @@ description: |
 - **탈출 조건**: 8개 DA 모두 CLEAR를 반환하면 루프를 종료한다.
 
 상세 프로토콜은 [references/protocol.md](references/protocol.md) 참조.
+
+## 검증 의무 (강화)
+
+### DA 에이전트 출력 요건
+- 모든 지적에는 반드시 구체적 파일:줄 또는 계획 항목 번호를 제시해야 한다.
+- 코드 스니펫을 직접 인용하여 문제를 증명해야 한다.
+- "~할 수도 있다", "~이 우려된다" 등 증거 없는 추상적 우려는 즉시 기각한다.
+
+### 메인 에이전트 검증 의무
+- DA 에이전트의 각 발견 사항을 수용하기 전에, 해당 파일:줄을 직접 Read 도구로 읽어 사실 여부를 확인한다.
+- 검증 없이 DA 결과를 그대로 수용하는 것을 금지한다.
+- 검증 결과를 DA_ROUND_LOG에 기록한다:
+  "확인됨: 파일:줄에서 실제로 [문제] 발견" 또는
+  "기각: 파일:줄 확인 결과 DA 지적이 사실과 다름"
+- 계획 모드에서도 Read/Grep/Glob/Explore는 사용 가능하므로, 검증 불이행의 변명이 될 수 없다.
 
 ## 주의사항
 
