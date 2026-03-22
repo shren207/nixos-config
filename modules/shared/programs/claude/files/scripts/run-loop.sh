@@ -98,7 +98,9 @@ cleanup() {
   fi
   rm -rf "$work_dir"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'cleanup; exit 130' INT
+trap 'cleanup; exit 143' TERM
 
 # --- Backup SKILL.md ---
 cp "$SKILL_PATH/SKILL.md" "$work_dir/original-skill.md"
@@ -395,13 +397,13 @@ exit_reason="${exit_reason:-max_iterations ($MAX_ITERATIONS)}"
 echo "=== Loop complete ===" >&2
 
 # --- Finalize ---
-FINALIZED=true
-
 if [[ "$APPLY" == "true" ]]; then
   replace_description "$SKILL_PATH/SKILL.md" "$work_dir/best_desc.txt"
+  FINALIZED=true
   echo "Applied best description to SKILL.md (iteration $best_iteration)" >&2
 else
   cp "$work_dir/original-skill.md" "$SKILL_PATH/SKILL.md"
+  FINALIZED=true
   echo "Restored original SKILL.md (use --apply to keep best)" >&2
 fi
 
