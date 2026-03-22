@@ -135,13 +135,9 @@ def generate_html(data: dict, auto_refresh: bool = False, skill_name: str = "") 
         return r.get("runs", r.get("total_runs", 0))
 
     def _aggregate(results):
-        correct = total = 0
-        for r in results:
-            runs = _get_runs(r)
-            triggers = _get_triggers(r)
-            total += runs
-            correct += triggers if r.get("should_trigger", True) else runs - triggers
-        return correct, total
+        """Score by threshold-based pass/fail, not raw trigger counts."""
+        passed = sum(1 for r in results if r.get("pass", False))
+        return passed, len(results)
 
     def _score_cls(c, t):
         if t > 0:

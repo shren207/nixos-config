@@ -377,13 +377,10 @@ for ((iteration = 1; iteration <= MAX_ITERATIONS; iteration++)); do
   # E. Replace SKILL.md description (in-place)
   replace_description "$SKILL_PATH/SKILL.md" "$work_dir/current_desc.txt"
 
-  # Update iter-N-train.json description to post-improve value
-  # (test eval runs with this improved description, so history should reflect it)
-  new_desc_content=$(cat "$work_dir/current_desc.txt")
-  printf '%s' "$(cat "$work_dir/iter-${iteration}-train.json")" | \
-    jq --arg desc "$new_desc_content" '.description = $desc' \
-    > "$work_dir/iter-${iteration}-train.json.tmp" && \
-    mv "$work_dir/iter-${iteration}-train.json.tmp" "$work_dir/iter-${iteration}-train.json"
+  # Save post-improve description separately for history
+  # NOTE: iter-N-train.json keeps pre-improve description (matches train results).
+  # iter-N-improved-desc.txt has the improved description (matches test results).
+  cp "$work_dir/current_desc.txt" "$work_dir/iter-${iteration}-improved-desc.txt"
 
   # F. Test eval
   test_passed=0
@@ -529,14 +526,16 @@ for i in range(1, iters + 1):
         except json.JSONDecodeError:
             pass  # test eval failed — empty/corrupt file
 
-    # NOTE: description is from pre-improve eval. In iterations where improve runs,
-    # train was evaluated with description X, then test with improved Y. The description
-    # here is X (pre-improve). This is a known limitation of separate train/test eval.
+    # description: pre-improve (matches train results)
+    # improved_description: post-improve (matches test results, if improve ran)
     desc = train_data.get('description', '')
+    improved_desc_f = Path(work) / f'iter-{i}-improved-desc.txt'
+    improved_desc = improved_desc_f.read_text().strip() if improved_desc_f.exists() else None
 
     entry = {
         'iteration': i,
-        'description': desc,
+        'description': improved_desc or desc,  # show improved if available
+        'train_description': desc,  # always the pre-improve (matches train results)
         'train_passed': train_summary.get('passed', 0),
         'train_failed': train_summary.get('failed', 0),
         'train_total': train_summary.get('total', 0),
