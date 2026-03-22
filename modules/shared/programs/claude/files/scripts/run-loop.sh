@@ -344,6 +344,11 @@ for ((iteration = 1; iteration <= MAX_ITERATIONS; iteration++)); do
       else
         log "  Warning: test eval failed, no holdout score available"
       fi
+      # Even if test eval failed, this iteration's train passed — set as best if none yet
+      if (( best_iteration == 0 )); then
+        best_iteration=$iteration
+        cp "$work_dir/current_desc.txt" "$work_dir/best_desc.txt"
+      fi
     else
       best_iteration=$iteration
       cp "$work_dir/current_desc.txt" "$work_dir/best_desc.txt"
