@@ -37,7 +37,7 @@ skill-creator 플러그인의 Python 스크립트를 직접 호출하지 마라.
 
 ## Superpowers 플러그인 라우팅
 
-Superpowers(obra/superpowers) v5.0.5가 설치되어 있다.
+Superpowers(obra/superpowers) 플러그인이 활성화되어 있다.
 충돌하는 스킬은 내 하네스가 우선하며, 아래 Superpowers 스킬은 사용하지 않는다.
 
 ### 비활성화 (내 스킬이 대체)
@@ -58,4 +58,4 @@ Superpowers(obra/superpowers) v5.0.5가 설치되어 있다.
 `using-superpowers`, `brainstorming`, `writing-plans`, `test-driven-development`,
 `systematic-debugging`, `verification-before-completion`, `using-git-worktrees`, `writing-skills`
 
-> Superpowers 플러그인 업데이트 시 이 테이블도 함께 검토한다.
+> Superpowers 플러그인 업데이트 시 이 테이블도 함께 검토한다 (최종 검토: v5.0.5 기준).
