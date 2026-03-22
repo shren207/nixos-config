@@ -497,6 +497,12 @@ if (( iterations_completed == 0 )); then
   exit 1
 fi
 
+# Guard: if holdout was requested but no valid test score obtained, warn
+if [[ -n "$test_file" && $best_test_passed -lt 0 ]]; then
+  log "Warning: no valid holdout score obtained — best_score based on train only"
+  best_test_passed=0
+fi
+
 log "=== Loop complete ==="
 
 # --- Finalize ---
