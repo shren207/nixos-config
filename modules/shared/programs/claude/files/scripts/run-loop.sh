@@ -353,12 +353,10 @@ for ((iteration = 1; iteration <= MAX_ITERATIONS; iteration++)); do
 
   # C-pre. Baseline test eval for current description (before improving)
   # Ensures the starting description has a test score to compare against.
-  # Saved to iter-0-test.json (not iter-N) to avoid overwrite by post-improve test.
   if [[ -n "$test_file" && $best_test_passed -lt 0 ]]; then
     log "  Baseline test eval..."
     baseline_test=$(run_eval "$test_file") || true
     if [[ -n "$baseline_test" ]]; then
-      printf '%s' "$baseline_test" > "$work_dir/iter-0-test.json"
       baseline_passed=$(printf '%s' "$baseline_test" | jq '.summary.passed // 0')
       baseline_total=$(printf '%s' "$baseline_test" | jq '.summary.total // 0')
       log "  Baseline test: $baseline_passed/$baseline_total passed"
@@ -510,7 +508,8 @@ fi
 
 # --- Build results JSON (with per-query results for report) ---
 results_json=$(WORK_DIR="$work_dir" EXIT_REASON="$exit_reason" \
-  BEST_ITER="$best_iteration" ITERS_COMPLETED="$iterations_completed" \
+  BEST_ITER="$best_iteration" BEST_TEST_PASSED="$best_test_passed" \
+  ITERS_COMPLETED="$iterations_completed" \
   ORIG_FILE="$work_dir/original_desc.txt" BEST_FILE="$work_dir/best_desc.txt" \
   HOLDOUT_VAL="$HOLDOUT" TRAIN_SZ="$train_size" TEST_SZ="$test_size" \
   python3 -c "
@@ -573,17 +572,21 @@ for i in range(1, iters + 1):
     }
     history.append(entry)
 
+# best_score uses shell-computed values (not reconstructed from files)
+# to avoid misattribution when baseline beats all candidates
+best_test_passed = int(os.environ['BEST_TEST_PASSED'])
 best_entry = next((h for h in history if h['iteration'] == best_iter), {})
 best_train = f\"{best_entry.get('train_passed', '?')}/{best_entry.get('train_total', '?')}\"
-best_test = f\"{best_entry.get('test_passed', '?')}/{best_entry.get('test_total', '?')}\"
+best_test_total = best_entry.get('test_total', test_sz) or test_sz
+best_test_str = f\"{best_test_passed}/{best_test_total}\" if test_sz > 0 else None
 
 output = {
     'exit_reason': os.environ['EXIT_REASON'],
     'original_description': orig,
     'best_description': best,
-    'best_score': best_test if test_sz > 0 else best_train,
+    'best_score': best_test_str if test_sz > 0 else best_train,
     'best_train_score': best_train,
-    'best_test_score': best_test if test_sz > 0 else None,
+    'best_test_score': best_test_str,
     'best_iteration': best_iter,
     'iterations_run': len(history),
     'holdout': float(os.environ['HOLDOUT_VAL']),

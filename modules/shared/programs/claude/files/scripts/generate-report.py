@@ -107,7 +107,7 @@ def generate_html(data: dict, auto_refresh: bool = False, skill_name: str = "") 
     <div class="table-container">
     <table>
         <thead><tr>
-            <th>Iter</th><th>Train</th><th>Test</th>
+            <th>Iter</th><th>Train</th>""" + ("""<th>Test</th>""" if test_queries else "") + """
             <th class="query-col">Description</th>
 """)
 
@@ -161,7 +161,8 @@ def generate_html(data: dict, auto_refresh: bool = False, skill_name: str = "") 
         html_parts.append(f'        <tr class="{row_cls}">\n')
         html_parts.append(f'            <td>{iteration}</td>\n')
         html_parts.append(f'            <td><span class="score {_score_cls(train_c, train_r)}">{train_c}/{train_r}</span></td>\n')
-        html_parts.append(f'            <td><span class="score {_score_cls(test_c, test_r)}">{test_c}/{test_r}</span></td>\n')
+        if test_queries:
+            html_parts.append(f'            <td><span class="score {_score_cls(test_c, test_r)}">{test_c}/{test_r}</span></td>\n')
         # Show improved_description only when test_results exist (matches test columns);
         # otherwise show pre-improve description (matches train columns)
         display_desc = h.get("description", "")
