@@ -437,7 +437,8 @@ history = []
 for i in range(1, iters + 1):
     tf = Path(work) / f'iter-{i}-train.json'
     xf = Path(work) / f'iter-{i}-test.json'
-    if not tf.exists(): continue
+    cf = Path(work) / f'iter-{i}-complete'
+    if not tf.exists() or not cf.exists(): continue
     td = json.loads(tf.read_text())
     ts = td.get('summary', {})
     xs, xr = {}, []
@@ -534,8 +535,8 @@ for i in range(1, iters + 1):
 
     entry = {
         'iteration': i,
-        'description': improved_desc or desc,  # show improved if available
-        'train_description': desc,  # always the pre-improve (matches train results)
+        'description': desc,  # pre-improve (matches train_results)
+        'improved_description': improved_desc,  # post-improve (matches test_results, if any)
         'train_passed': train_summary.get('passed', 0),
         'train_failed': train_summary.get('failed', 0),
         'train_total': train_summary.get('total', 0),
