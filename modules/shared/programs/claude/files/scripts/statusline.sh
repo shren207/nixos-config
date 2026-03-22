@@ -290,30 +290,21 @@ fi
 # stale state file은 [ -f "$PLAN_FILE" ]에 의해 아이콘 미표시,
 # 새 plan 생성 시 자연 덮어쓰기로 갱신됨
 if [ -n "$PLAN_FILE" ] && [ -f "$PLAN_FILE" ]; then
-  if $IS_SSH; then
-    print_icon "36" "" "\xf0\x9f\x93\x9d" "Plan"
-  else
-    print_icon "36" "file://${PLAN_FILE}" "\xf0\x9f\x93\x9d" "Plan"
-  fi
+  PLAN_URL="file://${PLAN_FILE}"; $IS_SSH && PLAN_URL=""
+  print_icon "36" "$PLAN_URL" "\xf0\x9f\x93\x9d" "Plan"
 fi
 
 # Memo: green — 📓 (SSH에서는 링크 없이 텍스트만 표시)
 if [ -n "$MEMO_PATH" ] && [ -f "$MEMO_PATH" ]; then
-  if $IS_SSH; then
-    print_icon "32" "" "\xf0\x9f\x93\x93" "${MEMO_LABEL:-Memo}"
-  else
-    print_icon "32" "file://${MEMO_PATH}" "\xf0\x9f\x93\x93" "${MEMO_LABEL:-Memo}"
-  fi
+  MEMO_URL="file://${MEMO_PATH}"; $IS_SSH && MEMO_URL=""
+  print_icon "32" "$MEMO_URL" "\xf0\x9f\x93\x93" "${MEMO_LABEL:-Memo}"
 fi
 
 # Memory: blue — 🧠 (SSH에서는 링크 없이 텍스트만 표시)
 # statusline에서 직접 감지 (Plan과 동일한 방식, 상태 파일 불필요)
 if [ -n "$MEMORY_LINK" ]; then
-  if $IS_SSH; then
-    print_icon "34" "" "\xf0\x9f\xa7\xa0" "$MEMORY_LABEL"
-  else
-    print_icon "34" "$MEMORY_LINK" "\xf0\x9f\xa7\xa0" "$MEMORY_LABEL"
-  fi
+  MEMORY_URL="$MEMORY_LINK"; $IS_SSH && MEMORY_URL=""
+  print_icon "34" "$MEMORY_URL" "\xf0\x9f\xa7\xa0" "$MEMORY_LABEL"
 fi
 
 # 아이콘이 하나라도 있으면 최종 개행
@@ -343,10 +334,10 @@ if [ -n "$RATE_5H" ] || [ -n "$RATE_7D" ]; then
   # 콘텐츠 너비 기반 임계값:
   #   detail 4 = bar(11) + "100% 5h → 99d23h (12/31 23:59)"(~30) × 2 + sep(3) ≈ 최대 85자 → 임계값 88
   #   detail 3 = bar(11) + "100% 5h → 99d23h"(~16) × 2 + sep(3) ≈ 최대 55자 → 임계값 58
-  #   detail 2 = bar(11) + "100% 5h"(~8) × 2 + sep(3) ≈ 최대 41자 → 임계값 42
+  #   detail 2 = bar(11) + "100% 5h"(7) × 2 + sep(3) = 최대 39자 → 임계값 40
   if   [ "$EFF_COLS" -ge 88 ]; then RATE_DETAIL=4
   elif [ "$EFF_COLS" -ge 58 ]; then RATE_DETAIL=3
-  elif [ "$EFF_COLS" -ge 42 ]; then RATE_DETAIL=2
+  elif [ "$EFF_COLS" -ge 40 ]; then RATE_DETAIL=2
   else RATE_DETAIL=1
   fi
 
