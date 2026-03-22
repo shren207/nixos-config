@@ -411,6 +411,49 @@ for ((iteration = 1; iteration <= MAX_ITERATIONS; iteration++)); do
   printf '%s' "$improve_output" | jq '.history' > "$work_dir/improve_history.json"
 
   iterations_completed=$iteration
+
+  # H. Update live report (if enabled)
+  if [[ -n "$report_path" && -f "$report_path" ]]; then
+    # Build partial results for in-progress report
+    partial_json=$(WORK_DIR="$work_dir" ITERS="$iteration" \
+      ORIG_FILE="$work_dir/original_desc.txt" BEST_FILE="$work_dir/best_desc.txt" \
+      python3 -c "
+import json, os
+from pathlib import Path
+work = os.environ['WORK_DIR']
+iters = int(os.environ['ITERS'])
+orig = open(os.environ['ORIG_FILE']).read().strip()
+best = open(os.environ['BEST_FILE']).read().strip()
+history = []
+for i in range(1, iters + 1):
+    tf = Path(work) / f'iter-{i}-train.json'
+    xf = Path(work) / f'iter-{i}-test.json'
+    if not tf.exists(): continue
+    td = json.loads(tf.read_text())
+    ts = td.get('summary', {})
+    xs, xr = {}, []
+    if xf.exists() and xf.stat().st_size > 0:
+        try:
+            xd = json.loads(xf.read_text())
+            xs, xr = xd.get('summary', {}), xd.get('results', [])
+        except: pass
+    history.append({
+        'iteration': i, 'description': td.get('description', ''),
+        'train_passed': ts.get('passed', 0), 'train_failed': ts.get('failed', 0),
+        'train_total': ts.get('total', 0), 'train_results': td.get('results', []),
+        'test_passed': xs.get('passed'), 'test_total': xs.get('total'),
+        'test_results': xr if xr else None,
+        'passed': ts.get('passed', 0), 'total': ts.get('total', 0), 'results': td.get('results', []),
+    })
+print(json.dumps({'original_description': orig, 'best_description': best,
+    'best_score': 'in progress', 'iterations_run': len(history), 'history': history}, ensure_ascii=False))
+" 2>/dev/null) || true
+    if [[ -n "$partial_json" ]]; then
+      printf '%s' "$partial_json" | python3 "$SCRIPT_DIR/generate-report.py" - \
+        -o "$report_path" --skill-name "$skill_name" 2>/dev/null || true
+    fi
+  fi
+
   log ""
 done
 
@@ -465,12 +508,17 @@ for i in range(1, iters + 1):
 
     test_results = []
     test_summary = {}
-    if test_f.exists():
-        test_data = json.loads(test_f.read_text())
-        test_results = test_data.get('results', [])
-        test_summary = test_data.get('summary', {})
+    if test_f.exists() and test_f.stat().st_size > 0:
+        try:
+            test_data = json.loads(test_f.read_text())
+            test_results = test_data.get('results', [])
+            test_summary = test_data.get('summary', {})
+        except json.JSONDecodeError:
+            pass  # test eval failed — empty/corrupt file
 
-    # Read description for this iteration (from best_desc if it matches, else from train inject)
+    # NOTE: description is from pre-improve eval. In iterations where improve runs,
+    # train was evaluated with description X, then test with improved Y. The description
+    # here is X (pre-improve). This is a known limitation of separate train/test eval.
     desc = train_data.get('description', '')
 
     entry = {
