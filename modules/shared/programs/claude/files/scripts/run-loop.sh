@@ -331,8 +331,10 @@ for ((iteration = 1; iteration <= MAX_ITERATIONS; iteration++)); do
       log "  Final test eval..."
       test_results=$(run_eval "$test_file") || true
       printf '%s' "$test_results" > "$work_dir/iter-${iteration}-test.json"
-      test_passed=$(printf '%s' "$test_results" | jq '.summary.passed // 0')
-      test_total=$(printf '%s' "$test_results" | jq '.summary.total // 0')
+      test_passed=$(printf '%s' "$test_results" | jq '.summary.passed // 0' 2>/dev/null)
+      test_total=$(printf '%s' "$test_results" | jq '.summary.total // 0' 2>/dev/null)
+      test_passed=${test_passed:-0}
+      test_total=${test_total:-0}
       log "  Test: $test_passed/$test_total passed"
 
       if (( test_passed > best_test_passed )); then
