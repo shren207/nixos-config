@@ -134,6 +134,10 @@ if desc_lines:
 }
 
 original_description=$(extract_description "$SKILL_PATH/SKILL.md")
+if [[ -z "$original_description" ]]; then
+  echo "Error: SKILL.md is missing a frontmatter description field: $SKILL_PATH/SKILL.md" >&2
+  exit 1
+fi
 current_description="$original_description"
 
 # Save original and initial best description to temp files
@@ -192,10 +196,12 @@ trigger = [q for q in queries if q['should_trigger']]
 no_trigger = [q for q in queries if not q['should_trigger']]
 random.shuffle(trigger)
 random.shuffle(no_trigger)
-n_t = max(1, int(len(trigger) * holdout)) if trigger else 0
-n_n = max(1, int(len(no_trigger) * holdout)) if no_trigger else 0
+n_t = min(max(1, int(len(trigger) * holdout)), max(0, len(trigger) - 1)) if trigger else 0
+n_n = min(max(1, int(len(no_trigger) * holdout)), max(0, len(no_trigger) - 1)) if no_trigger else 0
 test = trigger[:n_t] + no_trigger[:n_n]
 train = trigger[n_t:] + no_trigger[n_n:]
+if not train:
+    raise SystemExit('Error: holdout split produced no training queries; lower --holdout or use --holdout 0')
 json.dump(train, open(os.environ['TRAIN_FILE'], 'w'), ensure_ascii=False, indent=2)
 json.dump(test, open(os.environ['TEST_FILE'], 'w'), ensure_ascii=False, indent=2)
 print(f'Split: {len(train)} train, {len(test)} test (holdout={holdout})', end='')
@@ -393,6 +399,11 @@ done
 
 # Default exit_reason if loop ran to completion without setting it
 exit_reason="${exit_reason:-max_iterations ($MAX_ITERATIONS)}"
+
+if [[ "$history_json" == "[]" ]]; then
+  echo "Error: no iteration completed successfully" >&2
+  exit 1
+fi
 
 echo "=== Loop complete ===" >&2
 
