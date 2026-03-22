@@ -280,6 +280,7 @@ if [[ "$REPORT" != "none" ]]; then
   else
     report_path="$REPORT"
   fi
+  mkdir -p "$(dirname "$report_path")"
   echo "<html><body><h1>Starting optimization loop...</h1><meta http-equiv='refresh' content='5'></body></html>" > "$report_path"
   if [[ "$REPORT" == "auto" ]]; then
     if command -v open &>/dev/null; then open "$report_path"
@@ -344,6 +345,7 @@ for ((iteration = 1; iteration <= MAX_ITERATIONS; iteration++)); do
       cp "$work_dir/current_desc.txt" "$work_dir/best_desc.txt"
     fi
 
+    touch "$work_dir/iter-${iteration}-complete"
     iterations_completed=$iteration
     exit_reason="all_passed (iteration $iteration)"
     break
@@ -374,6 +376,14 @@ for ((iteration = 1; iteration <= MAX_ITERATIONS; iteration++)); do
 
   # E. Replace SKILL.md description (in-place)
   replace_description "$SKILL_PATH/SKILL.md" "$work_dir/current_desc.txt"
+
+  # Update iter-N-train.json description to post-improve value
+  # (test eval runs with this improved description, so history should reflect it)
+  new_desc_content=$(cat "$work_dir/current_desc.txt")
+  printf '%s' "$(cat "$work_dir/iter-${iteration}-train.json")" | \
+    jq --arg desc "$new_desc_content" '.description = $desc' \
+    > "$work_dir/iter-${iteration}-train.json.tmp" && \
+    mv "$work_dir/iter-${iteration}-train.json.tmp" "$work_dir/iter-${iteration}-train.json"
 
   # F. Test eval
   test_passed=0
@@ -410,6 +420,8 @@ for ((iteration = 1; iteration <= MAX_ITERATIONS; iteration++)); do
   # G. Update improve-description.sh history
   printf '%s' "$improve_output" | jq '.history' > "$work_dir/improve_history.json"
 
+  # Mark iteration as fully complete (partial iterations excluded from final assembly)
+  touch "$work_dir/iter-${iteration}-complete"
   iterations_completed=$iteration
 
   # H. Update live report (if enabled)
@@ -499,8 +511,9 @@ for i in range(1, iters + 1):
     train_f = Path(work) / f'iter-{i}-train.json'
     test_f = Path(work) / f'iter-{i}-test.json'
 
-    if not train_f.exists():
-        continue
+    complete_f = Path(work) / f'iter-{i}-complete'
+    if not train_f.exists() or not complete_f.exists():
+        continue  # skip partial iterations (improve/test failed mid-iteration)
 
     train_data = json.loads(train_f.read_text())
     train_results = train_data.get('results', [])
