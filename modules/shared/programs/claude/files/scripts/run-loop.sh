@@ -330,17 +330,19 @@ for ((iteration = 1; iteration <= MAX_ITERATIONS; iteration++)); do
     if [[ -n "$test_file" ]]; then
       log "  Final test eval..."
       test_results=$(run_eval "$test_file") || true
-      printf '%s' "$test_results" > "$work_dir/iter-${iteration}-test.json"
-      test_passed=$(printf '%s' "$test_results" | jq '.summary.passed // 0' 2>/dev/null)
-      test_total=$(printf '%s' "$test_results" | jq '.summary.total // 0' 2>/dev/null)
-      test_passed=${test_passed:-0}
-      test_total=${test_total:-0}
-      log "  Test: $test_passed/$test_total passed"
+      if [[ -n "$test_results" ]] && printf '%s' "$test_results" | jq -e '.summary' >/dev/null 2>&1; then
+        printf '%s' "$test_results" > "$work_dir/iter-${iteration}-test.json"
+        test_passed=$(printf '%s' "$test_results" | jq '.summary.passed')
+        test_total=$(printf '%s' "$test_results" | jq '.summary.total')
+        log "  Test: $test_passed/$test_total passed"
 
-      if (( test_passed > best_test_passed )); then
-        best_test_passed=$test_passed
-        best_iteration=$iteration
-        cp "$work_dir/current_desc.txt" "$work_dir/best_desc.txt"
+        if (( test_passed > best_test_passed )); then
+          best_test_passed=$test_passed
+          best_iteration=$iteration
+          cp "$work_dir/current_desc.txt" "$work_dir/best_desc.txt"
+        fi
+      else
+        log "  Warning: test eval failed, no holdout score available"
       fi
     else
       best_iteration=$iteration
