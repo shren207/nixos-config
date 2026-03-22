@@ -7,10 +7,13 @@
 # eliminating the ANTHROPIC_API_KEY requirement.
 #
 # Usage:
-#   run-loop.sh --skill-path <dir> --queries <json>
-#               [--max-iterations 5] [--reps 3] [--holdout 0.4] [--apply]
+#   run-loop.sh --eval-set <json> --skill-path <dir>
+#               [--max-iterations 5] [--runs-per-query 3] [--holdout 0.4]
+#               [--num-workers 4] [--timeout 30] [--trigger-threshold 0.5]
+#               [--description TEXT] [--apply] [--verbose]
+#               [--report auto|none|PATH] [--results-dir DIR]
 #
-# Output: JSON results to stdout + <skill-path>/evals/loop-results-<timestamp>.json
+# Output: JSON results to stdout
 #
 # WHY in-place SKILL.md modification:
 #   claude -p reads skill descriptions from .claude/skills/SKILL.md on disk.
@@ -25,25 +28,42 @@ SPLIT_SEED=42
 
 # --- Defaults ---
 SKILL_PATH=""
-QUERIES=""
+EVAL_SET=""
 MAX_ITERATIONS=5
-REPS=3
+RUNS_PER_QUERY=3
 HOLDOUT="0.4"
+NUM_WORKERS=4
+TIMEOUT=30
+TRIGGER_THRESHOLD="0.5"
+DESCRIPTION_OVERRIDE=""
 APPLY=false
+VERBOSE=false
+REPORT="auto"
+RESULTS_DIR=""
 FINALIZED=false
 
 # --- Locate sibling scripts ---
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# --- Logging ---
+log() { [[ "$VERBOSE" == "true" ]] && echo "$@" >&2 || true; }
+
 # --- Parse args ---
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --skill-path)      SKILL_PATH="$2";      shift 2 ;;
-    --queries)         QUERIES="$2";         shift 2 ;;
-    --max-iterations)  MAX_ITERATIONS="$2";  shift 2 ;;
-    --reps)            REPS="$2";            shift 2 ;;
-    --holdout)         HOLDOUT="$2";         shift 2 ;;
-    --apply)           APPLY=true;           shift ;;
+    --eval-set)           EVAL_SET="$2";           shift 2 ;;
+    --skill-path)         SKILL_PATH="$2";         shift 2 ;;
+    --max-iterations)     MAX_ITERATIONS="$2";     shift 2 ;;
+    --runs-per-query)     RUNS_PER_QUERY="$2";     shift 2 ;;
+    --holdout)            HOLDOUT="$2";            shift 2 ;;
+    --num-workers)        NUM_WORKERS="$2";        shift 2 ;;
+    --timeout)            TIMEOUT="$2";            shift 2 ;;
+    --trigger-threshold)  TRIGGER_THRESHOLD="$2";  shift 2 ;;
+    --description)        DESCRIPTION_OVERRIDE="$2"; shift 2 ;;
+    --apply)              APPLY=true;              shift ;;
+    --verbose)            VERBOSE=true;            shift ;;
+    --report)             REPORT="$2";             shift 2 ;;
+    --results-dir)        RESULTS_DIR="$2";        shift 2 ;;
     -h|--help)
       sed -n '2,/^$/p' "$0" | sed 's/^# \?//'
       exit 0
@@ -58,8 +78,8 @@ if [[ -z "$SKILL_PATH" ]]; then
   exit 1
 fi
 
-if [[ -z "$QUERIES" ]]; then
-  echo "Error: --queries <json> is required" >&2
+if [[ -z "$EVAL_SET" ]]; then
+  echo "Error: --eval-set <json> is required" >&2
   exit 1
 fi
 
@@ -68,8 +88,8 @@ if [[ ! -f "$SKILL_PATH/SKILL.md" ]]; then
   exit 1
 fi
 
-if [[ ! -f "$QUERIES" ]]; then
-  echo "Error: queries file not found: $QUERIES" >&2
+if [[ ! -f "$EVAL_SET" ]]; then
+  echo "Error: eval set file not found: $EVAL_SET" >&2
   exit 1
 fi
 
@@ -85,10 +105,11 @@ print(m.group(1).strip().strip('\"').strip(\"'\") if m else 'unknown')
 # Temp file lifecycle:
 # train.json, test.json: created once before loop
 # eval-results.json: overwritten each iteration
-# history.json: appended each iteration
+# iter-N-train.json, iter-N-test.json: per-iteration full eval results
 # best_desc.txt: overwritten when best is updated
 # current_desc.txt: overwritten each iteration
 # original-skill.md: created once, used for restoration
+# improve_history.json: accumulated improve-description.sh history
 work_dir=$(mktemp -d)
 cleanup() {
   [[ -d "$work_dir" ]] || return 0
@@ -138,12 +159,54 @@ if [[ -z "$original_description" ]]; then
   echo "Error: SKILL.md is missing a frontmatter description field: $SKILL_PATH/SKILL.md" >&2
   exit 1
 fi
-current_description="$original_description"
 
-# Save original and initial best description to temp files
+# Use --description override if provided
+if [[ -n "$DESCRIPTION_OVERRIDE" ]]; then
+  current_description="$DESCRIPTION_OVERRIDE"
+else
+  current_description="$original_description"
+fi
+
+# Save descriptions to temp files
 printf '%s' "$original_description" > "$work_dir/original_desc.txt"
-printf '%s' "$original_description" > "$work_dir/best_desc.txt"
-printf '%s' "$original_description" > "$work_dir/current_desc.txt"
+printf '%s' "$current_description" > "$work_dir/best_desc.txt"
+printf '%s' "$current_description" > "$work_dir/current_desc.txt"
+
+# If starting with an override, apply it to SKILL.md immediately
+if [[ -n "$DESCRIPTION_OVERRIDE" ]]; then
+  replace_description_fn() {
+    local skill_md="$1"
+    local new_desc_file="$2"
+    SKILL_MD="$skill_md" DESC_FILE="$new_desc_file" python3 -c "
+import os
+skill_md = os.environ['SKILL_MD']
+new_desc = open(os.environ['DESC_FILE']).read().strip()
+lines = open(skill_md).readlines()
+result, in_front, in_desc = [], False, False
+for line in lines:
+    stripped = line.strip()
+    if stripped == '---':
+        if in_desc: in_desc = False
+        in_front = not in_front
+        result.append(line)
+        continue
+    if in_front and line.startswith('description:'):
+        result.append('description: |\n')
+        for dl in new_desc.split('\n'):
+            result.append(f'  {dl}\n')
+        in_desc = True
+        continue
+    if in_front and in_desc:
+        if line[0:1] not in (' ', '\t', ''):
+            in_desc = False
+            result.append(line)
+        continue
+    result.append(line)
+open(skill_md, 'w').writelines(result)
+"
+  }
+  replace_description_fn "$SKILL_PATH/SKILL.md" "$work_dir/current_desc.txt"
+fi
 
 # --- Replace SKILL.md description ---
 # WHY in-place: claude -p reads .claude/skills/SKILL.md directly.
@@ -181,11 +244,24 @@ open(skill_md, 'w').writelines(result)
 "
 }
 
+# --- trigger-eval.sh wrapper ---
+run_eval() {
+  local queries_file="$1"
+  "$SCRIPT_DIR/trigger-eval.sh" \
+    --queries "$queries_file" \
+    --skill "$skill_name" \
+    --reps "$RUNS_PER_QUERY" \
+    --workers "$NUM_WORKERS" \
+    --timeout "$TIMEOUT" \
+    --threshold "$TRIGGER_THRESHOLD" \
+    2>/dev/null
+}
+
 # --- Stratified split ---
 # WHY python3: jq lacks random seed support for deterministic shuffle.
 # Matches run_loop.py's seed=42 stratified split exactly. (DA NGMI #3)
 if [[ "$HOLDOUT" != "0" ]]; then
-  QUERIES_FILE="$QUERIES" HOLDOUT_VAL="$HOLDOUT" SEED="$SPLIT_SEED" \
+  QUERIES_FILE="$EVAL_SET" HOLDOUT_VAL="$HOLDOUT" SEED="$SPLIT_SEED" \
     TRAIN_FILE="$work_dir/train.json" TEST_FILE="$work_dir/test.json" \
     python3 -c "
 import json, random, os
@@ -210,10 +286,9 @@ print(f'Split: {len(train)} train, {len(test)} test (holdout={holdout})', end=''
   train_file="$work_dir/train.json"
   test_file="$work_dir/test.json"
 else
-  # No split: use all queries for training, skip test
-  train_file="$QUERIES"
+  train_file="$EVAL_SET"
   test_file=""
-  echo "No holdout: using all queries for training" >&2
+  log "No holdout: using all queries for training"
 fi
 
 train_size=$(jq length "$train_file")
@@ -222,30 +297,47 @@ if [[ -n "$test_file" ]]; then
   test_size=$(jq length "$test_file")
 fi
 
-echo "Optimization loop: $skill_name ($MAX_ITERATIONS max iterations, reps=$REPS)" >&2
-echo "" >&2
+log "Optimization loop: $skill_name ($MAX_ITERATIONS max iterations, runs-per-query=$RUNS_PER_QUERY)"
+log ""
+
+# --- Setup report (live) ---
+report_path=""
+if [[ "$REPORT" != "none" ]]; then
+  if [[ "$REPORT" == "auto" ]]; then
+    timestamp_r=$(date +%Y%m%d_%H%M%S)
+    report_path="$(mktemp -d)/skill_report_${skill_name}_${timestamp_r}.html"
+  else
+    report_path="$REPORT"
+  fi
+  echo "<html><body><h1>Starting optimization loop...</h1><meta http-equiv='refresh' content='5'></body></html>" > "$report_path"
+  if [[ "$REPORT" == "auto" ]]; then
+    open "$report_path" 2>/dev/null || true
+  fi
+fi
 
 # --- Initialize tracking ---
 best_test_passed=-1
 best_iteration=0
-history_json="[]"
+iterations_completed=0
 
 # --- Main loop ---
 for ((iteration = 1; iteration <= MAX_ITERATIONS; iteration++)); do
-  echo "=== Iteration $iteration/$MAX_ITERATIONS ===" >&2
+  log "=== Iteration $iteration/$MAX_ITERATIONS ==="
 
   # A. Train eval
-  echo "  Training eval..." >&2
-  train_results=$("$SCRIPT_DIR/trigger-eval.sh" \
-    --queries "$train_file" --skill "$skill_name" --reps "$REPS" 2>/dev/null) || {
-    echo "  Error: trigger-eval.sh failed for train set" >&2
+  log "  Training eval..."
+  train_results=$(run_eval "$train_file") || {
+    log "  Error: trigger-eval.sh failed for train set"
     continue
   }
+
+  # Save full per-query train results for report
+  printf '%s' "$train_results" > "$work_dir/iter-${iteration}-train.json"
 
   train_passed=$(printf '%s' "$train_results" | jq '.summary.passed')
   train_total=$(printf '%s' "$train_results" | jq '.summary.total')
   train_failed=$(printf '%s' "$train_results" | jq '.summary.failed')
-  echo "  Train: $train_passed/$train_total passed" >&2
+  log "  Train: $train_passed/$train_total passed"
 
   # Inject current description into eval results for improve-description.sh
   current_description=$(cat "$work_dir/current_desc.txt")
@@ -255,16 +347,18 @@ for ((iteration = 1; iteration <= MAX_ITERATIONS; iteration++)); do
 
   # B. Early exit if all train pass
   if [[ "$train_failed" == "0" ]]; then
-    echo "  All train queries passed! Early exit." >&2
+    log "  All train queries passed! Early exit."
 
     # Still run test eval for the final score
+    test_passed=0
+    test_total=0
     if [[ -n "$test_file" ]]; then
-      echo "  Final test eval..." >&2
-      test_results=$("$SCRIPT_DIR/trigger-eval.sh" \
-        --queries "$test_file" --skill "$skill_name" --reps "$REPS" 2>/dev/null) || true
+      log "  Final test eval..."
+      test_results=$(run_eval "$test_file") || true
+      printf '%s' "$test_results" > "$work_dir/iter-${iteration}-test.json"
       test_passed=$(printf '%s' "$test_results" | jq '.summary.passed // 0')
       test_total=$(printf '%s' "$test_results" | jq '.summary.total // 0')
-      echo "  Test: $test_passed/$test_total passed" >&2
+      log "  Test: $test_passed/$test_total passed"
 
       if (( test_passed > best_test_passed )); then
         best_test_passed=$test_passed
@@ -276,40 +370,14 @@ for ((iteration = 1; iteration <= MAX_ITERATIONS; iteration++)); do
       cp "$work_dir/current_desc.txt" "$work_dir/best_desc.txt"
     fi
 
-    # Record in history
-    history_json=$(printf '%s' "$history_json" | \
-      ITER="$iteration" DESC_FILE="$work_dir/current_desc.txt" \
-      TRAIN_P="$train_passed" TRAIN_F="$train_failed" TRAIN_T="$train_total" \
-      TEST_P="${test_passed:-}" TEST_T="${test_total:-}" \
-      python3 -c "
-import json, os, sys
-h = json.loads(sys.stdin.read())
-desc = open(os.environ['DESC_FILE']).read().strip()
-entry = {
-    'iteration': int(os.environ['ITER']),
-    'description': desc,
-    'train_passed': int(os.environ['TRAIN_P']),
-    'train_failed': int(os.environ['TRAIN_F']),
-    'train_total': int(os.environ['TRAIN_T']),
-}
-tp = os.environ.get('TEST_P', '')
-tt = os.environ.get('TEST_T', '')
-if tp and tt:
-    entry['test_passed'] = int(tp)
-    entry['test_total'] = int(tt)
-h.append(entry)
-print(json.dumps(h, ensure_ascii=False))
-")
-
+    iterations_completed=$iteration
     exit_reason="all_passed (iteration $iteration)"
     break
   fi
 
   # C. Improve description
-  echo "  Improving description..." >&2
+  log "  Improving description..."
 
-  # improve-description.sh에 전달할 history는 자체 출력에서 누적됨
-  # (history.json은 line 388에서 improve_output.history로 관리)
   improve_args=(
     --skill-path "$SKILL_PATH"
     --eval-results "$work_dir/eval-results.json"
@@ -319,16 +387,15 @@ print(json.dumps(h, ensure_ascii=False))
   fi
 
   improve_output=$("$SCRIPT_DIR/improve-description.sh" "${improve_args[@]}" 2>/dev/null) || {
-    echo "  Error: improve-description.sh failed" >&2
+    log "  Error: improve-description.sh failed"
     continue
   }
 
-  # D. Extract new description → temp file
+  # D. Extract new description
   printf '%s' "$improve_output" | jq -r '.description' > "$work_dir/new_desc.txt"
   new_desc_len=$(wc -c < "$work_dir/new_desc.txt" | tr -d ' ')
-  echo "  New description: ${new_desc_len} chars" >&2
+  log "  New description: ${new_desc_len} chars"
 
-  # Update current description
   cp "$work_dir/new_desc.txt" "$work_dir/current_desc.txt"
 
   # E. Replace SKILL.md description (in-place)
@@ -338,29 +405,27 @@ print(json.dumps(h, ensure_ascii=False))
   test_passed=0
   test_total=0
   if [[ -n "$test_file" ]]; then
-    echo "  Test eval..." >&2
-    test_results=$("$SCRIPT_DIR/trigger-eval.sh" \
-      --queries "$test_file" --skill "$skill_name" --reps "$REPS" 2>/dev/null) || {
-      echo "  Error: trigger-eval.sh failed for test set" >&2
+    log "  Test eval..."
+    test_results=$(run_eval "$test_file") || {
+      log "  Error: trigger-eval.sh failed for test set"
       continue
     }
 
+    printf '%s' "$test_results" > "$work_dir/iter-${iteration}-test.json"
     test_passed=$(printf '%s' "$test_results" | jq '.summary.passed')
     test_total=$(printf '%s' "$test_results" | jq '.summary.total')
-    echo "  Test: $test_passed/$test_total passed" >&2
+    log "  Test: $test_passed/$test_total passed"
 
-    # G. Track best by TEST score
     # WHY test-first: train score would select descriptions overfit to training
     # queries. Test set is unseen by the improvement model, serving as a
-    # generalization proxy. (DA READABILITY #4)
+    # generalization proxy.
     if (( test_passed > best_test_passed )); then
       best_test_passed=$test_passed
       best_iteration=$iteration
       cp "$work_dir/current_desc.txt" "$work_dir/best_desc.txt"
-      echo "  New best! (test=$test_passed/$test_total)" >&2
+      log "  New best! (test=$test_passed/$test_total)"
     fi
   else
-    # No test set: track by train score
     if (( train_passed > best_test_passed )); then
       best_test_passed=$train_passed
       best_iteration=$iteration
@@ -368,68 +433,92 @@ print(json.dumps(h, ensure_ascii=False))
     fi
   fi
 
-  # H. Record in history
-  history_json=$(printf '%s' "$history_json" | \
-    ITER="$iteration" DESC_FILE="$work_dir/current_desc.txt" \
-    TRAIN_P="$train_passed" TRAIN_F="$train_failed" TRAIN_T="$train_total" \
-    TEST_P="$test_passed" TEST_T="$test_total" \
-    python3 -c "
-import json, os, sys
-h = json.loads(sys.stdin.read())
-desc = open(os.environ['DESC_FILE']).read().strip()
-entry = {
-    'iteration': int(os.environ['ITER']),
-    'description': desc,
-    'train_passed': int(os.environ['TRAIN_P']),
-    'train_failed': int(os.environ['TRAIN_F']),
-    'train_total': int(os.environ['TRAIN_T']),
-    'test_passed': int(os.environ['TEST_P']),
-    'test_total': int(os.environ['TEST_T']),
-}
-h.append(entry)
-print(json.dumps(h, ensure_ascii=False))
-")
-
-  # Update improve-description.sh history from its output
-  # (accumulates past descriptions with scores for the next iteration)
+  # G. Update improve-description.sh history
   printf '%s' "$improve_output" | jq '.history' > "$work_dir/improve_history.json"
 
-  echo "" >&2
+  iterations_completed=$iteration
+  log ""
 done
 
-# Default exit_reason if loop ran to completion without setting it
+# Default exit_reason
 exit_reason="${exit_reason:-max_iterations ($MAX_ITERATIONS)}"
 
-if [[ "$history_json" == "[]" ]]; then
+if (( iterations_completed == 0 )); then
   echo "Error: no iteration completed successfully" >&2
   exit 1
 fi
 
-echo "=== Loop complete ===" >&2
+log "=== Loop complete ==="
 
 # --- Finalize ---
 if [[ "$APPLY" == "true" ]]; then
   replace_description "$SKILL_PATH/SKILL.md" "$work_dir/best_desc.txt"
   FINALIZED=true
-  echo "Applied best description to SKILL.md (iteration $best_iteration)" >&2
+  log "Applied best description to SKILL.md (iteration $best_iteration)"
 else
   cp "$work_dir/original-skill.md" "$SKILL_PATH/SKILL.md"
   FINALIZED=true
-  echo "Restored original SKILL.md (use --apply to keep best)" >&2
+  log "Restored original SKILL.md (use --apply to keep best)"
 fi
 
-# --- Build results JSON ---
-results_json=$(EXIT_REASON="$exit_reason" BEST_ITER="$best_iteration" \
+# --- Build results JSON (with per-query results for report) ---
+results_json=$(WORK_DIR="$work_dir" EXIT_REASON="$exit_reason" \
+  BEST_ITER="$best_iteration" ITERS_COMPLETED="$iterations_completed" \
   ORIG_FILE="$work_dir/original_desc.txt" BEST_FILE="$work_dir/best_desc.txt" \
   HOLDOUT_VAL="$HOLDOUT" TRAIN_SZ="$train_size" TEST_SZ="$test_size" \
   python3 -c "
 import json, os, sys
-history = json.loads(sys.stdin.read())
+from pathlib import Path
+
+work = os.environ['WORK_DIR']
 orig = open(os.environ['ORIG_FILE']).read().strip()
 best = open(os.environ['BEST_FILE']).read().strip()
 best_iter = int(os.environ['BEST_ITER'])
+iters = int(os.environ['ITERS_COMPLETED'])
+test_sz = int(os.environ['TEST_SZ'])
 
-# Find best iteration's scores
+history = []
+for i in range(1, iters + 1):
+    train_f = Path(work) / f'iter-{i}-train.json'
+    test_f = Path(work) / f'iter-{i}-test.json'
+    desc_f = Path(work) / f'current_desc.txt'  # latest, not per-iter
+
+    if not train_f.exists():
+        continue
+
+    train_data = json.loads(train_f.read_text())
+    train_results = train_data.get('results', [])
+    train_summary = train_data.get('summary', {})
+
+    test_results = []
+    test_summary = {}
+    if test_f.exists():
+        test_data = json.loads(test_f.read_text())
+        test_results = test_data.get('results', [])
+        test_summary = test_data.get('summary', {})
+
+    # Read description for this iteration (from best_desc if it matches, else from train inject)
+    desc = train_data.get('description', '')
+
+    entry = {
+        'iteration': i,
+        'description': desc,
+        'train_passed': train_summary.get('passed', 0),
+        'train_failed': train_summary.get('failed', 0),
+        'train_total': train_summary.get('total', 0),
+        'train_results': train_results,
+        'test_passed': test_summary.get('passed'),
+        'test_failed': test_summary.get('failed'),
+        'test_total': test_summary.get('total'),
+        'test_results': test_results if test_results else None,
+        # backward compat
+        'passed': train_summary.get('passed', 0),
+        'failed': train_summary.get('failed', 0),
+        'total': train_summary.get('total', 0),
+        'results': train_results,
+    }
+    history.append(entry)
+
 best_entry = next((h for h in history if h['iteration'] == best_iter), {})
 best_train = f\"{best_entry.get('train_passed', '?')}/{best_entry.get('train_total', '?')}\"
 best_test = f\"{best_entry.get('test_passed', '?')}/{best_entry.get('test_total', '?')}\"
@@ -438,29 +527,51 @@ output = {
     'exit_reason': os.environ['EXIT_REASON'],
     'original_description': orig,
     'best_description': best,
-    'best_score': best_test if int(os.environ['TEST_SZ']) > 0 else best_train,
+    'best_score': best_test if test_sz > 0 else best_train,
     'best_train_score': best_train,
-    'best_test_score': best_test if int(os.environ['TEST_SZ']) > 0 else None,
+    'best_test_score': best_test if test_sz > 0 else None,
     'best_iteration': best_iter,
     'iterations_run': len(history),
     'holdout': float(os.environ['HOLDOUT_VAL']),
     'train_size': int(os.environ['TRAIN_SZ']),
-    'test_size': int(os.environ['TEST_SZ']),
+    'test_size': test_sz,
     'history': history,
 }
 print(json.dumps(output, indent=2, ensure_ascii=False))
-" <<< "$history_json")
+")
 
 # Output to stdout
 printf '%s\n' "$results_json"
 
-# Save to evals directory
-timestamp=$(date +%Y%m%d-%H%M%S)
-results_file="$SKILL_PATH/evals/loop-results-${timestamp}.json"
-mkdir -p "$SKILL_PATH/evals"
-printf '%s\n' "$results_json" > "$results_file"
-echo "Results saved to: $results_file" >&2
+# --- Save results ---
+if [[ -n "$RESULTS_DIR" ]]; then
+  timestamp=$(date +%Y-%m-%d_%H%M%S)
+  out_dir="$RESULTS_DIR/$timestamp"
+  mkdir -p "$out_dir"
+  printf '%s\n' "$results_json" > "$out_dir/results.json"
+  log "Results saved to: $out_dir/results.json"
 
-echo "" >&2
-echo "Exit reason: $exit_reason" >&2
-echo "Best: iteration $best_iteration" >&2
+  # Generate report in results-dir
+  if [[ -n "$report_path" ]]; then
+    printf '%s' "$results_json" | python3 "$SCRIPT_DIR/generate-report.py" - \
+      -o "$out_dir/report.html" --skill-name "$skill_name" 2>/dev/null || true
+  fi
+else
+  # Default: save to evals directory
+  timestamp=$(date +%Y%m%d-%H%M%S)
+  results_file="$SKILL_PATH/evals/loop-results-${timestamp}.json"
+  mkdir -p "$SKILL_PATH/evals"
+  printf '%s\n' "$results_json" > "$results_file"
+  log "Results saved to: $results_file"
+fi
+
+# --- Generate final report ---
+if [[ -n "$report_path" ]]; then
+  printf '%s' "$results_json" | python3 "$SCRIPT_DIR/generate-report.py" - \
+    -o "$report_path" --skill-name "$skill_name" 2>/dev/null || true
+  log "Report: $report_path"
+fi
+
+log ""
+log "Exit reason: $exit_reason"
+log "Best: iteration $best_iteration"
