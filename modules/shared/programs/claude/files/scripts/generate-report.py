@@ -152,8 +152,8 @@ def generate_html(data: dict, auto_refresh: bool = False, skill_name: str = "") 
 
     for h in history:
         iteration = h.get("iteration", "?")
-        train_results = h.get("train_results", h.get("results", []))
-        test_results = h.get("test_results", [])
+        train_results = h.get("train_results", h.get("results", [])) or []
+        test_results = h.get("test_results", []) or []
 
         train_by_q = {r["query"]: r for r in train_results}
         test_by_q = {r["query"]: r for r in test_results} if test_results else {}
@@ -197,6 +197,7 @@ def main():
     parser.add_argument("input", help="Path to JSON output (or - for stdin)")
     parser.add_argument("-o", "--output", default=None, help="Output HTML file (default: stdout)")
     parser.add_argument("--skill-name", default="", help="Skill name for report title")
+    parser.add_argument("--live", action="store_true", help="Add auto-refresh meta tag for live updates")
     args = parser.parse_args()
 
     if args.input == "-":
@@ -204,7 +205,7 @@ def main():
     else:
         data = json.loads(Path(args.input).read_text())
 
-    html_output = generate_html(data, skill_name=args.skill_name)
+    html_output = generate_html(data, auto_refresh=args.live, skill_name=args.skill_name)
 
     if args.output:
         Path(args.output).write_text(html_output)

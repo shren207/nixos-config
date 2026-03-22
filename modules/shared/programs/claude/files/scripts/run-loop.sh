@@ -450,7 +450,7 @@ print(json.dumps({'original_description': orig, 'best_description': best,
 " 2>/dev/null) || true
     if [[ -n "$partial_json" ]]; then
       printf '%s' "$partial_json" | python3 "$SCRIPT_DIR/generate-report.py" - \
-        -o "$report_path" --skill-name "$skill_name" 2>/dev/null || true
+        -o "$report_path" --skill-name "$skill_name" --live 2>/dev/null || true
     fi
   fi
 
