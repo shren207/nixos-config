@@ -351,6 +351,22 @@ for ((iteration = 1; iteration <= MAX_ITERATIONS; iteration++)); do
     break
   fi
 
+  # C-pre. Baseline test eval for current description (before improving)
+  # Ensures the starting description has a test score to compare against
+  if [[ -n "$test_file" && $best_test_passed -lt 0 ]]; then
+    log "  Baseline test eval..."
+    baseline_test=$(run_eval "$test_file") || true
+    if [[ -n "$baseline_test" ]]; then
+      printf '%s' "$baseline_test" > "$work_dir/iter-${iteration}-test.json"
+      baseline_passed=$(printf '%s' "$baseline_test" | jq '.summary.passed // 0')
+      baseline_total=$(printf '%s' "$baseline_test" | jq '.summary.total // 0')
+      log "  Baseline test: $baseline_passed/$baseline_total passed"
+      best_test_passed=$baseline_passed
+      best_iteration=$iteration
+      cp "$work_dir/current_desc.txt" "$work_dir/best_desc.txt"
+    fi
+  fi
+
   # C. Improve description
   log "  Improving description..."
 
