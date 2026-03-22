@@ -10,6 +10,25 @@
 #     inshellisense는 독립 overlay UI로 레이어가 다름.
 #     trade-off: 두 자동완성 시스템 병행 관리 비용 발생하나,
 #               역할이 다르고 추후 fzf-tab 제거 가능.
+#
+#     [왜 nixpkgs가 아닌 Homebrew tap인가]
+#     nixpkgs의 inshellisense는 0.0.1-rc.21 (2025-05 패키징). 0.0.1 stable은
+#     2026-03-22 릴리즈되어 아직 nixpkgs bump PR이 없음. maintainer(malob)는
+#     활동 중이나 업데이트 시점은 미정.
+#     검토한 대안 3가지:
+#       A) nixpkgs rc.21 그대로 사용 — tmux 수정 미포함. 사용자가 tmux 비주력이라
+#          큰 문제는 아니지만, rc.21→0.0.1 사이 버그 수정 10건+ 누락.
+#       B) overlay로 0.0.1 소스 빌드 — buildNpmPackage 기반이라 가능하나,
+#          Hydra 바이너리 캐시 미스로 소스 빌드 필요 + src/npmDepsHash 관리 부담 +
+#          overlay가 NixOS(MiniPC)에도 불필요하게 영향. libraries/nixpkgs/default.nix의
+#          anki overlay CIR(PR #175→#183)에서 동일 문제로 제거한 전례 있음.
+#       C) Homebrew tap (채택) — microsoft/inshellisense 공식 리포에 Formula 포함.
+#          `brew tap microsoft/inshellisense`로 0.0.1 즉시 설치 가능.
+#          nix-darwin homebrew 모듈로 선언적 관리 유지. macOS 전용이므로 NixOS 무영향.
+#          Homebrew가 Node.js 의존성도 자동 관리.
+#     trade-off: Nix 순수성(nixpkgs 단일 소스)을 포기하나, 이미 macism/sox/ghostty 등
+#     Homebrew로 관리하는 패키지가 있어 혼합 전략은 기존 패턴과 일관됨.
+#     nixpkgs가 0.0.1+로 업데이트되면 Homebrew→nixpkgs 전환 검토.
 {
   config,
   pkgs,
