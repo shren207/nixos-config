@@ -304,19 +304,20 @@ for ((iteration = 1; iteration <= MAX_ITERATIONS; iteration++)); do
     continue
   }
 
-  # Save full per-query train results for report
-  printf '%s' "$train_results" > "$work_dir/iter-${iteration}-train.json"
-
   train_passed=$(printf '%s' "$train_results" | jq '.summary.passed')
   train_total=$(printf '%s' "$train_results" | jq '.summary.total')
   train_failed=$(printf '%s' "$train_results" | jq '.summary.failed')
   log "  Train: $train_passed/$train_total passed"
 
   # Inject current description into eval results for improve-description.sh
+  # Also serves as the per-iteration record for report history
   current_description=$(cat "$work_dir/current_desc.txt")
   printf '%s' "$train_results" | \
     jq --arg desc "$current_description" '. + {description: $desc}' \
     > "$work_dir/eval-results.json"
+
+  # Save description-enriched results for report history
+  cp "$work_dir/eval-results.json" "$work_dir/iter-${iteration}-train.json"
 
   # B. Early exit if all train pass
   if [[ "$train_failed" == "0" ]]; then
