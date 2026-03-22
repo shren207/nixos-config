@@ -447,8 +447,11 @@ for i in range(1, iters + 1):
             xd = json.loads(xf.read_text())
             xs, xr = xd.get('summary', {}), xd.get('results', [])
         except: pass
+    imp_f = Path(work) / f'iter-{i}-improved-desc.txt'
+    imp_desc = imp_f.read_text().strip() if imp_f.exists() else None
     history.append({
         'iteration': i, 'description': td.get('description', ''),
+        'improved_description': imp_desc,
         'train_passed': ts.get('passed', 0), 'train_failed': ts.get('failed', 0),
         'train_total': ts.get('total', 0), 'train_results': td.get('results', []),
         'test_passed': xs.get('passed'), 'test_total': xs.get('total'),

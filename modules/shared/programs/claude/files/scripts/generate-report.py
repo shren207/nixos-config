@@ -162,9 +162,11 @@ def generate_html(data: dict, auto_refresh: bool = False, skill_name: str = "") 
         html_parts.append(f'            <td>{iteration}</td>\n')
         html_parts.append(f'            <td><span class="score {_score_cls(train_c, train_r)}">{train_c}/{train_r}</span></td>\n')
         html_parts.append(f'            <td><span class="score {_score_cls(test_c, test_r)}">{test_c}/{test_r}</span></td>\n')
-        # Show improved_description if available (matches test results);
-        # fall back to description (matches train results)
-        display_desc = h.get("improved_description") or h.get("description", "")
+        # Show improved_description only when test_results exist (matches test columns);
+        # otherwise show pre-improve description (matches train columns)
+        display_desc = h.get("description", "")
+        if h.get("test_results") and h.get("improved_description"):
+            display_desc = h["improved_description"]
         html_parts.append(f'            <td class="description">{html.escape(display_desc)}</td>\n')
 
         for qinfo in train_queries:
