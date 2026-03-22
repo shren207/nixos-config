@@ -38,7 +38,7 @@ TRIGGER_THRESHOLD="0.5"
 DESCRIPTION_OVERRIDE=""
 APPLY=false
 VERBOSE=false
-REPORT="auto"
+REPORT="none"
 RESULTS_DIR=""
 FINALIZED=false
 
@@ -172,42 +172,6 @@ printf '%s' "$original_description" > "$work_dir/original_desc.txt"
 printf '%s' "$current_description" > "$work_dir/best_desc.txt"
 printf '%s' "$current_description" > "$work_dir/current_desc.txt"
 
-# If starting with an override, apply it to SKILL.md immediately
-if [[ -n "$DESCRIPTION_OVERRIDE" ]]; then
-  replace_description_fn() {
-    local skill_md="$1"
-    local new_desc_file="$2"
-    SKILL_MD="$skill_md" DESC_FILE="$new_desc_file" python3 -c "
-import os
-skill_md = os.environ['SKILL_MD']
-new_desc = open(os.environ['DESC_FILE']).read().strip()
-lines = open(skill_md).readlines()
-result, in_front, in_desc = [], False, False
-for line in lines:
-    stripped = line.strip()
-    if stripped == '---':
-        if in_desc: in_desc = False
-        in_front = not in_front
-        result.append(line)
-        continue
-    if in_front and line.startswith('description:'):
-        result.append('description: |\n')
-        for dl in new_desc.split('\n'):
-            result.append(f'  {dl}\n')
-        in_desc = True
-        continue
-    if in_front and in_desc:
-        if line[0:1] not in (' ', '\t', ''):
-            in_desc = False
-            result.append(line)
-        continue
-    result.append(line)
-open(skill_md, 'w').writelines(result)
-"
-  }
-  replace_description_fn "$SKILL_PATH/SKILL.md" "$work_dir/current_desc.txt"
-fi
-
 # --- Replace SKILL.md description ---
 # WHY in-place: claude -p reads .claude/skills/SKILL.md directly.
 # No --description override exists in claude -p CLI. (DA NGMI #1 verified)
@@ -243,6 +207,11 @@ for line in lines:
 open(skill_md, 'w').writelines(result)
 "
 }
+
+# If starting with an override, apply it to SKILL.md immediately
+if [[ -n "$DESCRIPTION_OVERRIDE" ]]; then
+  replace_description "$SKILL_PATH/SKILL.md" "$work_dir/current_desc.txt"
+fi
 
 # --- trigger-eval.sh wrapper ---
 run_eval() {
@@ -305,13 +274,15 @@ report_path=""
 if [[ "$REPORT" != "none" ]]; then
   if [[ "$REPORT" == "auto" ]]; then
     timestamp_r=$(date +%Y%m%d_%H%M%S)
-    report_path="$(mktemp -d)/skill_report_${skill_name}_${timestamp_r}.html"
+    report_path="$work_dir/skill_report_${skill_name}_${timestamp_r}.html"
   else
     report_path="$REPORT"
   fi
   echo "<html><body><h1>Starting optimization loop...</h1><meta http-equiv='refresh' content='5'></body></html>" > "$report_path"
   if [[ "$REPORT" == "auto" ]]; then
-    open "$report_path" 2>/dev/null || true
+    if command -v open &>/dev/null; then open "$report_path"
+    elif command -v xdg-open &>/dev/null; then xdg-open "$report_path"
+    fi 2>/dev/null || true
   fi
 fi
 
@@ -481,7 +452,6 @@ history = []
 for i in range(1, iters + 1):
     train_f = Path(work) / f'iter-{i}-train.json'
     test_f = Path(work) / f'iter-{i}-test.json'
-    desc_f = Path(work) / f'current_desc.txt'  # latest, not per-iter
 
     if not train_f.exists():
         continue
@@ -551,11 +521,6 @@ if [[ -n "$RESULTS_DIR" ]]; then
   printf '%s\n' "$results_json" > "$out_dir/results.json"
   log "Results saved to: $out_dir/results.json"
 
-  # Generate report in results-dir
-  if [[ -n "$report_path" ]]; then
-    printf '%s' "$results_json" | python3 "$SCRIPT_DIR/generate-report.py" - \
-      -o "$out_dir/report.html" --skill-name "$skill_name" 2>/dev/null || true
-  fi
 else
   # Default: save to evals directory
   timestamp=$(date +%Y%m%d-%H%M%S)
@@ -570,6 +535,10 @@ if [[ -n "$report_path" ]]; then
   printf '%s' "$results_json" | python3 "$SCRIPT_DIR/generate-report.py" - \
     -o "$report_path" --skill-name "$skill_name" 2>/dev/null || true
   log "Report: $report_path"
+  # Also copy to results-dir if provided
+  if [[ -n "$RESULTS_DIR" && -d "$out_dir" ]]; then
+    cp "$report_path" "$out_dir/report.html" 2>/dev/null || true
+  fi
 fi
 
 log ""

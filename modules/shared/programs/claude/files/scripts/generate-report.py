@@ -120,19 +120,35 @@ def generate_html(data: dict, auto_refresh: bool = False, skill_name: str = "") 
 
     html_parts.append("        </tr></thead><tbody>\n")
 
-    # Find best iteration
-    if test_queries:
-        best_iter = max(history, key=lambda h: h.get("test_passed") or 0).get("iteration")
-    elif history:
-        best_iter = max(history, key=lambda h: h.get("train_passed", h.get("passed", 0))).get("iteration")
-    else:
-        best_iter = None
+    # Use run-loop.sh's best_iteration if available, else recalculate
+    best_iter = data.get("best_iteration")
+    if best_iter is None:
+        if test_queries:
+            best_iter = max(history, key=lambda h: h.get("test_passed") or 0).get("iteration")
+        elif history:
+            best_iter = max(history, key=lambda h: h.get("train_passed", h.get("passed", 0))).get("iteration")
 
     def _get_triggers(r: dict) -> int:
         return r.get("triggers", r.get("trigger_count", 0))
 
     def _get_runs(r: dict) -> int:
         return r.get("runs", r.get("total_runs", 0))
+
+    def _aggregate(results):
+        correct = total = 0
+        for r in results:
+            runs = _get_runs(r)
+            triggers = _get_triggers(r)
+            total += runs
+            correct += triggers if r.get("should_trigger", True) else runs - triggers
+        return correct, total
+
+    def _score_cls(c, t):
+        if t > 0:
+            ratio = c / t
+            if ratio >= 0.8: return "score-good"
+            if ratio >= 0.5: return "score-ok"
+        return "score-bad"
 
     for h in history:
         iteration = h.get("iteration", "?")
@@ -142,30 +158,14 @@ def generate_html(data: dict, auto_refresh: bool = False, skill_name: str = "") 
         train_by_q = {r["query"]: r for r in train_results}
         test_by_q = {r["query"]: r for r in test_results} if test_results else {}
 
-        def aggregate(results):
-            correct = total = 0
-            for r in results:
-                runs = _get_runs(r)
-                triggers = _get_triggers(r)
-                total += runs
-                correct += triggers if r.get("should_trigger", True) else runs - triggers
-            return correct, total
-
-        train_c, train_r = aggregate(train_results)
-        test_c, test_r = aggregate(test_results)
-
-        def score_cls(c, t):
-            if t > 0:
-                ratio = c / t
-                if ratio >= 0.8: return "score-good"
-                if ratio >= 0.5: return "score-ok"
-            return "score-bad"
+        train_c, train_r = _aggregate(train_results)
+        test_c, test_r = _aggregate(test_results)
 
         row_cls = "best-row" if iteration == best_iter else ""
         html_parts.append(f'        <tr class="{row_cls}">\n')
         html_parts.append(f'            <td>{iteration}</td>\n')
-        html_parts.append(f'            <td><span class="score {score_cls(train_c, train_r)}">{train_c}/{train_r}</span></td>\n')
-        html_parts.append(f'            <td><span class="score {score_cls(test_c, test_r)}">{test_c}/{test_r}</span></td>\n')
+        html_parts.append(f'            <td><span class="score {_score_cls(train_c, train_r)}">{train_c}/{train_r}</span></td>\n')
+        html_parts.append(f'            <td><span class="score {_score_cls(test_c, test_r)}">{test_c}/{test_r}</span></td>\n')
         html_parts.append(f'            <td class="description">{html.escape(h.get("description", ""))}</td>\n')
 
         for qinfo in train_queries:
