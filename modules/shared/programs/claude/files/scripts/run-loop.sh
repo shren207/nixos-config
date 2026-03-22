@@ -502,9 +502,12 @@ if (( iterations_completed == 0 )); then
   exit 1
 fi
 
-# Guard: if holdout was requested but no valid test score obtained, warn
+# Guard: if holdout was requested but no valid test score obtained,
+# mark as unavailable so serializer uses train score instead
+TEST_SCORE_AVAILABLE=true
 if [[ -n "$test_file" && $best_test_passed -lt 0 ]]; then
   log "Warning: no valid holdout score obtained — best_score based on train only"
+  TEST_SCORE_AVAILABLE=false
   best_test_passed=0
 fi
 
@@ -524,6 +527,7 @@ fi
 # --- Build results JSON (with per-query results for report) ---
 results_json=$(WORK_DIR="$work_dir" EXIT_REASON="$exit_reason" \
   BEST_ITER="$best_iteration" BEST_TEST_PASSED="$best_test_passed" \
+  TEST_SCORE_AVAILABLE="$TEST_SCORE_AVAILABLE" \
   ITERS_COMPLETED="$iterations_completed" \
   ORIG_FILE="$work_dir/original_desc.txt" BEST_FILE="$work_dir/best_desc.txt" \
   HOLDOUT_VAL="$HOLDOUT" TRAIN_SZ="$train_size" TEST_SZ="$test_size" \
@@ -588,18 +592,21 @@ for i in range(1, iters + 1):
     history.append(entry)
 
 # best_score uses shell-computed values (not reconstructed from files)
-# to avoid misattribution when baseline beats all candidates
 best_test_passed = int(os.environ['BEST_TEST_PASSED'])
+test_score_available = os.environ.get('TEST_SCORE_AVAILABLE', 'true') == 'true'
 best_entry = next((h for h in history if h['iteration'] == best_iter), {})
 best_train = f\"{best_entry.get('train_passed', '?')}/{best_entry.get('train_total', '?')}\"
 best_test_total = best_entry.get('test_total', test_sz) or test_sz
-best_test_str = f\"{best_test_passed}/{best_test_total}\" if test_sz > 0 else None
+best_test_str = f\"{best_test_passed}/{best_test_total}\" if test_score_available and test_sz > 0 else None
+
+# Use train score when holdout eval never succeeded
+use_test = test_score_available and test_sz > 0
 
 output = {
     'exit_reason': os.environ['EXIT_REASON'],
     'original_description': orig,
     'best_description': best,
-    'best_score': best_test_str if test_sz > 0 else best_train,
+    'best_score': best_test_str if use_test else best_train,
     'best_train_score': best_train,
     'best_test_score': best_test_str,
     'best_iteration': best_iter,
