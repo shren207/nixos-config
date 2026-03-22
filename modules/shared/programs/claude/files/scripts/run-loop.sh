@@ -91,13 +91,14 @@ print(m.group(1).strip().strip('\"').strip(\"'\") if m else 'unknown')
 # original-skill.md: created once, used for restoration
 work_dir=$(mktemp -d)
 cleanup() {
+  [[ -d "$work_dir" ]] || return 0
   if [[ -f "$work_dir/original-skill.md" && "$FINALIZED" != "true" ]]; then
     cp "$work_dir/original-skill.md" "$SKILL_PATH/SKILL.md"
     echo "Restored original SKILL.md" >&2
   fi
   rm -rf "$work_dir"
 }
-trap cleanup EXIT ERR INT TERM
+trap cleanup EXIT INT TERM
 
 # --- Backup SKILL.md ---
 cp "$SKILL_PATH/SKILL.md" "$work_dir/original-skill.md"
@@ -178,11 +179,11 @@ open(skill_md, 'w').writelines(result)
 # WHY python3: jq lacks random seed support for deterministic shuffle.
 # Matches run_loop.py's seed=42 stratified split exactly. (DA NGMI #3)
 if [[ "$HOLDOUT" != "0" ]]; then
-  QUERIES_FILE="$QUERIES" HOLDOUT_VAL="$HOLDOUT" \
+  QUERIES_FILE="$QUERIES" HOLDOUT_VAL="$HOLDOUT" SEED="$SPLIT_SEED" \
     TRAIN_FILE="$work_dir/train.json" TEST_FILE="$work_dir/test.json" \
     python3 -c "
 import json, random, os
-random.seed(${SPLIT_SEED})
+random.seed(int(os.environ['SEED']))
 queries = json.load(open(os.environ['QUERIES_FILE']))
 holdout = float(os.environ['HOLDOUT_VAL'])
 trigger = [q for q in queries if q['should_trigger']]
@@ -299,16 +300,14 @@ print(json.dumps(h, ensure_ascii=False))
   # C. Improve description
   echo "  Improving description..." >&2
 
-  # Build history file for improve-description.sh
-  printf '%s' "$history_json" | jq '.' > "$work_dir/history.json"
-  history_count=$(printf '%s' "$history_json" | jq 'length')
-
+  # improve-description.sh에 전달할 history는 자체 출력에서 누적됨
+  # (history.json은 line 388에서 improve_output.history로 관리)
   improve_args=(
     --skill-path "$SKILL_PATH"
     --eval-results "$work_dir/eval-results.json"
   )
-  if (( history_count > 0 )); then
-    improve_args+=(--history "$work_dir/history.json")
+  if [[ -f "$work_dir/improve_history.json" ]]; then
+    improve_args+=(--history "$work_dir/improve_history.json")
   fi
 
   improve_output=$("$SCRIPT_DIR/improve-description.sh" "${improve_args[@]}" 2>/dev/null) || {
@@ -385,13 +384,9 @@ print(json.dumps(h, ensure_ascii=False))
 
   # Update improve-description.sh history from its output
   # (accumulates past descriptions with scores for the next iteration)
-  printf '%s' "$improve_output" | jq '.history' > "$work_dir/history.json"
+  printf '%s' "$improve_output" | jq '.history' > "$work_dir/improve_history.json"
 
   echo "" >&2
-
-  if (( iteration == MAX_ITERATIONS )); then
-    exit_reason="max_iterations ($MAX_ITERATIONS)"
-  fi
 done
 
 # Default exit_reason if loop ran to completion without setting it
