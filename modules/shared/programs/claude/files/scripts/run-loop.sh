@@ -51,10 +51,10 @@ log() { [[ "$VERBOSE" == "true" ]] && echo "$@" >&2 || true; }
 # --- Parse args ---
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --eval-set)           EVAL_SET="$2";           shift 2 ;;
+    --eval-set|--queries) EVAL_SET="$2";           shift 2 ;;
     --skill-path)         SKILL_PATH="$2";         shift 2 ;;
     --max-iterations)     MAX_ITERATIONS="$2";     shift 2 ;;
-    --runs-per-query)     RUNS_PER_QUERY="$2";     shift 2 ;;
+    --runs-per-query|--reps) RUNS_PER_QUERY="$2";  shift 2 ;;
     --holdout)            HOLDOUT="$2";            shift 2 ;;
     --num-workers)        NUM_WORKERS="$2";        shift 2 ;;
     --timeout)            TIMEOUT="$2";            shift 2 ;;
@@ -274,7 +274,9 @@ report_path=""
 if [[ "$REPORT" != "none" ]]; then
   if [[ "$REPORT" == "auto" ]]; then
     timestamp_r=$(date +%Y%m%d_%H%M%S)
-    report_path="$work_dir/skill_report_${skill_name}_${timestamp_r}.html"
+    # Auto report goes to evals/ (not work_dir, which is deleted by cleanup)
+    mkdir -p "$SKILL_PATH/evals"
+    report_path="$SKILL_PATH/evals/skill_report_${skill_name}_${timestamp_r}.html"
   else
     report_path="$REPORT"
   fi
