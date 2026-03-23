@@ -27,8 +27,12 @@ def generate_html(data: dict, auto_refresh: bool = False, skill_name: str = "") 
     if history:
         for r in history[0].get("train_results", history[0].get("results", [])):
             train_queries.append({"query": r["query"], "should_trigger": r.get("should_trigger", True)})
-        if history[0].get("test_results"):
-            for r in history[0].get("test_results", []):
+        # Use first iteration with valid test_results for column headers.
+        # When test eval flakes on iteration 1, later iterations may still have
+        # valid holdout data. (Codex review R2 regression fix)
+        test_entry = next((h for h in history if h.get("test_results")), None)
+        if test_entry:
+            for r in test_entry.get("test_results", []):
                 test_queries.append({"query": r["query"], "should_trigger": r.get("should_trigger", True)})
 
     refresh_tag = '    <meta http-equiv="refresh" content="5">\n' if auto_refresh else ""

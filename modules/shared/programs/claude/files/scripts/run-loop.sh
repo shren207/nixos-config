@@ -349,6 +349,13 @@ for ((iteration = 1; iteration <= MAX_ITERATIONS; iteration++)); do
       fi
     else
       log "  Warning: test eval failed, skipping holdout scoring"
+      # Ensure best_iteration is set even when all test evals fail.
+      # Without this, best_iteration stays 0 → serializer produces ?/?.
+      # (Codex review R2 fallback fix)
+      if (( best_iteration == 0 )); then
+        best_iteration=$iteration
+        cp "$work_dir/current_desc.txt" "$work_dir/best_desc.txt"
+      fi
     fi
   else
     if (( train_passed > best_test_passed )); then
