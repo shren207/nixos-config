@@ -328,24 +328,27 @@ for ((iteration = 1; iteration <= MAX_ITERATIONS; iteration++)); do
   test_total=0
   if [[ -n "$test_file" ]]; then
     log "  Test eval..."
-    test_results=$(run_eval "$test_file") || {
-      log "  Error: trigger-eval.sh failed for test set"
-      continue
-    }
+    # WHY || true: test eval failure should not block the iteration — improve
+    # still uses train results only. Skipping improve on test failure would stall
+    # the loop on the same description. (Codex review R1 regression fix)
+    test_results=$(run_eval "$test_file") || true
+    if [[ -n "$test_results" ]] && printf '%s' "$test_results" | jq -e '.summary' >/dev/null 2>&1; then
+      printf '%s' "$test_results" > "$work_dir/iter-${iteration}-test.json"
+      test_passed=$(printf '%s' "$test_results" | jq '.summary.passed')
+      test_total=$(printf '%s' "$test_results" | jq '.summary.total')
+      log "  Test: $test_passed/$test_total passed"
 
-    printf '%s' "$test_results" > "$work_dir/iter-${iteration}-test.json"
-    test_passed=$(printf '%s' "$test_results" | jq '.summary.passed')
-    test_total=$(printf '%s' "$test_results" | jq '.summary.total')
-    log "  Test: $test_passed/$test_total passed"
-
-    # WHY test-based selection: train score would select descriptions overfit to
-    # training queries. Test set is unseen by the improvement model, serving as
-    # a generalization proxy.
-    if (( test_passed > best_test_passed )); then
-      best_test_passed=$test_passed
-      best_iteration=$iteration
-      cp "$work_dir/current_desc.txt" "$work_dir/best_desc.txt"
-      log "  New best! (test=$test_passed/$test_total)"
+      # WHY test-based selection: train score would select descriptions overfit to
+      # training queries. Test set is unseen by the improvement model, serving as
+      # a generalization proxy.
+      if (( test_passed > best_test_passed )); then
+        best_test_passed=$test_passed
+        best_iteration=$iteration
+        cp "$work_dir/current_desc.txt" "$work_dir/best_desc.txt"
+        log "  New best! (test=$test_passed/$test_total)"
+      fi
+    else
+      log "  Warning: test eval failed, skipping holdout scoring"
     fi
   else
     if (( train_passed > best_test_passed )); then
@@ -355,11 +358,15 @@ for ((iteration = 1; iteration <= MAX_ITERATIONS; iteration++)); do
     fi
   fi
 
+  # Mark iteration eval as complete (train+test results recorded).
+  # Written before improve so that improve failure does not orphan best_iteration.
+  # (Codex review R1 bookkeeping fix)
+  touch "$work_dir/iter-${iteration}-complete"
+  iterations_completed=$iteration
+
   # C. Early exit if all train pass
   if [[ "$train_failed" == "0" ]]; then
     log "  All train queries passed! Early exit."
-    touch "$work_dir/iter-${iteration}-complete"
-    iterations_completed=$iteration
     exit_reason="all_passed (iteration $iteration)"
     break
   fi
@@ -390,10 +397,6 @@ for ((iteration = 1; iteration <= MAX_ITERATIONS; iteration++)); do
 
   # F. Update improve-description.sh history
   printf '%s' "$improve_output" | jq '.history' > "$work_dir/improve_history.json"
-
-  # Mark iteration as fully complete (partial iterations excluded from final assembly)
-  touch "$work_dir/iter-${iteration}-complete"
-  iterations_completed=$iteration
 
   # G. Update live report (if enabled)
   if [[ -n "$report_path" && -f "$report_path" ]]; then
