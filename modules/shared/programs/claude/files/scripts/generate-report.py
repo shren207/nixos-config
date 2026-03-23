@@ -179,6 +179,10 @@ def generate_html(data: dict, auto_refresh: bool = False, skill_name: str = "") 
             html_parts.append(f'            <td class="result {css}">{icon}<span class="rate">{triggers}/{runs}</span></td>\n')
 
         for qinfo in test_queries:
+            if not test_results:
+                # No holdout data for this iteration — show dash instead of misleading ✗ 0/0
+                html_parts.append('            <td class="result test-result">\u2014</td>\n')
+                continue
             r = test_by_q.get(qinfo["query"], {})
             did_pass = r.get("pass", False)
             triggers = _get_triggers(r)
