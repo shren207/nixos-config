@@ -225,7 +225,12 @@ cat /tmp/e2e-prompt.md skills/{name}/SKILL.md agents/{name}.md skills/{name}/ref
 - 커스텀 환경변수는 `VAR=val claude -p` 형태로 전달 ([gotcha #39](gotchas.md) 참조)
 - MCP 도구 사용 시 해당 MCP 서버가 세션에서 활성화되어야 함 ([gotcha #5](gotchas.md) 참조)
 
-⚠️ **보안 주의**: stdin으로 주입하는 파일 내용이 신뢰할 수 있는 출처인지 확인하라. `--dangerously-skip-permissions`와 결합 시 파일 내 prompt injection이 임의 명령 실행으로 이어질 수 있다. 신뢰할 수 없는 입력에는 `--allowedTools`로 도구를 제한하고 `--dangerously-skip-permissions`를 사용하지 마라.
+⚠️ **보안 주의**: stdin으로 주입하는 파일 내용이 신뢰할 수 있는 출처인지 확인하라. `--dangerously-skip-permissions`와 결합 시 파일 내 prompt injection이 임의 명령 실행으로 이어질 수 있다. 신뢰할 수 없는 입력에는 `--dangerously-skip-permissions` 없이 `--allowedTools`로 도구를 제한하라:
+
+```bash
+# 신뢰할 수 없는 입력 시 안전한 패턴 (--dangerously-skip-permissions 미사용)
+cat untrusted-skill.md | claude -p --allowed-tools "Read,Grep,Glob" --output-format text
+```
 
 ---
 
