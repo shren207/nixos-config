@@ -9,7 +9,7 @@ WATCH_DIR="$HOME/FolderActions/compress-video"
 DEST_DIR="$HOME/Downloads"
 EXPECTED_STDERR_PATH="$HOME/Library/Logs/folder-actions/compress-video.error.log"
 
-VT_QUALITY=65  # hevc_videotoolbox 품질 (1-100, 높을수록 고품질/대용량)
+VT_QUALITY=1  # hevc_videotoolbox 품질 (1-100, 높을수록 고품질/대용량). HW 최대 압축.
 
 LOCK_DIR="/tmp/compress-video.lock.d"
 LEGACY_LOCK_FILE="/tmp/compress-video.lock"
