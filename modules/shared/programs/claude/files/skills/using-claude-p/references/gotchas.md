@@ -69,10 +69,11 @@ export MY_TOKEN="xxx"
 claude -p "REST API 호출해줘"
 
 # ✅ 에이전트가 직접 .env 파일을 읽도록 프롬프트에 지시
+# ⚠️ --dangerously-skip-permissions 필수 → 에이전트가 .env 내 모든 credential에 접근 가능
 echo "먼저 .env 파일에서 MY_TOKEN을 읽은 뒤 사용하라" | claude -p --dangerously-skip-permissions
 ```
 
-⚠️ **보안 주의**: `VAR=val command` 형태는 셸 히스토리와 `/proc/<pid>/environ`에 credential이 노출된다. 프로덕션에서는 secrets manager 또는 `read -s VAR && VAR="$VAR" claude -p ...` 패턴을 사용하라.
+⚠️ **보안 주의**: `VAR=val command` 형태는 셸 히스토리와 `/proc/<pid>/environ`에 credential이 노출된다. 프로덕션에서는 secrets manager 또는 `read -s VAR && VAR="$VAR" claude -p ...` 패턴을 사용하라. `.env` + `--dangerously-skip-permissions` 조합은 에이전트가 파일 내 모든 secret을 읽고 임의 명령으로 외부 전송할 수 있으므로, 신뢰할 수 없는 환경에서는 사용하지 마라.
 
 v2.1.81 실측. `CLAUDE_CODE_MAX_RETRIES`, `ANTHROPIC_API_KEY` 등 Claude Code 내장 환경변수는 정상 인식됨.
 
@@ -285,7 +286,7 @@ cat skill-content.md agent-instructions.md | claude -p --output-format text > re
 # Claude Code 대화형 모드에서 /plugins 또는 재설치 명령 실행
 ```
 
-⚠️ 이 동작은 Claude Code의 내부 플러그인 인덱싱 메커니즘에 의존하며, 향후 버전에서 변경될 수 있다. v2.1.81 실측.
+⚠️ 이 동작은 Claude Code의 내부 플러그인 인덱싱 메커니즘에 의존하며, 향후 버전에서 변경될 수 있다. v2.1.81 실측. 상세 우회 패턴: [patterns.md](patterns.md) 패턴 9 참조.
 
 ### #35. `allowedTools` 패턴 공백 의미 차이
 
@@ -426,6 +427,6 @@ wait
 
 ## 참고
 
-- 확인 날짜: **2026-03-15**
-- 확인 버전: **Claude Code v2.1.76**
+- 확인 날짜: **2026-03-24**
+- 확인 버전: **Claude Code v2.1.81**
 - 재검증: `claude --version` 출력과 비교 후, 변경된 항목이 있으면 갱신한다
