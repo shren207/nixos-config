@@ -595,9 +595,9 @@ find "$WATCH_DIR" -type f -maxdepth 1 \( -iname "*.mp4" -o -iname "*.mov" -o -in
 
     log_info "압축 시작: $filename"
 
-    # H.265 압축 (hvc1 태그로 Apple 호환성 확보)
+    # H.265 압축 (VideoToolbox 하드웨어 가속, hvc1 태그로 Apple 호환성 확보)
     if ffmpeg -nostdin -hide_banner -loglevel error -i "$f" \
-        -c:v libx265 -preset fast -crf 28 -tag:v hvc1 \
+        -c:v hevc_videotoolbox -q:v 65 -tag:v hvc1 \
         -c:a eac3 -b:a 224k \
         -y "$output_path"; then
 
