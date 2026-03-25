@@ -34,7 +34,7 @@ STATE_FILE="$STATE_DIR/$SESSION_ID.json"
 MEMO_FILE="$MEMO_DIR/$SESSION_ID.md"
 
 case "$SOURCE" in
-  startup|clear)
+  startup)
     mkdir -p "$STATE_DIR" "$MEMO_DIR"
     touch "$MEMO_FILE"
 
@@ -63,7 +63,7 @@ case "$SOURCE" in
 링크 설정: /set-icons 스킬로 Jira, Slack, Figma 링크를 추가할 수 있습니다."
     ;;
 
-  resume|compact)
+  clear|resume|compact)
     ACTIVE_ICONS="없음"
     if [ -f "$STATE_FILE" ]; then
       ACTIVE_ICONS=$(jq -r 'keys | join(", ")' "$STATE_FILE" 2>/dev/null) || ACTIVE_ICONS="없음"
