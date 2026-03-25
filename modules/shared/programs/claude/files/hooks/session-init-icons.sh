@@ -77,7 +77,7 @@ case "$SOURCE" in
     # trade-off: 동시 세션에서 다른 세션의 아이콘이 복원될 수 있으나,
     #           /clear 직후는 대부분 단일 세션이므로 실용적.
     if [ ! -f "$STATE_FILE" ]; then
-      LATEST=$(ls -t "$STATE_DIR"/*.json 2>/dev/null | head -1)
+      LATEST=$(ls -t "$STATE_DIR"/*.json 2>/dev/null | head -1 || true)
       if [ -n "$LATEST" ] && [ -f "$LATEST" ]; then
         # Memo 파일: 원본의 복사본 생성 (참조 충돌 방지)
         OLD_MEMO=$(jq -r '.memo.path // empty' "$LATEST" 2>/dev/null)
