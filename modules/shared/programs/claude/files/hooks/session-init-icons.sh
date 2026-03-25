@@ -33,9 +33,10 @@ MEMO_DIR="$HOME/.claude/memos"
 STATE_FILE="$STATE_DIR/$SESSION_ID.json"
 MEMO_FILE="$MEMO_DIR/$SESSION_ID.md"
 
+mkdir -p "$STATE_DIR" "$MEMO_DIR"
+
 case "$SOURCE" in
   startup)
-    mkdir -p "$STATE_DIR" "$MEMO_DIR"
     touch "$MEMO_FILE"
 
     # 초기 상태 파일 생성 (빈 객체 — 아이콘은 스킬 호출 시 추가)
@@ -64,8 +65,6 @@ case "$SOURCE" in
     ;;
 
   clear|resume|compact)
-    mkdir -p "$STATE_DIR" "$MEMO_DIR"
-
     # /clear, /branch, /fork 등으로 session_id가 변경되면
     # 이전 세션의 상태 파일이 새 session_id 경로에 없다.
     # 가장 최근 수정된 상태 파일에서 복사하여 아이콘 보존.

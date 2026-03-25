@@ -77,9 +77,12 @@ elif [ -z "$PLAN_FILE" ] && [ -f "$PROJECT_PLAN_STATE" ]; then
   ORIGINAL_PLAN=$(cat "$PROJECT_PLAN_STATE" 2>/dev/null)
   if [ -n "$ORIGINAL_PLAN" ] && [ -f "$ORIGINAL_PLAN" ]; then
     # Plan 파일 복사본 생성 (원본과의 충돌 방지)
+    # session_id 앞 8자로 복사본 구분 (UUID 축약 관례)
     PLAN_COPY="$(dirname "$ORIGINAL_PLAN")/$(basename "$ORIGINAL_PLAN" .md)-${SESSION_ID:0:8}.md"
     if [ ! -f "$PLAN_COPY" ]; then
       cp "$ORIGINAL_PLAN" "$PLAN_COPY"
+      # 30일 초과 plan 복사본 정리 (-????????.md 패턴)
+      find "$(dirname "$ORIGINAL_PLAN")" -name "*-????????.md" -mtime +30 -delete 2>/dev/null || true
     fi
     PLAN_FILE="$PLAN_COPY"
     # 세션별 state에 복사본 경로 저장 (다음 렌더부터 직접 사용)
