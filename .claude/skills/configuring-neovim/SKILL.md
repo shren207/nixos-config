@@ -6,7 +6,7 @@ description: |
   Trigger: 'neovim', 'LSP', 'lazy.nvim', 'treesitter', '한영 전환', 'im-select', '에디터', '코드 편집기',
   '편집기 설정', 'colorscheme', 'catppuccin', 'formatter', 'linter', 'extraPackages', '자동완성',
   'syntax highlighting', 'language server', '코드 편집'.
-  NOT for VSCode/확장 (use managing-vscode).
+  NOT for Zed/확장 (use managing-zed). NOT for VSCode (제거됨, #329).
 ---
 
 # Neovim (LazyVim) 설정
