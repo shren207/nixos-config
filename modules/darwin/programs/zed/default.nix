@@ -88,6 +88,10 @@ in
   # CIR: userSettings/extensions/userKeymaps 의도적 미사용
   # → 이 옵션들을 설정하면 HM이 ~/.config/zed/settings.json을 직접 관리하여
   #   mkOutOfStoreSymlink과 충돌. 빈 기본값이면 HM이 파일을 건드리지 않음.
+  #   검증: HM zed-editor.nix의 `mkIf (mergedSettings != {})` 가드 — userSettings={}이고
+  #   extensions=[]이면 mergedSettings={} → activation/xdg.configFile 모두 비활성.
+  #   DO NOT add userSettings, extensions, or userKeymaps here.
+  #   Edit files/settings.json and files/keymap.json instead.
   programs.zed-editor = {
     enable = true;
   };
