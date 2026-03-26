@@ -82,7 +82,7 @@
   {
     "context": "Editor",
     "bindings": {
-      "shift-cmd-c": "editor::CopyPath"
+      "shift-cmd-c": "workspace::CopyPath"
     }
   },
 
