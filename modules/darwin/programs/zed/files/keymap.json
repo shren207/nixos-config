@@ -4,12 +4,20 @@
   // 각 바인딩은 JetBrains 기본값과 다른 부분만 정의한다.
   // ============================================================================
 
-  // === 터미널 ===
-  // F12로 터미널 포커스 토글 (VSCode 패턴 유지, JetBrains 기본과 다름)
+  // === 터미널 토글 ===
+  // F12: 터미널 패널 열기/닫기 (VSCode toggleTerminal 동작 재현)
+  // ToggleBottomDock = 패널 표시/숨김 토글 (ToggleFocus는 포커스만 전환하고 닫지 않음)
+  // Terminal 컨텍스트에도 명시 필요 — 안 하면 shell이 F12를 가로챔 (\e[24~ → "~" 출력)
   // ============================================================================
   {
     "bindings": {
-      "f12": "terminal_panel::ToggleFocus"
+      "f12": "workspace::ToggleBottomDock"
+    }
+  },
+  {
+    "context": "Terminal",
+    "bindings": {
+      "f12": "workspace::ToggleBottomDock"
     }
   },
 

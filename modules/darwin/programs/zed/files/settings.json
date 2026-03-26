@@ -27,8 +27,9 @@
   // 테마 및 UI
   // ============================================================================
   "theme": {
-    "mode": "dark",
-    "dark": "Darcula Dark"
+    "mode": "system",
+    "light": "One Light",
+    "dark": "One Dark"
   },
   "icon_theme": "Material Icon Theme",
 
