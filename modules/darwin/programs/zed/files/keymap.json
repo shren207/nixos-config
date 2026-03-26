@@ -6,18 +6,20 @@
 
   // === 터미널 토글 ===
   // F12: 터미널 패널 열기/닫기 (VSCode toggleTerminal 동작 재현)
-  // ToggleBottomDock = 패널 표시/숨김 토글 (ToggleFocus는 포커스만 전환하고 닫지 않음)
+  // terminal_panel::Toggle = 항상 Terminal 탭을 활성화 + 열기/닫기 토글
+  //   (ToggleBottomDock은 마지막 활성 패널을 열어서 Debug 등이 나올 수 있음)
+  //   (ToggleFocus는 포커스만 전환하고 패널을 닫지 않음)
   // Terminal 컨텍스트에도 명시 필요 — 안 하면 shell이 F12를 가로챔 (\e[24~ → "~" 출력)
   // ============================================================================
   {
     "bindings": {
-      "f12": "workspace::ToggleBottomDock"
+      "f12": "terminal_panel::Toggle"
     }
   },
   {
     "context": "Terminal",
     "bindings": {
-      "f12": "workspace::ToggleBottomDock"
+      "f12": "terminal_panel::Toggle"
     }
   },
 
