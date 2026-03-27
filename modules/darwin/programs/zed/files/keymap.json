@@ -185,7 +185,21 @@
   // ============================================================================
   // Git
   // Alt+Cmd+Z → 파일 변경사항 되돌리기 (VSCode: git.clean)
+  // Ctrl+Alt+Cmd+H → 현재 파일의 Git 히스토리 (VSCode: timeline.focus)
   // ============================================================================
+  {
+    "context": "Editor",
+    "bindings": {
+      "ctrl-alt-cmd-h": "git::FileHistory"
+    }
+  },
+  {
+    "context": "FileHistoryView",
+    "bindings": {
+      "j": "menu::SelectNext",
+      "k": "menu::SelectPrevious"
+    }
+  },
   {
     "context": "Editor",
     "bindings": {
