@@ -113,16 +113,20 @@
   },
 
   // ============================================================================
-  // 패널/뷰 크기 조절
-  // Ctrl+Alt+]/[ → 에디터 패인 좌우 이동
-  // Shift+Alt+]/[ → 활성 독 크기 조절
+  // 창 분할 + 패인 이동 (Ghostty 스타일)
+  // Cmd+Shift+D → 아래쪽 분할 (Ghostty: Cmd+Shift+D = vertical split)
+  // Alt+Cmd+방향키 → 패인 이동 (Ghostty: Opt+Cmd+방향키)
+  // CIR: Cmd+D(Duplicate Line)는 유지. Cmd+Shift+D의 기존 바인딩(UI 토글)은 불필요하여 교체.
+  //   Alt+Cmd+Left/Right는 JetBrains의 탭 전환을 덮어씀 (Cmd+Shift+[/]로 대체 가능).
+  //   Alt+Cmd+Down은 JetBrains의 GoToDefinition을 덮어씀 (Cmd+B로 대체 가능).
   // ============================================================================
   {
     "bindings": {
-      "ctrl-alt-]": "workspace::SwapPaneRight",
-      "ctrl-alt-[": "workspace::SwapPaneLeft",
-      "shift-alt-]": "workspace::IncreaseActiveDockSize",
-      "shift-alt-[": "workspace::DecreaseActiveDockSize"
+      "cmd-shift-d": "pane::SplitDown",
+      "alt-cmd-up": "workspace::ActivatePaneUp",
+      "alt-cmd-down": "workspace::ActivatePaneDown",
+      "alt-cmd-left": "workspace::ActivatePaneLeft",
+      "alt-cmd-right": "workspace::ActivatePaneRight"
     }
   },
 
