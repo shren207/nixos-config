@@ -116,8 +116,10 @@
 
   // ============================================================================
   // Untitled Buffer (Scratchpad 대체)
-  // Shift+Cmd+N → 새 untitled 버퍼
-  // JetBrains keymap이 file_finder::Toggle로 바인딩하므로 null 처리 필요
+  // Shift+Cmd+N → 새 untitled 버퍼 (언어 변경: Cmd+K M 또는 Command Palette)
+  // CIR: action::Sequence로 NewFile + language_selector::Toggle 시도했으나
+  //   비동기 실행으로 동작이 비결정론적이고 언어 선택이 새 버퍼에 미반영. 롤백.
+  // JetBrains keymap이 file_finder::Toggle로 바인딩하므로 동일 컨텍스트에서 override
   // ============================================================================
   {
     "context": "Editor && mode == full",
