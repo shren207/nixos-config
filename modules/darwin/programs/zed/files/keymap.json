@@ -132,14 +132,18 @@
   },
 
   // ============================================================================
-  // 패인 이동 (Ghostty 스타일)
-  // Alt+Cmd+방향키 → 패인 이동 (Ghostty: Opt+Cmd+방향키)
-  // 분할은 Zed 기본 바인딩 사용 (Cmd+Shift+D = SplitDown 등)
+  // 창 분할 + 패인 이동 (Vim h/j/k/l 스타일)
+  // Cmd+K h/j/k/l → 분할 (Cmd+K null 처리로 chord 사용 가능)
+  // Alt+Cmd+방향키 → 패인 이동 (Ghostty 스타일)
   // CIR: Alt+Cmd+Left/Right는 JetBrains의 탭 전환을 덮어씀 (Cmd+Shift+[/]로 대체 가능).
   //   Alt+Cmd+Down은 JetBrains의 GoToDefinition을 덮어씀 (Cmd+B로 대체 가능).
   // ============================================================================
   {
     "bindings": {
+      "cmd-k h": "pane::SplitLeft",
+      "cmd-k j": "pane::SplitDown",
+      "cmd-k k": "pane::SplitUp",
+      "cmd-k l": "pane::SplitRight",
       "alt-cmd-up": "workspace::ActivatePaneUp",
       "alt-cmd-down": "workspace::ActivatePaneDown",
       "alt-cmd-left": "workspace::ActivatePaneLeft",
