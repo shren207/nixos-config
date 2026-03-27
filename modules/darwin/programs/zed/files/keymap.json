@@ -101,6 +101,18 @@
   },
 
   // ============================================================================
+  // 언어 선택
+  // Ctrl+Cmd+M → 버퍼 언어 변경 (M = language Mode)
+  // 기본 Cmd+K M chord는 JetBrains keymap이 Cmd+K를 Git 패널로 가로채서 동작 안 함
+  // ============================================================================
+  {
+    "context": "Editor",
+    "bindings": {
+      "ctrl-cmd-m": "language_selector::Toggle"
+    }
+  },
+
+  // ============================================================================
   // 패널/뷰 크기 조절
   // Ctrl+Alt+]/[ → 에디터 패인 좌우 이동
   // Shift+Alt+]/[ → 활성 독 크기 조절
@@ -116,7 +128,7 @@
 
   // ============================================================================
   // Untitled Buffer (Scratchpad 대체)
-  // Shift+Cmd+N → 새 untitled 버퍼 (언어 변경: Cmd+K M 또는 Command Palette)
+  // Shift+Cmd+N → 새 untitled 버퍼 (언어 변경: Ctrl+Cmd+M)
   // CIR: action::Sequence로 NewFile + language_selector::Toggle 시도했으나
   //   비동기 실행으로 동작이 비결정론적이고 언어 선택이 새 버퍼에 미반영. 롤백.
   // JetBrains keymap이 file_finder::Toggle로 바인딩하므로 동일 컨텍스트에서 override
