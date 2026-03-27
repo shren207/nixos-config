@@ -117,7 +117,14 @@
   // ============================================================================
   // Untitled Buffer (Scratchpad 대체)
   // Shift+Cmd+N → 새 untitled 버퍼
+  // JetBrains keymap이 file_finder::Toggle로 바인딩하므로 null 처리 필요
   // ============================================================================
+  {
+    "context": "Editor && mode == full",
+    "bindings": {
+      "shift-cmd-n": "workspace::NewFile"
+    }
+  },
   {
     "bindings": {
       "shift-cmd-n": "workspace::NewFile"
