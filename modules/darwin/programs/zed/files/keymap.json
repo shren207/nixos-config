@@ -51,6 +51,18 @@
       "escape": "editor::ToggleFocus"
     }
   },
+  {
+    "context": "AgentPanel > Markdown",
+    "bindings": {
+      "escape": "editor::ToggleFocus"
+    }
+  },
+  {
+    "context": "AgentPanel || ContextEditor || (MessageEditor > Editor)",
+    "bindings": {
+      "escape": "editor::ToggleFocus"
+    }
+  },
 
   // ============================================================================
   // Git 패널
