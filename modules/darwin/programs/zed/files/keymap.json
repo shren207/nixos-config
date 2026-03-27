@@ -66,13 +66,15 @@
 
   // ============================================================================
   // Git 패널
-  // Ctrl+Cmd+K → Git 패널 토글 (JetBrains의 Cmd+K 변형, FREE)
-  // Cmd+K의 기본 git_panel 바인딩을 null 처리하여 Cmd+K M chord 복원
+  // Cmd+9 → Git 패널 토글 (IntelliJ Cmd+9와 동일)
+  // CIR: Git Graph(git_graph::Open)는 Zed 0.226.4에서 미활성. nixpkgs 업데이트 후
+  //   Alt+Cmd+9로 바인딩 예정.
+  // Cmd+K의 기본 git_panel 바인딩을 null 처리하여 Cmd+K chord prefix 복원
   // ============================================================================
   {
     "bindings": {
       "cmd-k": null,
-      "ctrl-cmd-k": "git_panel::Toggle"
+      "cmd-9": "git_panel::Toggle"
     }
   },
   {
