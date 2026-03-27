@@ -35,6 +35,24 @@
   },
 
   // ============================================================================
+  // Claude Agent 패널
+  // Cmd+\ → Claude Agent 토글 (열기/닫기)
+  // CIR: Cmd+\의 기존 바인딩(pane::SplitRight, workspace::ToggleLeftDock,
+  //   assistant::InlineAssist)을 모두 덮어씀. 분할은 Cmd+K h/j/k/l 사용.
+  // ============================================================================
+  {
+    "bindings": {
+      "cmd-\\": "agent::Toggle"
+    }
+  },
+  {
+    "context": "AgentPanel",
+    "bindings": {
+      "escape": "editor::ToggleFocus"
+    }
+  },
+
+  // ============================================================================
   // Git 패널
   // Ctrl+Cmd+K → Git 패널 토글 (JetBrains의 Cmd+K 변형, FREE)
   // Cmd+K의 기본 git_panel 바인딩을 null 처리하여 Cmd+K M chord 복원
