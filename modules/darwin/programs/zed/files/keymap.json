@@ -33,6 +33,17 @@
       "cmd-b": null
     }
   },
+
+  // ============================================================================
+  // Git 패널
+  // Ctrl+Cmd+K → Git 패널 토글 (JetBrains의 Cmd+K 변형, FREE)
+  // CIR: Cmd+K가 git_panel + chord prefix를 겸용하여 Cmd+K M 등을 가로챔.
+  // ============================================================================
+  {
+    "bindings": {
+      "ctrl-cmd-k": "git_panel::Toggle"
+    }
+  },
   {
     "context": "Editor",
     "bindings": {
@@ -60,7 +71,7 @@
   },
 
   // ============================================================================
-  // 파일 탐색기 (Vim-style j/k 네비게이션)
+  // 파일 탐색기 + Git 패널 (Vim-style j/k 네비게이션)
   // Cmd+N → 새 파일, Cmd+D → 새 폴더 (explorer 컨텍스트에서만)
   // ============================================================================
   {
@@ -70,6 +81,13 @@
       "k": "menu::SelectPrevious",
       "cmd-n": "project_panel::NewFile",
       "cmd-d": "project_panel::NewDirectory"
+    }
+  },
+  {
+    "context": "GitPanel && ChangesList",
+    "bindings": {
+      "j": "menu::SelectNext",
+      "k": "menu::SelectPrevious"
     }
   },
 
