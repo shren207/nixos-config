@@ -58,8 +58,17 @@
   // 파일 제외 (claude --worktree 워크트리 포함)
   // ============================================================================
   "file_scan_exclusions": [
+    // Zed 기본값 (커스텀 설정 시 override되므로 명시 포함)
     "**/.git",
+    "**/.svn",
+    "**/.hg",
+    "**/.jj",
+    "**/CVS",
     "**/.DS_Store",
+    "**/Thumbs.db",
+    "**/.classpath",
+    "**/.settings",
+    // 프로젝트 커스텀
     "**/.claude/worktrees",
     "**/node_modules",
     "**/.direnv"

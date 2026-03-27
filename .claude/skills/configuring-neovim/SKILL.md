@@ -2,7 +2,7 @@
 name: configuring-neovim
 description: |
   Configure Neovim (LazyVim) via Nix: plugins, LSP, formatters, linters, themes, treesitter, im-select.
-  Default editor skill — generic '에디터', '편집기', '코드 편집기' queries route here (not VSCode).
+  Default editor skill — generic '에디터', '편집기', '코드 편집기' queries route here unless the request is explicitly about Zed or another editor-specific path.
   Trigger: 'neovim', 'LSP', 'lazy.nvim', 'treesitter', '한영 전환', 'im-select', '에디터', '코드 편집기',
   '편집기 설정', 'colorscheme', 'catppuccin', 'formatter', 'linter', 'extraPackages', '자동완성',
   'syntax highlighting', 'language server', '코드 편집'.
