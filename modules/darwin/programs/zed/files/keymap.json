@@ -37,10 +37,11 @@
   // ============================================================================
   // Git 패널
   // Ctrl+Cmd+K → Git 패널 토글 (JetBrains의 Cmd+K 변형, FREE)
-  // CIR: Cmd+K가 git_panel + chord prefix를 겸용하여 Cmd+K M 등을 가로챔.
+  // Cmd+K의 기본 git_panel 바인딩을 null 처리하여 Cmd+K M chord 복원
   // ============================================================================
   {
     "bindings": {
+      "cmd-k": null,
       "ctrl-cmd-k": "git_panel::Toggle"
     }
   },
@@ -131,16 +132,14 @@
   },
 
   // ============================================================================
-  // 창 분할 + 패인 이동 (Ghostty 스타일)
-  // Cmd+Shift+D → 아래쪽 분할 (Ghostty: Cmd+Shift+D = vertical split)
+  // 패인 이동 (Ghostty 스타일)
   // Alt+Cmd+방향키 → 패인 이동 (Ghostty: Opt+Cmd+방향키)
-  // CIR: Cmd+D(Duplicate Line)는 유지. Cmd+Shift+D의 기존 바인딩(UI 토글)은 불필요하여 교체.
-  //   Alt+Cmd+Left/Right는 JetBrains의 탭 전환을 덮어씀 (Cmd+Shift+[/]로 대체 가능).
+  // 분할은 Zed 기본 바인딩 사용 (Cmd+Shift+D = SplitDown 등)
+  // CIR: Alt+Cmd+Left/Right는 JetBrains의 탭 전환을 덮어씀 (Cmd+Shift+[/]로 대체 가능).
   //   Alt+Cmd+Down은 JetBrains의 GoToDefinition을 덮어씀 (Cmd+B로 대체 가능).
   // ============================================================================
   {
     "bindings": {
-      "cmd-shift-d": "pane::SplitDown",
       "alt-cmd-up": "workspace::ActivatePaneUp",
       "alt-cmd-down": "workspace::ActivatePaneDown",
       "alt-cmd-left": "workspace::ActivatePaneLeft",
