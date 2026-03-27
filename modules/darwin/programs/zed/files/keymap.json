@@ -120,16 +120,11 @@
   },
 
   // ============================================================================
-  // 언어 선택
-  // Ctrl+Cmd+M → 버퍼 언어 변경 (M = language Mode)
-  // 기본 Cmd+K M chord는 JetBrains keymap이 Cmd+K를 Git 패널로 가로채서 동작 안 함
+  // 언어 선택 — Zed 기본 Cmd+K M chord 사용 (Cmd+K null 처리로 복원됨)
+  // CIR: 이전에 Ctrl+Cmd+M으로 우회했으나, Cmd+K를 git_panel에서 해제(null)하면서
+  //   기본 Cmd+K M chord가 복원됨. 커스텀 바인딩 제거.
   // ============================================================================
-  {
-    "context": "Editor",
-    "bindings": {
-      "ctrl-cmd-m": "language_selector::Toggle"
-    }
-  },
+  // (Cmd+K M = language_selector::Toggle — Zed 기본 바인딩, 커스텀 불필요)
 
   // ============================================================================
   // 창 분할 + 패인 이동 (Vim h/j/k/l 스타일)
