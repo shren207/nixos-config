@@ -183,6 +183,20 @@
   },
 
   // ============================================================================
+  // HTML/JSX 태그 조작 (VSCode Emmet 부분 대체)
+  // Alt+Cmd+J → 선택 영역을 태그로 wrap (VSCode: emmet.wrapWithAbbreviation)
+  // CIR: Alt+Cmd+K(removeTag)는 미바인딩. Zed의 UnwrapSyntaxNode는 tree-sitter
+  //   구문 노드 단위로 동작하여 JSX에서 태그+자식 전체를 제거함 (태그만 벗기지 않음).
+  //   VSCode Emmet의 removeTag와 동등한 액션이 Zed에 없음.
+  // ============================================================================
+  {
+    "context": "Editor",
+    "bindings": {
+      "alt-cmd-j": "editor::WrapSelectionsInTag"
+    }
+  },
+
+  // ============================================================================
   // Git
   // Alt+Cmd+Z → 파일 변경사항 되돌리기 (VSCode: git.clean)
   // Ctrl+Alt+Cmd+H → 현재 파일의 Git 히스토리 (VSCode: timeline.focus)
