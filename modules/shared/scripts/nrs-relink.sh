@@ -51,9 +51,10 @@ _discover_hmf() {
 _discover_oos_entries() {
     local hmf="$1" main_repo="$2"
     find "$hmf" -type l -print0 2>/dev/null | while IFS= read -r -d '' link; do
-        # CIR: readlink -f → 1-hop 루프 선택 — readlink -f는 부모 디렉토리가 없으면 실패하여
+        # CIR: readlink -f → hop-by-hop 루프 선택 — readlink -f는 부모 디렉토리가 없으면 실패하여
         #      worktree-only 새 디렉토리의 파일을 발견하지 못함 (#332)
-        local current="$link" final_target="" hop=0 max_hops=10
+        local current="$link" final_target="" hop=0
+        local max_hops=10  # nix store 체인은 2-3 hop; 10은 안전 마진
         while [[ $hop -lt $max_hops ]]; do
             local target
             target=$(readlink "$current" 2>/dev/null) || break
