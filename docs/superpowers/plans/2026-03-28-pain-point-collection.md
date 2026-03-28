@@ -159,11 +159,11 @@ MOCK_TRANSCRIPT="$TEST_DIR/transcript.jsonl"
 
 # mock transcript: 교정 키워드 "아니" + ";;" 포함
 cat > "$MOCK_TRANSCRIPT" << 'JSONL'
-{"type":"human","message":"Nix 설정 파일을 수정해줘","timestamp":"2026-03-28T10:00:00Z"}
+{"type":"user","message":"Nix 설정 파일을 수정해줘","timestamp":"2026-03-28T10:00:00Z"}
 {"type":"assistant","message":{"content":[{"type":"text","text":"네, 수정하겠습니다."}]},"timestamp":"2026-03-28T10:01:00Z"}
-{"type":"human","message":"아니 그 파일 말고 다른 거","timestamp":"2026-03-28T10:02:00Z"}
+{"type":"user","message":"아니 그 파일 말고 다른 거","timestamp":"2026-03-28T10:02:00Z"}
 {"type":"assistant","message":{"content":[{"type":"text","text":"죄송합니다."}]},"timestamp":"2026-03-28T10:03:00Z"}
-{"type":"human","message":";;","timestamp":"2026-03-28T10:04:00Z"}
+{"type":"user","message":";;","timestamp":"2026-03-28T10:04:00Z"}
 {"type":"assistant","message":{"content":[{"type":"text","text":"다시 확인하겠습니다."}]},"timestamp":"2026-03-28T10:05:00Z"}
 JSONL
 
@@ -328,11 +328,11 @@ TEST_DIR=$(mktemp -d)
 MOCK_TRANSCRIPT="$TEST_DIR/transcript.jsonl"
 
 cat > "$MOCK_TRANSCRIPT" << 'JSONL'
-{"type":"human","message":"Nix 설정 파일을 수정해줘","timestamp":"2026-03-28T10:00:00Z"}
+{"type":"user","message":"Nix 설정 파일을 수정해줘","timestamp":"2026-03-28T10:00:00Z"}
 {"type":"assistant","message":{"content":[{"type":"text","text":"네, 수정하겠습니다."}]},"timestamp":"2026-03-28T10:01:00Z"}
-{"type":"human","message":"아니 그 파일 말고 다른 거","timestamp":"2026-03-28T10:02:00Z"}
+{"type":"user","message":"아니 그 파일 말고 다른 거","timestamp":"2026-03-28T10:02:00Z"}
 {"type":"assistant","message":{"content":[{"type":"text","text":"죄송합니다."}]},"timestamp":"2026-03-28T10:03:00Z"}
-{"type":"human","message":";;","timestamp":"2026-03-28T10:04:00Z"}
+{"type":"user","message":";;","timestamp":"2026-03-28T10:04:00Z"}
 {"type":"assistant","message":{"content":[{"type":"text","text":"다시 확인하겠습니다."}]},"timestamp":"2026-03-28T10:05:00Z"}
 JSONL
 
@@ -367,9 +367,9 @@ MOCK_TRANSCRIPT="$TEST_DIR/transcript.jsonl"
 
 # 교정 키워드 없는 깨끗한 세션 (3턴 < 30)
 cat > "$MOCK_TRANSCRIPT" << 'JSONL'
-{"type":"human","message":"안녕하세요","timestamp":"2026-03-28T10:00:00Z"}
+{"type":"user","message":"안녕하세요","timestamp":"2026-03-28T10:00:00Z"}
 {"type":"assistant","message":{"content":[{"type":"text","text":"안녕하세요!"}]},"timestamp":"2026-03-28T10:01:00Z"}
-{"type":"human","message":"감사합니다","timestamp":"2026-03-28T10:02:00Z"}
+{"type":"user","message":"감사합니다","timestamp":"2026-03-28T10:02:00Z"}
 {"type":"assistant","message":{"content":[{"type":"text","text":"천만에요."}]},"timestamp":"2026-03-28T10:03:00Z"}
 JSONL
 

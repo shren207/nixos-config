@@ -68,8 +68,8 @@ DURATION_MIN=$(jq -Rrs '
   | map(select(length > 0) | fromjson?)
   | map(.timestamp // empty | select(. != null and . != ""))
   | if length > 1 then
-      ( (last | split(".")[0] + "Z" | fromdateiso8601)
-      - (first | split(".")[0] + "Z" | fromdateiso8601) ) / 60 | floor
+      ( (last | sub("\\.[0-9]+Z$"; "Z") | sub("\\+00:00$"; "Z") | fromdateiso8601)
+      - (first | sub("\\.[0-9]+Z$"; "Z") | sub("\\+00:00$"; "Z") | fromdateiso8601) ) / 60 | floor
     else 0 end
 ' "$TRANSCRIPT_PATH" 2>/dev/null || echo "0")
 
@@ -189,7 +189,8 @@ if [ -f "$PAIN_FILE" ] && [ -s "$PAIN_FILE" ]; then
           for i in $(seq 0 $((MEMORY_COUNT - 1))); do
             FNAME=$(printf '%s' "$RESULT" | jq -r ".memories[$i].filename" 2>/dev/null)
             MCONTENT=$(printf '%s' "$RESULT" | jq -r ".memories[$i].content" 2>/dev/null)
-            if [ -n "$FNAME" ] && [ "$FNAME" != "null" ] && [ -n "$MCONTENT" ] && [ "$MCONTENT" != "null" ]; then
+            if [ -n "$FNAME" ] && [ "$FNAME" != "null" ] && [ -n "$MCONTENT" ] && [ "$MCONTENT" != "null" ] \
+               && [[ "$FNAME" =~ ^pain-[a-zA-Z0-9_-]+\.md$ ]]; then
               printf '%s\n' "$MCONTENT" > "$MEMORY_DIR/$FNAME"
               # MEMORY.md 인덱싱 (중복 방지)
               MDESC=$(printf '%s' "$MCONTENT" | grep '^description:' | head -1 | sed 's/^description: *//')
