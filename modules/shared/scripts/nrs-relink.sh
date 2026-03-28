@@ -58,7 +58,7 @@ _discover_oos_entries() {
         while [[ $hop -lt $max_hops ]]; do
             local target
             target=$(readlink "$current" 2>/dev/null) || break
-            # 각 hop은 nix store 내 절대 심링크. main_repo 패턴 첫 match가 OOS 매핑.
+            # 중간 hop은 nix store 절대 심링크. 첫 $main_repo/* match를 OOS 매핑으로 사용.
             if [[ "$target" == "$main_repo"/* ]]; then
                 final_target="$target"
                 break
