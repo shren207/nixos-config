@@ -72,6 +72,7 @@ _check_oos_chain() {
     local corrupted=0
     while IFS= read -r -d '' link; do
         local store_link
+        # readlink 실패 = 깨진 심링크 메타데이터; best-effort skip
         store_link=$(readlink "$link" 2>/dev/null) || continue
 
         # L1: HMF entry는 반드시 /nix/store/*를 가리켜야 함
@@ -82,9 +83,10 @@ _check_oos_chain() {
             continue
         fi
 
-        # L2: intermediate store symlink가 main_repo를 가리키는지 확인
+        # L2: mkOutOfStoreSymlink derivation만 검사 (regular file은 non-OOS이므로 skip)
         if [[ -L "$store_link" ]]; then
             local store_target
+            # readlink 실패 = derivation 자체가 손상; best-effort skip
             store_target=$(readlink "$store_link" 2>/dev/null) || continue
             if [[ "$store_target" != "$main_repo"/* ]]; then
                 echo -e "${RED}  nix store corruption: $(basename "$store_link") -> $store_target${NC}" >&2
