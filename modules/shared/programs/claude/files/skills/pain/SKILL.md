@@ -14,14 +14,23 @@ description: |
 
 ARGUMENTS의 전체 텍스트를 `user_note`로 사용합니다. ARGUMENTS가 비어있으면 사용자에게 무엇이 불편했는지 AskUserQuestion으로 물어보세요.
 
-Bash tool로 아래 명령을 실행하세요. `<USER_NOTE>` 부분을 ARGUMENTS 값으로 교체합니다:
+Bash tool로 아래 명령을 실행하세요. `NOTE_TEXT`에 ARGUMENTS 값을 넣습니다.
+환경변수로 전달하여 셸 인젝션을 방지합니다:
 
 ```bash
-jq -nc \
+# worktree에서도 canonical repo 이름 사용
+COMMON=$(git rev-parse --git-common-dir 2>/dev/null || true)
+if [ -n "$COMMON" ] && [ "$COMMON" != ".git" ]; then
+  REPO_NAME=$(basename "$(cd "$COMMON/.." && pwd)")
+else
+  REPO_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo unknown)
+fi
+
+NOTE_TEXT='<USER_NOTE>' jq -nc \
   --arg ts "$(date -u +"%Y-%m-%dT%H:%M:%S+00:00")" \
-  --arg repo "$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo unknown)" \
+  --arg repo "$REPO_NAME" \
   --arg branch "$(git branch --show-current 2>/dev/null || echo unknown)" \
-  --arg note "<USER_NOTE>" \
+  --arg note "$NOTE_TEXT" \
   '{
     ts: $ts,
     session_id: "manual",
@@ -34,6 +43,8 @@ jq -nc \
     user_note: $note
   }' >> ~/.claude/pain-points.jsonl
 ```
+
+`<USER_NOTE>` 부분을 ARGUMENTS 값으로 교체할 때, 반드시 작은따옴표(`'...'`)로 감싸세요.
 
 ## 완료 후
 

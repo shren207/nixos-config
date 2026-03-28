@@ -9,6 +9,9 @@
 
 set -euo pipefail
 
+# 모든 파일 쓰기에 owner-only 권한 적용 (DA SECURITY 반영)
+umask 077
+
 command -v jq >/dev/null 2>&1 || exit 0
 
 # --- stdin 읽기 ---
@@ -31,6 +34,26 @@ TRANSCRIPT_PATH=$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/de
 PAIN_FILE="${PAIN_POINTS_FILE:-$HOME/.claude/pain-points.jsonl}"
 ARCHIVE_FILE="${PAIN_ARCHIVE_FILE:-$HOME/.claude/pain-points.archive.jsonl}"
 TURN_THRESHOLD=30
+
+# --- Transcript 안정화 대기 (DA CONSISTENCY 반영: stop-notification.sh과 동일 패턴) ---
+# Race condition 방어: Stop hook이 transcript flush보다 먼저 실행되는 경우
+# 0.3초 간격으로 파일 크기 확인, 연속 2회 동일하면 안정화된 것으로 판단 (최대 3초)
+wait_for_stable_transcript() {
+  local file="$1"
+  local prev_size=-1
+  local curr_size
+
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    curr_size=$(wc -c < "$file" 2>/dev/null || echo 0)
+    if [ "$curr_size" = "$prev_size" ] && [ "$curr_size" -gt 0 ]; then
+      return 0
+    fi
+    prev_size=$curr_size
+    sleep 0.3
+  done
+}
+
+wait_for_stable_transcript "$TRANSCRIPT_PATH"
 
 # --- Git 정보 ---
 REPO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")
@@ -92,7 +115,9 @@ HAS_DOUBLE_SEMI=$(printf '%s' "$CORRECTIONS" | jq '[.[] | select(test(";;"))] | 
 SEVERITY="medium"
 [ "$HAS_DOUBLE_SEMI" = "true" ] && SEVERITY="high"
 
-# tool rejection 카운팅 (사용자가 tool call을 거부한 경우)
+# tool rejection 카운팅
+# Claude Code transcript에서 user denial은 .message.content 배열 내
+# tool_result(is_error=true, "user doesn't want to proceed") 로 기록됨
 REJECTS=$(jq -Rrs '
   split("\n")
   | map(select(length > 0) | fromjson?)
@@ -127,7 +152,6 @@ if [ "$SHOULD_RECORD" = "true" ]; then
 
   TS=$(date -u +"%Y-%m-%dT%H:%M:%S+00:00")
 
-  umask 077
   jq -nc \
     --arg ts "$TS" \
     --arg sid "${SESSION_ID:-unknown}" \
@@ -144,7 +168,7 @@ if [ "$SHOULD_RECORD" = "true" ]; then
       source: "auto", severity: $sev,
       signals: { corrections: $corrections, rejects: ($rejects), turns: ($turns), duration_min: ($dur) },
       description: $desc, user_note: null
-    }' >> "$PAIN_FILE"
+    }' >> "$PAIN_FILE" 2>/dev/null || true
 fi
 
 # --- 정제: 7일 이전 항목 처리 ---
@@ -154,17 +178,25 @@ if [ -f "$PAIN_FILE" ] && [ -s "$PAIN_FILE" ]; then
     || true)
 
   if [ -n "$SEVEN_DAYS_AGO" ]; then
-    OLD_COUNT=$(jq -rs --arg cutoff "$SEVEN_DAYS_AGO" \
-      'map(select(.ts < $cutoff)) | length' "$PAIN_FILE" 2>/dev/null || echo "0")
+    # DA SIDE_EFFECT 반영: 현재 repo 항목만 정제 대상으로 필터링
+    OLD_COUNT=$(jq -rs --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" \
+      'map(select(.ts < $cutoff and .repo == $repo)) | length' "$PAIN_FILE" 2>/dev/null || echo "0")
 
     if [ "$OLD_COUNT" -ge 5 ]; then
-      OLD_ENTRIES=$(jq -rs --arg cutoff "$SEVEN_DAYS_AGO" \
-        'map(select(.ts < $cutoff))' "$PAIN_FILE" 2>/dev/null)
+      OLD_ENTRIES=$(jq -rs --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" \
+        'map(select(.ts < $cutoff and .repo == $repo))' "$PAIN_FILE" 2>/dev/null)
 
-      # memory 디렉토리 탐색 (git repo 기반 경로 인코딩)
-      REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
-      if [ -n "$REPO_ROOT" ]; then
-        ENCODED=$(printf '%s' "$REPO_ROOT" | sed 's|[^a-zA-Z0-9]|-|g')
+      # DA NGMI CRITICAL 반영: worktree에서도 canonical main repo 경로로 memory 디렉토리 탐색
+      # show-toplevel은 worktree 경로를 반환하므로, git-common-dir 기반으로 canonical root 계산
+      CANONICAL_ROOT=""
+      GIT_COMMON=$(git rev-parse --git-common-dir 2>/dev/null || true)
+      if [ -n "$GIT_COMMON" ] && [ "$GIT_COMMON" != ".git" ]; then
+        CANONICAL_ROOT=$(cd "$GIT_COMMON/.." 2>/dev/null && pwd)
+      else
+        CANONICAL_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
+      fi
+      if [ -n "$CANONICAL_ROOT" ]; then
+        ENCODED=$(printf '%s' "$CANONICAL_ROOT" | sed 's|[^a-zA-Z0-9]|-|g')
         MEMORY_DIR="$HOME/.claude/projects/$ENCODED/memory"
       else
         MEMORY_DIR=""
@@ -202,14 +234,14 @@ if [ -f "$PAIN_FILE" ] && [ -s "$PAIN_FILE" ]; then
         fi
       fi
 
-      # 오래된 항목을 archive로 이동
-      jq -rs --arg cutoff "$SEVEN_DAYS_AGO" \
-        '.[] | select(.ts < $cutoff)' "$PAIN_FILE" >> "$ARCHIVE_FILE" 2>/dev/null || true
+      # 현재 repo의 오래된 항목만 archive로 이동 (DA SIDE_EFFECT 반영)
+      jq -rs --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" \
+        '.[] | select(.ts < $cutoff and .repo == $repo)' "$PAIN_FILE" >> "$ARCHIVE_FILE" 2>/dev/null || true
 
-      # pain-points.jsonl에서 오래된 항목 제거 (atomic write)
+      # pain-points.jsonl에서 현재 repo의 오래된 항목만 제거 (atomic write)
       tmp=$(mktemp)
-      jq -rs --arg cutoff "$SEVEN_DAYS_AGO" \
-        '[.[] | select(.ts >= $cutoff)] | .[]' "$PAIN_FILE" > "$tmp" 2>/dev/null \
+      jq -rs --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" \
+        '[.[] | select((.ts >= $cutoff) or (.repo != $repo))] | .[]' "$PAIN_FILE" > "$tmp" 2>/dev/null \
         && mv "$tmp" "$PAIN_FILE" \
         || rm -f "$tmp"
     fi
