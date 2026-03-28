@@ -71,7 +71,7 @@ description: |
      각 프롬프트는 [da-domains.md](references/da-domains.md)의 공통 프롬프트 구조에 계획 전체 내용을 포함한다.
      반드시 "계획 외의 관련 파일도 직접 읽어 탐색하라"는 지시를 포함한다.
    - 8개 codex exec를 bash 백그라운드(`&`)로 동시 실행하고 PID를 보존한다:
-     ```bash
+     ```zsh
      declare -A PIDS
      for domain in YAGNI NGMI HALLUCINATION SECURITY SIDE_EFFECT CONSISTENCY READABILITY CLEAN_CODE; do
        cat "$DA_DIR/$domain.md" | codex exec --full-auto --ephemeral \
@@ -86,7 +86,7 @@ description: |
    - codex exec는 `--full-auto`(workspace-write)로 실행되나, 프롬프트에서 "리뷰만 수행하고 파일을 수정하지 마라"를 명시한다.
    - `--ephemeral`로 실행하여 Codex 세션 히스토리를 오염시키지 않는다.
    - 모델은 codex config.toml 기본값을 따른다. `-m` 플래그를 생략한다.
-   - `/using-codex-exec` 패턴 5의 실행 흐름만 참고한다. 후속 라운드 프롬프트 내용은 이 스킬의 `fresh`/프롬프트 조향 금지 규칙이 우선한다.
+   - `/using-codex-exec` 패턴 5의 실행 흐름(stdin 파이핑, `-o` 사용법, 결과 파일 검증, 명령 실행 순서)만 참고한다. 프롬프트 내용 규칙(문맥 보존, 라운드 히스토리 포함 여부)은 이 스킬의 `fresh`/프롬프트 조향 금지 규칙이 우선한다.
 3. `wait` 완료 후 8개 결과 파일(`$DA_DIR/*-result.md`)을 수집하여 종합 리포트를 작성한다.
    실패 판정: 결과 파일이 없거나 빈 경우, 또는 exit code가 0이 아닌 경우(`$DA_DIR/*-stderr.log` 확인).
    실패한 영역만 재실행한다. 라운드마다 새 `DA_DIR`을 생성하여 이전 라운드 산출물과 분리한다.
@@ -99,7 +99,7 @@ description: |
 
 ### for_pr 모드
 
-1. 변경사항이 커밋되어 있는지 확인한다 (`git status`로 clean working tree 확인).
+1. 변경사항이 커밋되어 있는지 확인한다 (`git status --porcelain`이 빈 출력이면 clean).
    `git diff main...HEAD`로 diff를 수집한다.
    - diff를 프롬프트에 직접 포함한다 (exec 우회 패턴).
    - diff가 과도하게 크면 (`git diff main...HEAD | wc -l`로 확인) 기계적 변경(flake.lock, hash 변경 등)을 필터링한 축약 diff를 사용한다.
