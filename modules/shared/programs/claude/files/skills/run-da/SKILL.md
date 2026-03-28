@@ -70,13 +70,17 @@ description: |
    - 8개 영역별 프롬프트 파일을 생성한다: `$DA_DIR/{domain}.md`
      각 프롬프트는 [da-domains.md](references/da-domains.md)의 공통 프롬프트 구조에 계획 전체 내용을 포함한다.
      반드시 "계획 외의 관련 파일도 직접 읽어 탐색하라"는 지시를 포함한다.
-   - 8개 codex exec를 bash 백그라운드(`&`)로 동시 실행한다:
+   - 8개 codex exec를 bash 백그라운드(`&`)로 동시 실행하고 PID를 보존한다:
      ```bash
+     declare -A PIDS
      for domain in YAGNI NGMI HALLUCINATION SECURITY SIDE_EFFECT CONSISTENCY READABILITY CLEAN_CODE; do
        cat "$DA_DIR/$domain.md" | codex exec --full-auto --ephemeral \
          -o "$DA_DIR/$domain-result.md" 2>"$DA_DIR/$domain-stderr.log" &
+       PIDS[$domain]=$!
      done
-     wait
+     for domain in "${(@k)PIDS}"; do
+       wait ${PIDS[$domain]}; echo "$domain:$?" >> "$DA_DIR/exit-codes.log"
+     done
      ```
    - `fresh` modifier가 있으면 이전 라운드 결과를 프롬프트에 포함하지 않는다.
    - codex exec는 `--full-auto`(workspace-write)로 실행되나, 프롬프트에서 "리뷰만 수행하고 파일을 수정하지 마라"를 명시한다.
@@ -106,7 +110,7 @@ description: |
    - 8개 영역별 프롬프트 파일을 생성한다: `$DA_DIR/{domain}.md`
      각 프롬프트는 [da-domains.md](references/da-domains.md)의 공통 프롬프트 구조에 diff를 `<git-diff>` 태그로 감싸서 포함한다.
      반드시 "diff 외부의 관련 파일도 직접 읽어 탐색하라"는 지시를 포함한다.
-   - 8개 codex exec를 bash 백그라운드(`&`)로 동시 실행하고 `wait`로 대기한다 (for_plan과 동일 패턴).
+   - 8개 codex exec를 bash 백그라운드(`&`)로 동시 실행하고 PID별 `wait`로 exit code를 수집한다 (for_plan과 동일 패턴).
    - `fresh` modifier가 있으면 이전 라운드 결과를 프롬프트에 포함하지 않는다.
    - 프롬프트에서 "리뷰만 수행하고 파일을 수정하지 마라"를 명시한다.
 3. `wait` 완료 후 8개 결과 파일을 수집하여 종합 리포트를 작성한다.
