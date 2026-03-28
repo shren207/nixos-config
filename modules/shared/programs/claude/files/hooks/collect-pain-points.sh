@@ -14,6 +14,9 @@ umask 077
 
 command -v jq >/dev/null 2>&1 || exit 0
 
+# eval 모드에서는 수집 스킵 — 실사용 데이터 오염 방지 (log-skill.sh과 동일 패턴)
+[[ -n "${SKILL_EVAL_MODE:-}" ]] && exit 0
+
 # --- stdin 읽기 ---
 INPUT=""
 if [ ! -t 0 ]; then
@@ -202,10 +205,10 @@ if [ -f "$PAIN_FILE" ] && [ -s "$PAIN_FILE" ]; then
         MEMORY_DIR=""
       fi
 
-      # claude -p로 패턴 분석 (실패해도 아카이브는 수행)
+      # claude -p로 패턴 분석 — best-effort (실패해도 아카이브는 반드시 수행)
       if command -v claude >/dev/null 2>&1 && [ -n "$MEMORY_DIR" ] && [ -d "$MEMORY_DIR" ]; then
-        RESULT=$(printf '%s' "$OLD_ENTRIES" | timeout 120 claude -p \
-          "아래 pain point 로그를 분석하세요. 반복 패턴(2회+)이 있으면 feedback memory를 생성하세요.
+        # DA HALLUCINATION 반영: stdin+positional prompt 결합 대신 전체를 stdin으로 전달
+        DISTILL_PROMPT="아래 pain point 로그를 분석하세요. 반복 패턴(2회+)이 있으면 feedback memory를 생성하세요.
 
 규칙:
 - 2회 이상 반복되는 패턴만 memory로 추출
@@ -213,21 +216,22 @@ if [ -f "$PAIN_FILE" ] && [ -s "$PAIN_FILE" ]; then
 - 출력: JSON {\"memories\": [{\"filename\": \"pain-xxx.md\", \"content\": \"---\nname: pain-xxx\ndescription: one-line\ntype: feedback\n---\n\n본문\n\n**Why:** 근거\n**How to apply:** 적용 방법\"}]}
 - memory가 없으면 {\"memories\": []}
 
-로그:" 2>/dev/null || echo "")
+로그:
+$OLD_ENTRIES"
+
+        RESULT=$(printf '%s' "$DISTILL_PROMPT" | timeout 120 claude -p 2>/dev/null || echo "")
 
         if [ -n "$RESULT" ]; then
-          # JSON에서 memories 배열 추출
           MEMORY_COUNT=$(printf '%s' "$RESULT" | jq '.memories | length' 2>/dev/null || echo "0")
           for i in $(seq 0 $((MEMORY_COUNT - 1))); do
-            FNAME=$(printf '%s' "$RESULT" | jq -r ".memories[$i].filename" 2>/dev/null)
-            MCONTENT=$(printf '%s' "$RESULT" | jq -r ".memories[$i].content" 2>/dev/null)
+            FNAME=$(printf '%s' "$RESULT" | jq -r ".memories[$i].filename" 2>/dev/null || true)
+            MCONTENT=$(printf '%s' "$RESULT" | jq -r ".memories[$i].content" 2>/dev/null || true)
             if [ -n "$FNAME" ] && [ "$FNAME" != "null" ] && [ -n "$MCONTENT" ] && [ "$MCONTENT" != "null" ] \
                && [[ "$FNAME" =~ ^pain-[a-zA-Z0-9_-]+\.md$ ]]; then
-              printf '%s\n' "$MCONTENT" > "$MEMORY_DIR/$FNAME"
-              # MEMORY.md 인덱싱 (중복 방지)
-              MDESC=$(printf '%s' "$MCONTENT" | grep '^description:' | head -1 | sed 's/^description: *//')
-              if [ -f "$MEMORY_DIR/MEMORY.md" ] && ! grep -qF "$FNAME" "$MEMORY_DIR/MEMORY.md"; then
-                printf -- '- [%s](%s) — %s\n' "$FNAME" "$FNAME" "${MDESC:-pain point 자동 정제}" >> "$MEMORY_DIR/MEMORY.md"
+              printf '%s\n' "$MCONTENT" > "$MEMORY_DIR/$FNAME" 2>/dev/null || true
+              MDESC=$(printf '%s' "$MCONTENT" | grep '^description:' | head -1 | sed 's/^description: *//' || true)
+              if [ -f "$MEMORY_DIR/MEMORY.md" ] && ! grep -qF "$FNAME" "$MEMORY_DIR/MEMORY.md" 2>/dev/null; then
+                printf -- '- [%s](%s) — %s\n' "$FNAME" "$FNAME" "${MDESC:-pain point 자동 정제}" >> "$MEMORY_DIR/MEMORY.md" 2>/dev/null || true
               fi
             fi
           done
