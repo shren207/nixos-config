@@ -84,6 +84,7 @@ description: |
      ```
    - `fresh` modifier가 있으면 이전 라운드 결과를 프롬프트에 포함하지 않는다.
    - codex exec는 `--full-auto`(workspace-write)로 실행되나, 프롬프트에서 "리뷰만 수행하고 파일을 수정하지 마라"를 명시한다.
+     (이유: codex CLI 제약상 `--full-auto`가 `-s read-only`를 override하여 read-only 강제 불가. exec 우회 패턴 사용을 위한 트레이드오프.)
    - `--ephemeral`로 실행하여 Codex 세션 히스토리를 오염시키지 않는다.
    - 모델은 codex config.toml 기본값을 따른다. `-m` 플래그를 생략한다.
    - `/using-codex-exec` 패턴 5의 실행 흐름(stdin 파이핑, `-o` 사용법, 결과 파일 검증, 명령 실행 순서)만 참고한다. 프롬프트 내용 규칙(문맥 보존, 라운드 히스토리 포함 여부)은 이 스킬의 `fresh`/프롬프트 조향 금지 규칙이 우선한다.
