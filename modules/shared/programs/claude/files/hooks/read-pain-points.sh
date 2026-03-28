@@ -43,11 +43,12 @@ SEVEN_DAYS_AGO=$(date -u -v-7d +"%Y-%m-%dT%H:%M:%S" 2>/dev/null \
   || date -u -d "7 days ago" +"%Y-%m-%dT%H:%M:%S" 2>/dev/null \
   || exit 0)
 
-# 최근 7일 + 현재 repo 필터 + 최근순 정렬 후 severity 섹션별 그룹핑 + 최대 10건
+# 최근 7일 + 현재 repo 필터 + 최근순 정렬 후 severity 섹션별 그룹핑 + 최대 5건
+# (리서치: 컨텍스트 주입은 3-5건이 최적 — 과다 주입 시 노이즈)
 CONTEXT=$(jq -rs --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" '
   map(select(.ts >= $cutoff and .repo == $repo))
   | sort_by(.ts) | reverse
-  | .[0:10]
+  | .[0:5]
   | if length == 0 then empty
     else
       (map(select(.severity == "high")) | length) as $high
