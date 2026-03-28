@@ -17,6 +17,9 @@ command -v jq >/dev/null 2>&1 || exit 0
 # eval 모드에서는 수집 스킵 — 실사용 데이터 오염 방지 (log-skill.sh과 동일 패턴)
 [[ -n "${SKILL_EVAL_MODE:-}" ]] && exit 0
 
+# 재귀 방지: distillation에서 claude -p가 Stop hook을 다시 트리거하는 것을 차단
+[[ -n "${PAIN_COLLECTING:-}" ]] && exit 0
+
 # --- stdin 읽기 ---
 INPUT=""
 if [ ! -t 0 ]; then
@@ -131,7 +134,7 @@ REJECTS=$(jq -Rrs '
           [.[] | select(
             .type == "tool_result"
             and .is_error == true
-            and ((.content // "") | test("user doesn.t want to proceed|rejected"; "i"))
+            and ((.content // "") | test("user doesn.t want to proceed|tool use was rejected"; "i"))
           )]
         else []
         end
@@ -219,7 +222,7 @@ if [ -f "$PAIN_FILE" ] && [ -s "$PAIN_FILE" ]; then
 로그:
 $OLD_ENTRIES"
 
-        RESULT=$(printf '%s' "$DISTILL_PROMPT" | timeout 120 claude -p 2>/dev/null || echo "")
+        RESULT=$(printf '%s' "$DISTILL_PROMPT" | PAIN_COLLECTING=1 timeout 120 claude -p 2>/dev/null || echo "")
 
         if [ -n "$RESULT" ]; then
           MEMORY_COUNT=$(printf '%s' "$RESULT" | jq '.memories | length' 2>/dev/null || echo "0")
