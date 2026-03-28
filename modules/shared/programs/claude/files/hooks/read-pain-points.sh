@@ -32,7 +32,8 @@ PAIN_FILE="${PAIN_POINTS_FILE:-$HOME/.claude/pain-points.jsonl}"
 [ -f "$PAIN_FILE" ] && [ -s "$PAIN_FILE" ] || exit 0
 
 # 현재 repo 이름 (worktree 보정)
-REPO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")
+REPO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null)
+REPO="${REPO:-unknown}"
 COMMON_DIR=$(git rev-parse --git-common-dir 2>/dev/null || true)
 if [ -n "$COMMON_DIR" ] && [ "$COMMON_DIR" != ".git" ]; then
   REPO=$(basename "$(cd "$COMMON_DIR/.." 2>/dev/null && pwd)" 2>/dev/null || echo "$REPO")

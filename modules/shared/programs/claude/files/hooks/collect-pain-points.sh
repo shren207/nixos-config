@@ -62,7 +62,8 @@ wait_for_stable_transcript() {
 wait_for_stable_transcript "$TRANSCRIPT_PATH"
 
 # --- Git 정보 ---
-REPO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")
+REPO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null)
+REPO="${REPO:-unknown}"
 BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
 # worktree에서 REPO가 worktree 디렉토리명으로 잡히므로 실제 repo 이름 사용
 COMMON_DIR=$(git rev-parse --git-common-dir 2>/dev/null || true)
