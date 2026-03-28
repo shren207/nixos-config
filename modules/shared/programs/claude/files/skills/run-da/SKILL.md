@@ -73,16 +73,19 @@ description: |
    - 8개 codex exec를 bash 백그라운드(`&`)로 동시 실행한다:
      ```bash
      for domain in YAGNI NGMI HALLUCINATION SECURITY SIDE_EFFECT CONSISTENCY READABILITY CLEAN_CODE; do
-       cat "$DA_DIR/$domain.md" | codex exec --full-auto \
-         -o "$DA_DIR/$domain-result.md" 2>&1 &
+       cat "$DA_DIR/$domain.md" | codex exec --full-auto --ephemeral \
+         -o "$DA_DIR/$domain-result.md" 2>"$DA_DIR/$domain-stderr.log" &
      done
      wait
      ```
    - `fresh` modifier가 있으면 이전 라운드 결과를 프롬프트에 포함하지 않는다.
    - codex exec는 `--full-auto`(workspace-write)로 실행되나, 프롬프트에서 "리뷰만 수행하고 파일을 수정하지 마라"를 명시한다.
+   - `--ephemeral`로 실행하여 Codex 세션 히스토리를 오염시키지 않는다.
    - 모델은 codex config.toml 기본값을 따른다. `-m` 플래그를 생략한다.
+   - `/using-codex-exec` 패턴 5의 실행 흐름만 참고한다. 후속 라운드 프롬프트 내용은 이 스킬의 `fresh`/프롬프트 조향 금지 규칙이 우선한다.
 3. `wait` 완료 후 8개 결과 파일(`$DA_DIR/*-result.md`)을 수집하여 종합 리포트를 작성한다.
-   개별 codex 프로세스가 실패(빈 결과 파일)한 경우, 해당 영역만 재실행한다.
+   실패 판정: 결과 파일이 없거나 빈 경우, 또는 exit code가 0이 아닌 경우(`$DA_DIR/*-stderr.log` 확인).
+   실패한 영역만 재실행한다. 라운드마다 새 `DA_DIR`을 생성하여 이전 라운드 산출물과 분리한다.
 4. 유효한 지적만 선별하여 계획에 반영한다.
    - 기각하는 지적에는 반드시 [구조화된 기각 포맷](references/protocol.md#구조화된-기각-포맷)을 사용한다.
    - 기각 전 반드시 해당 파일:줄을 직접 읽어 확인한다. **검증 없는 기각을 금지한다.**
@@ -92,14 +95,14 @@ description: |
 
 ### for_pr 모드
 
-1. `git diff main...HEAD`로 변경사항을 수집한다.
-   - diff 크기가 적당하면 프롬프트에 직접 포함한다 (exec 우회 패턴).
-   - diff가 과도하게 크면 기계적 변경(flake.lock, hash 변경 등)을 필터링한 축약 diff를 사용한다.
+1. 변경사항이 커밋되어 있는지 확인한다 (`git status`로 clean working tree 확인).
+   `git diff main...HEAD`로 diff를 수집한다.
+   - diff를 프롬프트에 직접 포함한다 (exec 우회 패턴).
+   - diff가 과도하게 크면 (`git diff main...HEAD | wc -l`로 확인) 기계적 변경(flake.lock, hash 변경 등)을 필터링한 축약 diff를 사용한다.
      `git diff main...HEAD -- ':!flake.lock'`로 lock 파일 제외 가능.
-   - 축약 후에도 과도하면 변경 파일별 요약으로 대체한다.
-2. 8개 영역별 DA 에이전트를 `codex exec --full-auto`로 **병렬 실행**한다.
+2. 8개 영역별 DA 에이전트를 `codex exec --full-auto --ephemeral`로 **병렬 실행**한다.
    실행 전 `/using-codex-exec` 스킬의 패턴 4 (exec 우회)를 참조한다.
-   - 세션별 임시 디렉토리를 생성한다: `DA_DIR=$(mktemp -d /tmp/da-pr-XXXXXX)`
+   - 라운드별 임시 디렉토리를 생성한다: `DA_DIR=$(mktemp -d /tmp/da-pr-XXXXXX)`
    - 8개 영역별 프롬프트 파일을 생성한다: `$DA_DIR/{domain}.md`
      각 프롬프트는 [da-domains.md](references/da-domains.md)의 공통 프롬프트 구조에 diff를 `<git-diff>` 태그로 감싸서 포함한다.
      반드시 "diff 외부의 관련 파일도 직접 읽어 탐색하라"는 지시를 포함한다.
@@ -107,7 +110,8 @@ description: |
    - `fresh` modifier가 있으면 이전 라운드 결과를 프롬프트에 포함하지 않는다.
    - 프롬프트에서 "리뷰만 수행하고 파일을 수정하지 마라"를 명시한다.
 3. `wait` 완료 후 8개 결과 파일을 수집하여 종합 리포트를 작성한다.
-   개별 codex 프로세스가 실패(빈 결과 파일)한 경우, 해당 영역만 재실행한다.
+   실패 판정: 결과 파일이 없거나 빈 경우, 또는 exit code가 0이 아닌 경우. 실패한 영역만 재실행한다.
+   라운드마다 새 `DA_DIR`을 생성하여 이전 라운드 산출물과 분리한다.
 4. 유효한 지적만 선별하여 코드에 반영하고 커밋한다.
    - 기각하는 지적에는 반드시 [구조화된 기각 포맷](references/protocol.md#구조화된-기각-포맷)을 사용한다.
    - 기각 전 반드시 해당 파일:줄을 직접 읽어 확인한다. **검증 없는 기각을 금지한다.**

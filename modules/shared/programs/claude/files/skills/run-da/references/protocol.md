@@ -225,7 +225,7 @@ DA 지적을 수용할 때, 감정적 동의 표현을 사용하지 않는다.
 ```
 Finding #2 (zombie entries):
 - 기각 분류: VERIFIED_FALSE_POSITIVE
-- 검증 방법: rebuild-common.sh:114를 Read로 확인. worktree_symlink_guard()는
+- 검증 방법: rebuild-common.sh:114를 직접 읽어 확인. worktree_symlink_guard()는
   main→worktree 방향만 검사 (L114-L130). worktree-only 엔트리 감지 로직 부재 확인.
 - 기술적 근거: 단, 이번 변경에서 _discover_hmf()의 gcroot 경로를 변경하지 않으므로
   기존 동작과 동일. 악화 없음 확인.
