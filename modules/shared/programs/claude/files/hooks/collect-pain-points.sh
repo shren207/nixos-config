@@ -121,38 +121,15 @@ HAS_DOUBLE_SEMI=$(printf '%s' "$CORRECTIONS" | jq '[.[] | select(test(";;"))] | 
 SEVERITY="medium"
 [ "$HAS_DOUBLE_SEMI" = "true" ] && SEVERITY="high"
 
-# tool rejection 카운팅
-# Claude Code transcript에서 user denial은 .message.content 배열 내
-# tool_result(is_error=true, "user doesn't want to proceed") 로 기록됨
-REJECTS=$(jq -Rrs '
-  split("\n")
-  | map(select(length > 0) | fromjson?)
-  | map(
-      select(.type == "user")
-      | .message.content
-      | if type == "array" then
-          [.[] | select(
-            .type == "tool_result"
-            and .is_error == true
-            and ((.content // "") | test("user doesn.t want to proceed|tool use was rejected"; "i"))
-          )]
-        else []
-        end
-    )
-  | map(select(length > 0))
-  | length
-' "$TRANSCRIPT_PATH" 2>/dev/null || echo "0")
-
 # --- 임계값 판정 ---
+# 신호: 교정 키워드 + 턴 수 (reject 감지는 bypass permissions 모드에서 항상 0이라 제거)
 SHOULD_RECORD=false
 [ "$CORRECTION_COUNT" -gt 0 ] && SHOULD_RECORD=true
-[ "$REJECTS" -gt 0 ] && SHOULD_RECORD=true
 [ "$TURNS" -gt "$TURN_THRESHOLD" ] && SHOULD_RECORD=true
 
 if [ "$SHOULD_RECORD" = "true" ]; then
   DESC_PARTS=()
   [ "$CORRECTION_COUNT" -gt 0 ] && DESC_PARTS+=("교정 ${CORRECTION_COUNT}회")
-  [ "$REJECTS" -gt 0 ] && DESC_PARTS+=("reject ${REJECTS}회")
   [ "$TURNS" -gt "$TURN_THRESHOLD" ] && DESC_PARTS+=("${TURNS}턴")
   DESCRIPTION=$(IFS=", "; echo "${DESC_PARTS[*]}")
 
@@ -165,14 +142,13 @@ if [ "$SHOULD_RECORD" = "true" ]; then
     --arg branch "$BRANCH" \
     --arg sev "$SEVERITY" \
     --argjson corrections "$CORRECTIONS" \
-    --argjson rejects "$REJECTS" \
     --argjson turns "$TURNS" \
     --argjson dur "$DURATION_MIN" \
     --arg desc "$DESCRIPTION" \
     '{
       ts: $ts, session_id: $sid, repo: $repo, branch: $branch,
       source: "auto", severity: $sev,
-      signals: { corrections: $corrections, rejects: ($rejects), turns: ($turns), duration_min: ($dur) },
+      signals: { corrections: $corrections, turns: ($turns), duration_min: ($dur) },
       description: $desc, user_note: null
     }' >> "$PAIN_FILE" 2>/dev/null || true
 fi
