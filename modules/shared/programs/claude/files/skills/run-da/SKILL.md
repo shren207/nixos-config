@@ -71,7 +71,7 @@ description: |
      각 프롬프트는 [da-domains.md](references/da-domains.md)의 공통 프롬프트 구조에 계획 전체 내용을 포함한다.
      반드시 "계획 외의 관련 파일도 직접 읽어 탐색하라"는 지시를 포함한다.
    - 8개 codex exec를 **8개 background Bash tool 호출** (`run_in_background: true`)로 실행한다:
-     ```bash
+     ```zsh
      # 1개 Bash call: 임시 디렉토리 + 8개 프롬프트 파일 생성
      DA_DIR=$(mktemp -d /tmp/da-plan-XXXXXX)
      for domain in YAGNI NGMI HALLUCINATION SECURITY SIDE_EFFECT CONSISTENCY READABILITY CLEAN_CODE; do
