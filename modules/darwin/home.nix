@@ -68,6 +68,7 @@
         ./programs/folder-actions
         ./programs/ghostty
         ./programs/shottr
+        ./programs/dropzone
         ./programs/keybindings
         ./programs/ssh
       ];
