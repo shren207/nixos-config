@@ -31,8 +31,9 @@ trap 'rm -rf "$TMPDIR"' EXIT
   [ -f "$ARCHIVE_FILE" ] && [ -s "$ARCHIVE_FILE" ] && cat "$ARCHIVE_FILE" || true
 } | jq -s '.' > "$TMPDIR/data.json" 2>/dev/null || echo '[]' > "$TMPDIR/data.json"
 
-# 3) context가 없는 레코드에 대해 transcript에서 context 보충
-# session_id로 transcript를 찾아 해당 시점 전후 대화를 추출
+# 3) context가 없는 레코드에 대해 transcript에서 context 보충 (fallback)
+# hook에서 감지 시점 context를 이미 저장한 레코드는 skip.
+# 기존 레코드(context 없음)에 대해 session_id로 transcript를 찾아 최근 4턴 추출.
 python3 -c "
 import json, sys, os, glob
 

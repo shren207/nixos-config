@@ -91,7 +91,9 @@ else
   DESCRIPTION="키워드 감지: $MATCHED_KEYWORD"
 fi
 
-# --- 최근 대화 컨텍스트 추출 (대시보드에서 "왜 pain인지" 파악용) ---
+# --- 감지 시점 대화 컨텍스트 추출 (대시보드에서 "왜 pain인지" 파악용) ---
+# UserPromptSubmit hook이므로 감지 시점의 최근 4턴이 정확한 pain 맥락.
+# content가 배열(tool_use 등)이면 text 블록만 추출, 문자열이면 그대로 사용.
 PAIN_CONTEXT="[]"
 if [ -n "$TRANSCRIPT_PATH" ] && [ -f "$TRANSCRIPT_PATH" ]; then
   PAIN_CONTEXT=$(jq -Rrs '
@@ -99,7 +101,12 @@ if [ -n "$TRANSCRIPT_PATH" ] && [ -f "$TRANSCRIPT_PATH" ]; then
     | map(select(length > 0) | fromjson?)
     | map(select(.type == "user" or .type == "assistant"))
     | .[-4:]
-    | map({type, content: (.message.content // "" | .[0:300])})
+    | map({type, content: (
+        .message.content // ""
+        | if type == "string" then .[0:300]
+          elif type == "array" then ([.[] | select(type == "object" and .type == "text") | .text] | first // "") | .[0:300]
+          else "" end
+      )})
   ' "$TRANSCRIPT_PATH" 2>/dev/null || echo "[]")
 fi
 

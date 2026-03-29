@@ -36,4 +36,4 @@ Bash tool로 스크립트를 실행한다:
 - **일별 트렌드 차트**: bucket별 색상 라인 (Chart.js)
 - **필터**: Bucket, Source, Repo
 - **테이블**: 시간 역순, severity 뱃지, description, repo/branch
-- **반복 패턴**: 동일 keyword 3회+ 반복 하이라이트
+- **반복 패턴**: 동일 repeat key (keyword > user_note > description fallback) 3회+ 반복 하이라이트
