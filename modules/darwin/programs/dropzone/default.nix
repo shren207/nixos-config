@@ -63,11 +63,18 @@ lib.mkIf (hostType == "personal") (
       def dragged
         $dz.begin("Sending to ${meta.name}...")
         target = "${folderActionsDir}/${slug}"
-        Dir.mktmpdir("dz-enqueue") do |tmp|
-          $items.each { |item| system("/bin/cp", item, "#{tmp}/") }
-          Dir.glob("#{tmp}/*").each { |f| system("/bin/mv", f, "#{target}/") }
+        unless Dir.exist?(target)
+          $dz.fail("Target folder not found: #{target}")
+          $dz.url(false)
+          return
         end
-        $dz.finish("Queued!")
+
+        ok = true
+        Dir.mktmpdir("dz-enqueue") do |tmp|
+          ok &&= $items.all? { |item| system("/bin/cp", item, "#{tmp}/") }
+          ok &&= Dir.glob("#{tmp}/*").all? { |f| system("/bin/mv", f, "#{target}/") }
+        end
+        ok ? $dz.finish("Queued!") : $dz.fail("Failed to queue one or more items")
         $dz.url(false)
       end
     '';
@@ -98,12 +105,23 @@ lib.mkIf (hostType == "personal") (
         def dragged
           $dz.begin("Sending to iPhone...")
           text = $items[0]
-          cred_path = "${pushoverCredPath}"
+          if text.nil? || text.strip.empty?
+            $dz.fail("No text provided")
+            $dz.url(false)
+            return
+          end
 
+          cred_path = "${pushoverCredPath}"
           creds = {}
-          File.readlines(cred_path).each do |line|
-            key, val = line.strip.split("=", 2)
-            creds[key] = val if key && val
+          begin
+            File.readlines(cred_path).each do |line|
+              key, val = line.strip.split("=", 2)
+              creds[key] = val if key && val
+            end
+          rescue Errno::ENOENT
+            $dz.fail("Credential file not found")
+            $dz.url(false)
+            return
           end
 
           result = system("/usr/bin/curl", "--fail", "--silent", "--max-time", "10",
