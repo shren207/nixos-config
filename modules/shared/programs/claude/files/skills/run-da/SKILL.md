@@ -17,7 +17,7 @@ description: |
 |--------------|------|
 | `for_plan` | 계획 단계 DA 1회 — 계획 파일 또는 대화 컨텍스트 대상 |
 | `for_pr` | 구현 후 코드 DA 1회 — git diff 대상 |
-| `both` | 계획 DA + 사용자 승인 + 구현 + 코드 DA 총 2회 |
+| `both` | for_plan → 사용자 승인 → 구현 → for_pr 순차 수행 (각 단계의 실행 강도는 Review Intensity에 따라 다름) |
 | *(비어있음)* | 사용자에게 모드 선택을 질문한다 |
 
 ### `full` modifier
@@ -91,7 +91,7 @@ for_plan/for_pr 절차 시작 전에 실행한다. `full` modifier가 있으면 
 3. 새 모듈/서비스 추가, 아키텍처/인터페이스 변경 → **FULL**
 4. 설정/포트/환경변수/의존성 변경 → **FULL**
 5. 단일 함수 소규모 수정, 리팩터링 → **LITE**
-6. 순수 문서/주석/오타/whitespace/CHANGELOG → **SKIP**
+6. 순수 문서/주석/오타/whitespace/CHANGELOG → **SKIP** (단, 에이전트 실행 정책 파일 — SKILL.md, hooks/*, settings.json, AGENTS*.md — 은 문서가 아닌 코드 변경으로 취급하여 FULL)
 7. 혼합 변경 → 포함된 변경 중 **가장 높은 단계** 적용
 8. 불명확 → **FULL**
 
@@ -114,17 +114,24 @@ for_plan/for_pr 절차 시작 전에 실행한다. `full` modifier가 있으면 
    - 변경 내용 요약
    - SKIP 판단 근거
    - "DA를 생략해도 괜찮겠습니까?"
-2. 사용자가 승인하면 DA를 생략하고 다음 단계로 진행한다.
-3. 사용자가 거부하면 LITE 또는 FULL로 승격하여 진행한다.
+2. 사용자가 승인하면 DA를 생략하고 해당 모드(for_plan/for_pr)를 종료하여 상위 워크플로로 복귀한다.
+3. 사용자가 거부하면 LITE 또는 FULL로 승격하여 DA를 진행한다.
 
 ### LITE 절차
 
 1. SECURITY는 항상 포함한다.
-2. 나머지 도메인 중 변경 성격에 관련된 도메인만 선택한다.
+2. 코드 변경이면 SIDE_EFFECT도 기본 포함한다 (기존 호출부 회귀 검출을 위해).
+3. 나머지 도메인 중 변경 성격에 관련된 도메인만 선택한다.
    선택 판단 기준: 해당 도메인의 "집중 대상"(da-domains.md)이 이번 변경에 적용되는가.
-3. 선택되지 않은 도메인은 NOT_RUN으로 기록한다.
-4. 선택된 도메인만으로 기존 for_plan/for_pr 절차를 수행한다.
-5. 종료 조건: **선택된 도메인 전부 CLEAR** (NOT_RUN 도메인은 평가 대상 아님).
+4. 선택되지 않은 도메인은 NOT_RUN으로 기록한다.
+5. 선택된 도메인만으로 기존 for_plan/for_pr 절차를 수행한다.
+6. 종료 조건: **선택된 도메인 전부 CLEAR** (NOT_RUN 도메인은 평가 대상 아님).
+
+### LITE 예시
+
+단일 함수명 정리 리팩터링 → **SECURITY** + **SIDE_EFFECT** + **READABILITY** + **CONSISTENCY** 실행.
+미실행: YAGNI(NOT_RUN), NGMI(NOT_RUN), HALLUCINATION(NOT_RUN), CLEAN_CODE(NOT_RUN).
+이유: SECURITY는 항상 포함, SIDE_EFFECT는 코드 변경이므로 기본 포함, READABILITY/CONSISTENCY는 이름 변경에 직접 관련.
 
 ### LITE 라운드 요약 형식
 
@@ -151,19 +158,23 @@ Round N 요약 (LITE: 선택 M개/전체 N개): 발견 X건, 해결 Y건, 기각
      반드시 "계획 외의 관련 파일도 직접 읽어 탐색하라"는 지시를 포함한다.
    - 선택된 도메인 수만큼 codex exec를 **background Bash tool 호출** (`run_in_background: true`)로 실행한다:
      ```zsh
+     # SELECTED_DOMAINS: Review Intensity 판단 결과에 따라 결정
+     # FULL이면 전체, LITE이면 SECURITY + SIDE_EFFECT(코드 변경 시) + 관련 도메인
+     SELECTED_DOMAINS=(SECURITY SIDE_EFFECT READABILITY CONSISTENCY)  # 예: LITE
+
      # 1개 Bash call: 임시 디렉토리 + 선택된 도메인별 프롬프트 파일 생성
      DA_DIR=$(mktemp -d /tmp/da-plan-XXXXXX)
-     for domain in YAGNI NGMI HALLUCINATION SECURITY SIDE_EFFECT CONSISTENCY READABILITY CLEAN_CODE; do
+     for domain in "${SELECTED_DOMAINS[@]}"; do
        cat > "$DA_DIR/$domain.md" <<PROMPT
        ... 영역별 프롬프트 ...
      PROMPT
      done
 
-     # 선택된 도메인 수만큼 background Bash tool 호출 (run_in_background: true): 각각 1개 codex exec 실행
+     # 선택된 도메인 수만큼 background Bash tool 호출 (run_in_background: true)
      codex exec --full-auto --ephemeral \
-       -o "$DA_DIR/YAGNI-result.md" \
-       "$(cat "$DA_DIR/YAGNI.md")" \
-       2>"$DA_DIR/YAGNI-stderr.log"
+       -o "$DA_DIR/${domain}-result.md" \
+       "$(cat "$DA_DIR/${domain}.md")" \
+       2>"$DA_DIR/${domain}-stderr.log"
      ```
    - `run_in_background: true`로 실행하면 LLM이 즉시 반환받아 사용자와 대화 가능하다.
      각 codex exec 완료 시 자동 알림이 온다. sleep/poll로 완료를 확인하지 않는다.
