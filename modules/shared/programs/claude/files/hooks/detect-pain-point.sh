@@ -28,6 +28,7 @@ AGENT_ID=$(printf '%s' "$INPUT" | jq -r '.agent_id // empty' 2>/dev/null || true
 
 SESSION_ID=$(printf '%s' "$INPUT" | jq -r '.session_id // empty' 2>/dev/null || true)
 PROMPT=$(printf '%s' "$INPUT" | jq -r '.prompt // empty' 2>/dev/null || true)
+TRANSCRIPT_PATH=$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null || true)
 
 [ -n "$PROMPT" ] || exit 0
 
@@ -90,6 +91,18 @@ else
   DESCRIPTION="키워드 감지: $MATCHED_KEYWORD"
 fi
 
+# --- 최근 대화 컨텍스트 추출 (대시보드에서 "왜 pain인지" 파악용) ---
+PAIN_CONTEXT="[]"
+if [ -n "$TRANSCRIPT_PATH" ] && [ -f "$TRANSCRIPT_PATH" ]; then
+  PAIN_CONTEXT=$(jq -Rrs '
+    split("\n")
+    | map(select(length > 0) | fromjson?)
+    | map(select(.type == "user" or .type == "assistant"))
+    | .[-4:]
+    | map({type, content: (.message.content // "" | .[0:300])})
+  ' "$TRANSCRIPT_PATH" 2>/dev/null || echo "[]")
+fi
+
 # --- JSONL 기록 ---
 TS=$(date -u +"%Y-%m-%dT%H:%M:%S+00:00")
 
@@ -104,12 +117,16 @@ jq -nc \
   --arg keyword "$MATCHED_KEYWORD" \
   --arg desc "$DESCRIPTION" \
   --arg note "$USER_NOTE" \
+  --arg tp "${TRANSCRIPT_PATH:-}" \
+  --argjson ctx "$PAIN_CONTEXT" \
   '{
     ts: $ts, session_id: $sid, repo: $repo, branch: $branch,
     source: $source, severity: $sev,
     signals: { keyword: $keyword },
     description: $desc,
-    user_note: (if $note == "" then null else $note end)
+    user_note: (if $note == "" then null else $note end),
+    transcript_path: (if $tp == "" then null else $tp end),
+    context: $ctx
   }' >> "$PAIN_FILE" 2>/dev/null || true
 
 # --- additionalContext 주입 (Claude에 힌트) ---
