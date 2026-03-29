@@ -22,6 +22,3 @@ voice_transcription = true
 [mcp_servers.chrome-devtools]
 command = "npx"
 args = ["-y", "chrome-devtools-mcp@latest", "--autoConnect", "--channel=stable", "--no-usage-statistics"]
-
-[projects."/Users/green/Workspace/awesome-anki"]
-trust_level = "trusted"
