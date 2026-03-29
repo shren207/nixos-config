@@ -94,6 +94,7 @@ if [ "$TURNS" -gt "$TURN_THRESHOLD" ]; then
 
   if [ "$ALREADY_RECORDED" != "true" ]; then
     TS=$(date -u +"%Y-%m-%dT%H:%M:%S+00:00")
+    # append는 OS 레벨에서 원자적 (1줄 JSONL < PIPE_BUF)
     jq -nc \
       --arg ts "$TS" \
       --arg sid "${SESSION_ID:-unknown}" \
@@ -172,21 +173,45 @@ $OLD_ENTRIES"
         fi
       fi
 
-      # archive append 성공을 확인한 후에만 PAIN_FILE에서 제거 (데이터 손실 방지)
-      ARCHIVE_OK=false
-      if jq -rsc --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" \
-        '.[] | select(.ts < $cutoff and .repo == $repo)' "$PAIN_FILE" >> "$ARCHIVE_FILE" 2>/dev/null; then
-        ARCHIVE_OK=true
-      fi
-
-      if [ "$ARCHIVE_OK" = true ]; then
-        tmp=$(mktemp 2>/dev/null) || true
-        if [ -n "$tmp" ]; then
-          jq -rsc --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" \
-            '[.[] | select((.ts >= $cutoff) or (.repo != $repo))] | .[]' "$PAIN_FILE" > "$tmp" 2>/dev/null \
-            && mv "$tmp" "$PAIN_FILE" \
-            || rm -f "$tmp"
+      # mkdir 기반 lock으로 archive + rewrite를 원자적으로 수행 (macOS/Linux 호환)
+      # patchClaudeJson (default.nix)과 동일 패턴
+      PAIN_LOCK="$PAIN_FILE.lock.d"
+      LOCK_ACQUIRED=false
+      for _ in 1 2 3 4 5 6 7 8 9 10; do
+        if mkdir "$PAIN_LOCK" 2>/dev/null; then
+          echo $$ > "$PAIN_LOCK/pid" 2>/dev/null
+          LOCK_ACQUIRED=true
+          break
         fi
+        # stale lock 감지: PID가 없는 프로세스의 lock은 제거
+        if [ -f "$PAIN_LOCK/pid" ]; then
+          LOCK_PID=$(cat "$PAIN_LOCK/pid" 2>/dev/null || true)
+          if [ -n "$LOCK_PID" ] && ! kill -0 "$LOCK_PID" 2>/dev/null; then
+            rm -rf "$PAIN_LOCK" 2>/dev/null
+            continue
+          fi
+        fi
+        sleep 0.5
+      done
+
+      if [ "$LOCK_ACQUIRED" = true ]; then
+        ARCHIVE_OK=false
+        if jq -rsc --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" \
+          '.[] | select(.ts < $cutoff and .repo == $repo)' "$PAIN_FILE" >> "$ARCHIVE_FILE" 2>/dev/null; then
+          ARCHIVE_OK=true
+        fi
+
+        if [ "$ARCHIVE_OK" = true ]; then
+          tmp=$(mktemp 2>/dev/null) || true
+          if [ -n "$tmp" ]; then
+            jq -rsc --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" \
+              '[.[] | select((.ts >= $cutoff) or (.repo != $repo))] | .[]' "$PAIN_FILE" > "$tmp" 2>/dev/null \
+              && mv "$tmp" "$PAIN_FILE" \
+              || rm -f "$tmp"
+          fi
+        fi
+
+        rm -rf "$PAIN_LOCK" 2>/dev/null
       fi
     fi
   fi

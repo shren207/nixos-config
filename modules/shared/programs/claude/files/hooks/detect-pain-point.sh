@@ -93,6 +93,7 @@ fi
 # --- JSONL 기록 ---
 TS=$(date -u +"%Y-%m-%dT%H:%M:%S+00:00")
 
+# append는 OS 레벨에서 원자적 (1줄 JSONL < PIPE_BUF). lock 불필요.
 jq -nc \
   --arg ts "$TS" \
   --arg sid "${SESSION_ID:-unknown}" \
