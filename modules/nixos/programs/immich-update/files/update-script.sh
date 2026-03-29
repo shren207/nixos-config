@@ -168,9 +168,9 @@ if $HEALTHY; then
     echo "WARNING: immich-ml is not running (OOM or compatibility issue)"
     send_notification "Immich Update" "업데이트 완료 (v${CURRENT_VERSION} → v${NEW_VERSION}) 단, ML 컨테이너 미실행. 로그 확인: podman logs immich-ml" 0
   fi
-  VERSION_INFO="v${CURRENT_VERSION} → v${NEW_VERSION} (pinned tag :${CURRENT_TAG})"
+  VERSION_INFO="v${CURRENT_VERSION} → v${NEW_VERSION}"
   if [ -n "$LATEST_VERSION" ] && [ "$CURRENT_TAG_CLEAN" != "$LATEST_VERSION" ]; then
-    VERSION_INFO="${VERSION_INFO} (GitHub latest: v${LATEST_VERSION})"
+    VERSION_INFO="${VERSION_INFO} (pinned :${CURRENT_TAG}, GitHub latest: v${LATEST_VERSION})"
   fi
   echo "=== Update completed successfully ==="
   echo "Version: $VERSION_INFO"

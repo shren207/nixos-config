@@ -78,7 +78,7 @@ fi
 
 # ─── 1. 이미지 pull (컨테이너 실행 중, 다운타임 없음) ────────────
 echo ""
-echo "Pulling latest image..."
+echo "Pulling configured image..."
 podman pull "$CONTAINER_IMAGE"
 echo "Image pulled"
 
