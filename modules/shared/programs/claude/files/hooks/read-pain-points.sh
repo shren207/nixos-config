@@ -12,6 +12,7 @@ command -v jq >/dev/null 2>&1 || exit 0
 
 # eval 모드에서는 pain point 주입 스킵 — 평가 세션 격리
 [[ -n "${SKILL_EVAL_MODE:-}" ]] && exit 0
+[[ -n "${PAIN_COLLECTING:-}" ]] && exit 0
 
 INPUT=""
 if [ ! -t 0 ]; then

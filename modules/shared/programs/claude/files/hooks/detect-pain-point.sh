@@ -13,6 +13,7 @@ umask 077
 command -v jq >/dev/null 2>&1 || exit 0
 
 [[ -n "${SKILL_EVAL_MODE:-}" ]] && exit 0
+[[ -n "${PAIN_COLLECTING:-}" ]] && exit 0
 
 # --- stdin 읽기 ---
 INPUT=""
@@ -115,7 +116,7 @@ if [ "$IS_PAIN_TAG" = true ]; then
   # (pain) 태깅: Claude에게 사용자가 불편을 표현했음을 알림
   CONTEXT="[Pain Point 기록됨] 사용자가 (pain) 태깅으로 불편을 표현했습니다. 이전 행동을 되돌아보고 개선하세요."
   jq -n --arg ctx "$CONTEXT" \
-    '{"hookSpecificOutput":{"additionalContext":$ctx}}'
+    '{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":$ctx}}'
 fi
 
 # 키워드 감지는 additionalContext 없이 조용히 기록만 함 (매번 힌트 주면 노이즈)

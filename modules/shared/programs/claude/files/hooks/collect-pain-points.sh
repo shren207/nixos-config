@@ -82,22 +82,33 @@ DURATION_MIN=$(jq -Rrs '
 ' "$TRANSCRIPT_PATH" 2>/dev/null || echo "0")
 
 # 긴 세션(30턴+)이면 메트릭 레코드 기록
+# 중복 방지: 동일 session_id로 이미 기록된 long_session이 있으면 skip
+# (Stop hook은 매 턴 발동하므로 30턴 이후 매번 기록되는 것을 방지)
 if [ "$TURNS" -gt "$TURN_THRESHOLD" ]; then
-  TS=$(date -u +"%Y-%m-%dT%H:%M:%S+00:00")
-  jq -nc \
-    --arg ts "$TS" \
-    --arg sid "${SESSION_ID:-unknown}" \
-    --arg repo "$REPO" \
-    --arg branch "$BRANCH" \
-    --argjson turns "$TURNS" \
-    --argjson dur "$DURATION_MIN" \
-    '{
-      ts: $ts, session_id: $sid, repo: $repo, branch: $branch,
-      source: "auto", severity: "medium",
-      signals: { keyword: "long_session", turns: ($turns), duration_min: ($dur) },
-      description: ("\($turns)턴, \($dur)분 — 긴 세션"),
-      user_note: null
-    }' >> "$PAIN_FILE" 2>/dev/null || true
+  ALREADY_RECORDED=false
+  if [ -f "$PAIN_FILE" ]; then
+    ALREADY_RECORDED=$(jq -rs --arg sid "${SESSION_ID:-unknown}" \
+      'map(select(.session_id == $sid and .signals.keyword == "long_session")) | length > 0' \
+      "$PAIN_FILE" 2>/dev/null || echo "false")
+  fi
+
+  if [ "$ALREADY_RECORDED" != "true" ]; then
+    TS=$(date -u +"%Y-%m-%dT%H:%M:%S+00:00")
+    jq -nc \
+      --arg ts "$TS" \
+      --arg sid "${SESSION_ID:-unknown}" \
+      --arg repo "$REPO" \
+      --arg branch "$BRANCH" \
+      --argjson turns "$TURNS" \
+      --argjson dur "$DURATION_MIN" \
+      '{
+        ts: $ts, session_id: $sid, repo: $repo, branch: $branch,
+        source: "auto", severity: "medium",
+        signals: { keyword: "long_session", turns: ($turns), duration_min: ($dur) },
+        description: ("\($turns)턴, \($dur)분 — 긴 세션"),
+        user_note: null
+      }' >> "$PAIN_FILE" 2>/dev/null || true
+  fi
 fi
 
 # --- 정제: 7일 이전 항목 처리 ---
@@ -161,14 +172,22 @@ $OLD_ENTRIES"
         fi
       fi
 
-      jq -rs --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" \
-        '.[] | select(.ts < $cutoff and .repo == $repo)' "$PAIN_FILE" >> "$ARCHIVE_FILE" 2>/dev/null || true
+      # archive append 성공을 확인한 후에만 PAIN_FILE에서 제거 (데이터 손실 방지)
+      ARCHIVE_OK=false
+      if jq -rs --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" \
+        '.[] | select(.ts < $cutoff and .repo == $repo)' "$PAIN_FILE" >> "$ARCHIVE_FILE" 2>/dev/null; then
+        ARCHIVE_OK=true
+      fi
 
-      tmp=$(mktemp)
-      jq -rs --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" \
-        '[.[] | select((.ts >= $cutoff) or (.repo != $repo))] | .[]' "$PAIN_FILE" > "$tmp" 2>/dev/null \
-        && mv "$tmp" "$PAIN_FILE" \
-        || rm -f "$tmp"
+      if [ "$ARCHIVE_OK" = true ]; then
+        tmp=$(mktemp 2>/dev/null) || true
+        if [ -n "$tmp" ]; then
+          jq -rs --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" \
+            '[.[] | select((.ts >= $cutoff) or (.repo != $repo))] | .[]' "$PAIN_FILE" > "$tmp" 2>/dev/null \
+            && mv "$tmp" "$PAIN_FILE" \
+            || rm -f "$tmp"
+        fi
+      fi
     fi
   fi
 fi
