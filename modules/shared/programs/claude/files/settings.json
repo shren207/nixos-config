@@ -72,6 +72,17 @@
         ]
       }
     ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/detect-pain-point.sh"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "matcher": "",

@@ -1,23 +1,18 @@
 #!/usr/bin/env bash
-# Claude Code Stop Hook - Pain point 자동 수집
+# Claude Code Stop Hook - 세션 메트릭 수집 + pain point 정제
 # stdin: JSON {session_id, transcript_path, agent_id}
-# stdout: (없음 — pain-points.jsonl에 append)
+# stdout: (없음)
 #
-# 교정 키워드 감지, tool reject 카운팅, 세션 메트릭 수집.
-# 임계값 초과 시 ~/.claude/pain-points.jsonl에 JSONL 레코드 append.
-# 7일 이전 항목이 5건+ 쌓이면 claude -p로 패턴 분석 → memory 승격.
+# 키워드 감지는 UserPromptSubmit hook (detect-pain-point.sh)이 실시간 담당.
+# 이 Stop hook은 세션 메트릭(턴 수, 시간) 기록 + 7일 distillation만 수행.
 
 set -euo pipefail
 
-# 모든 파일 쓰기에 owner-only 권한 적용 (DA SECURITY 반영)
 umask 077
 
 command -v jq >/dev/null 2>&1 || exit 0
 
-# eval 모드에서는 수집 스킵 — 실사용 데이터 오염 방지 (log-skill.sh과 동일 패턴)
 [[ -n "${SKILL_EVAL_MODE:-}" ]] && exit 0
-
-# 재귀 방지: distillation에서 claude -p가 Stop hook을 다시 트리거하는 것을 차단
 [[ -n "${PAIN_COLLECTING:-}" ]] && exit 0
 
 # --- stdin 읽기 ---
@@ -27,7 +22,6 @@ if [ ! -t 0 ]; then
 fi
 [ -n "$INPUT" ] || exit 0
 
-# 서브에이전트 가드
 AGENT_ID=$(printf '%s' "$INPUT" | jq -r '.agent_id // empty' 2>/dev/null || true)
 [ -n "$AGENT_ID" ] && exit 0
 
@@ -41,14 +35,11 @@ PAIN_FILE="${PAIN_POINTS_FILE:-$HOME/.claude/pain-points.jsonl}"
 ARCHIVE_FILE="${PAIN_ARCHIVE_FILE:-$HOME/.claude/pain-points.archive.jsonl}"
 TURN_THRESHOLD=30
 
-# --- Transcript 안정화 대기 (DA CONSISTENCY 반영: stop-notification.sh과 동일 패턴) ---
-# Race condition 방어: Stop hook이 transcript flush보다 먼저 실행되는 경우
-# 0.3초 간격으로 파일 크기 확인, 연속 2회 동일하면 안정화된 것으로 판단 (최대 3초)
+# --- Transcript 안정화 대기 (stop-notification.sh와 동일 패턴) ---
 wait_for_stable_transcript() {
   local file="$1"
   local prev_size=-1
   local curr_size
-
   for _ in 1 2 3 4 5 6 7 8 9 10; do
     curr_size=$(wc -c < "$file" 2>/dev/null || echo 0)
     if [ "$curr_size" = "$prev_size" ] && [ "$curr_size" -gt 0 ]; then
@@ -58,41 +49,28 @@ wait_for_stable_transcript() {
     sleep 0.3
   done
 }
-
 wait_for_stable_transcript "$TRANSCRIPT_PATH"
 
-# --- Git 정보 ---
+# --- Git 정보 (worktree 보정) ---
 REPO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null)
 REPO="${REPO:-unknown}"
 BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
-# worktree에서 REPO가 worktree 디렉토리명으로 잡히므로 실제 repo 이름 사용
 COMMON_DIR=$(git rev-parse --git-common-dir 2>/dev/null || true)
 if [ -n "$COMMON_DIR" ] && [ "$COMMON_DIR" != ".git" ]; then
   REPO=$(basename "$(cd "$COMMON_DIR/.." 2>/dev/null && pwd)" 2>/dev/null || echo "$REPO")
 fi
 
-# --- Transcript 분석 ---
+# --- 세션 메트릭 수집 ---
 
-# user 메시지 텍스트 추출 (string과 array 형식 모두 처리)
-USER_MESSAGES=$(jq -Rrs '
+# 턴 수
+TURNS=$(jq -Rrs '
   split("\n")
   | map(select(length > 0) | fromjson?)
-  | map(
-      select(.type == "user")
-      | .message.content
-      | if type == "string" then .
-        elif type == "array" then
-          [.[] | select(.type == "text") | .text] | join("\n")
-        else ""
-        end
-    )
-  | map(select(length > 0))
-' "$TRANSCRIPT_PATH" 2>/dev/null || echo '[]')
+  | map(select(.type == "user"))
+  | length
+' "$TRANSCRIPT_PATH" 2>/dev/null || echo "0")
 
-# 턴 수 (user 메시지 수)
-TURNS=$(printf '%s' "$USER_MESSAGES" | jq 'length' 2>/dev/null || echo "0")
-
-# 세션 시간 (분) — 첫/마지막 타임스탬프 차이
+# 세션 시간 (분)
 DURATION_MIN=$(jq -Rrs '
   split("\n")
   | map(select(length > 0) | fromjson?)
@@ -103,54 +81,22 @@ DURATION_MIN=$(jq -Rrs '
     else 0 end
 ' "$TRANSCRIPT_PATH" 2>/dev/null || echo "0")
 
-# 교정 키워드 매칭
-# ;; → high severity
-# 아니 (접속사 "아니면" 제외), 해야지, 그거 말고 → medium
-CORRECTIONS=$(printf '%s' "$USER_MESSAGES" | jq '[
-  .[] | select(
-    test(";;")
-    or test("^아니[^면]|^아니$|^아니 ")
-    or test("해야지")
-    or test("그거 말고")
-  )
-]' 2>/dev/null || echo '[]')
-
-CORRECTION_COUNT=$(printf '%s' "$CORRECTIONS" | jq 'length' 2>/dev/null || echo "0")
-
-# severity: ;; 감지 → high
-HAS_DOUBLE_SEMI=$(printf '%s' "$CORRECTIONS" | jq '[.[] | select(test(";;"))] | length > 0' 2>/dev/null || echo "false")
-SEVERITY="medium"
-[ "$HAS_DOUBLE_SEMI" = "true" ] && SEVERITY="high"
-
-# --- 임계값 판정 ---
-# 신호: 교정 키워드 + 턴 수 (reject 감지는 bypass permissions 모드에서 항상 0이라 제거)
-SHOULD_RECORD=false
-[ "$CORRECTION_COUNT" -gt 0 ] && SHOULD_RECORD=true
-[ "$TURNS" -gt "$TURN_THRESHOLD" ] && SHOULD_RECORD=true
-
-if [ "$SHOULD_RECORD" = "true" ]; then
-  DESC_PARTS=()
-  [ "$CORRECTION_COUNT" -gt 0 ] && DESC_PARTS+=("교정 ${CORRECTION_COUNT}회")
-  [ "$TURNS" -gt "$TURN_THRESHOLD" ] && DESC_PARTS+=("${TURNS}턴")
-  DESCRIPTION=$(IFS=", "; echo "${DESC_PARTS[*]}")
-
+# 긴 세션(30턴+)이면 메트릭 레코드 기록
+if [ "$TURNS" -gt "$TURN_THRESHOLD" ]; then
   TS=$(date -u +"%Y-%m-%dT%H:%M:%S+00:00")
-
   jq -nc \
     --arg ts "$TS" \
     --arg sid "${SESSION_ID:-unknown}" \
     --arg repo "$REPO" \
     --arg branch "$BRANCH" \
-    --arg sev "$SEVERITY" \
-    --argjson corrections "$CORRECTIONS" \
     --argjson turns "$TURNS" \
     --argjson dur "$DURATION_MIN" \
-    --arg desc "$DESCRIPTION" \
     '{
       ts: $ts, session_id: $sid, repo: $repo, branch: $branch,
-      source: "auto", severity: $sev,
-      signals: { corrections: $corrections, turns: ($turns), duration_min: ($dur) },
-      description: $desc, user_note: null
+      source: "auto", severity: "medium",
+      signals: { keyword: "long_session", turns: ($turns), duration_min: ($dur) },
+      description: ("\($turns)턴, \($dur)분 — 긴 세션"),
+      user_note: null
     }' >> "$PAIN_FILE" 2>/dev/null || true
 fi
 
@@ -161,7 +107,6 @@ if [ -f "$PAIN_FILE" ] && [ -s "$PAIN_FILE" ]; then
     || true)
 
   if [ -n "$SEVEN_DAYS_AGO" ]; then
-    # DA SIDE_EFFECT 반영: 현재 repo 항목만 정제 대상으로 필터링
     OLD_COUNT=$(jq -rs --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" \
       'map(select(.ts < $cutoff and .repo == $repo)) | length' "$PAIN_FILE" 2>/dev/null || echo "0")
 
@@ -169,8 +114,7 @@ if [ -f "$PAIN_FILE" ] && [ -s "$PAIN_FILE" ]; then
       OLD_ENTRIES=$(jq -rs --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" \
         'map(select(.ts < $cutoff and .repo == $repo))' "$PAIN_FILE" 2>/dev/null)
 
-      # DA NGMI CRITICAL 반영: worktree에서도 canonical main repo 경로로 memory 디렉토리 탐색
-      # show-toplevel은 worktree 경로를 반환하므로, git-common-dir 기반으로 canonical root 계산
+      # worktree에서도 canonical main repo 경로로 memory 디렉토리 탐색
       CANONICAL_ROOT=""
       GIT_COMMON=$(git rev-parse --git-common-dir 2>/dev/null || true)
       if [ -n "$GIT_COMMON" ] && [ "$GIT_COMMON" != ".git" ]; then
@@ -185,9 +129,8 @@ if [ -f "$PAIN_FILE" ] && [ -s "$PAIN_FILE" ]; then
         MEMORY_DIR=""
       fi
 
-      # claude -p로 패턴 분석 — best-effort (실패해도 아카이브는 반드시 수행)
+      # claude -p로 패턴 분석 — best-effort
       if command -v claude >/dev/null 2>&1 && [ -n "$MEMORY_DIR" ] && [ -d "$MEMORY_DIR" ]; then
-        # DA HALLUCINATION 반영: stdin+positional prompt 결합 대신 전체를 stdin으로 전달
         DISTILL_PROMPT="아래 pain point 로그를 분석하세요. 반복 패턴(2회+)이 있으면 feedback memory를 생성하세요.
 
 규칙:
@@ -218,11 +161,9 @@ $OLD_ENTRIES"
         fi
       fi
 
-      # 현재 repo의 오래된 항목만 archive로 이동 (DA SIDE_EFFECT 반영)
       jq -rs --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" \
         '.[] | select(.ts < $cutoff and .repo == $repo)' "$PAIN_FILE" >> "$ARCHIVE_FILE" 2>/dev/null || true
 
-      # pain-points.jsonl에서 현재 repo의 오래된 항목만 제거 (atomic write)
       tmp=$(mktemp)
       jq -rs --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" \
         '[.[] | select((.ts >= $cutoff) or (.repo != $repo))] | .[]' "$PAIN_FILE" > "$tmp" 2>/dev/null \

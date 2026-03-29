@@ -163,6 +163,8 @@ in
       config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/hooks/fragile-hardcoding-guard.sh";
 
     # Pain point collection hooks
+    ".claude/hooks/detect-pain-point.sh".source =
+      config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/hooks/detect-pain-point.sh";
     ".claude/hooks/collect-pain-points.sh".source =
       config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/hooks/collect-pain-points.sh";
     ".claude/hooks/read-pain-points.sh".source =
@@ -224,9 +226,6 @@ in
     # parallel-audit 스킬 (user-scope)
     ".claude/skills/parallel-audit".source =
       config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/skills/parallel-audit";
-
-    # pain 스킬 (user-scope) — /pain 수동 태깅
-    ".claude/skills/pain".source = config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/skills/pain";
 
     # Statusline script - 양방향 수정 가능
     ".claude/scripts/statusline.sh".source =
