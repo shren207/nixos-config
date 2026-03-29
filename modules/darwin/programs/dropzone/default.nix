@@ -27,6 +27,8 @@ lib.mkIf (hostType == "personal") (
     # FolderActions 프론트엔드 액션 정의 (DRY: slug만 다르고 로직 동일)
     # 각 액션은 파일을 ~/FolderActions/<slug>/에 enqueue하고,
     # 기존 launchd WatchPaths 에이전트가 실제 처리를 담당한다.
+    # compress-rar, upload-immich는 제외: 전자는 사용 빈도가 낮고,
+    # 후자는 Shottr→Immich 자동 파이프라인이므로 수동 드래그 대상이 아님.
     folderActionFrontends = {
       compress-video = {
         name = "Compress Video (H.265)";
@@ -52,18 +54,18 @@ lib.mkIf (hostType == "personal") (
       # Handles: Files
       # Events: Dragged
       # Creator: greenhead
+      # URL: https://github.com/greenheadHQ/nixos-config
+      # Version: 1.0
       # RunsSandboxed: No
+
+      require 'tmpdir'
 
       def dragged
         $dz.begin("Sending to ${meta.name}...")
         target = "${folderActionsDir}/${slug}"
-        tmp = "/tmp/dz-enqueue-#{Process.pid}"
-        Dir.mkdir(tmp) unless Dir.exist?(tmp)
-        begin
+        Dir.mktmpdir("dz-enqueue") do |tmp|
           $items.each { |item| system("/bin/cp", item, "#{tmp}/") }
           Dir.glob("#{tmp}/*").each { |f| system("/bin/mv", f, "#{target}/") }
-        ensure
-          FileUtils.rm_rf(tmp)
         end
         $dz.finish("Queued!")
         $dz.url(false)
@@ -89,6 +91,8 @@ lib.mkIf (hostType == "personal") (
         # Handles: Text
         # Events: Dragged
         # Creator: greenhead
+        # URL: https://github.com/greenheadHQ/nixos-config
+        # Version: 1.0
         # RunsSandboxed: No
 
         def dragged

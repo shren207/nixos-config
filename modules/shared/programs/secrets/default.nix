@@ -48,7 +48,7 @@
         mode = "0400";
       };
     }
-    # macOS 전용 시크릿: FolderAction + Dropzone 액션에서 사용
+    # Immich CLI 업로드 시크릿은 macOS FolderAction에서 사용
     // lib.optionalAttrs pkgs.stdenv.isDarwin {
       immich-api-key = {
         file = ../../../../secrets/immich-api-key.age;
