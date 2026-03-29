@@ -4,6 +4,8 @@ macOS와 NixOS 개발 환경을 nix-darwin/NixOS + Home Manager로 선언적 관
 
 ## 실행 환경
 
+Environment 섹션의 `Platform` 값으로 현재 환경을 판별한다.
+
 | Platform | 현재 환경 | 다른 머신 접속 |
 |----------|----------|---------------|
 | `darwin` | Mac | `ssh minipc` |
@@ -14,7 +16,7 @@ macOS와 NixOS 개발 환경을 nix-darwin/NixOS + Home Manager로 선언적 관
 
 ## 빌드
 
-`nrs`를 사용 (preview + launchd 정리 + Hammerspoon 재시작 포함). `darwin-rebuild`/`nixos-rebuild` 직접 실행 금지.
+`nrs`를 사용. `darwin-rebuild`/`nixos-rebuild` 직접 실행 금지. `nrs`는 preview를 포함하며, macOS에서는 launchd 정리와 Hammerspoon 재시작도 처리한다.
 
 ## 상수
 
