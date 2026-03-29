@@ -174,7 +174,7 @@ $OLD_ENTRIES"
 
       # archive append 성공을 확인한 후에만 PAIN_FILE에서 제거 (데이터 손실 방지)
       ARCHIVE_OK=false
-      if jq -rs --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" \
+      if jq -rsc --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" \
         '.[] | select(.ts < $cutoff and .repo == $repo)' "$PAIN_FILE" >> "$ARCHIVE_FILE" 2>/dev/null; then
         ARCHIVE_OK=true
       fi
@@ -182,7 +182,7 @@ $OLD_ENTRIES"
       if [ "$ARCHIVE_OK" = true ]; then
         tmp=$(mktemp 2>/dev/null) || true
         if [ -n "$tmp" ]; then
-          jq -rs --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" \
+          jq -rsc --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" \
             '[.[] | select((.ts >= $cutoff) or (.repo != $repo))] | .[]' "$PAIN_FILE" > "$tmp" 2>/dev/null \
             && mv "$tmp" "$PAIN_FILE" \
             || rm -f "$tmp"
@@ -199,7 +199,7 @@ if [ -f "$ARCHIVE_FILE" ] && [ -s "$ARCHIVE_FILE" ]; then
     || true)
   if [ -n "$THIRTY_DAYS_AGO" ]; then
     tmp=$(mktemp)
-    jq -rs --arg cutoff "$THIRTY_DAYS_AGO" \
+    jq -rsc --arg cutoff "$THIRTY_DAYS_AGO" \
       '[.[] | select(.ts >= $cutoff)] | .[]' "$ARCHIVE_FILE" > "$tmp" 2>/dev/null \
       && mv "$tmp" "$ARCHIVE_FILE" \
       || rm -f "$tmp"
