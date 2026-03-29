@@ -81,7 +81,7 @@ DURATION_MIN=$(jq -Rrs '
     else 0 end
 ' "$TRANSCRIPT_PATH" 2>/dev/null || echo "0")
 
-# 긴 세션(30턴+)이면 메트릭 레코드 기록
+# 긴 세션(31턴+, TURN_THRESHOLD 초과)이면 메트릭 레코드 기록
 # 중복 방지: 동일 session_id로 이미 기록된 long_session이 있으면 skip
 # (Stop hook은 매 턴 발동하므로 30턴 이후 매번 기록되는 것을 방지)
 if [ "$TURNS" -gt "$TURN_THRESHOLD" ]; then

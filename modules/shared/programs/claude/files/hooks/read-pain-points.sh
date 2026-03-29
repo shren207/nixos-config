@@ -53,7 +53,8 @@ CONTEXT=$(jq -rs --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" '
   | .[0:5]
   | if length == 0 then empty
     else
-      (map(select(.severity == "high")) | length) as $high
+      # 상호 배타적 그룹핑: manual은 source 기준, high/medium은 auto만
+      (map(select(.severity == "high" and .source != "manual")) | length) as $high
       | (map(select(.severity == "medium" and .source == "auto")) | length) as $med
       | (map(select(.source == "manual")) | length) as $manual
       | . as $all
@@ -61,7 +62,7 @@ CONTEXT=$(jq -rs --arg cutoff "$SEVEN_DAYS_AGO" --arg repo "$REPO" '
       "## 최근 Pain Points (7일) -- \(length)건\n"
       + if $high > 0 then
           "\n### HIGH (\($high)건)\n"
-          + ([$all[] | select(.severity == "high")]
+          + ([$all[] | select(.severity == "high" and .source != "manual")]
             | map("- [\(.ts[5:10]) \(.session_id[0:8])] \(.description)\n  repo: \(.repo)/\(.branch)")
             | join("\n")) + "\n"
         else "" end
