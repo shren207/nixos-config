@@ -20,6 +20,10 @@ if [ ! -t 0 ]; then
 fi
 [ -n "$INPUT" ] || exit 0
 
+# 서브에이전트 가드
+AGENT_ID=$(printf '%s' "$INPUT" | jq -r '.agent_id // empty' 2>/dev/null || true)
+[ -n "$AGENT_ID" ] && exit 0
+
 # session-init-icons.sh과 동일 패턴: source를 파싱하여 startup만 처리
 SOURCE=$(printf '%s' "$INPUT" | jq -r '.source // empty' 2>/dev/null || true)
 case "$SOURCE" in

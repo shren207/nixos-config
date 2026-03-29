@@ -183,13 +183,17 @@ $OLD_ENTRIES"
           LOCK_ACQUIRED=true
           break
         fi
-        # stale lock 감지: PID가 없는 프로세스의 lock은 제거
+        # stale lock 감지
         if [ -f "$PAIN_LOCK/pid" ]; then
           LOCK_PID=$(cat "$PAIN_LOCK/pid" 2>/dev/null || true)
           if [ -n "$LOCK_PID" ] && ! kill -0 "$LOCK_PID" 2>/dev/null; then
             rm -rf "$PAIN_LOCK" 2>/dev/null
             continue
           fi
+        elif [ -d "$PAIN_LOCK" ]; then
+          # PID 파일 없는 stale lock (crash 등): 즉시 제거
+          rm -rf "$PAIN_LOCK" 2>/dev/null
+          continue
         fi
         sleep 0.5
       done
