@@ -1,5 +1,5 @@
-# Zed 에디터 설정
-# Homebrew cask로 앱 설치, settings/keymap은 mkOutOfStoreSymlink (양방향)
+# Zed 에디터 설정 관리 (앱 바이너리는 homebrew.nix에서 Homebrew cask로 설치)
+# 이 모듈의 책임: settings/keymap 심링크, LSP/formatter 패키지, 기본 에디터 등록
 #
 # === Change Intent Record ===
 # VSCode → Zed 마이그레이션 (Issue #329)
