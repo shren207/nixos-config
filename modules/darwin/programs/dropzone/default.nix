@@ -1,10 +1,11 @@
 # Dropzone 5 — FolderActions UI 프론트엔드 + 즉석 공유 액션
 #
-# Dropzone 앱은 수동 설치 (Homebrew cask가 아직 v4를 가리키므로 미선언).
-# cask가 v5로 업데이트되면 `brew install --cask --adopt dropzone` 후 homebrew.nix에 추가.
+# Dropzone 앱은 aptonic.com 직접 다운로드 버전 사용 (비-Sandbox).
+# App Store 버전은 커스텀 액션을 지원하지 않으므로 사용 불가.
 #
-# bundle 파일만 Nix 관리. 격자 레이아웃/런타임 상태는 관리하지 않음.
-# (Dropzone 설정은 비문서화된 내부 상태이므로 Shottr와 달리 defaults 선언 불가)
+# dzbundle을 home.file로 ~/Library/Application Support/Dropzone/Actions/에 배포하고,
+# home.activation에서 `open *.dzbundle`로 Dropzone에 등록한다.
+# 격자 추가는 최초 1회만 수동 ("그리드에 추가" 클릭). 이후 nrs에서는 스킵.
 {
   config,
   lib,
@@ -17,12 +18,10 @@ lib.mkIf (hostType == "personal") (
     homeDir = config.home.homeDirectory;
     folderActionsDir = "${homeDir}/FolderActions";
 
-    # 미검증: 설치 후 `Dropzone 5/Actions/` vs `Dropzone/Actions/` 확인 필요
-    dropzoneActionsDir = "Library/Application Support/Dropzone 5/Actions";
+    # 비-MAS(직접 다운로드) 버전의 실제 경로 (검증 완료)
+    dropzoneActionsDir = "Library/Application Support/Dropzone/Actions";
 
     pushoverCredPath = "${config.xdg.configHome}/pushover/claude-code";
-
-    placeholderIcon = ./files/icon-placeholder.png;
 
     # FolderActions 프론트엔드 액션 정의 (DRY: slug만 다르고 로직 동일)
     # 각 액션은 파일을 ~/FolderActions/<slug>/에 enqueue하고,
@@ -33,14 +32,17 @@ lib.mkIf (hostType == "personal") (
       compress-video = {
         name = "Compress Video (H.265)";
         description = "FolderActions 프론트엔드: H.265 하드웨어 가속 압축";
+        icon = ./files/icon-compress-video.png;
       };
       convert-video-to-gif = {
         name = "Convert to GIF";
         description = "FolderActions 프론트엔드: 비디오 → GIF 변환 (15fps, 480px)";
+        icon = ./files/icon-convert-to-gif.png;
       };
       rename-asset = {
         name = "Rename to Timestamp";
         description = "FolderActions 프론트엔드: 타임스탬프 기반 파일명 변경";
+        icon = ./files/icon-rename-asset.png;
       };
     };
 
@@ -82,11 +84,38 @@ lib.mkIf (hostType == "personal") (
     # FolderActions 프론트엔드 번들의 home.file 엔트리 생성
     folderActionFiles = lib.concatMapAttrs (slug: meta: {
       "${dropzoneActionsDir}/${slug}.dzbundle/action.rb".text = mkFolderActionRb slug meta;
-      "${dropzoneActionsDir}/${slug}.dzbundle/icon.png".source = placeholderIcon;
+      "${dropzoneActionsDir}/${slug}.dzbundle/icon.png".source = meta.icon;
     }) folderActionFrontends;
+
+    # Dropzone에 등록할 dzbundle 목록 (DB 기반 중복 체크용)
+    allBundleNames =
+      (builtins.attrValues (builtins.mapAttrs (_: meta: meta.name) folderActionFrontends))
+      ++ [ "Pushover Text" ];
 
   in
   {
+    # Dropzone에 dzbundle 등록 (최초 설치 시만)
+    # open 명령으로 dzbundle을 열면 Dropzone이 "그리드에 추가" 팝업을 표시한다.
+    # Actions5.dzdb에 이미 등록된 액션은 스킵하여 중복 팝업을 방지한다.
+    home.activation.registerDropzoneActions = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+      _dz_db="${homeDir}/Library/Application Support/Dropzone/Actions5.dzdb"
+      _dz_actions="${homeDir}/${dropzoneActionsDir}"
+
+      if [ -f "$_dz_db" ] && [ -d "$_dz_actions" ]; then
+        for _bundle in "$_dz_actions"/*.dzbundle; do
+          [ -d "$_bundle" ] || continue
+          _name=$(head -20 "$_bundle/action.rb" 2>/dev/null | sed -n 's/^# Name: //p')
+          if [ -n "$_name" ]; then
+            _exists=$(/usr/bin/sqlite3 "$_dz_db" "SELECT COUNT(*) FROM actions WHERE type='$_name';" 2>/dev/null)
+            if [ "$_exists" = "0" ]; then
+              echo "[dropzone] Registering: $_name"
+              /usr/bin/open "$_bundle"
+            fi
+          fi
+        done
+      fi
+    '';
+
     home.file = folderActionFiles // {
       # Pushover Text — 텍스트 드래그 → iPhone 푸시 알림
       # 기존 push() 셸 함수(shell/default.nix)와 동일 credential 파일 소비
@@ -139,7 +168,7 @@ lib.mkIf (hostType == "personal") (
           $dz.url(false)
         end
       '';
-      "${dropzoneActionsDir}/pushover-text.dzbundle/icon.png".source = placeholderIcon;
+      "${dropzoneActionsDir}/pushover-text.dzbundle/icon.png".source = ./files/icon-pushover-text.png;
     };
   }
 )
