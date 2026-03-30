@@ -1,5 +1,5 @@
 # Homebrew 패키지 관리 (GUI 앱)
-# 공통 cask(ghostty)는 모든 darwin 호스트에서 활성화
+# 공통 cask(ghostty, zed)는 모든 darwin 호스트에서 활성화
 # personal 전용 앱은 hostType 가드로 분리
 {
   config,
@@ -18,8 +18,12 @@
       # [Nix 전환이 불가능한 앱]
       # ghostty: pkgs.ghostty-bin은 CLI 바이너리만 제공하고 macOS .app 번들을 포함하지 않음.
       #          Ghostty.app은 Homebrew Cask로만 설치 가능.
+      # [자동 업데이트를 위해 Homebrew로 전환한 앱]
+      # zed: Nix store 읽기 전용으로 자체 업데이터 불가하여 Homebrew 전환 (CIR #7).
+      #      zed CLI도 cask가 /opt/homebrew/bin/zed로 제공.
       casks = [
         "ghostty"
+        "zed"
       ];
     }
 
@@ -75,7 +79,6 @@
       #
       # [Nix 패키지로 전환한 앱]
       # shottr → libraries/packages.nix darwinOnly로 이동 (pkgs.shottr가 macOS .app 번들 포함)
-      # zed → programs.zed-editor HM 모듈로 관리 (~/Applications/Home Manager Apps/)
       #
       # [Nix 전환이 불가능한 앱]
       # docker-desktop: Docker Desktop은 nixpkgs에 macOS용 패키지 없음 (CLI만 존재)
