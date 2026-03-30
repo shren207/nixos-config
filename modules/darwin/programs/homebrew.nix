@@ -56,6 +56,7 @@
       brews = [
         "agent-browser" # AI 에이전트 브라우저 자동화 CLI (Rust 데몬 + Node.js 래퍼)
         "laishulu/homebrew/macism" # macOS 입력 소스 전환 (Neovim 한영 전환 자동화)
+        "mas" # Mac App Store CLI (masApps 설치에 필요)
         "sox" # 오디오 처리 (Claude Code /voice 모드)
       ];
 
@@ -87,8 +88,8 @@
       # docker-desktop: Docker Desktop은 nixpkgs에 macOS용 패키지 없음 (CLI만 존재)
       # fork: 상용 Git GUI, nixpkgs에 없음
       # [수동 설치 앱]
-      # dropzone: Homebrew cask=v4, App Store=수정 중(2026-03-30). aptonic.com에서 직접 설치.
-      #           dzbundle 설정은 modules/darwin/programs/dropzone/ 에서 관리.
+      # dropzone: cask=v4, App Store="수정 중" 에러. aptonic.com/dropzone/latest로 직접 설치.
+      #           App Store 복구 시 masApps 주석 해제. dzbundle은 programs/dropzone/에서 관리.
       # [Homebrew에서 제거한 앱]
       # figma: 자체 업데이터가 적극적으로 버전을 변경하여 Homebrew가 관리하는 버전과 불일치 발생.
       #        adopt 시 버전 불일치로 설치 거부됨. 자체 업데이터에 위임.
@@ -106,7 +107,7 @@
       ];
 
       # masApps = {
-      #   "Dropzone 5" = 6757682547; # App Store에서 "수정 중" 상태로 구매 불가 (2026-03-30)
+      #   "Dropzone 5" = 6757682547; # App Store 서버 측 "수정 중" 에러로 설치 불가 (2026-03-30)
       # };
     })
   ];
