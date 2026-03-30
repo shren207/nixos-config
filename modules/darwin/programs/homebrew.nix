@@ -86,9 +86,9 @@
       # [Nix 전환이 불가능한 앱]
       # docker-desktop: Docker Desktop은 nixpkgs에 macOS용 패키지 없음 (CLI만 존재)
       # fork: 상용 Git GUI, nixpkgs에 없음
-      # [cask 업데이트 대기 중인 앱]
-      # dropzone: cask가 아직 v4 (4.80.75). v5로 업데이트되면 `brew install --cask --adopt dropzone` 후 추가.
-      #           설정은 modules/darwin/programs/dropzone/ 에서 관리.
+      # [masApps로 관리하는 앱]
+      # dropzone: Homebrew cask가 v4만 제공하므로 Mac App Store(masApps)로 설치.
+      #           dzbundle 설정은 modules/darwin/programs/dropzone/ 에서 관리.
       # [Homebrew에서 제거한 앱]
       # figma: 자체 업데이터가 적극적으로 버전을 변경하여 Homebrew가 관리하는 버전과 불일치 발생.
       #        adopt 시 버전 불일치로 설치 거부됨. 자체 업데이터에 위임.
@@ -105,10 +105,9 @@
         "monitorcontrol"
       ];
 
-      # Mac App Store 앱 (mas 필요)
-      # masApps = {
-      #   # "앱이름" = 앱스토어ID;
-      # };
+      masApps = {
+        "Dropzone 5" = 6757682547;
+      };
     })
   ];
 }
