@@ -19,7 +19,7 @@
 
 ### 4가지 판정 기준 (Grading Criteria)
 
-각 finding을 아래 4가지 기준으로 평가한다. 하나라도 FAIL이면 NOT_AN_ISSUE이다.
+각 finding을 아래 4가지 기준으로 평가한다.
 
 | 기준 | 질문 | PASS | FAIL |
 |------|------|------|------|
@@ -138,7 +138,7 @@
 
 ### {finding ID} — {verdict}
 - **판정**: CONFIRMED_ISSUE / NOT_AN_ISSUE / NEEDS_MORE_INFO
-- **신뢰도**: HIGH / MEDIUM / LOW
+- **신뢰도**: HIGH / MEDIUM / LOW / N/A (NEEDS_MORE_INFO 시)
 - **기준 평가**:
   - 사실 정확성: PASS / FAIL / 판단 불가
   - 변경 연관성: PASS / FAIL / 판단 불가
