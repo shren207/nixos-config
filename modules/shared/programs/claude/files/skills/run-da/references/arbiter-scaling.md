@@ -63,13 +63,10 @@ codex exec 실패 시 (exit code != 0, 빈 결과 파일):
 
 Codex에서 run-da 실행 시 AskUserQuestion 미지원:
 
-- NEEDS_MORE_INFO 항목은 사용자 게이트 대신 텍스트 보고로 대체한다.
+- NEEDS_MORE_INFO 항목은 **CONFIRMED_ISSUE로 자동 승격**한다 (텍스트 보고만으로는 상태 전이가 불가능하므로).
 - CONFIRMED_ISSUE는 동일하게 자동 수정한다.
+- Codex 환경 감지: `AGENTS.override.md`가 존재하면 Codex로 간주한다.
 
-## 향후 확장 (이 PR 범위 밖)
+## 향후 확장
 
-| 조건 | 확장 |
-|------|------|
-| Arbiter 오판 사례 3건 이상 누적 | Arbiter 2개 + HIGH/CRIT 교차 검증 |
-| findings 16건 이상 빈발 | Arbiter 스케일링 테이블 도입 |
-| Known-Answer Calibration | DA findings에 알려진 유효 이슈 시드 |
+Arbiter 오판 사례가 누적되면 교차 검증(Arbiter 2개+)이나 Known-Answer Calibration 도입을 검토한다.

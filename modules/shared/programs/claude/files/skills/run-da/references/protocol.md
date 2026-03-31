@@ -24,7 +24,7 @@ DA → Arbiter → Main Agent 상태 흐름, Arbiter 판정 프로토콜, 무한
 
 ### 판정 흐름
 
-1. DA 에이전트가 findings를 반환한다 (각 finding에 stable ID 포함).
+1. DA 에이전트가 findings를 반환한다 (각 finding에 보고용 ID 포함).
 2. findings 개수에 따라 Arbiter 수를 결정한다 ([arbiter-scaling.md](arbiter-scaling.md)).
 3. Arbiter 에이전트가 각 finding을 4가지 기준으로 독립 검증한다 ([arbiter-prompt.md](arbiter-prompt.md)).
 4. 메인 에이전트는 사용자에게 전건 보고한다.
@@ -82,7 +82,7 @@ Arbiter가 CONFIRMED_ISSUE로 판정한 항목을 수정할 때:
 
 ### 3회 반복 규칙
 
-동일한 지적(finding ID 기준)이 3회 연속 라운드에서 반복되면:
+동일한 지적(도메인 + 위치(파일:줄) 기준)이 3회 연속 라운드에서 반복되면:
 
 1. 해당 지적과 이전 라운드의 Arbiter 판정 이력을 요약한다.
 2. 사용자에게 AskUserQuestion으로 3가지 선택지를 제시한다:

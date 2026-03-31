@@ -28,15 +28,20 @@
 | **심각도 타당성** (Severity Validity) | DA가 매긴 심각도가 실제 영향에 부합하는가? | 심각도와 실제 영향이 비례 | 과장 또는 과소 평가 (심각도 조정 필요) |
 | **실행 가능성** (Actionability) | 구체적 수정 방향이 제시되어 실제로 수정 가능한가? | 위치 + 수정 방향이 명확 | "~할 수도 있다" 수준의 추상적 우려 |
 
-4가지 모두 PASS → CONFIRMED_ISSUE (실제 문제). 1가지라도 FAIL → NOT_AN_ISSUE.
-판단 불가 → NEEDS_MORE_INFO.
+**판정 규칙:**
+- 사실 정확성 + 변경 연관성이 모두 PASS → **CONFIRMED_ISSUE** (심각도/실행가능성 FAIL은 조정 사유지 기각 사유가 아님).
+- 사실 정확성 또는 변경 연관성이 FAIL → **NOT_AN_ISSUE**.
+- 판단 불가 → **NEEDS_MORE_INFO**.
+
+심각도 타당성이 FAIL(과대/과소)이면 CONFIRMED_ISSUE + 심각도 조정을 제안한다.
+실행 가능성이 FAIL(추상적 우려)이면 CONFIRMED_ISSUE + 구체적 수정 방향을 Arbiter가 보완한다.
 
 ### 판정 요건 상세
 
 #### CONFIRMED_ISSUE
 
-1. 사실 정확성이 PASS이면, 해당 finding은 "실제 문제"이므로 CONFIRMED_ISSUE가 기본값이다.
-2. 해당 파일:줄을 직접 읽어 DA 지적을 확인하면 신뢰도가 높아지지만 필수는 아니다.
+1. 사실 정확성 + 변경 연관성이 모두 PASS이면 CONFIRMED_ISSUE이다.
+2. 해당 파일:줄을 직접 읽어 DA 지적을 확인해야 한다 (필수).
 
 #### NOT_AN_ISSUE (높은 증거 기준)
 
