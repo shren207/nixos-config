@@ -4,7 +4,6 @@
   config,
   pkgs,
   lib,
-  inputs,
   nixosConfigPath,
   ...
 }:
@@ -258,8 +257,4 @@ in
     ".claude/skills/archive".source =
       config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/skills/archive";
   };
-
-  home.packages = [
-    inputs.recall.packages.${pkgs.system}.default
-  ];
 }

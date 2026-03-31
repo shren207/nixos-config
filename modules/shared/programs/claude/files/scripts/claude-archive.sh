@@ -6,6 +6,11 @@ umask 077
 ARCHIVE_DIR="$HOME/.claude/archive"
 CLAUDE_DIR="$HOME/.claude"
 
+# --- 상수 ---
+HEADER_SCAN_LINES=5          # JSONL 헤더 메타데이터 추출 시 스캔할 줄 수
+TOOL_INPUT_PREVIEW_MAX=500   # tool_use input 미리보기 최대 문자수
+TOOL_RESULT_PREVIEW_MAX=300  # tool_result 출력 미리보기 최대 문자수
+
 # --- 출력 헬퍼 ---
 err()  { printf '\033[31mError: %s\033[0m\n' "$1" >&2; }
 info() { printf '\033[32m%s\033[0m\n' "$1"; }
@@ -150,11 +155,11 @@ convert_to_markdown() {
   local session_id="$2"
   local output_file="$3"
 
-  # 헤더 정보 추출 (첫 5줄에서)
+  # 헤더 정보 추출 (JSONL 선두 N줄에서 메타데이터 필드를 추출)
   local git_branch cwd timestamp
-  git_branch=$(head -5 "$jsonl_file" | jq -r 'select(.gitBranch) | .gitBranch' 2>/dev/null | head -1)
-  cwd=$(head -5 "$jsonl_file" | jq -r 'select(.cwd) | .cwd' 2>/dev/null | head -1)
-  timestamp=$(head -5 "$jsonl_file" | jq -r 'select(.timestamp) | .timestamp' 2>/dev/null | head -1)
+  git_branch=$(head -"$HEADER_SCAN_LINES" "$jsonl_file" | jq -r 'select(.gitBranch) | .gitBranch' 2>/dev/null | head -1)
+  cwd=$(head -"$HEADER_SCAN_LINES" "$jsonl_file" | jq -r 'select(.cwd) | .cwd' 2>/dev/null | head -1)
+  timestamp=$(head -"$HEADER_SCAN_LINES" "$jsonl_file" | jq -r 'select(.timestamp) | .timestamp' 2>/dev/null | head -1)
   local date_str="${timestamp%%T*}"
 
   {
@@ -166,8 +171,12 @@ convert_to_markdown() {
     echo "---"
     echo ""
 
-    # 메시지 변환 (thinking 블록 제외)
-    jq -r '
+    # 메시지 변환 규칙:
+    # - thinking 블록 제외 (내부 추론은 아카이브 불필요)
+    # - tool_use input은 TOOL_INPUT_PREVIEW_MAX자로 잘라내기 (전체 입력은 JSONL 원본 참조)
+    # - tool_result 출력은 TOOL_RESULT_PREVIEW_MAX자로 잘라내기 (동일)
+    # - user/assistant 메시지만 포함 (system, file-history-snapshot 등 제외)
+    jq -r --argjson tip "$TOOL_INPUT_PREVIEW_MAX" --argjson trp "$TOOL_RESULT_PREVIEW_MAX" '
       select(.type == "user" or .type == "assistant") |
       select(.message != null) |
       {
@@ -181,9 +190,9 @@ convert_to_markdown() {
               select(.type != "thinking") |
               if .type == "text" then .text
               elif .type == "tool_use" then
-                "**Tool: \(.name)**\n```\n\(.input | tostring | .[0:500])\n```"
+                "**Tool: \(.name)**\n```\n\(.input | tostring | .[0:$tip])\n```"
               elif .type == "tool_result" then
-                "**Result**: \((.content // "") | tostring | .[0:300])"
+                "**Result**: \((.content // "") | tostring | .[0:$trp])"
               else empty
               end
             ] | join("\n\n")
@@ -193,7 +202,7 @@ convert_to_markdown() {
       } |
       select(.content != "") |
       "## \(.role | gsub("^user$";"User") | gsub("^assistant$";"Assistant")) (\(.ts))\n\n\(.content)\n"
-    ' "$jsonl_file" 2>/dev/null || true
+    ' "$jsonl_file" 2>/dev/null
   } > "$output_file"
 }
 
@@ -212,7 +221,7 @@ archive_session() {
 
   # 프로젝트 이름 결정
   local cwd_from_jsonl project_name
-  cwd_from_jsonl=$(head -5 "$jsonl_path" | jq -r 'select(.cwd) | .cwd' 2>/dev/null | head -1)
+  cwd_from_jsonl=$(head -"$HEADER_SCAN_LINES" "$jsonl_path" | jq -r 'select(.cwd) | .cwd' 2>/dev/null | head -1)
 
   if [ -z "$cwd_from_jsonl" ]; then
     # CWD를 추출 못하면 JSONL 경로에서 유추
@@ -255,7 +264,7 @@ archive_session() {
 
   # 6. meta.json 생성
   local git_branch has_icons has_memo message_count is_worktree
-  git_branch=$(head -5 "$jsonl_path" | jq -r 'select(.gitBranch) | .gitBranch' 2>/dev/null | head -1)
+  git_branch=$(head -"$HEADER_SCAN_LINES" "$jsonl_path" | jq -r 'select(.gitBranch) | .gitBranch' 2>/dev/null | head -1)
   [ -f "$icons_file" ] && has_icons=true || has_icons=false
   [ -f "$memo_file" ] && has_memo=true || has_memo=false
   message_count=$(grep -cE '"type":"(user|assistant)"' "$jsonl_path" 2>/dev/null || echo 0)
@@ -345,26 +354,24 @@ restore_archive() {
   original_path=$(jq -r '.original_path' "$meta_file")
   session_id=$(jq -r '.session_id' "$meta_file")
 
-  # JSONL 복원
+  # JSONL 복원 — 이미 존재하면 전체 restore를 중단 (live 세션 sidecar 오염 방지)
   if [ -f "$archive_dir/$session_id.jsonl" ]; then
     if [ -f "$original_path" ]; then
       warn "File already exists: $original_path"
       warn "Use 'claude --resume $session_id' directly."
-    else
-      validate_restore_path "$original_path" || return 1
-      mkdir -p "$(dirname "$original_path")"
-      cp -p "$archive_dir/$session_id.jsonl" "$original_path"
-      touch -r "$archive_dir/$session_id.jsonl" "$original_path"
-      info "Restored: $original_path"
+      return 0
     fi
+    validate_restore_path "$original_path" || return 1
+    mkdir -p "$(dirname "$original_path")"
+    cp "$archive_dir/$session_id.jsonl" "$original_path"
+    info "Restored: $original_path"
   fi
 
-  # status-icons 복원
+  # status-icons 복원 (현재 mtime 사용 — session-init-icons.sh의 30일 cleanup과 충돌 방지)
   if [ -f "$archive_dir/status-icons.json" ]; then
     local icons_dest="$CLAUDE_DIR/status-icons/$session_id.json"
     if validate_restore_path "$icons_dest"; then
-      cp -p "$archive_dir/status-icons.json" "$icons_dest"
-      touch -r "$archive_dir/status-icons.json" "$icons_dest"
+      cp "$archive_dir/status-icons.json" "$icons_dest"
       info "Restored: $icons_dest"
     fi
   fi
@@ -373,20 +380,20 @@ restore_archive() {
   if [ -f "$archive_dir/memo.md" ]; then
     local memo_dest="$CLAUDE_DIR/memos/$session_id.md"
     if validate_restore_path "$memo_dest"; then
-      cp -p "$archive_dir/memo.md" "$memo_dest"
-      touch -r "$archive_dir/memo.md" "$memo_dest"
+      cp "$archive_dir/memo.md" "$memo_dest"
       info "Restored: $memo_dest"
     fi
   fi
 
-  # subagents 복원
+  # subagents 복원 — validate_restore_path는 파일 경로를 요구하므로,
+  # 부모 디렉토리가 allowlist 내인지 확인하기 위해 하위 placeholder 경로를 사용
   if [ -d "$archive_dir/subagents" ]; then
     local parent_dir
     parent_dir=$(dirname "$original_path")
     local subagent_dest="$parent_dir/$session_id/subagents"
     if validate_restore_path "$parent_dir/$session_id/placeholder"; then
       mkdir -p "$subagent_dest"
-      cp -rp "$archive_dir/subagents/." "$subagent_dest/"
+      cp -r "$archive_dir/subagents/." "$subagent_dest/"
       info "Restored: $subagent_dest"
     fi
   fi
