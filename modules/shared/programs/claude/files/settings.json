@@ -1,5 +1,5 @@
 {
-  "cleanupPeriodDays": 7,
+  "cleanupPeriodDays": 99999,
   "env": {
     "IS_DEMO": "true",
     "CLAUDE_CODE_ENABLE_UNIFIED_READ_TOOL": "true",

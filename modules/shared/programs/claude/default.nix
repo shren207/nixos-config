@@ -4,6 +4,7 @@
   config,
   pkgs,
   lib,
+  inputs,
   nixosConfigPath,
   ...
 }:
@@ -248,5 +249,17 @@ in
     # show-pain-points 대시보드 스크립트
     ".claude/scripts/show-pain-points.sh".source =
       config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/scripts/show-pain-points.sh";
+
+    # claude-archive 스크립트
+    ".claude/scripts/claude-archive.sh".source =
+      config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/scripts/claude-archive.sh";
+
+    # archive 스킬 (user-scope)
+    ".claude/skills/archive".source =
+      config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/skills/archive";
   };
+
+  home.packages = [
+    inputs.recall.packages.${pkgs.system}.default
+  ];
 }
