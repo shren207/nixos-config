@@ -53,6 +53,7 @@ Claude Code를 git worktree에서 실행한 후 worktree를 삭제하면, 세션
 | `claude-archive.sh` | 아카이빙 로직 전체 | `modules/shared/programs/claude/scripts/claude-archive.sh` |
 | `/archive` 스킬 | 스크립트 호출 + 결과 표시 | `modules/shared/programs/claude/commands/archive.md` |
 | Nix 모듈 | 스크립트 패키징 + PATH 등록 | `modules/shared/programs/claude/default.nix` |
+| recall (포크) | 아카이브 TUI 열람 | `github:greenheadHQ/recall` (flake input) |
 
 ## CLI 인터페이스
 
@@ -62,6 +63,7 @@ claude-archive --all              # 현재 CWD의 모든 세션
 claude-archive --project          # 메인 레포 + 모든 worktree 세션
 claude-archive --list             # 아카이브 목록 조회
 claude-archive --restore <id>     # 원래 위치로 복원 (세션 재개용)
+claude-archive --browse           # recall TUI로 아카이브 열람
 ```
 
 ## 세션 ID 결정 로직
@@ -205,6 +207,55 @@ claude-archive = pkgs.writeShellApplication {
 
 아카이빙 시 `jq`로 append, `--restore` 시 해당 항목 제거.
 
+## recall 포크: 아카이브 TUI 열람
+
+### 레포
+
+`github:greenheadHQ/recall` (upstream: `github:zippoxer/recall`)
+
+### 수정 범위
+
+`src/parser/mod.rs`의 `discover_session_files()`에 아카이브 디렉터리 스캔 추가:
+
+```rust
+// ~/.claude/archive/**/*.jsonl (아카이브된 세션)
+let archive_dir = home.join(".claude/archive");
+if archive_dir.exists() {
+    for entry in walkdir::WalkDir::new(&archive_dir)
+        .into_iter()
+        .flatten()
+    {
+        let path = entry.path();
+        if path.extension().map(|e| e == "jsonl").unwrap_or(false) {
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                if name.starts_with("agent-") {
+                    continue;
+                }
+            }
+            files.push(path.to_path_buf());
+        }
+    }
+}
+```
+
+이것만으로 recall TUI에서 아카이브된 세션이 라이브 세션과 함께 표시됨.
+
+### Nix 패키징
+
+flake input으로 추가하여 `naersk`로 빌드:
+
+```nix
+# flake.nix inputs
+recall.url = "github:greenheadHQ/recall";
+
+# modules/shared/programs/recall/default.nix
+home.packages = [ inputs.recall.packages.${pkgs.system}.default ];
+```
+
+### --browse 동작
+
+`claude-archive --browse`는 단순히 `recall`을 실행. recall이 `~/.claude/projects/` + `~/.claude/archive/` 둘 다 스캔하므로 라이브 + 아카이브 통합 뷰 제공.
+
 ## 에러 처리
 
 | 상황 | 동작 |
@@ -225,3 +276,5 @@ claude-archive = pkgs.writeShellApplication {
 5. `claude-archive --project` → 메인 + worktree 세션 전부 아카이빙
 6. 이미 아카이빙된 세션 재실행 → 스킵 메시지
 7. Markdown 변환 결과가 읽기 쉬운지 확인
+8. `claude-archive --browse` → recall TUI에서 아카이브 세션 표시
+9. recall TUI에서 아카이브 세션 검색 + 미리보기 동작 확인
