@@ -157,9 +157,9 @@ convert_to_markdown() {
 
   # 헤더 정보 추출 (JSONL 선두 N줄에서 메타데이터 필드를 추출)
   local git_branch cwd timestamp
-  git_branch=$(head -"$HEADER_SCAN_LINES" "$jsonl_file" | jq -r 'select(.gitBranch) | .gitBranch' 2>/dev/null | head -1)
-  cwd=$(head -"$HEADER_SCAN_LINES" "$jsonl_file" | jq -r 'select(.cwd) | .cwd' 2>/dev/null | head -1)
-  timestamp=$(head -"$HEADER_SCAN_LINES" "$jsonl_file" | jq -r 'select(.timestamp) | .timestamp' 2>/dev/null | head -1)
+  git_branch=$(head -"$HEADER_SCAN_LINES" "$jsonl_file" | jq -r 'select(.gitBranch) | .gitBranch' 2>/dev/null | head -1 || true)
+  cwd=$(head -"$HEADER_SCAN_LINES" "$jsonl_file" | jq -r 'select(.cwd) | .cwd' 2>/dev/null | head -1 || true)
+  timestamp=$(head -"$HEADER_SCAN_LINES" "$jsonl_file" | jq -r 'select(.timestamp) | .timestamp' 2>/dev/null | head -1 || true)
   local date_str="${timestamp%%T*}"
 
   {
@@ -221,7 +221,7 @@ archive_session() {
 
   # 프로젝트 이름 결정
   local cwd_from_jsonl project_name
-  cwd_from_jsonl=$(head -"$HEADER_SCAN_LINES" "$jsonl_path" | jq -r 'select(.cwd) | .cwd' 2>/dev/null | head -1)
+  cwd_from_jsonl=$(head -"$HEADER_SCAN_LINES" "$jsonl_path" | jq -r 'select(.cwd) | .cwd' 2>/dev/null | head -1 || true)
 
   if [ -z "$cwd_from_jsonl" ]; then
     # CWD를 추출 못하면 JSONL 경로에서 유추
@@ -264,7 +264,7 @@ archive_session() {
 
   # 6. meta.json 생성
   local git_branch has_icons has_memo message_count is_worktree
-  git_branch=$(head -"$HEADER_SCAN_LINES" "$jsonl_path" | jq -r 'select(.gitBranch) | .gitBranch' 2>/dev/null | head -1)
+  git_branch=$(head -"$HEADER_SCAN_LINES" "$jsonl_path" | jq -r 'select(.gitBranch) | .gitBranch' 2>/dev/null | head -1 || true)
   [ -f "$icons_file" ] && has_icons=true || has_icons=false
   [ -f "$memo_file" ] && has_memo=true || has_memo=false
   message_count=$(grep -cE '"type":"(user|assistant)"' "$jsonl_path" 2>/dev/null || echo 0)
