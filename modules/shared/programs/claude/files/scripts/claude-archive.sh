@@ -314,7 +314,7 @@ list_archives() {
   local count=0
   while IFS= read -r -d '' meta; do
     local fields
-    fields=$(jq -r '[.session_id, .project, (.git_branch // "-"), .archived_at, (.message_count | tostring), (.worktree | tostring)] | @tsv' "$meta" 2>/dev/null) \
+    fields=$(jq -r '[(if (.git_branch // "") == "" then "-" else .git_branch end) as $br | .session_id, .project, $br, .archived_at, (.message_count | tostring), (.worktree | tostring)] | @tsv' "$meta" 2>/dev/null) \
       || { warn "Corrupt meta.json: $meta"; continue; }
 
     local sid project branch archived_at msg_count is_wt
@@ -326,7 +326,7 @@ list_archives() {
     printf '%s  %-20s  %-40s  %3s msgs  %s%s\n' \
       "${archived_at%%T*}" "$project" "$branch" "$msg_count" "$sid" "$wt_tag"
     count=$((count + 1))
-  done < <(find "$ARCHIVE_DIR" -name meta.json -type f -print0 2>/dev/null | sort -z)
+  done < <(find "$ARCHIVE_DIR" -name meta.json -print0 2>/dev/null | sort -z)
 
   if [ "$count" -eq 0 ]; then
     echo "No archives found."
