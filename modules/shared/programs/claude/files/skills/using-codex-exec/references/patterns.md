@@ -13,7 +13,7 @@ cat > /tmp/codex-prompt.md <<'PROMPT'
 PROMPT
 ```
 
-> `run_in_background` 환경에서는 여기서 Bash tool 호출을 종료한다 ([known-issues.md §11](../references/known-issues.md) 하위 항목 참조).
+**⚠️ `run_in_background` 환경**: 여기서 Bash tool 호출을 종료하고, 아래를 별도 호출로 실행한다 ([known-issues.md §11](known-issues.md) 하위 항목).
 
 ```bash
 cat /tmp/codex-prompt.md | codex exec --full-auto -o /tmp/codex-result.md 2>&1
@@ -130,7 +130,7 @@ $(git diff main...HEAD)
 PROMPT
 ```
 
-> `run_in_background` 환경에서는 여기서 Bash tool 호출을 종료한다. diff가 클 수 있으므로 file redirect를 사용한다.
+**⚠️ `run_in_background` 환경**: 여기서 Bash tool 호출을 종료하고, 아래를 별도 호출로 실행한다. diff가 클 수 있으므로 file redirect를 사용한다.
 
 ```bash
 codex exec --full-auto -o /tmp/review-result.md < /tmp/review-prompt.md 2>&1
@@ -164,7 +164,7 @@ codex exec --full-auto -o /tmp/review-result.md < /tmp/review-prompt.md 2>&1
 리터럴 텍스트만 전달할 때는 `<<'PROMPT'` (따옴표 포함)를 사용한다.
 패턴 1, 5, 8은 명령 치환이 불필요하므로 `<<'PROMPT'`를 사용한다.
 
-**코드 블록 분리**: `run_in_background` 환경에서 heredoc과 codex exec를 같은 Bash 호출에 넣으면 stdin hang이 발생한다 ([known-issues.md §11](../references/known-issues.md) 하위 항목 참조). 모든 패턴에서 heredoc(프롬프트 생성)과 codex exec(실행)를 별도 코드 블록으로 분리한다. diff가 포함되어 프롬프트가 클 수 있는 패턴 4/6은 file redirect(`< file`)를 사용한다.
+**코드 블록 분리**: `run_in_background` 환경에서 heredoc과 codex exec를 같은 Bash 호출에 넣으면 stdin hang이 발생한다 ([known-issues.md §11](known-issues.md) 하위 항목 참조). 모든 패턴에서 heredoc(프롬프트 생성)과 codex exec(실행)를 별도 코드 블록으로 분리한다. diff가 포함되어 프롬프트가 클 수 있는 패턴 4/6은 file redirect(`< file`)를 사용한다.
 
 ### 단점
 
@@ -185,7 +185,7 @@ Ignore style-only issues.
 PROMPT
 ```
 
-> `run_in_background` 환경에서는 여기서 Bash tool 호출을 종료한다. DA 루프는 인라인 인자를 사용한다 (run-da 스킬과 일관성).
+**⚠️ `run_in_background` 환경**: 여기서 Bash tool 호출을 종료하고, 아래를 별도 호출로 실행한다. DA 루프는 인라인 인자를 사용한다 (run-da 스킬과 일관성).
 
 ```bash
 codex exec --full-auto -o /tmp/da-round1-result.md \
@@ -253,7 +253,7 @@ $(git diff main...HEAD)
 PROMPT
 ```
 
-> `run_in_background` 환경에서는 여기서 Bash tool 호출을 종료한다. diff가 클 수 있으므로 file redirect를 사용한다.
+**⚠️ `run_in_background` 환경**: 여기서 Bash tool 호출을 종료하고, 아래를 별도 호출로 실행한다. diff가 클 수 있으므로 file redirect를 사용한다.
 
 ```bash
 codex exec --full-auto --output-schema /tmp/review-schema.json \
@@ -290,7 +290,7 @@ cat > /tmp/smoke.md <<'PROMPT'
 PROMPT
 ```
 
-> `run_in_background` 환경에서는 여기서 Bash tool 호출을 종료한다 ([known-issues.md §11](../references/known-issues.md) 하위 항목 참조).
+**⚠️ `run_in_background` 환경**: 여기서 Bash tool 호출을 종료하고, 아래를 별도 호출로 실행한다 ([known-issues.md §11](known-issues.md) 하위 항목).
 
 ```bash
 cat /tmp/smoke.md | codex exec --full-auto -o /tmp/smoke-result.md 2>&1

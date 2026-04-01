@@ -260,7 +260,7 @@ cat > /tmp/smoke.md <<'PROMPT'
 PROMPT
 ```
 
-> `run_in_background` 환경에서는 여기서 Bash tool 호출을 종료한다 (§11 하위 항목 참조).
+**⚠️ `run_in_background` 환경**: 여기서 Bash tool 호출을 종료하고, 아래를 별도 호출로 실행한다 (§11 하위 항목).
 
 ```bash
 cat /tmp/smoke.md | codex exec --full-auto -o /tmp/smoke-result.md 2>&1
@@ -349,40 +349,37 @@ echo "PID: $!"
 
 **심각도**: 높음 — `run_in_background: true`로 실행하는 모든 codex exec 호출에 적용
 
-**증상**: `run_in_background: true`로 실행한 Bash 호출에서 heredoc과 codex exec를 체이닝하면, codex가 `"Reading additional input from stdin..."`을 출력하며 무한 대기.
+**증상**: `run_in_background: true`로 실행한 Bash 호출에서 heredoc으로 파일을 생성한 뒤 같은 호출에서 codex exec를 실행하면, codex가 무한 대기.
 
-**근본 원인** (3단계):
-
-1. heredoc(`cat > file <<'EOF' ... EOF`)이 stdin을 소비하고 닫음
-2. 같은 Bash 호출 내 후속 codex exec가 "stdin이 존재했지만 EOF에 도달한" 상태를 이어받음
-3. codex가 추가 입력을 기다리며 hang (`run_in_background` 환경에서만 발생)
-
-일반 터미널에서는 재현되지 않음. Claude Code Bash tool sandbox 특유 동작.
+**관찰된 동작**: 특정 Bash tool sandbox 구성에서 heredoc과 codex exec를 같은 호출에 체이닝하면 hang이 발생한다. 정확한 메커니즘은 미확정이나, heredoc이 stdin 상태에 영향을 주어 후속 codex exec가 추가 입력을 기다리는 것으로 추정된다. `run_in_background` 환경에서만 발생하며, 일반 터미널에서는 재현되지 않는다.
 
 **재현** (codex-cli v0.118.0, 2026-04-01 확인):
 
 HANG — heredoc 체이닝 (같은 Bash 호출):
 ```bash
-TDIR=$(mktemp -d /tmp/test-XXXXXX) && cat > "$TDIR/prompt.md" <<'EOF'
+cat > /tmp/test-prompt.md <<'EOF'
 테스트 프롬프트
 EOF
-codex exec --full-auto --ephemeral -o "$TDIR/result.md" "$(cat "$TDIR/prompt.md")"
-# → "Reading additional input from stdin..."으로 무한 대기
+codex exec --full-auto --ephemeral -o /tmp/test-result.md "$(cat /tmp/test-prompt.md)"
+# → 무한 대기
 ```
 
 OK — 별도 Bash 호출로 분리:
+
+**1. Bash tool 호출 1**: 프롬프트 파일 생성
 ```bash
-# Bash tool 호출 1: 프롬프트 파일 생성
-TDIR=$(mktemp -d /tmp/test-XXXXXX) && cat > "$TDIR/prompt.md" <<'EOF'
+cat > /tmp/test-prompt.md <<'EOF'
 테스트 프롬프트
 EOF
 ```
 
+**2. Bash tool 호출 2**: codex exec 실행
 ```bash
-# Bash tool 호출 2: codex exec 실행
-codex exec --full-auto --ephemeral -o "$TDIR/result.md" "$(cat "$TDIR/prompt.md")"
+codex exec --full-auto --ephemeral -o /tmp/test-result.md "$(cat /tmp/test-prompt.md)"
 ```
 
-**올바른 패턴**: 프롬프트 파일 생성과 codex exec를 별도 Bash tool 호출로 분리한다. §11 본문의 "올바른 패턴"과 동일 원리.
+**올바른 패턴**: 프롬프트 파일 생성과 codex exec를 별도 Bash tool 호출로 분리한다. §11 본문의 "올바른 패턴"과 동일 원리. 호출 간 상태 공유는 파일 경로를 통해서만 한다 (셸 변수는 호출 간 유지되지 않음).
 
-**§11 본문과의 관계**: §11은 `& + wait` shell-level 병렬과 다수 stdin pipe 경합의 제약이고, 이 항목은 heredoc 체이닝의 stdin 점유 문제이다. 원인은 다르지만 해결 패턴(별도 Bash tool 호출 분리)은 동일하다.
+**§11 본문과의 관계**: §11은 `& + wait` shell-level 병렬과 다수 stdin pipe 경합의 제약이고, 이 항목은 heredoc 체이닝의 stdin 관련 문제이다. 원인은 다르지만 해결 패턴(별도 Bash tool 호출 분리)은 동일하다.
+
+**TODO**: run-da/SKILL.md와 arbiter-scaling.md의 코드 예시에도 동일 패턴 적용 필요 (별도 이슈).
