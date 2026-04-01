@@ -138,7 +138,7 @@ error: the argument '--base <BRANCH>' cannot be used with '--uncommitted'
 | stdin 파이프 | `cat prompt.md \| codex exec --full-auto -o result.md` |
 | stdin 마커 | `codex exec review - --full-auto` (stdin에서 읽음) |
 | 파일 리다이렉트 | `codex exec --full-auto < prompt.md -o result.md` |
-| here-doc | `codex exec --full-auto <<'EOF' ... EOF` |
+| here-doc | `codex exec --full-auto <<'EOF' ... EOF` ⚠️ `run_in_background` 환경에서 동일 Bash 호출 내 체이닝 금지 ([§11](references/known-issues.md)) |
 
 ## 표준 실행 절차
 
@@ -150,7 +150,11 @@ error: the argument '--base <BRANCH>' cannot be used with '--uncommitted'
 cat > /tmp/prompt.md <<'PROMPT'
 이 변경의 배포 리스크를 3개 이내로 지적한다.
 PROMPT
+```
 
+> `run_in_background` 환경에서는 여기서 Bash tool 호출을 종료한다 ([§11](references/known-issues.md) 하위 항목 참조).
+
+```bash
 cat /tmp/prompt.md | codex exec --full-auto -o /tmp/result.md 2>&1
 ```
 

@@ -258,7 +258,11 @@ git worktree 환경에서 `codex exec`를 실행할 때:
 cat > /tmp/smoke.md <<'PROMPT'
 현재 작업 디렉토리에서 가장 중요한 리스크 1개만 한 줄로 답한다.
 PROMPT
+```
 
+> `run_in_background` 환경에서는 여기서 Bash tool 호출을 종료한다 (§11 하위 항목 참조).
+
+```bash
 cat /tmp/smoke.md | codex exec --full-auto -o /tmp/smoke-result.md 2>&1
 cat /tmp/smoke-result.md
 ```
@@ -330,6 +334,7 @@ cat /tmp/smoke-result.md
 - `&` + `wait` + `$!` (shell-level background)
 - 8개 동시 stdin pipe (`cat file | codex exec`)
 - here-doc + pipe 조합의 다수 병렬
+- heredoc + codex exec 체이닝 (같은 Bash 호출에서 `run_in_background` 사용 시 — 하위 항목 참조)
 - Bash tool `run_in_background: true` 사용 후 sleep/poll로 완료 확인 (알림이 자동으로 옴)
 
 **재검증 방법**:
@@ -339,3 +344,45 @@ echo "PID: $!"
 # "PID: $!" (리터럴) → sandbox 제약 유효
 # "PID: 12345" (숫자) → sandbox 제약 해소
 ```
+
+#### heredoc + codex exec 체이닝 시 hang (run_in_background 환경)
+
+**심각도**: 높음 — `run_in_background: true`로 실행하는 모든 codex exec 호출에 적용
+
+**증상**: `run_in_background: true`로 실행한 Bash 호출에서 heredoc과 codex exec를 체이닝하면, codex가 `"Reading additional input from stdin..."`을 출력하며 무한 대기.
+
+**근본 원인** (3단계):
+
+1. heredoc(`cat > file <<'EOF' ... EOF`)이 stdin을 소비하고 닫음
+2. 같은 Bash 호출 내 후속 codex exec가 "stdin이 존재했지만 EOF에 도달한" 상태를 이어받음
+3. codex가 추가 입력을 기다리며 hang (`run_in_background` 환경에서만 발생)
+
+일반 터미널에서는 재현되지 않음. Claude Code Bash tool sandbox 특유 동작.
+
+**재현** (codex-cli v0.118.0, 2026-04-01 확인):
+
+HANG — heredoc 체이닝 (같은 Bash 호출):
+```bash
+TDIR=$(mktemp -d /tmp/test-XXXXXX) && cat > "$TDIR/prompt.md" <<'EOF'
+테스트 프롬프트
+EOF
+codex exec --full-auto --ephemeral -o "$TDIR/result.md" "$(cat "$TDIR/prompt.md")"
+# → "Reading additional input from stdin..."으로 무한 대기
+```
+
+OK — 별도 Bash 호출로 분리:
+```bash
+# Bash tool 호출 1: 프롬프트 파일 생성
+TDIR=$(mktemp -d /tmp/test-XXXXXX) && cat > "$TDIR/prompt.md" <<'EOF'
+테스트 프롬프트
+EOF
+```
+
+```bash
+# Bash tool 호출 2: codex exec 실행
+codex exec --full-auto --ephemeral -o "$TDIR/result.md" "$(cat "$TDIR/prompt.md")"
+```
+
+**올바른 패턴**: 프롬프트 파일 생성과 codex exec를 별도 Bash tool 호출로 분리한다. §11 본문의 "올바른 패턴"과 동일 원리.
+
+**§11 본문과의 관계**: §11은 `& + wait` shell-level 병렬과 다수 stdin pipe 경합의 제약이고, 이 항목은 heredoc 체이닝의 stdin 점유 문제이다. 원인은 다르지만 해결 패턴(별도 Bash tool 호출 분리)은 동일하다.
