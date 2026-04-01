@@ -41,7 +41,7 @@ if [ "$TOOL_NAME" = "Write" ]; then
       s = $0; sub(/^[ ]{0,3}/, "", s); ticks = 0
       while (substr(s, ticks+1, 1) == "`") ticks++
       if (ticks >= 3) {
-        tail = substr(s, ticks+1); gsub(/[ \t]/, "", tail)
+        tail = substr(s, ticks+1); gsub(/[ \t\r]/, "", tail)
         if (depth == 0) { depth = 1; fence_len = ticks; next }
         if (ticks >= fence_len && tail == "") { depth = 0; fence_len = 0; next }
       }
