@@ -83,7 +83,7 @@ in
       # Android SDK platform-tools (adb, fastboot)
       # home.sessionPath는 PATH 앞에 prepend하므로 platform-tools의
       # sqlite3 등이 시스템 바이너리를 shadow한다. append로 우회.
-      export PATH="$PATH:$ANDROID_HOME/platform-tools"
+      [ -d "$ANDROID_HOME/platform-tools" ] && export PATH="$PATH:$ANDROID_HOME/platform-tools"
     ''
   ];
 }
