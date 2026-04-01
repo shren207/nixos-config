@@ -347,7 +347,7 @@ echo "PID: $!"
 
 #### heredoc + codex exec 체이닝 시 hang (run_in_background 환경)
 
-**심각도**: 높음 — `run_in_background: true`로 실행하는 모든 codex exec 호출에 적용
+**심각도**: 높음 — `run_in_background: true`에서 heredoc으로 파일 생성 후 같은 Bash 호출에서 codex exec를 이어 실행하는 경우에 적용
 
 **증상**: `run_in_background: true`로 실행한 Bash 호출에서 heredoc으로 파일을 생성한 뒤 같은 호출에서 codex exec를 실행하면, codex가 무한 대기.
 
@@ -357,29 +357,31 @@ echo "PID: $!"
 
 HANG — heredoc 체이닝 (같은 Bash 호출):
 ```bash
-cat > /tmp/test-prompt.md <<'EOF'
+(umask 077; TDIR=$(mktemp -d /tmp/test-XXXXXX) && cat > "$TDIR/prompt.md" <<'EOF'
 테스트 프롬프트
 EOF
-codex exec --full-auto --ephemeral -o /tmp/test-result.md "$(cat /tmp/test-prompt.md)"
+codex exec --full-auto --ephemeral -o "$TDIR/result.md" "$(cat "$TDIR/prompt.md")")
 # → 무한 대기
 ```
 
 OK — 별도 Bash 호출로 분리:
 
-**1. Bash tool 호출 1**: 프롬프트 파일 생성
+**1. Bash tool 호출 1**: 프롬프트 파일 생성 (경로 출력)
 ```bash
-cat > /tmp/test-prompt.md <<'EOF'
+TDIR=$(mktemp -d /tmp/test-XXXXXX) && cat > "$TDIR/prompt.md" <<'EOF'
 테스트 프롬프트
 EOF
+echo "$TDIR"
+# → /tmp/test-a1b2c3 (이 경로를 다음 호출에서 사용)
 ```
 
-**2. Bash tool 호출 2**: codex exec 실행
+**2. Bash tool 호출 2**: codex exec 실행 (경로 직접 지정)
 ```bash
-codex exec --full-auto --ephemeral -o /tmp/test-result.md "$(cat /tmp/test-prompt.md)"
+codex exec --full-auto --ephemeral \
+  -o /tmp/test-a1b2c3/result.md \
+  "$(cat /tmp/test-a1b2c3/prompt.md)"
 ```
 
-**올바른 패턴**: 프롬프트 파일 생성과 codex exec를 별도 Bash tool 호출로 분리한다. §11 본문의 "올바른 패턴"과 동일 원리. 호출 간 상태 공유는 파일 경로를 통해서만 한다 (셸 변수는 호출 간 유지되지 않음).
+**올바른 패턴**: 프롬프트 파일 생성과 codex exec를 별도 Bash tool 호출로 분리한다. §11 본문의 "올바른 패턴"과 동일 원리. 호출 간 상태 공유는 파일 경로를 통해서만 한다 (셸 변수는 호출 간 유지되지 않으므로, 1단계에서 출력한 경로를 2단계에서 직접 사용).
 
 **§11 본문과의 관계**: §11은 `& + wait` shell-level 병렬과 다수 stdin pipe 경합의 제약이고, 이 항목은 heredoc 체이닝의 stdin 관련 문제이다. 원인은 다르지만 해결 패턴(별도 Bash tool 호출 분리)은 동일하다.
-
-**TODO**: run-da/SKILL.md와 arbiter-scaling.md의 코드 예시에도 동일 패턴 적용 필요 (별도 이슈).

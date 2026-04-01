@@ -185,7 +185,7 @@ Ignore style-only issues.
 PROMPT
 ```
 
-**⚠️ `run_in_background` 환경**: 여기서 Bash tool 호출을 종료하고, 아래를 별도 호출로 실행한다. DA 루프는 인라인 인자를 사용한다 (run-da 스킬과 일관성).
+**⚠️ `run_in_background` 환경**: 여기서 Bash tool 호출을 종료하고, 아래를 별도 호출로 실행한다. DA 루프에서는 인라인 인자(`"$(cat file)"`)를 사용한다.
 
 ```bash
 codex exec --full-auto -o /tmp/da-round1-result.md \
