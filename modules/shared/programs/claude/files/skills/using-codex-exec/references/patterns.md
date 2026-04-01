@@ -178,22 +178,22 @@ cat /tmp/da-round1-result.md
 
 ### 후속 라운드
 
-1. 결과에서 유효한 지적만 추린다.
-2. 코드/문서를 수정한다.
+1. 결과를 **Arbiter 에이전트에 전달하여 독립 판정**을 받는다 (run-da 스킬의 Arbiter 절차 참조).
+   이 패턴은 codex exec 실행 기계만 제공한다. 유효성 판정은 Arbiter의 책임이다.
+2. Arbiter가 **CONFIRMED_ISSUE로 판정한 항목만** 수정한다.
 3. 새 프롬프트 파일(`round2.md`)로 동일 구조를 반복한다:
 
 ```bash
 cat > /tmp/da-round2.md <<'PROMPT'
-이전 라운드에서 지적된 항목 중 아래를 수정했다:
-- [수정 항목 나열]
-
-남은 리스크가 있는지 재검토한다.
+현재 변경사항을 독립적으로 리뷰한다.
+이전 라운드의 판정 결과를 참조하지 마라.
 PROMPT
 
 cat /tmp/da-round2.md | codex exec --full-auto -o /tmp/da-round2-result.md 2>&1
 ```
 
 핵심: 매 라운드마다 `-o`로 결과를 파일 저장하여 이력을 보존한다.
+이전 라운드 결과를 후속 프롬프트에 포함하지 않는다 (프롬프트 조향 금지).
 
 ## 패턴 6: 구조화 출력 — --output-schema
 
