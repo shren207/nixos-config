@@ -31,37 +31,39 @@ fi
 
 # [WHY] Write 전용: 코드 블록 내부는 예시/템플릿이므로 검사 대상이 아님.
 # Edit의 new_string은 조각이라 fence 경계가 불완전할 수 있으므로 strip하지 않음.
-# awk: 0-3칸 들여쓰기 허용, backtick 수 추적으로 nested/wrapper fence 처리.
+# awk fence parser: Markdown spec 기준 0-3칸 들여쓰기 + 3개 이상 backtick.
+#   depth=fence 내부 여부, fence_len=opening backtick 수.
+#   닫힘 조건: backtick 수 >= opening 길이 && 뒤에 텍스트 없음.
 if [ "$TOOL_NAME" = "Write" ]; then
-  PROSE=$(printf '%s' "$CONTENT" | awk '
-    BEGIN { d = 0; fl = 0 }
+  SCAN_INPUT=$(printf '%s' "$CONTENT" | awk '
+    BEGIN { depth = 0; fence_len = 0 }
     {
-      s = $0; sub(/^[ ]{0,3}/, "", s); n = 0
-      while (substr(s, n+1, 1) == "`") n++
-      if (n >= 3) {
-        rest = substr(s, n+1); gsub(/[ \t]/, "", rest)
-        if (d == 0) { d = 1; fl = n; next }
-        if (n >= fl && rest == "") { d = 0; fl = 0; next }
+      s = $0; sub(/^[ ]{0,3}/, "", s); ticks = 0
+      while (substr(s, ticks+1, 1) == "`") ticks++
+      if (ticks >= 3) {
+        tail = substr(s, ticks+1); gsub(/[ \t]/, "", tail)
+        if (depth == 0) { depth = 1; fence_len = ticks; next }
+        if (ticks >= fence_len && tail == "") { depth = 0; fence_len = 0; next }
       }
-      if (d == 0) print
+      if (depth == 0) print
     }')
 else
-  PROSE="$CONTENT"
+  SCAN_INPUT="$CONTENT"
 fi
 
 WARNINGS=""
 
 # [WHY] 줄 수는 코드 수정 시 즉시 변경됨 → wc -l로 동적 확인 가능
-printf '%s' "$PROSE" | grep -qE '[0-9]+줄|[0-9]+ lines' && \
+printf '%s' "$SCAN_INPUT" | grep -qE '[0-9]+줄|[0-9]+ lines' && \
   WARNINGS="${WARNINGS}줄 수 하드코딩. "
 
 # [WHY] 파일/참조 수는 파일 추가/삭제 시 변경됨 → grep -c로 동적 확인 가능
-printf '%s' "$PROSE" | grep -qE '[0-9]+개 파일|[0-9]+곳' && \
+printf '%s' "$SCAN_INPUT" | grep -qE '[0-9]+개 파일|[0-9]+곳' && \
   WARNINGS="${WARNINGS}파일/참조 수 하드코딩. "
 
 # [WHY] 스킬 경로를 3개 이상 나열하면 스킬 추가/삭제 시 목록이 stale 됨.
 # 3개 미만은 정당한 교차 참조(예: "NOT for X, use Y")로 간주.
-SKILL_PATH_COUNT=$(printf '%s' "$PROSE" | grep -oE '\.claude/skills/[a-z0-9_-]+' | sort -u | wc -l)
+SKILL_PATH_COUNT=$(printf '%s' "$SCAN_INPUT" | grep -oE '\.claude/skills/[a-z0-9_-]+' | sort -u | wc -l)
 [ "$SKILL_PATH_COUNT" -ge 3 ] && \
   WARNINGS="${WARNINGS}.claude/skills/ 경로 ${SKILL_PATH_COUNT}개 열거. "
 
