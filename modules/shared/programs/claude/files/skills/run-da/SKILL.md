@@ -213,7 +213,9 @@ Round N 요약 (LITE: 선택 M개/전체 N개): DA 발견 X건
    실패한 영역만 재실행한다. 라운드마다 새 `DA_DIR`을 생성하여 이전 라운드 산출물과 분리한다.
 4. findings 0건 → ALL CLEAR, 종료.
 5. findings 1건 이상 → Arbiter 실행:
-   - Arbiter 프롬프트를 조립한다 ([arbiter-prompt.md](references/arbiter-prompt.md) 참조).
+   - Arbiter 프롬프트를 조립한다 ([arbiter-prompt.md](references/arbiter-prompt.md)의 **for_plan 조립 규칙** 참조).
+     for_plan에서는 반드시 계획 원문을 포함해야 하며,
+     상세 조립 형식은 arbiter-prompt.md의 "프롬프트 조립 > for_plan 모드" 참조.
    - codex exec로 실행한다 ([arbiter-scaling.md](references/arbiter-scaling.md) 실행 계약 참조).
    - 결과를 수집하여 사용자에게 전건 보고한다:
      - CONFIRMED_ISSUE + CRITICAL: **진행 차단** (현재 라운드 중단 → 즉시 수정 → 수정 확인 후 다음 라운드 진행).
