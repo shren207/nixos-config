@@ -67,6 +67,23 @@ Codex에서 run-da 실행 시 AskUserQuestion 미지원:
 - CONFIRMED_ISSUE는 동일하게 자동 수정한다.
 - Codex 환경 감지: `AGENTS.override.md`가 존재하면 Codex로 간주한다.
 
+## Review Intensity 판단 에이전트 실행 계약
+
+DA 에이전트/Arbiter와 동일한 codex exec 계약을 따르되, 다음이 다르다:
+
+| 항목 | DA/Arbiter | Review Intensity |
+|------|-----------|-----------------|
+| 입력 | diff 전체 또는 계획 전체 | `git diff --stat` 또는 계획 파일 목록 |
+| 출력 | findings/verdicts | SKIP/LITE/FULL + 근거 (첫 줄 판정 + 이후 근거) |
+| 참조 | da-domains.md, arbiter-prompt.md | intensity-rules.md |
+| 실패 시 | NEEDS_MORE_INFO 승격 | **FULL 강제** |
+
+- `--full-auto --ephemeral`로 실행한다.
+- 프롬프트에서 "references/intensity-rules.md를 직접 읽어 규칙을 적용하라"고 지시한다.
+- 프롬프트 파일은 `umask 077`로 권한 제한한다.
+- 메인 LLM은 결과 파일을 읽고 판정에 따라 분기한다. AskUserQuestion(SKIP 시)은 메인 LLM이 호출한다.
+- Codex 환경(`AGENTS.override.md` 존재): SKIP 판정 시 AskUserQuestion 불가이므로 자동 LITE 승격.
+
 ## 향후 확장
 
 Arbiter 오판 사례가 누적되면 교차 검증(Arbiter 2개+)이나 Known-Answer Calibration 도입을 검토한다.
