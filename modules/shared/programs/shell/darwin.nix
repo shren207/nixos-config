@@ -81,8 +81,8 @@ in
       [ -f "$HOME/.deno/env" ] && . "$HOME/.deno/env"
 
       # Android SDK platform-tools (adb, fastboot)
-      # sessionPath는 prepend 방식이라 sqlite3 등 시스템 바이너리를 shadow하므로,
-      # 기존 .zprofile과 동일한 append 방식을 유지한다.
+      # home.sessionPath는 PATH 앞에 prepend하므로 platform-tools의
+      # sqlite3 등이 시스템 바이너리를 shadow한다. append로 우회.
       export PATH="$PATH:$ANDROID_HOME/platform-tools"
     ''
   ];
