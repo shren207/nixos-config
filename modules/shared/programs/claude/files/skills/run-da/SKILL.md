@@ -186,8 +186,8 @@ Round N 요약 (LITE: 선택 M개/전체 N개): DA 발견 X건
      # 1개 Bash call: 임시 디렉토리 + 선택된 도메인별 프롬프트 파일 생성
      DA_DIR=$(mktemp -d /tmp/da-plan-XXXXXX)
      for domain in "${SELECTED_DOMAINS[@]}"; do
-       cat > "$DA_DIR/$domain.md" <<PROMPT
-       ... 영역별 프롬프트 ...
+       cat > "$DA_DIR/$domain.md" <<'PROMPT'
+       ... 영역별 프롬프트 (비신뢰 텍스트 포함 시 반드시 quoted heredoc 사용) ...
      PROMPT
      done
 
