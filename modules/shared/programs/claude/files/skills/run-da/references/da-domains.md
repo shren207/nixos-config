@@ -40,6 +40,10 @@ DA 영역의 집중 관점과 에이전트 프롬프트 구성을 정의한다. 
 각 DA 에이전트에게 아래 구조의 프롬프트를 전달한다.
 `{DOMAIN}`, `{FOCUS_QUESTION}`, `{FOCUS_TARGETS}`, `{OTHER_DOMAINS}`를 영역별로 치환한다.
 
+> **⚠️ 이 플레이스홀더는 셸 변수가 아니다.**
+> 배열이나 연관 배열(`declare -A`, `${!arr[@]}`)로 동적 치환하지 않는다.
+> LLM이 아래 영역별 정의 테이블에서 값을 읽어 각 도메인별 heredoc에 직접 작성한다.
+
 ```text
 당신은 {DOMAIN} 전문 Devil's Advocate이다. 오직 {DOMAIN} 관점에서만 리뷰한다.
 {FOCUS_QUESTION}
