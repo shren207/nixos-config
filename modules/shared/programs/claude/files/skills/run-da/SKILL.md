@@ -188,7 +188,9 @@ Round N 요약 (LITE: 선택 M개/전체 N개): DA 발견 X건
      # Bash call 1: 임시 디렉토리 + 선택된 도메인별 프롬프트 파일 생성
      DA_DIR=$(mktemp -d /tmp/da-plan-XXXXXX)
 
-     # 예시: SECURITY 도메인 (나머지 선택 도메인도 동일 패턴으로 조립)
+     # 각 선택 도메인마다 cat(프롬프트 생성) + codex exec(실행)를 반복한다.
+     # 반복은 shell loop가 아닌 tool-level 병렬 호출로 처리한다.
+     # 예시: SECURITY 도메인
      cat > "$DA_DIR/SECURITY.md" <<'PROMPT'
      당신은 SECURITY 전문 Devil's Advocate이다. 오직 SECURITY 관점에서만 리뷰한다.
      "공격자가 악용할 수 있는 경로"를 식별하라.

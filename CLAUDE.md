@@ -20,7 +20,7 @@ Environment 섹션의 `Platform` 값으로 현재 환경을 판별한다.
 
 ## Bash tool 환경
 
-Bash tool의 inline 스크립트는 zsh에서 실행된다. `${!arr[@]}` 등 bash 전용 간접 확장을 사용하지 않는다 (상세: [known-issues.md §11](modules/shared/programs/claude/files/skills/using-codex-exec/references/known-issues.md)).
+Bash tool의 inline 스크립트는 zsh에서 실행된다. `${!arr[@]}` 등 bash 전용 간접 확장을 사용하지 않는다.
 
 ## 상수
 
