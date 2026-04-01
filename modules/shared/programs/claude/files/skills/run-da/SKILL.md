@@ -331,7 +331,7 @@ Round N 요약 (LITE: 선택 M개/전체 N개): DA 발견 X건
 
 ### Arbiter 검증 의무
 - Arbiter는 각 finding에 대해 4가지 판정 기준(사실 정확성, 변경 연관성, 심각도 타당성, 실행 가능성)으로 독립 검증한다.
-- NOT_AN_ISSUE 판정에는 파일:줄 직접 읽기 + 반증 코드 스니펫이 필수다.
+- NOT_AN_ISSUE 판정에는 직접 확인 + 반증 근거가 필수다 (모드별 증거 요건: [arbiter-prompt.md](references/arbiter-prompt.md) 참조).
 - NEEDS_MORE_INFO는 추가 정보가 필요한 경우에만 사용한다.
 - 상세 판정 기준은 [references/arbiter-prompt.md](references/arbiter-prompt.md) 참조.
 

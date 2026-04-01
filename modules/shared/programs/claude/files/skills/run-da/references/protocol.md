@@ -34,7 +34,7 @@ DA → Arbiter → Main Agent 상태 흐름, Arbiter 판정 프로토콜, 무한
 ### Arbiter 출력 요건
 
 - 각 finding에 대해 verdict, 신뢰도, 4가지 기준 평가, 근거를 반환한다.
-- NOT_AN_ISSUE 판정에는 파일:줄 직접 읽기 + 반증 코드 스니펫이 필수다.
+- NOT_AN_ISSUE 판정에는 직접 확인 + 반증 근거가 필수다 (모드별 상세: [arbiter-prompt.md](arbiter-prompt.md) 참조).
 - LOW 신뢰도 NOT_AN_ISSUE는 자동으로 NEEDS_MORE_INFO로 승격된다.
 
 ## 합리화 방지 (Rationalization Prevention)
