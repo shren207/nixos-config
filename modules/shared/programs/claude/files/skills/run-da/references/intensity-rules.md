@@ -1,6 +1,7 @@
 # Review Intensity 판단 규칙
 
-Review Intensity 판단의 단일 소스. SKILL.md와 독립 에이전트 프롬프트 모두 이 파일을 참조한다.
+Review Intensity 판단 알고리즘 규칙의 단일 소스. SKILL.md와 독립 에이전트 프롬프트 모두 이 파일을 참조한다.
+SKIP/LITE/FULL 절차(실행 방법)는 SKILL.md에 정의되어 있다.
 
 ## 판단 알고리즘
 

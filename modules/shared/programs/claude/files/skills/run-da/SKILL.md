@@ -38,7 +38,7 @@ DA 호출 자체를 생략하지 마라 — run-da를 호출하면
 |------|----------|------------|
 | 경중 판단 | 자동 수행 (SKIP/LITE/FULL) | 건너뜀 → FULL 강제 |
 | 에이전트 수 | 판단 결과에 따라 가변 | 항상 전체 |
-| 사용 시점 | 일반 | 상위 스킬(plan-with-questions, create-pr 등 run-da를 내부에서 호출하는 스킬)이 강한 검토를 보장해야 할 때 |
+| 사용 시점 | 일반 | 상위 스킬(plan-with-questions 등 run-da를 내부에서 호출하는 스킬)이 강한 검토를 보장해야 할 때 |
 
 ### `fresh` modifier
 
