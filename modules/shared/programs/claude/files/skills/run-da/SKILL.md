@@ -179,15 +179,16 @@ Round N 요약 (LITE: 선택 M개/전체 N개): DA 발견 X건
      반드시 "계획 외의 관련 파일도 직접 읽어 탐색하라"는 지시를 포함한다.
    - 선택된 도메인 수만큼 codex exec를 **background Bash tool 호출** (`run_in_background: true`)로 실행한다:
      ```zsh
-     # ⚠️ Bash 도구는 zsh에서 실행됨. ${!arr[@]} 등 bash 전용 배열 문법 금지.
-     # 배열/연관 배열로 동적 치환하지 않는다.
-     # da-domains.md의 영역별 정의 테이블에서 값을 읽어 각 도메인별 heredoc에 직접 작성한다.
+     # ⚠️ Bash tool은 zsh에서 실행됨. bash 전용 간접 확장(${!arr[@]}) 금지.
+     #   zsh 호환 배열("${arr[@]}", typeset -A)은 사용 가능.
+     # da-domains.md의 공통 프롬프트 구조에 따라 각 도메인별 프롬프트를 조립한다.
+     # 비신뢰 텍스트(계획/diff) 포함 시 quoted heredoc(<<'PROMPT') 사용.
+     #   (패턴 4의 unquoted heredoc은 $(git diff) shell 치환이 필요한 경우에만 적용)
 
      # Bash call 1: 임시 디렉토리 + 선택된 도메인별 프롬프트 파일 생성
      DA_DIR=$(mktemp -d /tmp/da-plan-XXXXXX)
 
-     # 예시: SECURITY 도메인 (나머지 선택 도메인도 동일 패턴으로 각각 cat 명령 작성)
-     # 비신뢰 텍스트(계획/diff) 포함 시 반드시 quoted heredoc(<<'PROMPT') 사용
+     # 예시: SECURITY 도메인 (나머지 선택 도메인도 동일 패턴으로 조립)
      cat > "$DA_DIR/SECURITY.md" <<'PROMPT'
      당신은 SECURITY 전문 Devil's Advocate이다. 오직 SECURITY 관점에서만 리뷰한다.
      "공격자가 악용할 수 있는 경로"를 식별하라.
