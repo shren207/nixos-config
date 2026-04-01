@@ -104,6 +104,7 @@ Review Intensity 판단은 **독립 에이전트(codex exec)**가 수행한다. 
    references/intensity-rules.md를 직접 읽어 판단 알고리즘 규칙을 적용하라.
    아래 변경 정보를 보고 SKIP/LITE/FULL 중 하나를 판정하라.
    결과의 첫 줄에 판정(SKIP/LITE/FULL), 이후에 근거를 기술하라.
+   리뷰만 수행하고 파일을 수정하지 마라.
    
    {for_pr: `git diff --stat main...HEAD` 출력 / for_plan: 변경 대상 파일 목록 + 변경 유형}
    PROMPT
@@ -122,7 +123,7 @@ Review Intensity 판단은 **독립 에이전트(codex exec)**가 수행한다. 
    - SKIP → AskUserQuestion으로 사용자 승인 (기존 SKIP 절차)
    - LITE → 도메인 선택 (기존 LITE 절차)
    - FULL → 전체 영역 실행
-5. **실패 시 fallback: FULL 강제** — 결과 파일이 없거나 빈 경우, exit code가 0이 아닌 경우.
+5. **실패 시 fallback: FULL 강제** — 결과 파일이 없거나 빈 경우, exit code가 0이 아닌 경우, 또는 첫 줄이 SKIP/LITE/FULL이 아닌 경우(파싱 실패).
 6. Review Intensity 판단 결과(SKIP/LITE/FULL)와 근거를 사용자에게 보고한다.
 
 판단 알고리즘 규칙 상세 및 예시는 [references/intensity-rules.md](references/intensity-rules.md) 참조.
