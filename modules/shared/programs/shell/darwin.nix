@@ -40,6 +40,7 @@ in
     # SSH 세션에서 로케일이 C로 폴백되는 문제 방지
     # (macOS는 /etc/locale.conf가 없어서 SSH 세션에 로케일이 자동 적용되지 않음)
     LANG = "en_US.UTF-8";
+    ANDROID_HOME = "$HOME/Library/Android/sdk";
   };
 
   # macOS 전용 PATH
@@ -78,6 +79,11 @@ in
 
       # Deno 설정
       [ -f "$HOME/.deno/env" ] && . "$HOME/.deno/env"
+
+      # Android SDK platform-tools (adb, fastboot)
+      # sessionPath는 prepend 방식이라 sqlite3 등 시스템 바이너리를 shadow하므로,
+      # 기존 .zprofile과 동일한 append 방식을 유지한다.
+      export PATH="$PATH:$ANDROID_HOME/platform-tools"
     ''
   ];
 }
