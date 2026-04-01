@@ -29,6 +29,10 @@ else
 fi
 [ -z "$CONTENT" ] && exit 0
 
+# [WHY] 코드 블록 내부는 예시/템플릿(few-shot 교정, 출력 형식 등)이므로
+# 하드코딩 검사 대상이 아님. strip하여 false positive를 방지.
+CONTENT=$(printf '%s' "$CONTENT" | sed '/^```/,/^```/d')
+
 WARNINGS=""
 
 # [WHY] 줄 수는 코드 수정 시 즉시 변경됨 → wc -l로 동적 확인 가능
