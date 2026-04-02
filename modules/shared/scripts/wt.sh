@@ -85,6 +85,10 @@ _info() {
   printf '\033[38;5;179m› \033[38;5;245m%s\033[0m\n' "$*" >&2
 }
 
+_warn() {
+  printf '\033[38;5;215m! \033[38;5;245m%s\033[0m\n' "$*" >&2
+}
+
 # y/N 확인 프롬프트 (gum confirm 대체)
 _confirm() {
   local msg="$1"
@@ -461,6 +465,17 @@ _bootstrap_worktree() {
 
   # .claude/plans/ 제거 (worktree에서는 불필요)
   rm -rf "$wt_path/.claude/plans"
+
+  # Claude → Codex projection 재실행 (plugin-aware worktree bootstrap 복구)
+  local codex_sync_sh
+  codex_sync_sh="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/codex-sync.sh"
+  if [[ -f "$codex_sync_sh" ]]; then
+    if ! bash "$codex_sync_sh" "$wt_path"; then
+      _warn "codex-sync 실패 — 수동으로 'codex-sync $wt_path'를 실행하세요"
+    fi
+  else
+    _warn "codex-sync 스크립트를 찾지 못해 Codex projection을 건너뜁니다"
+  fi
 }
 
 # ── worktree 열기 (tmux 또는 stdout) ─────────────────────────────────────────
