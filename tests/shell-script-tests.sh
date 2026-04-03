@@ -79,6 +79,21 @@ assert_shell_default_wiring() {
   assert_line_count "$shell_nix" '    recursive = true;' 2
 }
 
+assert_platform_nrs_wiring() {
+  local darwin_shell_nix="$REPO_ROOT/modules/shared/programs/shell/darwin.nix"
+  local nixos_shell_nix="$REPO_ROOT/modules/shared/programs/shell/nixos.nix"
+
+  assert_file_contains "$darwin_shell_nix" '  home.file.".local/bin/nrs" = {'
+  # shellcheck disable=SC2016  # Literal Nix source string.
+  assert_file_contains "$darwin_shell_nix" '    source = "${darwinScriptsDir}/nrs.sh";'
+  assert_file_contains "$darwin_shell_nix" '    executable = true;'
+
+  assert_file_contains "$nixos_shell_nix" '  home.file.".local/bin/nrs" = {'
+  # shellcheck disable=SC2016  # Literal Nix source string.
+  assert_file_contains "$nixos_shell_nix" '    source = "${nixosScriptsDir}/nrs.sh";'
+  assert_file_contains "$nixos_shell_nix" '    executable = true;'
+}
+
 read_bash_array_from_script() {
   local script_path="$1"
   local array_name="$2"
@@ -127,6 +142,28 @@ install_deployed_layout() {
     "$REPO_ROOT/modules/shared/scripts/rebuild-common.sh" > "$generated_dir/rebuild-common.sh"
   ln -sf "$generated_dir/rebuild-common.sh" "$lib_dir/rebuild-common.sh"
   symlink_helper_dir "$REPO_ROOT/modules/shared/scripts/lib/rebuild" "$lib_dir/rebuild"
+}
+
+install_platform_nrs_entrypoint() {
+  local sandbox="$1"
+  local platform="$2"
+  local home_dir="$sandbox/home"
+  local bin_dir="$home_dir/.local/bin"
+  local generated_dir="$sandbox/generated"
+  local source_path
+
+  assert_platform_nrs_wiring
+  mkdir -p "$bin_dir" "$generated_dir"
+
+  case "$platform" in
+    nixos) source_path="$REPO_ROOT/modules/nixos/scripts/nrs.sh" ;;
+    darwin) source_path="$REPO_ROOT/modules/darwin/scripts/nrs.sh" ;;
+    *) fail "unknown platform for nrs entrypoint: $platform" ;;
+  esac
+
+  cp "$source_path" "$generated_dir/nrs-$platform.sh"
+  chmod +x "$generated_dir/nrs-$platform.sh"
+  ln -sf "$generated_dir/nrs-$platform.sh" "$bin_dir/nrs"
 }
 
 create_git_fixture_repo() {
@@ -697,6 +734,7 @@ test_nixos_nrs_offline_force_smoke() {
   create_git_fixture_repo "$repo_root"
   repo_root="$(cd "$repo_root" && pwd -P)"
   install_deployed_layout "$sandbox" "$repo_root"
+  install_platform_nrs_entrypoint "$sandbox" nixos
 
   mkdir -p "$stub_dir" "$home_dir/.local/bin"
   cat > "$stub_dir/sudo" <<'EOF'
@@ -742,7 +780,7 @@ EOF
     bash -c '
       set -euo pipefail
       cd "'"$repo_root"'"
-      bash "'"$REPO_ROOT/modules/nixos/scripts/nrs.sh"'" --offline --force
+      "'"$home_dir/.local/bin/nrs"'" --offline --force
     ' 2>&1
   )
 
@@ -760,6 +798,7 @@ test_darwin_nrs_offline_force_smoke() {
   create_git_fixture_repo "$repo_root"
   repo_root="$(cd "$repo_root" && pwd -P)"
   install_deployed_layout "$sandbox" "$repo_root"
+  install_platform_nrs_entrypoint "$sandbox" darwin
 
   mkdir -p "$stub_dir" "$home_dir/.local/bin" "$home_dir/Library/LaunchAgents" "$sandbox/current-system"
   current_target="$sandbox/current-system"
@@ -844,7 +883,7 @@ EOF
     bash -c '
       set -euo pipefail
       cd "'"$repo_root"'"
-      bash "'"$REPO_ROOT/modules/darwin/scripts/nrs.sh"'" --offline --force
+      "'"$home_dir/.local/bin/nrs"'" --offline --force
     ' 2>&1
   )
 
