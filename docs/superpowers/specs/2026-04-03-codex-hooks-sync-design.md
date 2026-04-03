@@ -227,33 +227,35 @@ lossy 항목은 생성은 하되 report에 이유를 남긴다.
 
 ```json
 {
-  "SessionStart": [
-    {
-      "matcher": "startup|resume",
-      "hooks": [
-        { "type": "command", "command": "~/.claude/hooks/session-init-icons.sh" },
-        { "type": "command", "command": "~/.claude/hooks/read-pain-points.sh" }
-      ]
-    }
-  ],
-  "UserPromptSubmit": [
-    {
-      "matcher": "",
-      "hooks": [
-        { "type": "command", "command": "~/.claude/hooks/detect-pain-point.sh" }
-      ]
-    }
-  ],
-  "Stop": [
-    {
-      "matcher": "",
-      "hooks": [
-        { "type": "command", "command": "~/.claude/hooks/stop-notification.sh" },
-        { "type": "command", "command": "~/.claude/hooks/nrs-session-cleanup.sh" },
-        { "type": "command", "command": "~/.claude/hooks/collect-pain-points.sh" }
-      ]
-    }
-  ]
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          { "type": "command", "command": "~/.claude/hooks/session-init-icons.sh" },
+          { "type": "command", "command": "~/.claude/hooks/read-pain-points.sh" }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "~/.claude/hooks/detect-pain-point.sh" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "~/.claude/hooks/stop-notification.sh" },
+          { "type": "command", "command": "~/.claude/hooks/nrs-session-cleanup.sh" },
+          { "type": "command", "command": "~/.claude/hooks/collect-pain-points.sh" }
+        ]
+      }
+    ]
+  }
 }
 ```
 
@@ -344,7 +346,7 @@ Hooks output: .codex/hooks.json
 
 - `.codex/config.toml`은 기존처럼 MCP 섹션만 관리한다.
 - hooks enablement는 `config.toml` 템플릿 파일에서 선언적으로 관리한다.
-- `sync.sh`는 `.codex/hooks.json`만 생성한다.
+- `sync.sh`는 `.codex/hooks.json`과 `.codex/hooks.compatibility.json`를 생성한다.
 
 ## 11. 문서 갱신 범위
 

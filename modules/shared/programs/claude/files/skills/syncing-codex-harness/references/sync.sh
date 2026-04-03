@@ -563,6 +563,7 @@ hooks_config() {
 
   if [ ! -f "$project_settings" ]; then
     echo "Warning: Hooks source settings not found: $project_settings" >&2
+    echo "missing-source"
     return 0
   fi
 
@@ -572,6 +573,7 @@ hooks_config() {
 
   if [ ! -f "$compiler" ]; then
     echo "Warning: Hooks compiler not found: $compiler" >&2
+    echo "missing-compiler"
     return 0
   fi
 
@@ -601,6 +603,7 @@ PYEOF
   echo "$summary" >&2
   echo "Hooks report: .codex/hooks.compatibility.json" >&2
   echo "Hooks output: .codex/hooks.json" >&2
+  echo "updated"
 }
 
 # ─── all: full sync pipeline ───
@@ -715,8 +718,9 @@ sync_all() {
   fi
 
   # 7. Hooks config
-  hooks_config "$project_root"
-  echo "[7/9] Hooks config updated" >&2
+  local hooks_status
+  hooks_status="$(hooks_config "$project_root")"
+  echo "[7/9] Hooks config: ${hooks_status:-unknown}" >&2
 
   # 8. Trust project in global config
   local trust_result

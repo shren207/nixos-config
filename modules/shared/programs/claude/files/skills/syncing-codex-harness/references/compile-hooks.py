@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -29,6 +30,12 @@ def load_hooks(path: str | None) -> dict[str, list[dict]]:
     payload = load_json(path)
     hooks = payload.get("hooks", {})
     return hooks if isinstance(hooks, dict) else {}
+
+
+def hooks_file_exists(path: str | None) -> bool:
+    if not path:
+        return False
+    return Path(path).is_file()
 
 
 def detect_codex_version() -> str:
@@ -60,6 +67,16 @@ def normalize_command_hooks(hooks: list[dict]) -> list[dict] | None:
         commands.append({"type": "command", "command": command})
 
     return commands
+
+
+def matcher_supports_bash(matcher: str) -> bool:
+    if matcher in ("", "*"):
+        return True
+
+    try:
+        return re.search(matcher, "Bash") is not None
+    except re.error:
+        return False
 
 
 def classify_group(event: str, matcher: str, hooks: list[dict]) -> tuple[str, str, dict | None]:
@@ -94,7 +111,7 @@ def classify_group(event: str, matcher: str, hooks: list[dict]) -> tuple[str, st
         return "lossy", "Codex ignores Stop matcher", mapping
 
     if event in ("PreToolUse", "PostToolUse"):
-        if matcher == "Bash":
+        if matcher_supports_bash(matcher):
             return "supported", f"{event} Bash matcher support", mapping
         return "unsupported", f"Codex {event} currently supports Bash matcher only", None
 
@@ -111,7 +128,8 @@ def main() -> None:
 
     project_hooks = load_hooks(args.project_settings)
     effective_hooks = load_hooks(args.effective_settings)
-    drift_detected = bool(effective_hooks) and project_hooks != effective_hooks
+    effective_exists = hooks_file_exists(args.effective_settings)
+    drift_detected = effective_exists and project_hooks != effective_hooks
 
     compiled_hooks: dict[str, list[dict]] = {}
     items: list[dict] = []

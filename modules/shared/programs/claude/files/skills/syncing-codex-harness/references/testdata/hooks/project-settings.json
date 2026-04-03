@@ -42,6 +42,15 @@
             "command": "~/.claude/hooks/worktree-path-guard.sh"
           }
         ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/bash-probe.sh"
+          }
+        ]
       }
     ],
     "SessionEnd": [

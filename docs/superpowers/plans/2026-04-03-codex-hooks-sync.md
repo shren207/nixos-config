@@ -318,9 +318,10 @@ python3 "$COMPILER" \
   --output-hooks "$TMPDIR/hooks.json" \
   --output-report "$TMPDIR/report.json"
 
-jq -e '.SessionStart[0].matcher == "startup|resume"' "$TMPDIR/hooks.json" >/dev/null
-jq -e '.summary.total == 5' "$TMPDIR/report.json" >/dev/null
-jq -e '.summary.supported == 2' "$TMPDIR/report.json" >/dev/null
+jq -e '.hooks.SessionStart[0].matcher == "startup|resume"' "$TMPDIR/hooks.json" >/dev/null
+jq -e '.hooks.PreToolUse[0].matcher == ""' "$TMPDIR/hooks.json" >/dev/null
+jq -e '.summary.total == 6' "$TMPDIR/report.json" >/dev/null
+jq -e '.summary.supported == 3' "$TMPDIR/report.json" >/dev/null
 jq -e '.summary.lossy == 1' "$TMPDIR/report.json" >/dev/null
 jq -e '.summary.unsupported == 2' "$TMPDIR/report.json" >/dev/null
 jq -e '.drift_detected == false' "$TMPDIR/report.json" >/dev/null
@@ -332,6 +333,19 @@ python3 "$COMPILER" \
   --output-report "$TMPDIR/report-drift.json"
 
 jq -e '.drift_detected == true' "$TMPDIR/report-drift.json" >/dev/null
+
+EMPTY_EFFECTIVE="$TMPDIR/effective-empty.json"
+cat > "$EMPTY_EFFECTIVE" <<'EOF'
+{"hooks": {}}
+EOF
+
+python3 "$COMPILER" \
+  --project-settings "$PROJECT_SETTINGS" \
+  --effective-settings "$EMPTY_EFFECTIVE" \
+  --output-hooks "$TMPDIR/hooks-empty.json" \
+  --output-report "$TMPDIR/report-empty.json"
+
+jq -e '.drift_detected == true' "$TMPDIR/report-empty.json" >/dev/null
 echo "test-hooks-sync: PASS"
 ```
 
@@ -556,8 +570,9 @@ git -C "$REPO_ROOT" init -q
 
 HOME="$HOME_ROOT" CODEX_HOME="$HOME_ROOT/.codex" bash "$SYNC_SH" hooks-config "$REPO_ROOT"
 
-jq -e '.SessionStart[0].matcher == "startup|resume"' "$REPO_ROOT/.codex/hooks.json" >/dev/null
+jq -e '.hooks.SessionStart[0].matcher == "startup|resume"' "$REPO_ROOT/.codex/hooks.json" >/dev/null
 jq -e '.summary.lossy == 1' "$REPO_ROOT/.codex/hooks.compatibility.json" >/dev/null
+jq -e '.summary.supported == 3' "$REPO_ROOT/.codex/hooks.compatibility.json" >/dev/null
 ```
 
 - [ ] **Step 2: Run the test and confirm it fails because `hooks-config` is unknown**
@@ -637,7 +652,7 @@ Update `sync_all()` so hooks become an explicit stage:
   # ...
 
   hooks_config "$project_root"
-  echo "[7/9] Hooks config updated" >&2
+  echo "[7/9] Hooks config: ${hooks_status:-unknown}" >&2
 
   trust_result="$(ensure_project_trusted "$project_root")"
   echo "[8/9] Trust: $trust_result" >&2
@@ -863,7 +878,7 @@ Run:
 ```bash
 bash modules/shared/scripts/codex-sync.sh "$PWD"
 jq '.summary' .codex/hooks.compatibility.json
-jq 'keys' .codex/hooks.json
+jq '.hooks | keys' .codex/hooks.json
 ```
 
 Expected:

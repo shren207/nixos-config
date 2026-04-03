@@ -18,19 +18,39 @@ echo "=== Codex 실행 정책 확인 ==="
 
 CODEX_CONFIG="$HOME/.codex/config.toml"
 if [ -f "$CODEX_CONFIG" ]; then
-  if grep -Eq '^[[:space:]]*approval_policy[[:space:]]*=[[:space:]]*"never"' "$CODEX_CONFIG"; then
+  if python3 - "$CODEX_CONFIG" <<'PY'
+import sys, tomllib
+with open(sys.argv[1], 'rb') as f:
+    data = tomllib.load(f)
+assert data.get('approval_policy') == 'never'
+PY
+  then
     pass "approval_policy = \"never\""
   else
     fail "approval_policy = \"never\" 미설정"
   fi
 
-  if grep -Eq '^[[:space:]]*sandbox_mode[[:space:]]*=[[:space:]]*"danger-full-access"' "$CODEX_CONFIG"; then
+  if python3 - "$CODEX_CONFIG" <<'PY'
+import sys, tomllib
+with open(sys.argv[1], 'rb') as f:
+    data = tomllib.load(f)
+assert data.get('sandbox_mode') == 'danger-full-access'
+PY
+  then
     pass "sandbox_mode = \"danger-full-access\""
   else
     fail "sandbox_mode = \"danger-full-access\" 미설정"
   fi
 
-  if grep -Eq '^[[:space:]]*codex_hooks[[:space:]]*=[[:space:]]*true' "$CODEX_CONFIG"; then
+  if python3 - "$CODEX_CONFIG" <<'PY'
+import sys, tomllib
+with open(sys.argv[1], 'rb') as f:
+    data = tomllib.load(f)
+features = data.get('features', {})
+assert isinstance(features, dict)
+assert features.get('codex_hooks') is True
+PY
+  then
     pass "codex_hooks = true"
   else
     fail "codex_hooks = true 미설정"
@@ -183,6 +203,14 @@ import json, sys
 with open(sys.argv[1]) as f:
     data = json.load(f)
 assert isinstance(data, dict)
+hooks = data.get("hooks")
+assert isinstance(hooks, dict)
+for event, groups in hooks.items():
+    assert isinstance(event, str)
+    assert isinstance(groups, list)
+    for group in groups:
+        assert isinstance(group, dict)
+        assert isinstance(group.get("hooks"), list)
 PY
   then
     pass ".codex/hooks.json JSON 파싱 성공"

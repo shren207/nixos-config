@@ -151,7 +151,7 @@ bash "$SYNC_SH" all "$PWD" "${ARGS[@]}"
 [4/9] Plugin skills: N, Agents: N
 [5/9] Rules -> AGENTS.override.md: N
 [6/9] MCP config updated|no sources found
-[7/9] Hooks config updated
+[7/9] Hooks config: updated|missing-source|missing-compiler
 [8/9] Trust: trusted|already-trusted|skipped
 [9/9] .gitignore OK|Missing .gitignore entries: ...
 === Sync complete ===
