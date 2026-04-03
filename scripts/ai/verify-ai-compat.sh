@@ -30,6 +30,12 @@ if [ -f "$CODEX_CONFIG" ]; then
     fail "sandbox_mode = \"danger-full-access\" 미설정"
   fi
 
+  if grep -Eq '^[[:space:]]*codex_hooks[[:space:]]*=[[:space:]]*true' "$CODEX_CONFIG"; then
+    pass "codex_hooks = true"
+  else
+    fail "codex_hooks = true 미설정"
+  fi
+
   if grep -q 'nixos-config' "$CODEX_CONFIG"; then
     pass "프로젝트 trust 항목 존재 (선택)"
   else
@@ -116,9 +122,20 @@ else
     [ -L "$entry" ] || [ -d "$entry" ] || continue
     skill_name="$(basename "$entry")"
     dst_count=$((dst_count + 1))
-    if [ ! -d "$SOURCE_SKILLS_DIR/$skill_name" ]; then
-      fail "고아 투영: .agents/skills/$skill_name (원본 없음)"
+
+    if [ -d "$SOURCE_SKILLS_DIR/$skill_name" ]; then
+      continue
     fi
+
+    if [ -L "$entry" ]; then
+      target="$(readlink "$entry")"
+      if [[ "$target" = /* ]] && [ -f "$entry/SKILL.md" ]; then
+        pass "플러그인 스킬 심링크 정상: $skill_name"
+        continue
+      fi
+    fi
+
+    fail "고아 투영: .agents/skills/$skill_name (원본 없음)"
   done
 
   echo ""
@@ -156,6 +173,42 @@ for skill in create-issue syncing-codex-harness agent-browser; do
     warn "$HOME/.codex/skills/$skill 없음"
   fi
 done
+
+echo ""
+echo "=== Hooks 산출물 확인 ==="
+
+if [ -f "$REPO_ROOT/.codex/hooks.json" ]; then
+  if python3 - "$REPO_ROOT/.codex/hooks.json" <<'PY'
+import json, sys
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+assert isinstance(data, dict)
+PY
+  then
+    pass ".codex/hooks.json JSON 파싱 성공"
+  else
+    fail ".codex/hooks.json JSON 파싱 실패"
+  fi
+else
+  warn ".codex/hooks.json 없음 (hooks sync 미실행)"
+fi
+
+if [ -f "$REPO_ROOT/.codex/hooks.compatibility.json" ]; then
+  if python3 - "$REPO_ROOT/.codex/hooks.compatibility.json" <<'PY'
+import json, sys
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+assert "summary" in data
+assert "items" in data
+PY
+  then
+    pass ".codex/hooks.compatibility.json 구조 확인"
+  else
+    fail ".codex/hooks.compatibility.json 구조 확인 실패"
+  fi
+else
+  warn ".codex/hooks.compatibility.json 없음 (hooks sync 미실행)"
+fi
 
 echo ""
 echo "=== 원본 무결성 확인 ==="

@@ -12,7 +12,8 @@ AGENTS.md(= CLAUDE.md 심링크)의 프로젝트 규칙을 모두 따르되, 아
 ## 도구 차이
 
 - Claude Code의 `/skill-name` 호출은 Codex에서 `$skill-name`에 대응
-- Claude Code 전용 기능(hooks, plugins, MCP UI)은 Codex에서 미지원
+- Claude hooks는 experimental이며, 이 저장소는 project-local `.codex/hooks.json`에 호환 가능한 subset만 sync한다
+- Claude Code plugins와 MCP UI는 Codex에서 직접 대응이 없다
 
 ## 빌드
 
