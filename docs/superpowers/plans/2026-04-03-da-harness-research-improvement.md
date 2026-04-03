@@ -184,6 +184,7 @@ Run:
 
 ```bash
 python3 - <<'PY'
+import os
 import re
 from collections import Counter
 counts=Counter()
