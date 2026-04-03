@@ -29,6 +29,6 @@
 - Top-level entrypoints stay thin. New runtime logic belongs in a helper file unless it is dispatch/help text.
 - Helpers are grouped by change reason, not by arbitrary line counts.
 - Loader source order is part of the contract. The ordered helper manifest in each top-level entrypoint is the single source of truth for helper membership and load order.
-- If a new helper is added, update the entrypoint helper manifest and `modules/shared/programs/shell/default.nix` together.
+- If a new helper is added under an existing helper directory, update the entrypoint helper manifest and tests together. `modules/shared/programs/shell/default.nix` only needs changes for new top-level entrypoints or new helper directories.
 - `tests/shell-script-tests.sh` must stay hermetic and recursive-layout aware: it should ignore host Git hooks/config and mirror the deployed helper tree shape, not a flat copy.
 - Tests must exercise the deployed layout, not only the repo-local path. `tests/shell-script-tests.sh` should validate both the expected Home Manager wiring and runtime smoke paths.

@@ -48,6 +48,15 @@ assert_file_contains() {
   grep -Fqx "$needle" "$path" >/dev/null || fail "expected $path to contain exact line: $needle"
 }
 
+assert_line_count() {
+  local path="$1"
+  local needle="$2"
+  local expected="$3"
+  local actual
+  actual=$(grep -Fxc "$needle" "$path")
+  [[ "$actual" == "$expected" ]] || fail "expected $path to contain $expected occurrences of: $needle (actual: $actual)"
+}
+
 new_sandbox() {
   local dir
   dir=$(mktemp -d "${TMPDIR:-/tmp}/shell-script-tests.XXXXXX")
@@ -59,6 +68,7 @@ assert_shell_default_wiring() {
   local shell_nix="$REPO_ROOT/modules/shared/programs/shell/default.nix"
 
   assert_file_contains "$shell_nix" '  home.file.".local/bin/wt" = {'
+  assert_file_contains "$shell_nix" '    executable = true;'
   assert_file_contains "$shell_nix" '  home.file.".local/lib/wt" = {'
   # shellcheck disable=SC2016  # Literal Nix source string.
   assert_file_contains "$shell_nix" '    source = "${sharedScriptsDir}/lib/wt";'
@@ -66,7 +76,7 @@ assert_shell_default_wiring() {
   assert_file_contains "$shell_nix" '  home.file.".local/lib/rebuild" = {'
   # shellcheck disable=SC2016  # Literal Nix source string.
   assert_file_contains "$shell_nix" '    source = "${sharedScriptsDir}/lib/rebuild";'
-  assert_file_contains "$shell_nix" '    recursive = true;'
+  assert_line_count "$shell_nix" '    recursive = true;' 2
 }
 
 read_bash_array_from_script() {
@@ -319,11 +329,11 @@ EOF
 :
 EOF
   done < <(read_bash_array_from_script "$REPO_ROOT/modules/shared/scripts/wt.sh" "WT_HELPERS")
-  for helper in common worktree locks preflight relink preview; do
+  while IFS= read -r helper; do
     cat > "$home_dir/.local/lib/lib/rebuild/$helper.sh" <<'EOF'
 echo "SHADOW_REBUILD_HELPER" >&2
 EOF
-  done
+  done < <(read_bash_array_from_script "$REPO_ROOT/modules/shared/scripts/rebuild-common.sh" "REBUILD_HELPERS")
   cat > "$home_dir/.local/bin/codex-sync.sh" <<'EOF'
 #!/usr/bin/env bash
 echo "SHADOW_CODEX_SYNC" >&2
