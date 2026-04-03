@@ -27,7 +27,9 @@ let
     "work-MacBookPro"
   ];
   darwinHostNames = builtins.attrNames darwinCfgs;
-  darwinHostSetMatches = darwinHostNames == expectedDarwinHosts;
+  unexpectedDarwinHosts = builtins.filter (
+    name: !(builtins.elem name expectedDarwinHosts)
+  ) darwinHostNames;
 
   inherit (constants.network) minipcTailscaleIP;
 
@@ -340,20 +342,22 @@ let
   splitLines = text: builtins.filter builtins.isString (builtins.split "\n" text);
 
   isBlankLine = line: builtins.match "[[:space:]]*" line != null;
-  isCommentLine = line: builtins.match "[[:space:]]*#.*" line != null;
-  isKnownDarwinSudoDefaultsLine =
+  isKnownDarwinSudoMetadataLine =
     line:
-    builtins.match "[[:space:]]*Defaults:root,%admin env_keep\\+=TERMINFO(_DIRS)?[[:space:]]*" line
-    != null;
+    builtins.elem line [
+      "# Keep terminfo database for root and %admin."
+      "Defaults:root,%admin env_keep+=TERMINFO_DIRS"
+      "Defaults:root,%admin env_keep+=TERMINFO"
+    ];
 
   expectedDarwinSudoRule =
     cfg: "${cfg.system.primaryUser} ALL=(root) NOPASSWD: /run/current-system/sw/bin/darwin-rebuild";
 
   normalizedDarwinSudoPolicyLines =
     cfg:
-    builtins.filter (
-      line: !(isBlankLine line || isCommentLine line || isKnownDarwinSudoDefaultsLine line)
-    ) (splitLines cfg.security.sudo.extraConfig);
+    builtins.filter (line: !(isBlankLine line || isKnownDarwinSudoMetadataLine line)) (
+      splitLines cfg.security.sudo.extraConfig
+    );
 
   darwinSudoRuleMatchesExactly =
     cfg:
@@ -362,53 +366,56 @@ let
     in
     builtins.length policyLines == 1 && builtins.elemAt policyLines 0 == expectedDarwinSudoRule cfg;
 
-  darwinIntentTests =
-    if darwinHostSetMatches then
-      builtins.concatLists (
-        map (
-          hostName:
-          let
-            cfg = darwinCfgs.${hostName}.config;
-          in
-          [
-            {
-              name = "Test D1 ${hostName}: Touch ID sudo가 활성화되어야 함";
-              cond = cfg.security.pam.services.sudo_local.touchIdAuth == true;
-            }
-            {
-              name = "Test D2 ${hostName}: sudo.extraConfig는 darwin-rebuild NOPASSWD 규칙 1줄만 남아야 함";
-              cond = darwinSudoRuleMatchesExactly cfg;
-            }
-            {
-              name = "Test D3 ${hostName}: Dock autohide가 true여야 함";
-              cond = cfg.system.defaults.dock.autohide == true;
-            }
-            {
-              name = "Test D4 ${hostName}: Dock show-recents가 false여야 함";
-              cond = cfg.system.defaults.dock."show-recents" == false;
-            }
-            {
-              name = "Test D5 ${hostName}: Dock tilesize가 constants.macos.dock.tileSize와 일치해야 함";
-              cond = cfg.system.defaults.dock.tilesize == constants.macos.dock.tileSize;
-            }
-            {
-              name = "Test D6 ${hostName}: InitialKeyRepeat가 constants.macos.keyboard.initialKeyRepeat와 일치해야 함";
-              cond =
-                cfg.system.defaults.NSGlobalDomain.InitialKeyRepeat == constants.macos.keyboard.initialKeyRepeat;
-            }
-            {
-              name = "Test D7 ${hostName}: KeyRepeat가 constants.macos.keyboard.keyRepeat와 일치해야 함";
-              cond = cfg.system.defaults.NSGlobalDomain.KeyRepeat == constants.macos.keyboard.keyRepeat;
-            }
-            {
-              name = "Test D8 ${hostName}: 자연 스크롤이 비활성화되어야 함";
-              cond = cfg.system.defaults.NSGlobalDomain."com.apple.swipescrolldirection" == false;
-            }
-          ]
-        ) expectedDarwinHosts
-      )
-    else
-      [ ];
+  darwinIntentTests = builtins.concatLists (
+    map (
+      hostName:
+      let
+        hasHost = builtins.hasAttr hostName darwinCfgs;
+        cfg = if hasHost then darwinCfgs.${hostName}.config else null;
+      in
+      [
+        {
+          name = "Test D0 ${hostName}: darwinConfigurations에 expected host가 존재해야 함";
+          cond = hasHost;
+        }
+        {
+          name = "Test D1 ${hostName}: Touch ID sudo가 활성화되어야 함";
+          cond = hasHost && cfg.security.pam.services.sudo_local.touchIdAuth == true;
+        }
+        {
+          name = "Test D2 ${hostName}: sudo.extraConfig 정규화 후 darwin-rebuild NOPASSWD 규칙 1줄만 남아야 함";
+          cond = hasHost && darwinSudoRuleMatchesExactly cfg;
+        }
+        {
+          name = "Test D3 ${hostName}: Dock autohide가 true여야 함";
+          cond = hasHost && cfg.system.defaults.dock.autohide == true;
+        }
+        {
+          name = "Test D4 ${hostName}: Dock show-recents가 false여야 함";
+          cond = hasHost && cfg.system.defaults.dock."show-recents" == false;
+        }
+        {
+          name = "Test D5 ${hostName}: Dock tilesize가 constants.macos.dock.tileSize와 일치해야 함";
+          cond = hasHost && cfg.system.defaults.dock.tilesize == constants.macos.dock.tileSize;
+        }
+        {
+          name = "Test D6 ${hostName}: InitialKeyRepeat가 constants.macos.keyboard.initialKeyRepeat와 일치해야 함";
+          cond =
+            hasHost
+            && cfg.system.defaults.NSGlobalDomain.InitialKeyRepeat == constants.macos.keyboard.initialKeyRepeat;
+        }
+        {
+          name = "Test D7 ${hostName}: KeyRepeat가 constants.macos.keyboard.keyRepeat와 일치해야 함";
+          cond =
+            hasHost && cfg.system.defaults.NSGlobalDomain.KeyRepeat == constants.macos.keyboard.keyRepeat;
+        }
+        {
+          name = "Test D8 ${hostName}: 자연 스크롤이 비활성화되어야 함";
+          cond = hasHost && cfg.system.defaults.NSGlobalDomain."com.apple.swipescrolldirection" == false;
+        }
+      ]
+    ) expectedDarwinHosts
+  );
 
   # ═══════════════════════════════════════════════════════════════
   # 테스트 실행
@@ -611,8 +618,8 @@ let
   ]
   ++ [
     {
-      name = "Test D0: darwinConfigurations host set이 [${builtins.concatStringsSep ", " expectedDarwinHosts}]와 정확히 일치해야 함 (현재: [${builtins.concatStringsSep ", " darwinHostNames}])";
-      cond = darwinHostSetMatches;
+      name = "Test D9: unexpected Darwin host가 없어야 함 (현재 unexpected: [${builtins.concatStringsSep ", " unexpectedDarwinHosts}])";
+      cond = unexpectedDarwinHosts == [ ];
     }
   ]
   ++ darwinIntentTests;
