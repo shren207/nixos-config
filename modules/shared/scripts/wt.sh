@@ -38,7 +38,11 @@ WT_LAST_FILE=".claude/worktrees/.wt-last"
 WT_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WT_LIB_DIR=""
 WT_DEPLOYED_LIB_DIR="$(cd "$WT_SCRIPT_DIR/.." && pwd)/lib/wt"
-WT_REPO_LIB_DIR="$WT_SCRIPT_DIR/lib/wt"
+WT_REPO_LIB_DIR=""
+
+case "$WT_SCRIPT_DIR" in
+  */modules/shared/scripts) WT_REPO_LIB_DIR="$WT_SCRIPT_DIR/lib/wt" ;;
+esac
 
 _wt_has_helper_set() {
   local dir="$1"
@@ -50,7 +54,7 @@ _wt_has_helper_set() {
 
 if _wt_has_helper_set "$WT_DEPLOYED_LIB_DIR"; then
   WT_LIB_DIR="$WT_DEPLOYED_LIB_DIR"
-elif _wt_has_helper_set "$WT_REPO_LIB_DIR"; then
+elif [[ -n "$WT_REPO_LIB_DIR" ]] && _wt_has_helper_set "$WT_REPO_LIB_DIR"; then
   WT_LIB_DIR="$WT_REPO_LIB_DIR"
 fi
 

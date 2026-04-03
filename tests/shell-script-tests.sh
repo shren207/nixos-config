@@ -163,6 +163,12 @@ test_rebuild_common_exports_public_api() {
       source "'"$sandbox/home/.local/lib/rebuild-common.sh"'"
       parse_args --offline --force --cores 2
       printf "offline=%s\nforce=%s\ncores=%s\n" "$OFFLINE_FLAG" "$FORCE_FLAG" "$CORES_FLAG"
+      declare -F acquire_nrs_lock
+      declare -F release_nrs_lock_on_failure
+      declare -F acquire_rebuild_lock
+      declare -F release_rebuild_lock_on_failure
+      declare -F preflight_source_build_check
+      declare -F preview_changes
       declare -F worktree_symlink_guard
       declare -F maybe_relink_or_restore
       declare -F cleanup_build_artifacts
@@ -172,6 +178,12 @@ test_rebuild_common_exports_public_api() {
   assert_contains "$output" "offline=--offline"
   assert_contains "$output" "force=true"
   assert_contains "$output" "cores=--cores 2"
+  assert_contains "$output" "acquire_nrs_lock"
+  assert_contains "$output" "release_nrs_lock_on_failure"
+  assert_contains "$output" "acquire_rebuild_lock"
+  assert_contains "$output" "release_rebuild_lock_on_failure"
+  assert_contains "$output" "preflight_source_build_check"
+  assert_contains "$output" "preview_changes"
   assert_contains "$output" "worktree_symlink_guard"
   assert_contains "$output" "maybe_relink_or_restore"
 }
@@ -276,26 +288,43 @@ EOF
 }
 
 test_wt_create_creates_worktree_without_shadow_codex_sync() {
-  local sandbox home_dir repo_root output new_worktree
+  local sandbox home_dir repo_root output new_worktree fallback_dir marker_file
   sandbox=$(new_sandbox)
   home_dir="$sandbox/home"
   repo_root="$sandbox/repo"
+  fallback_dir="$sandbox/fallback-bin"
+  marker_file="$sandbox/codex-sync-marker"
 
   create_git_fixture_repo "$repo_root"
   repo_root="$(cd "$repo_root" && pwd -P)"
   install_deployed_layout "$sandbox" "$repo_root"
 
-  mkdir -p "$home_dir/.local/bin"
+  mkdir -p "$home_dir/.local/bin" "$fallback_dir"
+  cat > "$home_dir/.local/bin/codex-sync" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'managed\n' >> "${CODEX_SYNC_MARKER:?}"
+exit 0
+EOF
+  chmod +x "$home_dir/.local/bin/codex-sync"
   cat > "$home_dir/.local/bin/codex-sync.sh" <<'EOF'
 #!/usr/bin/env bash
 echo "SHADOW_CODEX_SYNC" >&2
 exit 0
 EOF
   chmod +x "$home_dir/.local/bin/codex-sync.sh"
+  cat > "$fallback_dir/codex-sync" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'fallback\n' >> "${CODEX_SYNC_MARKER:?}"
+exit 0
+EOF
+  chmod +x "$fallback_dir/codex-sync"
 
   output=$(
     HOME="$home_dir" \
-    PATH="$FIXTURE_DIR/bin:$PATH" \
+    PATH="$fallback_dir:$FIXTURE_DIR/bin:$PATH" \
+    CODEX_SYNC_MARKER="$marker_file" \
     bash -c '
       set -euo pipefail
       cd "'"$repo_root"'"
@@ -307,6 +336,48 @@ EOF
   [[ -d "$new_worktree" ]] || fail "expected worktree directory to exist: $new_worktree"
   assert_contains "$output" "$new_worktree"
   assert_not_contains "$output" "SHADOW_CODEX_SYNC"
+  assert_contains "$(cat "$marker_file")" "managed"
+  assert_not_contains "$(cat "$marker_file")" "fallback"
+}
+
+test_missing_managed_helpers_fail_closed() {
+  local sandbox home_dir repo_root output
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  repo_root="$sandbox/repo"
+
+  create_git_fixture_repo "$repo_root"
+  repo_root="$(cd "$repo_root" && pwd -P)"
+  install_deployed_layout "$sandbox" "$repo_root"
+
+  rm -rf "$home_dir/.local/lib/wt" "$home_dir/.local/lib/rebuild"
+  mkdir -p "$home_dir/.local/bin/lib/wt" "$home_dir/.local/lib/lib/rebuild"
+  cat > "$home_dir/.local/bin/lib/wt/ui.sh" <<'EOF'
+echo "SHADOW_WT_LOADED" >&2
+EOF
+  cat > "$home_dir/.local/lib/lib/rebuild/common.sh" <<'EOF'
+echo "SHADOW_REBUILD_LOADED" >&2
+EOF
+
+  output=$(
+    HOME="$home_dir" \
+    PATH="$FIXTURE_DIR/bin:$PATH" \
+    bash "$home_dir/.local/bin/wt" --help 2>&1 || true
+  )
+  assert_contains "$output" "helper directory not found"
+  assert_not_contains "$output" "SHADOW_WT_LOADED"
+
+  output=$(
+    HOME="$home_dir" \
+    PATH="$FIXTURE_DIR/bin:$PATH" \
+    bash -c '
+      set -euo pipefail
+      REBUILD_CMD="nixos-rebuild"
+      source "'"$home_dir/.local/lib/rebuild-common.sh"'"
+    ' 2>&1 || true
+  )
+  assert_contains "$output" "helper directory not found"
+  assert_not_contains "$output" "SHADOW_REBUILD_LOADED"
 }
 
 test_fixture_git_is_hermetic_against_global_hooks() {
@@ -341,4 +412,5 @@ run_test "detect_worktree switches to active worktree" test_detect_worktree_uses
 run_test "wt ls lists deployed worktrees" test_wt_ls_from_deployed_layout_lists_worktrees
 run_test "shadow paths do not override managed helpers" test_shadow_paths_do_not_override_managed_helpers
 run_test "wt create uses managed codex-sync path" test_wt_create_creates_worktree_without_shadow_codex_sync
+run_test "missing managed helpers fail closed" test_missing_managed_helpers_fail_closed
 run_test "fixture git setup ignores host global hooks" test_fixture_git_is_hermetic_against_global_hooks

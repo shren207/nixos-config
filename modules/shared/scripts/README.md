@@ -2,11 +2,11 @@
 
 운영 엔트리포인트는 top-level 파일명과 CLI surface를 유지하고, 실제 구현은 책임별 helper로 분리한다.
 
-## Public Entrypoints
+## Refactor Scope
 
-- `wt.sh`: worktree CLI thin wrapper
-- `rebuild-common.sh`: `nrs`/`nrp`가 source하는 compatibility loader
-- `nrs-relink.sh`: standalone relink CLI. `rebuild-common` helper로 강제 흡수하지 않는다.
+- `wt.sh`: user-facing worktree CLI thin wrapper
+- `rebuild-common.sh`: `nrs`/`nrp`가 source하는 compatibility loader (`~/.local/lib/` 배포, 직접 실행 아님)
+- `nrs-relink.sh`: standalone relink CLI. 이번 helper 분해 범위 밖의 독립 스크립트다.
 
 ## Helper Boundaries
 

@@ -47,7 +47,11 @@ NC='\033[0m' # No Color
 REBUILD_COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REBUILD_COMMON_LIB_DIR=""
 REBUILD_DEPLOYED_LIB_DIR="$REBUILD_COMMON_DIR/rebuild"
-REBUILD_REPO_LIB_DIR="$REBUILD_COMMON_DIR/lib/rebuild"
+REBUILD_REPO_LIB_DIR=""
+
+case "$REBUILD_COMMON_DIR" in
+    */modules/shared/scripts) REBUILD_REPO_LIB_DIR="$REBUILD_COMMON_DIR/lib/rebuild" ;;
+esac
 
 _rebuild_has_helper_set() {
     local dir="$1"
@@ -61,7 +65,7 @@ _rebuild_has_helper_set() {
 
 if _rebuild_has_helper_set "$REBUILD_DEPLOYED_LIB_DIR"; then
     REBUILD_COMMON_LIB_DIR="$REBUILD_DEPLOYED_LIB_DIR"
-elif _rebuild_has_helper_set "$REBUILD_REPO_LIB_DIR"; then
+elif [[ -n "$REBUILD_REPO_LIB_DIR" ]] && _rebuild_has_helper_set "$REBUILD_REPO_LIB_DIR"; then
     REBUILD_COMMON_LIB_DIR="$REBUILD_REPO_LIB_DIR"
 fi
 

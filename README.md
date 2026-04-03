@@ -141,7 +141,7 @@ homeserver.reverseProxy.enable = true;     # Caddy HTTPS (*.greenhead.dev)
 | gitleaks | 시크릿 유출 방지 |
 | eval-tests | Nix 평가 테스트 (`tests/eval-tests.nix`) |
 
-pre-push 시 `nix flake check --no-build --all-systems` 자동 실행.
+pre-push 시 `bash ./tests/run-shell-script-tests.sh`와 `nix flake check --no-build --all-systems`를 자동 실행한다.
 
 ---
 
