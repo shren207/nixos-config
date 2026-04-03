@@ -42,6 +42,12 @@ assert_not_contains() {
   [[ "$haystack" != *"$needle"* ]] || fail "expected output to not contain: $needle"
 }
 
+assert_file_contains() {
+  local path="$1"
+  local needle="$2"
+  grep -Fqx "$needle" "$path" >/dev/null || fail "expected $path to contain exact line: $needle"
+}
+
 new_sandbox() {
   local dir
   dir=$(mktemp -d "${TMPDIR:-/tmp}/shell-script-tests.XXXXXX")
@@ -51,14 +57,29 @@ new_sandbox() {
 
 assert_shell_default_wiring() {
   local shell_nix="$REPO_ROOT/modules/shared/programs/shell/default.nix"
-  local content
-  content=$(cat "$shell_nix")
 
-  assert_contains "$content" 'home.file.".local/bin/wt"'
-  assert_contains "$content" 'home.file.".local/lib/wt"'
-  assert_contains "$content" 'home.file.".local/lib/rebuild-common.sh"'
-  assert_contains "$content" 'home.file.".local/lib/rebuild"'
-  assert_contains "$content" 'recursive = true;'
+  assert_file_contains "$shell_nix" '  home.file.".local/bin/wt" = {'
+  assert_file_contains "$shell_nix" '  home.file.".local/lib/wt" = {'
+  # shellcheck disable=SC2016  # Literal Nix source string.
+  assert_file_contains "$shell_nix" '    source = "${sharedScriptsDir}/lib/wt";'
+  assert_file_contains "$shell_nix" '  home.file.".local/lib/rebuild-common.sh" = {'
+  assert_file_contains "$shell_nix" '  home.file.".local/lib/rebuild" = {'
+  # shellcheck disable=SC2016  # Literal Nix source string.
+  assert_file_contains "$shell_nix" '    source = "${sharedScriptsDir}/lib/rebuild";'
+  assert_file_contains "$shell_nix" '    recursive = true;'
+}
+
+read_bash_array_from_script() {
+  local script_path="$1"
+  local array_name="$2"
+  awk -v array_name="$array_name" '
+    $0 ~ "^" array_name "=\\(" { in_array=1; next }
+    in_array && $0 ~ "^\\)" { exit }
+    in_array {
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0)
+      if ($0 != "") print
+    }
+  ' "$script_path"
 }
 
 symlink_helper_dir() {
@@ -81,17 +102,20 @@ install_deployed_layout() {
   local home_dir="$sandbox/home"
   local bin_dir="$home_dir/.local/bin"
   local lib_dir="$home_dir/.local/lib"
+  local generated_dir="$sandbox/generated"
 
   assert_shell_default_wiring
-  mkdir -p "$bin_dir" "$lib_dir/wt" "$lib_dir/rebuild"
+  mkdir -p "$bin_dir" "$lib_dir/wt" "$lib_dir/rebuild" "$generated_dir"
 
-  cp "$REPO_ROOT/modules/shared/scripts/wt.sh" "$bin_dir/wt"
-  chmod +x "$bin_dir/wt"
+  cp "$REPO_ROOT/modules/shared/scripts/wt.sh" "$generated_dir/wt.sh"
+  chmod +x "$generated_dir/wt.sh"
+  ln -sf "$generated_dir/wt.sh" "$bin_dir/wt"
   ln -sf "$FIXTURE_DIR/bin/codex-sync" "$bin_dir/codex-sync"
   symlink_helper_dir "$REPO_ROOT/modules/shared/scripts/lib/wt" "$lib_dir/wt"
 
   sed "s|@flakePath@|$flake_path|g" \
-    "$REPO_ROOT/modules/shared/scripts/rebuild-common.sh" > "$lib_dir/rebuild-common.sh"
+    "$REPO_ROOT/modules/shared/scripts/rebuild-common.sh" > "$generated_dir/rebuild-common.sh"
+  ln -sf "$generated_dir/rebuild-common.sh" "$lib_dir/rebuild-common.sh"
   symlink_helper_dir "$REPO_ROOT/modules/shared/scripts/lib/rebuild" "$lib_dir/rebuild"
 }
 
@@ -163,11 +187,17 @@ test_rebuild_common_exports_public_api() {
       source "'"$sandbox/home/.local/lib/rebuild-common.sh"'"
       parse_args --offline --force --cores 2
       printf "offline=%s\nforce=%s\ncores=%s\n" "$OFFLINE_FLAG" "$FORCE_FLAG" "$CORES_FLAG"
+      declare -F log_info
+      declare -F log_warn
+      declare -F log_error
       declare -F acquire_nrs_lock
+      declare -F release_nrs_lock
       declare -F release_nrs_lock_on_failure
       declare -F acquire_rebuild_lock
+      declare -F release_rebuild_lock
       declare -F release_rebuild_lock_on_failure
       declare -F preflight_source_build_check
+      declare -F preflight_cask_conflict_check
       declare -F preview_changes
       declare -F worktree_symlink_guard
       declare -F maybe_relink_or_restore
@@ -178,11 +208,17 @@ test_rebuild_common_exports_public_api() {
   assert_contains "$output" "offline=--offline"
   assert_contains "$output" "force=true"
   assert_contains "$output" "cores=--cores 2"
+  assert_contains "$output" "log_info"
+  assert_contains "$output" "log_warn"
+  assert_contains "$output" "log_error"
   assert_contains "$output" "acquire_nrs_lock"
+  assert_contains "$output" "release_nrs_lock"
   assert_contains "$output" "release_nrs_lock_on_failure"
   assert_contains "$output" "acquire_rebuild_lock"
+  assert_contains "$output" "release_rebuild_lock"
   assert_contains "$output" "release_rebuild_lock_on_failure"
   assert_contains "$output" "preflight_source_build_check"
+  assert_contains "$output" "preflight_cask_conflict_check"
   assert_contains "$output" "preview_changes"
   assert_contains "$output" "worktree_symlink_guard"
   assert_contains "$output" "maybe_relink_or_restore"
@@ -277,11 +313,12 @@ test_shadow_paths_do_not_override_managed_helpers() {
   cat > "$home_dir/.local/bin/lib/wt/ui.sh" <<'EOF'
 echo "SHADOW_WT_HELPER" >&2
 EOF
-  for helper in tmux git-state commands; do
+  while IFS= read -r helper; do
+    [[ "$helper" == "ui" ]] && continue
     cat > "$home_dir/.local/bin/lib/wt/$helper.sh" <<'EOF'
 :
 EOF
-  done
+  done < <(read_bash_array_from_script "$REPO_ROOT/modules/shared/scripts/wt.sh" "WT_HELPERS")
   for helper in common worktree locks preflight relink preview; do
     cat > "$home_dir/.local/lib/lib/rebuild/$helper.sh" <<'EOF'
 echo "SHADOW_REBUILD_HELPER" >&2
@@ -309,6 +346,64 @@ EOF
   assert_not_contains "$output" "SHADOW_WT_HELPER"
   assert_not_contains "$output" "SHADOW_REBUILD_HELPER"
   assert_not_contains "$output" "SHADOW_CODEX_SYNC"
+}
+
+test_wt_symlink_alias_does_not_load_adjacent_helpers() {
+  local sandbox home_dir alias_dir alias_path output
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  alias_dir="$sandbox/alias/bin"
+  alias_path="$alias_dir/wt"
+
+  install_deployed_layout "$sandbox"
+
+  mkdir -p "$sandbox/alias/lib/wt" "$alias_dir"
+  ln -sf "$REPO_ROOT/modules/shared/scripts/wt.sh" "$alias_path"
+  cat > "$sandbox/alias/lib/wt/ui.sh" <<'EOF'
+echo "MALICIOUS_WT" >&2
+EOF
+
+  output=$(
+    HOME="$home_dir" \
+    PATH="$FIXTURE_DIR/bin:$PATH" \
+    bash "$alias_path" --help 2>&1 || true
+  )
+
+  assert_contains "$output" "helper directory not found"
+  assert_not_contains "$output" "MALICIOUS_WT"
+}
+
+test_rebuild_common_symlink_alias_does_not_load_adjacent_helpers() {
+  local sandbox home_dir alias_dir alias_path output generated_dir
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  alias_dir="$sandbox/alias/lib"
+  alias_path="$alias_dir/rebuild-common.sh"
+  generated_dir="$sandbox/generated"
+
+  install_deployed_layout "$sandbox"
+
+  mkdir -p "$sandbox/alias/lib/rebuild" "$alias_dir" "$generated_dir"
+  sed "s|@flakePath@|$REPO_ROOT|g" \
+    "$REPO_ROOT/modules/shared/scripts/rebuild-common.sh" > "$generated_dir/rebuild-common.sh"
+  ln -sf "$generated_dir/rebuild-common.sh" "$alias_path"
+  cat > "$sandbox/alias/lib/rebuild/common.sh" <<'EOF'
+echo "MALICIOUS_REBUILD" >&2
+EOF
+
+  output=$(
+    HOME="$home_dir" \
+    PATH="$FIXTURE_DIR/bin:$PATH" \
+    bash -c '
+      set -euo pipefail
+      REBUILD_CMD="nixos-rebuild"
+      source "'"$alias_path"'"
+      printf "loaded\n"
+    ' 2>&1 || true
+  )
+
+  assert_contains "$output" "helper directory not found"
+  assert_not_contains "$output" "MALICIOUS_REBUILD"
 }
 
 test_wt_create_creates_worktree_without_shadow_codex_sync() {
@@ -399,6 +494,121 @@ EOF
 
   assert_contains "$output" "자동 정리 완료"
   [[ ! -d "$target_path" ]] || fail "expected merged worktree to be removed: $target_path"
+}
+
+test_wt_cleanup_auto_skips_dirty_merged_worktree() {
+  local sandbox home_dir repo_root gh_dir output target_path head_oid
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  repo_root="$sandbox/repo"
+  gh_dir="$sandbox/gh-bin"
+
+  create_git_fixture_repo "$repo_root"
+  repo_root="$(cd "$repo_root" && pwd -P)"
+  install_deployed_layout "$sandbox" "$repo_root"
+
+  git -C "$repo_root" remote add origin https://example.invalid/nixos-config.git
+  target_path="$repo_root/.claude/worktrees/feature_one"
+  head_oid="$(git -C "$target_path" rev-parse HEAD)"
+  echo "dirty" > "$target_path/dirty.txt"
+
+  mkdir -p "$gh_dir"
+  cat > "$gh_dir/gh" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'MERGED %s\n' "$head_oid"
+EOF
+  chmod +x "$gh_dir/gh"
+
+  output=$(
+    HOME="$home_dir" \
+    PATH="$gh_dir:$FIXTURE_DIR/bin:$PATH" \
+    bash -c '
+      set -euo pipefail
+      cd "'"$repo_root"'"
+      "'"$home_dir/.local/bin/wt"'" cleanup --auto
+    ' 2>&1
+  )
+
+  assert_contains "$output" "스킵: feature_one (dirty 있음)"
+  [[ -d "$target_path" ]] || fail "expected dirty worktree to be kept: $target_path"
+}
+
+test_wt_cleanup_auto_skips_unpushed_with_upstream() {
+  local sandbox home_dir repo_root gh_dir origin_dir output target_path head_oid
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  repo_root="$sandbox/repo"
+  gh_dir="$sandbox/gh-bin"
+  origin_dir="$sandbox/origin.git"
+
+  create_git_fixture_repo "$repo_root"
+  repo_root="$(cd "$repo_root" && pwd -P)"
+  install_deployed_layout "$sandbox" "$repo_root"
+
+  git init --bare "$origin_dir" >/dev/null 2>&1
+  git -C "$repo_root" remote add origin "$origin_dir"
+  target_path="$repo_root/.claude/worktrees/feature_one"
+  git -C "$target_path" push -u origin feature-one >/dev/null 2>&1
+  echo "ahead" >> "$target_path/README.md"
+  git -C "$target_path" add README.md
+  git -C "$target_path" commit -m "ahead" >/dev/null 2>&1
+  head_oid="$(git -C "$target_path" rev-parse HEAD)"
+
+  mkdir -p "$gh_dir"
+  cat > "$gh_dir/gh" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'MERGED %s\n' "$head_oid"
+EOF
+  chmod +x "$gh_dir/gh"
+
+  output=$(
+    HOME="$home_dir" \
+    PATH="$gh_dir:$FIXTURE_DIR/bin:$PATH" \
+    bash -c '
+      set -euo pipefail
+      cd "'"$repo_root"'"
+      "'"$home_dir/.local/bin/wt"'" cleanup --auto
+    ' 2>&1
+  )
+
+  assert_contains "$output" "스킵: feature_one (merge 후 추가 커밋 있음)"
+  [[ -d "$target_path" ]] || fail "expected unpushed worktree to be kept: $target_path"
+}
+
+test_wt_cleanup_auto_skips_merged_branch_reuse() {
+  local sandbox home_dir repo_root gh_dir output target_path
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  repo_root="$sandbox/repo"
+  gh_dir="$sandbox/gh-bin"
+
+  create_git_fixture_repo "$repo_root"
+  repo_root="$(cd "$repo_root" && pwd -P)"
+  install_deployed_layout "$sandbox" "$repo_root"
+
+  target_path="$repo_root/.claude/worktrees/feature_one"
+  mkdir -p "$gh_dir"
+  cat > "$gh_dir/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'MERGED deadbeefdeadbeefdeadbeefdeadbeefdeadbeef\n'
+EOF
+  chmod +x "$gh_dir/gh"
+
+  output=$(
+    HOME="$home_dir" \
+    PATH="$gh_dir:$FIXTURE_DIR/bin:$PATH" \
+    bash -c '
+      set -euo pipefail
+      cd "'"$repo_root"'"
+      "'"$home_dir/.local/bin/wt"'" cleanup --auto
+    ' 2>&1
+  )
+
+  assert_contains "$output" "자동 정리 대상 (MERGED)이 없습니다"
+  [[ -d "$target_path" ]] || fail "expected reused branch worktree to be kept: $target_path"
 }
 
 test_missing_managed_helpers_fail_closed() {
@@ -530,14 +740,122 @@ EOF
   assert_contains "$output" "Done!"
 }
 
+test_darwin_nrs_offline_force_smoke() {
+  local sandbox home_dir repo_root stub_dir output result_target current_target
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  repo_root="$sandbox/repo"
+  stub_dir="$sandbox/stub-bin"
+
+  create_git_fixture_repo "$repo_root"
+  repo_root="$(cd "$repo_root" && pwd -P)"
+  install_deployed_layout "$sandbox" "$repo_root"
+
+  mkdir -p "$stub_dir" "$home_dir/.local/bin" "$home_dir/Library/LaunchAgents" "$sandbox/current-system"
+  current_target="$sandbox/current-system"
+
+  cat > "$stub_dir/sudo" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+"$@"
+EOF
+  cat > "$stub_dir/darwin-rebuild" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+case "$1" in
+  build)
+    ln -sfn "${DARWIN_RESULT_TARGET:?}" ./result
+    ;;
+  switch)
+    :
+    ;;
+  *)
+    echo "unexpected darwin-rebuild subcommand: $1" >&2
+    exit 1
+    ;;
+esac
+EOF
+  cat > "$stub_dir/nvd" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+echo "stub nvd diff"
+EOF
+  cat > "$stub_dir/launchctl" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+case "${1:-}" in
+  list)
+    printf '%s\n' '-\t0\tcom.green.test-agent'
+    exit 0
+    ;;
+  bootout) exit 0 ;;
+esac
+exit 0
+EOF
+  cat > "$stub_dir/open" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exit 0
+EOF
+  cat > "$stub_dir/pgrep" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exit 1
+EOF
+  cat > "$stub_dir/killall" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exit 0
+EOF
+  cat > "$stub_dir/readlink" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${1:-}" == "/run/current-system" ]]; then
+  printf '%s\n' "${DARWIN_CURRENT_SYSTEM:?}"
+else
+  /usr/bin/readlink "$@"
+fi
+EOF
+  cat > "$home_dir/.local/bin/nrs-relink" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exit 0
+EOF
+  chmod +x "$stub_dir/sudo" "$stub_dir/darwin-rebuild" "$stub_dir/nvd" "$stub_dir/launchctl" "$stub_dir/open" "$stub_dir/pgrep" "$stub_dir/killall" "$stub_dir/readlink" "$home_dir/.local/bin/nrs-relink"
+
+  result_target="$sandbox/darwin-result"
+  mkdir -p "$result_target"
+
+  output=$(
+    HOME="$home_dir" \
+    PATH="$stub_dir:$FIXTURE_DIR/bin:$PATH" \
+    DARWIN_RESULT_TARGET="$result_target" \
+    DARWIN_CURRENT_SYSTEM="$current_target" \
+    bash -c '
+      set -euo pipefail
+      cd "'"$repo_root"'"
+      bash "'"$REPO_ROOT/modules/darwin/scripts/nrs.sh"'" --offline --force
+    ' 2>&1
+  )
+
+  assert_contains "$output" "Applying changes (offline)"
+  assert_contains "$output" "Done!"
+}
+
 run_test "wt help uses deployed helper layout" test_wt_help_from_deployed_layout
 run_test "rebuild-common exports public API" test_rebuild_common_exports_public_api
 run_test "detect_worktree switches to active worktree" test_detect_worktree_uses_current_worktree_path
 run_test "wt cd returns target path by name" test_wt_cd_by_name_returns_target_path
 run_test "wt ls lists deployed worktrees" test_wt_ls_from_deployed_layout_lists_worktrees
 run_test "shadow paths do not override managed helpers" test_shadow_paths_do_not_override_managed_helpers
+run_test "wt symlink alias does not load adjacent helpers" test_wt_symlink_alias_does_not_load_adjacent_helpers
+run_test "rebuild-common symlink alias does not load adjacent helpers" test_rebuild_common_symlink_alias_does_not_load_adjacent_helpers
 run_test "wt create uses managed codex-sync path" test_wt_create_creates_worktree_without_shadow_codex_sync
 run_test "wt cleanup auto removes merged worktree" test_wt_cleanup_auto_removes_merged_worktree
+run_test "wt cleanup auto skips dirty merged worktree" test_wt_cleanup_auto_skips_dirty_merged_worktree
+run_test "wt cleanup auto skips unpushed merged worktree" test_wt_cleanup_auto_skips_unpushed_with_upstream
+run_test "wt cleanup auto skips merged branch reuse" test_wt_cleanup_auto_skips_merged_branch_reuse
 run_test "missing managed helpers fail closed" test_missing_managed_helpers_fail_closed
 run_test "fixture git setup ignores host global hooks" test_fixture_git_is_hermetic_against_global_hooks
 run_test "nixos nrs offline force smoke" test_nixos_nrs_offline_force_smoke
+run_test "darwin nrs offline force smoke" test_darwin_nrs_offline_force_smoke
