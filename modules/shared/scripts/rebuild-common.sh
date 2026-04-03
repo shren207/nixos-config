@@ -10,8 +10,8 @@
 #   worktree_symlink_guard, acquire_nrs_lock, release_nrs_lock,
 #   release_nrs_lock_on_failure, acquire_rebuild_lock, release_rebuild_lock,
 #   release_rebuild_lock_on_failure, preflight_source_build_check,
-#   preflight_cask_conflict_check, _remove_worktree_symlinks,
-#   maybe_relink_or_restore, preview_changes, cleanup_build_artifacts
+#   preflight_cask_conflict_check, maybe_relink_or_restore,
+#   preview_changes, cleanup_build_artifacts
 #
 # 출력 변수:
 #   NO_CHANGES - preview_changes() 실행 후 true/false (store 경로 비교)

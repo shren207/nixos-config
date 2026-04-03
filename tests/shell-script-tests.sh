@@ -65,11 +65,14 @@ symlink_helper_dir() {
   local source_dir="$1"
   local target_dir="$2"
   local file
+  local rel_path
 
   mkdir -p "$target_dir"
   while IFS= read -r file; do
-    ln -sf "$file" "$target_dir/$(basename "$file")"
-  done < <(find "$source_dir" -maxdepth 1 -type f -name '*.sh' | sort)
+    rel_path="${file#"$source_dir"/}"
+    mkdir -p "$(dirname "$target_dir/$rel_path")"
+    ln -sf "$file" "$target_dir/$rel_path"
+  done < <(find "$source_dir" -type f | sort)
 }
 
 install_deployed_layout() {
@@ -94,17 +97,33 @@ install_deployed_layout() {
 
 create_git_fixture_repo() {
   local repo_root="$1"
-  mkdir -p "$repo_root/.claude/worktrees"
+  local sandbox_root home_dir
+  sandbox_root="$(dirname "$repo_root")"
+  home_dir="$sandbox_root/home"
+
+  fixture_git() {
+    HOME="$home_dir" \
+      XDG_CONFIG_HOME="$home_dir/.config" \
+      GIT_CONFIG_GLOBAL=/dev/null \
+      GIT_CONFIG_NOSYSTEM=1 \
+      git -C "$repo_root" \
+      -c core.hooksPath=/dev/null \
+      -c commit.gpgSign=false \
+      -c init.templateDir= \
+      "$@"
+  }
+
+  mkdir -p "$repo_root/.claude/worktrees" "$home_dir/.config"
   (
     cd "$repo_root"
-    git init >/dev/null 2>&1
-    git branch -M main >/dev/null 2>&1
-    git config user.name "Test User"
-    git config user.email "test@example.com"
+    fixture_git init >/dev/null 2>&1
+    fixture_git branch -M main >/dev/null 2>&1
+    fixture_git config user.name "Test User"
+    fixture_git config user.email "test@example.com"
     echo "fixture" > README.md
-    git add README.md
-    git commit -m "initial" >/dev/null 2>&1
-    git worktree add ".claude/worktrees/feature_one" -b feature-one >/dev/null 2>&1
+    fixture_git add README.md
+    fixture_git commit -m "initial" >/dev/null 2>&1
+    fixture_git worktree add ".claude/worktrees/feature_one" -b feature-one >/dev/null 2>&1
   )
 }
 
@@ -290,9 +309,36 @@ EOF
   assert_not_contains "$output" "SHADOW_CODEX_SYNC"
 }
 
+test_fixture_git_is_hermetic_against_global_hooks() {
+  local sandbox repo_root hook_dir global_config hook_marker
+  sandbox=$(new_sandbox)
+  repo_root="$sandbox/repo"
+  hook_dir="$sandbox/global-hooks"
+  global_config="$sandbox/global-gitconfig"
+  hook_marker="$sandbox/HOOK_RAN"
+
+  mkdir -p "$hook_dir"
+  cat > "$hook_dir/pre-commit" <<EOF
+#!/usr/bin/env bash
+echo hook-ran > "$hook_marker"
+exit 1
+EOF
+  chmod +x "$hook_dir/pre-commit"
+  cat > "$global_config" <<EOF
+[core]
+	hooksPath = $hook_dir
+EOF
+
+  GIT_CONFIG_GLOBAL="$global_config" create_git_fixture_repo "$repo_root"
+
+  [[ -d "$repo_root/.git" ]] || fail "expected fixture repo to be created"
+  [[ ! -e "$hook_marker" ]] || fail "expected fixture git setup to ignore host global hooks"
+}
+
 run_test "wt help uses deployed helper layout" test_wt_help_from_deployed_layout
 run_test "rebuild-common exports public API" test_rebuild_common_exports_public_api
 run_test "detect_worktree switches to active worktree" test_detect_worktree_uses_current_worktree_path
 run_test "wt ls lists deployed worktrees" test_wt_ls_from_deployed_layout_lists_worktrees
 run_test "shadow paths do not override managed helpers" test_shadow_paths_do_not_override_managed_helpers
 run_test "wt create uses managed codex-sync path" test_wt_create_creates_worktree_without_shadow_codex_sync
+run_test "fixture git setup ignores host global hooks" test_fixture_git_is_hermetic_against_global_hooks
