@@ -288,8 +288,8 @@ python3 - <<'PY'
 import os, glob, re
 from collections import Counter
 
-loc_re = re.compile(r'(?:파일|위치|Location)[^\\n]*?([A-Za-z0-9_./-]+:\\d+|plan step \\d+)', re.I)
-domain_re = re.compile(r'\\b(YAGNI|NGMI|HALLUCINATION|SECURITY|SIDE_EFFECT|CONSISTENCY|READABILITY|CLEAN_CODE)\\b')
+loc_re = re.compile(r'(?:파일|위치|Location)[^\n]*?([A-Za-z0-9_./-]+:\d+|plan step \d+)', re.I)
+domain_re = re.compile(r'\b(YAGNI|NGMI|HALLUCINATION|SECURITY|SIDE_EFFECT|CONSISTENCY|READABILITY|CLEAN_CODE)\b')
 
 keys=[]
 token_hits=0
@@ -314,7 +314,7 @@ print('candidate_keys', len(counts))
 print('duplicate_key_excess', dupes)
 print('tokenized_subagent_files', token_hits)
 for (d, loc), n in counts.most_common(20):
-    print(f'{n}\\t{d}\\t{loc}')
+    print(f'{n}\t{d}\t{loc}')
 PY
 ```
 
