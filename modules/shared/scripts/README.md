@@ -25,5 +25,6 @@
 
 - Top-level entrypoints stay thin. New runtime logic belongs in a helper file unless it is dispatch/help text.
 - Helpers are grouped by change reason, not by arbitrary line counts.
-- If a new helper is added, update `modules/shared/programs/shell/default.nix` so the deployed `~/.local/lib/**` layout stays complete.
-- Tests must exercise the deployed layout, not only the repo-local path. Use `tests/shell-script-tests.sh`.
+- Loader source order is part of the contract. Keep the explicit `source` order in top-level entrypoints in sync with helper dependencies.
+- If a new helper is added, keep `modules/shared/programs/shell/default.nix` and `tests/shell-script-tests.sh` aligned with the deployed `~/.local/lib/**` layout expectations.
+- Tests must exercise the deployed layout, not only the repo-local path. `tests/shell-script-tests.sh` should validate both the expected Home Manager wiring and runtime smoke paths.

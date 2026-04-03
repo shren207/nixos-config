@@ -37,23 +37,37 @@ WORKTREE_DIR=".claude/worktrees"
 WT_LAST_FILE=".claude/worktrees/.wt-last"
 WT_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WT_LIB_DIR=""
+WT_DEPLOYED_LIB_DIR="$(cd "$WT_SCRIPT_DIR/.." && pwd)/lib/wt"
+WT_REPO_LIB_DIR="$WT_SCRIPT_DIR/lib/wt"
 
-for candidate in "$WT_SCRIPT_DIR/lib/wt" "$WT_SCRIPT_DIR/../lib/wt"; do
-  if [[ -d "$candidate" ]]; then
-    WT_LIB_DIR="$candidate"
-    break
-  fi
-done
+_wt_has_helper_set() {
+  local dir="$1"
+  [[ -f "$dir/ui.sh" ]] \
+    && [[ -f "$dir/tmux.sh" ]] \
+    && [[ -f "$dir/git-state.sh" ]] \
+    && [[ -f "$dir/commands.sh" ]]
+}
+
+if _wt_has_helper_set "$WT_DEPLOYED_LIB_DIR"; then
+  WT_LIB_DIR="$WT_DEPLOYED_LIB_DIR"
+elif _wt_has_helper_set "$WT_REPO_LIB_DIR"; then
+  WT_LIB_DIR="$WT_REPO_LIB_DIR"
+fi
 
 [[ -n "$WT_LIB_DIR" ]] || {
   echo "error: wt helper directory not found" >&2
   exit 1
 }
 
-for helper in ui tmux git-state commands; do
-  # shellcheck source=/dev/null
-  source "$WT_LIB_DIR/$helper.sh"
-done
+# Load order is intentional: later helpers depend on UI/globals from earlier ones.
+# shellcheck source=/dev/null
+source "$WT_LIB_DIR/ui.sh"
+# shellcheck source=/dev/null
+source "$WT_LIB_DIR/tmux.sh"
+# shellcheck source=/dev/null
+source "$WT_LIB_DIR/git-state.sh"
+# shellcheck source=/dev/null
+source "$WT_LIB_DIR/commands.sh"
 
 # ── 도움말 ───────────────────────────────────────────────────────────────────
 

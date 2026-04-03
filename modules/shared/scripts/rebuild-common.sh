@@ -7,8 +7,11 @@
 #
 # 제공 함수:
 #   parse_args, log_info, log_warn, log_error,
-#   preflight_source_build_check, preflight_cask_conflict_check,
-#   worktree_symlink_guard, preview_changes, cleanup_build_artifacts
+#   worktree_symlink_guard, acquire_nrs_lock, release_nrs_lock,
+#   release_nrs_lock_on_failure, acquire_rebuild_lock, release_rebuild_lock,
+#   release_rebuild_lock_on_failure, preflight_source_build_check,
+#   preflight_cask_conflict_check, _remove_worktree_symlinks,
+#   maybe_relink_or_restore, preview_changes, cleanup_build_artifacts
 #
 # 출력 변수:
 #   NO_CHANGES - preview_changes() 실행 후 true/false (store 경로 비교)
@@ -43,22 +46,42 @@ NC='\033[0m' # No Color
 
 REBUILD_COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REBUILD_COMMON_LIB_DIR=""
+REBUILD_DEPLOYED_LIB_DIR="$REBUILD_COMMON_DIR/rebuild"
+REBUILD_REPO_LIB_DIR="$REBUILD_COMMON_DIR/lib/rebuild"
 
-for candidate in "$REBUILD_COMMON_DIR/lib/rebuild" "$REBUILD_COMMON_DIR/rebuild"; do
-    if [[ -d "$candidate" ]]; then
-        REBUILD_COMMON_LIB_DIR="$candidate"
-        break
-    fi
-done
+_rebuild_has_helper_set() {
+    local dir="$1"
+    [[ -f "$dir/common.sh" ]] \
+        && [[ -f "$dir/worktree.sh" ]] \
+        && [[ -f "$dir/locks.sh" ]] \
+        && [[ -f "$dir/preflight.sh" ]] \
+        && [[ -f "$dir/relink.sh" ]] \
+        && [[ -f "$dir/preview.sh" ]]
+}
+
+if _rebuild_has_helper_set "$REBUILD_DEPLOYED_LIB_DIR"; then
+    REBUILD_COMMON_LIB_DIR="$REBUILD_DEPLOYED_LIB_DIR"
+elif _rebuild_has_helper_set "$REBUILD_REPO_LIB_DIR"; then
+    REBUILD_COMMON_LIB_DIR="$REBUILD_REPO_LIB_DIR"
+fi
 
 [[ -n "$REBUILD_COMMON_LIB_DIR" ]] || {
     echo "ERROR: rebuild helper directory not found" >&2
     exit 1
 }
 
-for helper in common worktree locks preflight relink preview; do
-    # shellcheck source=/dev/null
-    source "$REBUILD_COMMON_LIB_DIR/$helper.sh"
-done
+# Load order is intentional: later helpers depend on globals/functions from earlier ones.
+# shellcheck source=/dev/null
+source "$REBUILD_COMMON_LIB_DIR/common.sh"
+# shellcheck source=/dev/null
+source "$REBUILD_COMMON_LIB_DIR/worktree.sh"
+# shellcheck source=/dev/null
+source "$REBUILD_COMMON_LIB_DIR/locks.sh"
+# shellcheck source=/dev/null
+source "$REBUILD_COMMON_LIB_DIR/preflight.sh"
+# shellcheck source=/dev/null
+source "$REBUILD_COMMON_LIB_DIR/relink.sh"
+# shellcheck source=/dev/null
+source "$REBUILD_COMMON_LIB_DIR/preview.sh"
 
 detect_worktree

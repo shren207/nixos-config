@@ -31,15 +31,14 @@ _bootstrap_worktree() {
   # Claude → Codex projection 재실행 (plugin-aware worktree bootstrap 복구)
   local script_dir codex_sync_sh=""
   script_dir="${WT_SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+  local repo_local_sync_sh="$script_dir/codex-sync.sh"
+  local deployed_sync_bin="$script_dir/codex-sync"
 
-  for candidate in "$script_dir/codex-sync.sh" "$script_dir/codex-sync"; do
-    if [[ -f "$candidate" ]]; then
-      codex_sync_sh="$candidate"
-      break
-    fi
-  done
-
-  if [[ -z "$codex_sync_sh" ]]; then
+  if [[ -x "$deployed_sync_bin" ]]; then
+    codex_sync_sh="$deployed_sync_bin"
+  elif [[ -f "$repo_local_sync_sh" ]]; then
+    codex_sync_sh="$repo_local_sync_sh"
+  else
     codex_sync_sh="$(command -v codex-sync 2>/dev/null || true)"
   fi
 
