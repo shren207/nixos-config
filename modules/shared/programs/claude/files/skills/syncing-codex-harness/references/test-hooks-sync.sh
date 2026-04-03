@@ -18,7 +18,7 @@ python3 "$COMPILER" \
   --output-hooks "$TMPDIR/hooks.json" \
   --output-report "$TMPDIR/report.json"
 
-jq -e '.SessionStart[0].matcher == "startup|resume"' "$TMPDIR/hooks.json" >/dev/null
+jq -e '.hooks.SessionStart[0].matcher == "startup|resume"' "$TMPDIR/hooks.json" >/dev/null
 jq -e '.summary.total == 5' "$TMPDIR/report.json" >/dev/null
 jq -e '.summary.supported == 2' "$TMPDIR/report.json" >/dev/null
 jq -e '.summary.lossy == 1' "$TMPDIR/report.json" >/dev/null
@@ -45,7 +45,7 @@ git -C "$REPO_ROOT" init -q
 
 HOME="$HOME_ROOT" CODEX_HOME="$HOME_ROOT/.codex" bash "$SYNC_SH" hooks-config "$REPO_ROOT"
 
-jq -e '.SessionStart[0].matcher == "startup|resume"' "$REPO_ROOT/.codex/hooks.json" >/dev/null
+jq -e '.hooks.SessionStart[0].matcher == "startup|resume"' "$REPO_ROOT/.codex/hooks.json" >/dev/null
 jq -e '.summary.lossy == 1' "$REPO_ROOT/.codex/hooks.compatibility.json" >/dev/null
 
 echo "test-hooks-sync: PASS"

@@ -174,7 +174,8 @@ def main() -> None:
         "items": items,
     }
 
-    Path(args.output_hooks).write_text(json.dumps(compiled_hooks, indent=2) + "\n")
+    hooks_payload = {"hooks": compiled_hooks}
+    Path(args.output_hooks).write_text(json.dumps(hooks_payload, indent=2) + "\n")
     Path(args.output_report).write_text(json.dumps(report, indent=2) + "\n")
 
 
