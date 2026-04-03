@@ -43,7 +43,9 @@ _bootstrap_worktree() {
   fi
 
   if [[ -n "$codex_sync_sh" ]]; then
-    if ! bash "$codex_sync_sh" "$wt_path"; then
+    if [[ "$codex_sync_sh" == "$repo_local_sync_sh" ]]; then
+      bash "$codex_sync_sh" "$wt_path" || _warn "codex-sync 실패 — 수동으로 'codex-sync $wt_path'를 실행하세요"
+    elif ! "$codex_sync_sh" "$wt_path"; then
       _warn "codex-sync 실패 — 수동으로 'codex-sync $wt_path'를 실행하세요"
     fi
   else
