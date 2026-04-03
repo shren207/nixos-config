@@ -35,7 +35,7 @@ _wt_tmux_open() {
     if [[ "$stay" == "true" ]]; then
       _info "기존 tmux 윈도우 유지 (background): $window_name"
     else
-      tmux select-window -t "$existing_window"
+      tmux select-window -t "$existing_window" || return 1
       _info "기존 tmux 윈도우로 전환: $window_name"
     fi
     echo "$existing_window"
@@ -45,10 +45,10 @@ _wt_tmux_open() {
   # 새 윈도우 생성
   local new_window
   if [[ "$stay" == "true" ]]; then
-    new_window=$(tmux new-window -d -n "$window_name" -c "$wt_path" -P -F '#{window_id}')
+    new_window=$(tmux new-window -d -n "$window_name" -c "$wt_path" -P -F '#{window_id}') || return 1
     _info "tmux 윈도우 생성 (background): $window_name"
   else
-    new_window=$(tmux new-window -n "$window_name" -c "$wt_path" -P -F '#{window_id}')
+    new_window=$(tmux new-window -n "$window_name" -c "$wt_path" -P -F '#{window_id}') || return 1
     _info "tmux 윈도우 생성: $window_name"
   fi
 

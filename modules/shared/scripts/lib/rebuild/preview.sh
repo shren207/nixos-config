@@ -29,6 +29,8 @@ preview_changes() {
         log_warn "⚠️  nvd diff returned non-zero (possibly identical results)"
     fi
 
+    # shellcheck disable=SC2034  # NO_CHANGES는 source한 nrs.sh에서 사용
+    NO_CHANGES=false
     if [[ -L ./result ]] && [[ "$(readlink ./result)" == "$(readlink /run/current-system)" ]]; then
         # shellcheck disable=SC2034  # NO_CHANGES는 source한 nrs.sh에서 사용
         NO_CHANGES=true
