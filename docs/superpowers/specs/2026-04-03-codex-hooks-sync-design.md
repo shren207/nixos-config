@@ -270,7 +270,7 @@ lossy 항목은 생성은 하되 report에 이유를 남긴다.
   "codex_cli_version": "0.118.0",
   "codex_hooks_docs_validated_on": "2026-04-03",
   "source_settings_path": "modules/shared/programs/claude/files/settings.json",
-  "effective_settings_path": "/Users/glen/.claude/settings.json",
+  "effective_settings_path": "/Users/example/.claude/settings.json",
   "drift_detected": false,
   "summary": {
     "total": 10,

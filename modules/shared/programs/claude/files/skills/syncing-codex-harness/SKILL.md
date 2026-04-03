@@ -70,7 +70,7 @@ fi
 
 ```bash
 resolve_plugin() {
-  local plugin_key="$1"  # e.g. "zaritalk-front@zaritalk-plugins"
+  local plugin_key="$1"  # e.g. "sample-plugin@sample-marketplace"
   local manifest="$HOME/.claude/plugins/installed_plugins.json"
 
   python3 -c "
@@ -125,7 +125,7 @@ ARGS=()
 
 # 각 플러그인마다 (Case B, C)
 # INSTALL_PATH: Step 2에서 해석한 installPath
-# PLUGIN_NAME: plugin-key에서 @ 앞부분 (e.g. "zaritalk-front")
+# PLUGIN_NAME: plugin-key에서 @ 앞부분 (e.g. "sample-plugin")
 ARGS+=(--plugin-install-path="$INSTALL_PATH:$PLUGIN_NAME")
 
 # user-scope MCP까지 함께 투영하고 싶을 때 (선택)
