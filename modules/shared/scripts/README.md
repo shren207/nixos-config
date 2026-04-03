@@ -13,7 +13,10 @@
 - `lib/wt/ui.sh`: prompt, formatting, repo/path helpers
 - `lib/wt/tmux.sh`: tmux window/session orchestration
 - `lib/wt/git-state.sh`: git/worktree state collection, PR status lookup
-- `lib/wt/commands.sh`: `wt` subcommands and bootstrap/remove orchestration
+- `lib/wt/bootstrap.sh`: worktree bootstrap, open, remove orchestration
+- `lib/wt/create.sh`: create/recreate flows and existing-branch handling
+- `lib/wt/navigate.sh`: `wt cd` / `wt ls`
+- `lib/wt/cleanup.sh`: `wt cleanup`
 - `lib/rebuild/common.sh`: logging, worktree detection, argument parsing
 - `lib/rebuild/worktree.sh`: `mkOutOfStoreSymlink` drift guard
 - `lib/rebuild/locks.sh`: cooperative nrs/rebuild locking
@@ -25,7 +28,7 @@
 
 - Top-level entrypoints stay thin. New runtime logic belongs in a helper file unless it is dispatch/help text.
 - Helpers are grouped by change reason, not by arbitrary line counts.
-- Loader source order is part of the contract. Keep the explicit `source` order in top-level entrypoints in sync with helper dependencies.
-- If a new helper is added, update the loader's helper-set check, explicit `source` order, and `modules/shared/programs/shell/default.nix` together.
+- Loader source order is part of the contract. The ordered helper manifest in each top-level entrypoint is the single source of truth for helper membership and load order.
+- If a new helper is added, update the entrypoint helper manifest and `modules/shared/programs/shell/default.nix` together.
 - `tests/shell-script-tests.sh` must stay hermetic and recursive-layout aware: it should ignore host Git hooks/config and mirror the deployed helper tree shape, not a flat copy.
 - Tests must exercise the deployed layout, not only the repo-local path. `tests/shell-script-tests.sh` should validate both the expected Home Manager wiring and runtime smoke paths.

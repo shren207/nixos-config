@@ -48,6 +48,14 @@ REBUILD_COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REBUILD_COMMON_LIB_DIR=""
 REBUILD_DEPLOYED_LIB_DIR="$REBUILD_COMMON_DIR/rebuild"
 REBUILD_REPO_LIB_DIR=""
+REBUILD_HELPERS=(
+    common
+    worktree
+    locks
+    preflight
+    relink
+    preview
+)
 
 case "$REBUILD_COMMON_DIR" in
     */modules/shared/scripts) REBUILD_REPO_LIB_DIR="$REBUILD_COMMON_DIR/lib/rebuild" ;;
@@ -55,12 +63,11 @@ esac
 
 _rebuild_has_helper_set() {
     local dir="$1"
-    [[ -f "$dir/common.sh" ]] \
-        && [[ -f "$dir/worktree.sh" ]] \
-        && [[ -f "$dir/locks.sh" ]] \
-        && [[ -f "$dir/preflight.sh" ]] \
-        && [[ -f "$dir/relink.sh" ]] \
-        && [[ -f "$dir/preview.sh" ]]
+    local helper
+    for helper in "${REBUILD_HELPERS[@]}"; do
+        [[ -f "$dir/$helper.sh" ]] || return 1
+    done
+    return 0
 }
 
 if _rebuild_has_helper_set "$REBUILD_DEPLOYED_LIB_DIR"; then
@@ -74,18 +81,10 @@ fi
     exit 1
 }
 
-# Load order is intentional: later helpers depend on globals/functions from earlier ones.
-# shellcheck source=/dev/null
-source "$REBUILD_COMMON_LIB_DIR/common.sh"
-# shellcheck source=/dev/null
-source "$REBUILD_COMMON_LIB_DIR/worktree.sh"
-# shellcheck source=/dev/null
-source "$REBUILD_COMMON_LIB_DIR/locks.sh"
-# shellcheck source=/dev/null
-source "$REBUILD_COMMON_LIB_DIR/preflight.sh"
-# shellcheck source=/dev/null
-source "$REBUILD_COMMON_LIB_DIR/relink.sh"
-# shellcheck source=/dev/null
-source "$REBUILD_COMMON_LIB_DIR/preview.sh"
+# Load order is intentional and driven by the ordered helper manifest above.
+for helper in "${REBUILD_HELPERS[@]}"; do
+    # shellcheck source=/dev/null
+    source "$REBUILD_COMMON_LIB_DIR/$helper.sh"
+done
 
 detect_worktree

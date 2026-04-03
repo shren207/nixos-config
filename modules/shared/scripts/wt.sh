@@ -39,6 +39,15 @@ WT_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WT_LIB_DIR=""
 WT_DEPLOYED_LIB_DIR="$(cd "$WT_SCRIPT_DIR/.." && pwd)/lib/wt"
 WT_REPO_LIB_DIR=""
+WT_HELPERS=(
+  ui
+  tmux
+  git-state
+  bootstrap
+  create
+  navigate
+  cleanup
+)
 
 case "$WT_SCRIPT_DIR" in
   */modules/shared/scripts) WT_REPO_LIB_DIR="$WT_SCRIPT_DIR/lib/wt" ;;
@@ -46,10 +55,11 @@ esac
 
 _wt_has_helper_set() {
   local dir="$1"
-  [[ -f "$dir/ui.sh" ]] \
-    && [[ -f "$dir/tmux.sh" ]] \
-    && [[ -f "$dir/git-state.sh" ]] \
-    && [[ -f "$dir/commands.sh" ]]
+  local helper
+  for helper in "${WT_HELPERS[@]}"; do
+    [[ -f "$dir/$helper.sh" ]] || return 1
+  done
+  return 0
 }
 
 if _wt_has_helper_set "$WT_DEPLOYED_LIB_DIR"; then
@@ -63,15 +73,11 @@ fi
   exit 1
 }
 
-# Load order is intentional: later helpers depend on UI/globals from earlier ones.
-# shellcheck source=/dev/null
-source "$WT_LIB_DIR/ui.sh"
-# shellcheck source=/dev/null
-source "$WT_LIB_DIR/tmux.sh"
-# shellcheck source=/dev/null
-source "$WT_LIB_DIR/git-state.sh"
-# shellcheck source=/dev/null
-source "$WT_LIB_DIR/commands.sh"
+# Load order is intentional and driven by the ordered helper manifest above.
+for helper in "${WT_HELPERS[@]}"; do
+  # shellcheck source=/dev/null
+  source "$WT_LIB_DIR/$helper.sh"
+done
 
 # ── 도움말 ───────────────────────────────────────────────────────────────────
 

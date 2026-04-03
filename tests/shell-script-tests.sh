@@ -238,6 +238,30 @@ test_wt_ls_from_deployed_layout_lists_worktrees() {
   assert_contains "$output" "feature_one"
 }
 
+test_wt_cd_by_name_returns_target_path() {
+  local sandbox home_dir repo_root output expected_path
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  repo_root="$sandbox/repo"
+
+  create_git_fixture_repo "$repo_root"
+  repo_root="$(cd "$repo_root" && pwd -P)"
+  install_deployed_layout "$sandbox" "$repo_root"
+
+  expected_path="$repo_root/.claude/worktrees/feature_one"
+  output=$(
+    HOME="$home_dir" \
+    PATH="$FIXTURE_DIR/bin:$PATH" \
+    bash -c '
+      set -euo pipefail
+      cd "'"$repo_root"'"
+      "'"$home_dir/.local/bin/wt"'" cd feature_one
+    ' 2>&1
+  )
+
+  assert_contains "$output" "$expected_path"
+}
+
 test_shadow_paths_do_not_override_managed_helpers() {
   local sandbox home_dir repo_root worktree_root output
   sandbox=$(new_sandbox)
@@ -340,6 +364,43 @@ EOF
   assert_not_contains "$(cat "$marker_file")" "fallback"
 }
 
+test_wt_cleanup_auto_removes_merged_worktree() {
+  local sandbox home_dir repo_root gh_dir output target_path head_oid
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  repo_root="$sandbox/repo"
+  gh_dir="$sandbox/gh-bin"
+
+  create_git_fixture_repo "$repo_root"
+  repo_root="$(cd "$repo_root" && pwd -P)"
+  install_deployed_layout "$sandbox" "$repo_root"
+
+  git -C "$repo_root" remote add origin https://example.invalid/nixos-config.git
+  target_path="$repo_root/.claude/worktrees/feature_one"
+  head_oid="$(git -C "$target_path" rev-parse HEAD)"
+
+  mkdir -p "$gh_dir"
+  cat > "$gh_dir/gh" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'MERGED %s\n' "$head_oid"
+EOF
+  chmod +x "$gh_dir/gh"
+
+  output=$(
+    HOME="$home_dir" \
+    PATH="$gh_dir:$FIXTURE_DIR/bin:$PATH" \
+    bash -c '
+      set -euo pipefail
+      cd "'"$repo_root"'"
+      "'"$home_dir/.local/bin/wt"'" cleanup --auto
+    ' 2>&1
+  )
+
+  assert_contains "$output" "자동 정리 완료"
+  [[ ! -d "$target_path" ]] || fail "expected merged worktree to be removed: $target_path"
+}
+
 test_missing_managed_helpers_fail_closed() {
   local sandbox home_dir repo_root output
   sandbox=$(new_sandbox)
@@ -406,11 +467,77 @@ EOF
   [[ ! -e "$hook_marker" ]] || fail "expected fixture git setup to ignore host global hooks"
 }
 
+test_nixos_nrs_offline_force_smoke() {
+  local sandbox home_dir repo_root stub_dir output result_target
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  repo_root="$sandbox/repo"
+  stub_dir="$sandbox/stub-bin"
+
+  create_git_fixture_repo "$repo_root"
+  repo_root="$(cd "$repo_root" && pwd -P)"
+  install_deployed_layout "$sandbox" "$repo_root"
+
+  mkdir -p "$stub_dir" "$home_dir/.local/bin"
+  cat > "$stub_dir/sudo" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+"$@"
+EOF
+  cat > "$stub_dir/nixos-rebuild" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+case "$1" in
+  build)
+    ln -sfn "${NRS_RESULT_TARGET:?}" ./result
+    ;;
+  switch)
+    :
+    ;;
+  *)
+    echo "unexpected nixos-rebuild subcommand: $1" >&2
+    exit 1
+    ;;
+esac
+EOF
+  cat > "$stub_dir/nvd" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+echo "stub nvd diff"
+EOF
+  cat > "$home_dir/.local/bin/nrs-relink" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exit 0
+EOF
+  chmod +x "$stub_dir/sudo" "$stub_dir/nixos-rebuild" "$stub_dir/nvd" "$home_dir/.local/bin/nrs-relink"
+
+  result_target="$sandbox/current-system"
+  mkdir -p "$result_target"
+
+  output=$(
+    HOME="$home_dir" \
+    PATH="$stub_dir:$FIXTURE_DIR/bin:$PATH" \
+    NRS_RESULT_TARGET="$result_target" \
+    bash -c '
+      set -euo pipefail
+      cd "'"$repo_root"'"
+      bash "'"$REPO_ROOT/modules/nixos/scripts/nrs.sh"'" --offline --force
+    ' 2>&1
+  )
+
+  assert_contains "$output" "Applying changes (offline)"
+  assert_contains "$output" "Done!"
+}
+
 run_test "wt help uses deployed helper layout" test_wt_help_from_deployed_layout
 run_test "rebuild-common exports public API" test_rebuild_common_exports_public_api
 run_test "detect_worktree switches to active worktree" test_detect_worktree_uses_current_worktree_path
+run_test "wt cd returns target path by name" test_wt_cd_by_name_returns_target_path
 run_test "wt ls lists deployed worktrees" test_wt_ls_from_deployed_layout_lists_worktrees
 run_test "shadow paths do not override managed helpers" test_shadow_paths_do_not_override_managed_helpers
 run_test "wt create uses managed codex-sync path" test_wt_create_creates_worktree_without_shadow_codex_sync
+run_test "wt cleanup auto removes merged worktree" test_wt_cleanup_auto_removes_merged_worktree
 run_test "missing managed helpers fail closed" test_missing_managed_helpers_fail_closed
 run_test "fixture git setup ignores host global hooks" test_fixture_git_is_hermetic_against_global_hooks
+run_test "nixos nrs offline force smoke" test_nixos_nrs_offline_force_smoke
