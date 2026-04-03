@@ -202,15 +202,21 @@ if [ -f "$REPO_ROOT/.codex/hooks.json" ]; then
 import json, sys
 with open(sys.argv[1]) as f:
     data = json.load(f)
-assert isinstance(data, dict)
+if not isinstance(data, dict):
+    raise SystemExit(".codex/hooks.json top-level must be an object")
 hooks = data.get("hooks")
-assert isinstance(hooks, dict)
+if not isinstance(hooks, dict):
+    raise SystemExit(".codex/hooks.json must contain a top-level 'hooks' object")
 for event, groups in hooks.items():
-    assert isinstance(event, str)
-    assert isinstance(groups, list)
+    if not isinstance(event, str):
+        raise SystemExit("hook event names must be strings")
+    if not isinstance(groups, list):
+        raise SystemExit(f"hook groups for {event} must be a list")
     for group in groups:
-        assert isinstance(group, dict)
-        assert isinstance(group.get("hooks"), list)
+        if not isinstance(group, dict):
+            raise SystemExit(f"hook group for {event} must be an object")
+        if not isinstance(group.get("hooks"), list):
+            raise SystemExit(f"hook list for {event} must be a list")
 PY
   then
     pass ".codex/hooks.json JSON 파싱 성공"
@@ -226,8 +232,12 @@ if [ -f "$REPO_ROOT/.codex/hooks.compatibility.json" ]; then
 import json, sys
 with open(sys.argv[1]) as f:
     data = json.load(f)
-assert "summary" in data
-assert "items" in data
+if not isinstance(data, dict):
+    raise SystemExit(".codex/hooks.compatibility.json top-level must be an object")
+if not isinstance(data.get("summary"), dict):
+    raise SystemExit(".codex/hooks.compatibility.json must contain a summary object")
+if not isinstance(data.get("items"), list):
+    raise SystemExit(".codex/hooks.compatibility.json must contain an items array")
 PY
   then
     pass ".codex/hooks.compatibility.json 구조 확인"

@@ -316,7 +316,7 @@ agents_override() {
   auto_content+=$'\n'"## 스킬 사용"$'\n\n'
   auto_content+="- \`.agents/skills/\`에서 스킬이 자동 발견된다"$'\n'
   auto_content+="- \`/skill-name\`은 Codex에서 \`\$skill-name\`에 대응"$'\n'
-  auto_content+="- Claude hooks는 experimental이며, sync.sh가 호환 가능한 subset만 \`.codex/hooks.json\`로 투영한다"$'\n'
+  auto_content+="- Codex hooks는 experimental이며, sync.sh는 Claude hooks 중 호환 가능한 subset만 \`.codex/hooks.json\`로 투영하고 진단은 \`.codex/hooks.compatibility.json\`에 기록한다"$'\n'
   auto_content+="- plugins와 MCP UI는 여전히 Claude Code 전용 기능이다"$'\n'
   auto_content+="- SKILL.md의 \`allowed-tools\` frontmatter는 Codex에서 무시됨"$'\n'
 

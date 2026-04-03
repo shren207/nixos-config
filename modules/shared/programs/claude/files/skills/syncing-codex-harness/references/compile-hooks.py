@@ -12,30 +12,29 @@ DOCS_VALIDATED_ON = "2026-04-03"
 GENERATOR = "syncing-codex-harness"
 
 
-def load_json(path: str | None) -> dict:
+def load_json(path: str | None, *, required: bool = False) -> tuple[dict, bool]:
     if not path:
-        return {}
+        return {}, False
 
     file = Path(path)
     if not file.is_file():
-        return {}
+        return {}, False
 
-    with file.open() as handle:
-        payload = json.load(handle)
+    try:
+        with file.open() as handle:
+            payload = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        if required:
+            raise
+        return {}, True
 
-    return payload if isinstance(payload, dict) else {}
+    return (payload if isinstance(payload, dict) else {}), True
 
 
-def load_hooks(path: str | None) -> dict[str, list[dict]]:
-    payload = load_json(path)
+def load_hooks(path: str | None, *, required: bool = False) -> tuple[dict[str, list[dict]], bool]:
+    payload, present = load_json(path, required=required)
     hooks = payload.get("hooks", {})
-    return hooks if isinstance(hooks, dict) else {}
-
-
-def hooks_file_exists(path: str | None) -> bool:
-    if not path:
-        return False
-    return Path(path).is_file()
+    return (hooks if isinstance(hooks, dict) else {}), present
 
 
 def detect_codex_version() -> str:
@@ -126,10 +125,9 @@ def main() -> None:
     parser.add_argument("--output-report", required=True)
     args = parser.parse_args()
 
-    project_hooks = load_hooks(args.project_settings)
-    effective_hooks = load_hooks(args.effective_settings)
-    effective_exists = hooks_file_exists(args.effective_settings)
-    drift_detected = effective_exists and project_hooks != effective_hooks
+    project_hooks, _ = load_hooks(args.project_settings, required=True)
+    effective_hooks, effective_present = load_hooks(args.effective_settings)
+    drift_detected = effective_present and project_hooks != effective_hooks
 
     compiled_hooks: dict[str, list[dict]] = {}
     items: list[dict] = []

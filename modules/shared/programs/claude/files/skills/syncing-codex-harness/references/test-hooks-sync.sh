@@ -47,6 +47,17 @@ python3 "$COMPILER" \
 
 jq -e '.drift_detected == true' "$TMPDIR/report-empty.json" >/dev/null
 
+INVALID_EFFECTIVE="$TMPDIR/effective-invalid.json"
+printf '%s\n' '{"hooks":' > "$INVALID_EFFECTIVE"
+
+python3 "$COMPILER" \
+  --project-settings "$PROJECT_SETTINGS" \
+  --effective-settings "$INVALID_EFFECTIVE" \
+  --output-hooks "$TMPDIR/hooks-invalid.json" \
+  --output-report "$TMPDIR/report-invalid.json"
+
+jq -e '.drift_detected == true' "$TMPDIR/report-invalid.json" >/dev/null
+
 SYNC_SH="$SCRIPT_DIR/sync.sh"
 REPO_ROOT="$TMPDIR/repo"
 HOME_ROOT="$TMPDIR/home"
