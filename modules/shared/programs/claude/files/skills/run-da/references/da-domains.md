@@ -37,8 +37,8 @@
 
 - **유형**: RECOVERABLE / STATEFUL
 - **이유**: 어떤 규칙을 왜 위반했는지
-- **필요 작업**: `run-da` canonical contract의 stateful-violation 정의에서 실제로 발생한 항목 (`tracked write`, `branch mutation`, `commit/push`, `GitHub write`, `main-agent-only command`, `host mutation`)을 그대로 적는다
-- **정리 대상**: 이번 실행이 만든 scratch dir, 임시 ref/branch, 기타 산출물처럼 cleanup 범위를 특정하는 정보
+- **필요 작업**: RECOVERABLE이면 `N/A` 또는 설명을 적고, STATEFUL이면 `run-da` canonical contract의 stateful-violation 정의에서 실제로 발생한 항목 (`tracked write`, `branch mutation`, `commit/push`, `GitHub write`, `main-agent-only command`, `host mutation`)을 그대로 적는다
+- **정리 대상**: RECOVERABLE이면 `N/A`, STATEFUL이면 이번 실행이 만든 scratch dir, 임시 ref/branch, 기타 산출물처럼 cleanup 범위를 특정하는 정보를 적는다
 - **로컬 정리 필요**: YES / NO
 ```
 
@@ -70,7 +70,7 @@
 집중 대상:
 {FOCUS_TARGETS}
 
-PoC가 필요하면 repo 밖 scratch 디렉토리(`/tmp` 등)에서만 수행하라.
+PoC가 필요하면 `umask 077` 아래에서 `mktemp -d`로 만든 repo 밖 private scratch 디렉토리에서만 수행하라.
 tracked workspace write, branch mutation, commit/push, GitHub write, main-agent-only command, host mutation은 explicit delegation 없이는 금지다.
 위 규칙을 위반했거나 금지된 작업이 필요하면 finding 대신 `VIOLATION` 형식으로 반환하라.
 

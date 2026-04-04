@@ -100,7 +100,7 @@ codex exec 실패 시 (exit code != 0, 빈 결과 파일):
 
 ## direct Codex violation 처리
 
-direct Codex path에서는 Arbiter/Intensity가 위반 상태를 발견하거나 직접 위반을 저지른 경우 다음을 적용한다.
+direct Codex path에서는 Arbiter/Intensity가 새 verdict를 반환하는 것이 아니라, 메인 에이전트가 contract breach 또는 malformed output을 감지했을 때 아래 규칙으로 분류한다.
 
 - `recoverable violation`: 출력 형식 위반, prompt contract 미준수처럼 상태를 바꾸지 않은 위반. 결과를 폐기하고 fresh subagent로 1회 재실행한다.
 - `stateful violation`: tracked write, branch mutation, commit/push, GitHub write, main-agent-only command 실행, host mutation처럼 상태를 바꾼 위반. 현재 라운드를 즉시 중단하고 offending thread를 닫는다.

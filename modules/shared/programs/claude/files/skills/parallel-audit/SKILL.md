@@ -125,7 +125,8 @@ N개 에이전트를 **한 턴에 동시 병렬 실행**한다.
 2. 중복 발견을 제거한다 (여러 bundle에서 같은 문제를 지적한 경우).
 3. 심각도 순으로 정렬한다.
 4. direct Codex path에서는 결과 집계가 끝난 completed audit thread를 `close_agent`로 닫아 다음 batch/retry 슬롯을 회수한다.
-5. `BLOCKED (VIOLATION)` 또는 동등한 위반 상태는 `SAFE`로 집계하지 않는다. offending unit을 fresh auditor로 재디스패치하거나, 불완전한 run으로 사용자에게 명시 보고한다.
+5. `BLOCKED (VIOLATION)` 또는 동등한 위반 상태는 `SAFE`로 집계하지 않는다. 이는 auditor가 새 상태 코드를 정의하는 것이 아니라, 메인 에이전트가 contract breach를 감지했을 때 부여하는 조율 상태다.
+6. `BLOCKED (VIOLATION)` unit은 cleanup 범위가 특정되거나 사용자에게 불완전한 run이 보고되기 전에는 fresh auditor로 재디스패치하지 않는다.
 
 ### Step 5: 종합 리포트 생성
 
@@ -172,7 +173,7 @@ N개 에이전트를 **한 턴에 동시 병렬 실행**한다.
 | 컨텍스트 부족 | 추가 파일/정보를 제공 후 재디스패치 |
 | 범위 과대 | bundle을 세분화하여 2개 에이전트로 분할 |
 | 접근 불가 | 해당 bundle을 사용자에게 보고하고 수동 확인 요청 |
-| 위반 상태 (`VIOLATION`) | current unit을 `BLOCKED (VIOLATION)`로 기록하고, tracked write/branch mutation/commit/push/GitHub/main-agent-only command/host mutation 시도 여부와 이번 실행이 만든 산출물 범위를 먼저 확인한다. cleanup 범위가 특정되기 전에는 fresh auditor 재디스패치 금지 |
+| 위반 상태 (`VIOLATION`) | 메인 에이전트가 current unit을 `BLOCKED (VIOLATION)`로 분류하고, tracked write/branch mutation/commit/push/GitHub/main-agent-only command/host mutation 시도 여부와 이번 실행이 만든 산출물 범위를 먼저 확인한다. cleanup 범위가 특정되기 전에는 fresh auditor 재디스패치 금지 |
 
 에이전트의 BLOCKED를 무시하거나 같은 조건으로 재시도하지 않는다.
 

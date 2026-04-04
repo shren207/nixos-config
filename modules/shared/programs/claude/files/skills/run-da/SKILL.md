@@ -103,7 +103,7 @@ fallback / explicit `codex exec` path는 [arbiter-scaling.md](references/arbiter
 
 | 역할 | 허용 | 금지 |
 |------|------|------|
-| DA reviewer | 읽기, 검색, out-of-repo scratch PoC (`/tmp` 등) | tracked write, branch mutation, commit/push, GitHub write, `wt`/`nrs`/rebuild 계열 |
+| DA reviewer | 읽기, 검색, out-of-repo private scratch PoC (`mktemp -d`, `umask 077`) | tracked write, branch mutation, commit/push, GitHub write, `wt`/`nrs`/rebuild 계열 |
 | Arbiter / Intensity | 읽기 전용 검증 | 모든 write, scratch PoC, main-agent-only command |
 | Auditor (`parallel-audit`) | 읽기 전용 검증 | 모든 write, scratch PoC, main-agent-only command |
 | 메인 에이전트 | tracked write, external write, main-agent-only command, explicit delegation | Review Intensity/Arbiter 판정 대체 |
