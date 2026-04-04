@@ -274,11 +274,12 @@ archive_session() {
   fi
 
   # 6. meta.json 생성
-  local git_branch has_icons has_memo raw_entry_count is_worktree
+  local git_branch has_icons has_memo message_count is_worktree
   git_branch=$(extract_header_field "$jsonl_path" "gitBranch")
   [ -f "$icons_file" ] && has_icons=true || has_icons=false
   [ -f "$memo_file" ] && has_memo=true || has_memo=false
-  raw_entry_count=$(grep -cE '"type":"(user|assistant)"' "$jsonl_path" 2>/dev/null || echo 0)
+  # raw user+assistant entry count (not conversation turns; MD section count may differ)
+  message_count=$(grep -cE '"type":"(user|assistant)"' "$jsonl_path" 2>/dev/null || echo 0)
 
   # worktree 판별
   if [ -f "$cwd_from_jsonl/.git" ] 2>/dev/null; then
@@ -296,7 +297,7 @@ archive_session() {
     --arg original_path "$jsonl_path" \
     --argjson has_icons "$has_icons" \
     --argjson has_memo "$has_memo" \
-    --argjson message_count "$raw_entry_count" \
+    --argjson message_count "$message_count" \
     --argjson worktree "$is_worktree" \
     '{
       session_id: $session_id,
@@ -453,6 +454,12 @@ main() {
 
     session)
       # --session <id>: CWD 인코딩으로 JSONL 경로 결정 (PID 파일 불필요)
+      # UUID 형식 검증 (경로 traversal 방지)
+      if ! printf '%s' "$target_session_id" | grep -qE '^[0-9a-f-]+$'; then
+        err "Invalid session ID format: $target_session_id"
+        exit 1
+      fi
+
       local encoded
       encoded=$(encode_path "$PWD")
       local jsonl_path="$CLAUDE_DIR/projects/$encoded/$target_session_id.jsonl"
