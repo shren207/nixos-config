@@ -33,7 +33,7 @@ description: |
 | 항목 | for_action | for_issue |
 |------|-----------|-----------|
 | 입력 | 이슈 레퍼런스 (URL/ID/이슈키) | 텍스트 설명 또는 빈 인자 |
-| 출력 | 사용자 승인을 받은 상세 실행 계획 (계획 파일) | 등록된 이슈 + LLM 이행 가이드 |
+| 출력 | 사용자 승인을 받은 상세 실행 계획 (계획 파일) | 등록된 이슈 (+ 선택적 LLM 이행 가이드) |
 | 핵심 도구 | AskUserQuestion, EnterPlanMode, ExitPlanMode | AskUserQuestion, Agent(fan-out), /create-issue |
 | DA | for_plan 실행 (for_action에서만) | 생략 (스무고개 자체가 품질 보장) |
 | PlanMode | 사용 (Step 7-9) | 미사용 (산출물이 이슈) |
@@ -131,7 +131,7 @@ create-issue 내부 Step 5에서 /write-handoff 실행 여부를 AskUserQuestion
 "이 이슈로 바로 작업을 시작할까요? (for_action 모드로 전환)"
 
 - Yes → 생성된 이슈 레퍼런스로 for_action 모드를 시작한다.
-- No → 이슈 URL을 반환하고 종료한다.
+- No → 생성된 이슈 레퍼런스를 반환하고 종료한다.
 
 ## for_action 모드 (이슈 레퍼런스 있음)
 
