@@ -125,8 +125,8 @@ N개 에이전트를 **한 턴에 동시 병렬 실행**한다.
 2. 중복 발견을 제거한다 (여러 bundle에서 같은 문제를 지적한 경우).
 3. 심각도 순으로 정렬한다.
 4. direct Codex path에서는 결과 집계가 끝난 completed audit thread를 `close_agent`로 닫아 다음 batch/retry 슬롯을 회수한다.
-5. `BLOCKED (VIOLATION)` 또는 동등한 위반 상태는 `SAFE`로 집계하지 않는다. 이는 auditor가 새 상태 코드를 정의하는 것이 아니라, 메인 에이전트가 contract breach를 감지했을 때 부여하는 조율 상태다.
-6. `BLOCKED (VIOLATION)` unit은 cleanup 범위가 특정되거나 사용자에게 불완전한 run이 보고되기 전에는 fresh auditor로 재디스패치하지 않는다.
+5. `RECOVERABLE VIOLATION`은 `SAFE`에서 제외하고 fresh auditor로 재디스패치한다. 이는 auditor가 새 상태 코드를 정의하는 것이 아니라, 메인 에이전트가 출력 형식 위반이나 scope 침범 같은 contract breach를 감지했을 때 부여하는 조율 분류다.
+6. `STATEFUL VIOLATION`만 `BLOCKED (VIOLATION)`로 남긴다. 이 경우 cleanup 범위가 특정되거나 사용자에게 불완전한 run이 보고되기 전에는 fresh auditor로 재디스패치하지 않는다.
 
 ### Step 5: 종합 리포트 생성
 
@@ -173,7 +173,8 @@ N개 에이전트를 **한 턴에 동시 병렬 실행**한다.
 | 컨텍스트 부족 | 추가 파일/정보를 제공 후 재디스패치 |
 | 범위 과대 | bundle을 세분화하여 2개 에이전트로 분할 |
 | 접근 불가 | 해당 bundle을 사용자에게 보고하고 수동 확인 요청 |
-| 위반 상태 (`VIOLATION`) | 메인 에이전트가 current unit을 `BLOCKED (VIOLATION)`로 분류하고, tracked write/branch mutation/commit/push/GitHub/main-agent-only command/host mutation 시도 여부와 이번 실행이 만든 산출물 범위를 먼저 확인한다. cleanup 범위가 특정되기 전에는 fresh auditor 재디스패치 금지 |
+| recoverable violation | 메인 에이전트가 current unit을 `RECOVERABLE VIOLATION`으로 분류하고, `SAFE` 계산에서 제외한 뒤 fresh auditor로 재디스패치 |
+| stateful violation | 메인 에이전트가 current unit을 `BLOCKED (VIOLATION)`로 분류하고, tracked write/branch mutation/commit/push/GitHub/main-agent-only command/host mutation 시도 여부와 이번 실행이 만든 산출물 범위를 먼저 확인한다. cleanup 범위가 특정되기 전에는 fresh auditor 재디스패치 금지 |
 
 에이전트의 BLOCKED를 무시하거나 같은 조건으로 재시도하지 않는다.
 
@@ -244,5 +245,5 @@ BUG/REGRESSION/EDGECASE가 있으면 요약 테이블 아래에 상세를 추가
 - 변경 범위가 극소한 경우 에이전트 수를 줄여 효율을 높인다.
 - 기본값은 6이며, `parallel-audit 10`만 exhaustive override다. 10은 기본값이 아니다.
 - direct Codex path에서는 completed audit thread를 다음 batch/retry 전에 명시적으로 `close_agent`로 닫는다.
-- `SAFE`는 유효한 auditor 결과가 모두 확보된 뒤에만 반환한다. `BLOCKED (VIOLATION)` 또는 미재실행 unit이 남아 있으면 완료로 간주하지 않는다.
+- `SAFE`는 유효한 auditor 결과가 모두 확보된 뒤에만 반환한다. `RECOVERABLE VIOLATION` 재디스패치 중이거나 `BLOCKED (VIOLATION)` unit이 남아 있으면 완료로 간주하지 않는다.
 - DA 피드백 루프(run-da)와 목적이 다르다: DA는 설계/코드 품질을 반복 개선하고, 전수조사는 변경의 안전성을 일회성으로 검증한다.

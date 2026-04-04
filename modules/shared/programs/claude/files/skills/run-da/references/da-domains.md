@@ -24,7 +24,7 @@
 - **권장 수정**: 구체적 수정 방향
 ```
 
-위반 미발견 시:
+문제 미발견 시:
 
 ```text
 [reviewer bundle]: CLEAR
@@ -75,7 +75,7 @@ tracked workspace write, branch mutation, commit/push, GitHub write, main-agent-
 위 규칙을 위반했거나 금지된 작업이 필요하면 finding 대신 `VIOLATION` 형식으로 반환하라.
 
 다른 bundle({OTHER_BUNDLES})의 우려는 언급하지 마라.
-위반이 없으면 CLEAR를 반환하라.
+문제가 없으면 CLEAR를 반환하라.
 
 [공통 출력 형식에 따라 결과를 반환하라]
 ```

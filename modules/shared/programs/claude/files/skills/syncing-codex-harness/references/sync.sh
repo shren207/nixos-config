@@ -343,8 +343,8 @@ agents_override() {
       ' "$override_file")"
       printf '%s\n' "$new_content" > "$override_file"
     else
-      local legacy_quoted
-      legacy_quoted="$(sed 's/^/> /' "$override_file")"
+      local legacy_preserved
+      legacy_preserved="$(sed 's/^#/##/' "$override_file")"
       cat > "$override_file" <<OVERRIDE
 # Codex CLI 보충 규칙
 
@@ -359,9 +359,9 @@ ${auto_content}${end_marker}
 
 ### Legacy Markerless Content
 
-아래는 markerless \`AGENTS.override.md\`에서 안전하게 보존한 원문이다. 필요한 규칙은 수동으로 정리하라.
+아래는 markerless \`AGENTS.override.md\`에서 활성 custom content로 이행한 원문이다. 중복 규칙이 있으면 이후 수동으로 정리하라.
 
-${legacy_quoted}
+${legacy_preserved}
 OVERRIDE
     fi
   else
