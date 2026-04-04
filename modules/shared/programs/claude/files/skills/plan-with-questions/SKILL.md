@@ -34,12 +34,12 @@ description: |
 |------|-----------|-----------|
 | 입력 | 이슈 레퍼런스 (URL/ID/이슈키) | 텍스트 설명 또는 빈 인자 |
 | 출력 | 사용자 승인을 받은 상세 실행 계획 (계획 파일) | 등록된 이슈 + LLM 이행 가이드 |
-| 핵심 도구 | AskUserQuestion, EnterPlanMode, ExitPlanMode, Agent(fan-out) | AskUserQuestion, Agent(fan-out), /create-issue |
+| 핵심 도구 | AskUserQuestion, EnterPlanMode, ExitPlanMode | AskUserQuestion, Agent(fan-out), /create-issue |
 | DA | for_plan 실행 (for_action에서만) | 생략 (스무고개 자체가 품질 보장) |
 | PlanMode | 사용 (Step 7-9) | 미사용 (산출물이 이슈) |
 | 제1원칙 | YAGNI / NGMI | YAGNI / NGMI |
 
-## fan-out / fan-in 공통
+## fan-out / fan-in (for_issue)
 
 ### 역할 카탈로그
 
@@ -110,6 +110,8 @@ fan-in 결과에서 미해결 항목(블랙박스 제로 원칙의 "블랙박스
 
 AskUserQuestion으로 한 라운드에 최대 4개 질문을 묻는다.
 우선순위가 높은(아키텍처 결정, 핵심 요구사항) 질문부터 시작한다.
+(for_action Step 4의 "한번에 모아서"와 달리 라운드당 제한을 두는 이유:
+for_issue는 반복 라운드로 점진적으로 이슈를 정의하므로 과부하 방지가 필요하다.)
 
 각 라운드 후:
 1. 답변된 체크리스트 항목을 ✅로 업데이트
