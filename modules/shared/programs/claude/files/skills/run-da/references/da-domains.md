@@ -9,12 +9,12 @@
 
 모든 DA reviewer는 다음 형식으로 결과를 반환한다.
 
-위반 발견 시:
+문제 발견 시:
 
 ```text
-## [reviewer bundle] 위반 발견: [count]건
+## [reviewer bundle] 문제 발견: [count]건
 
-### 1. [위반 제목]
+### 1. [문제 제목]
 - **ID**: {BUNDLE}-{순번}
 - **세부 관점**: {SUBDOMAIN}
 - **위치**: [파일:줄] 또는 [계획 항목 번호]
@@ -71,7 +71,7 @@
 {FOCUS_TARGETS}
 
 PoC가 필요하면 repo 밖 scratch 디렉토리(`/tmp` 등)에서만 수행하라.
-tracked workspace write, branch mutation, commit/push, GitHub write, `wt`/`nrs`/rebuild 계열은 explicit delegation 없이는 금지다.
+tracked workspace write, branch mutation, commit/push, GitHub write, main-agent-only command, host mutation은 explicit delegation 없이는 금지다.
 위 규칙을 위반했거나 금지된 작업이 필요하면 finding 대신 `VIOLATION` 형식으로 반환하라.
 
 다른 bundle({OTHER_BUNDLES})의 우려는 언급하지 마라.

@@ -343,35 +343,9 @@ agents_override() {
       ' "$override_file")"
       printf '%s\n' "$new_content" > "$override_file"
     else
-      local legacy_custom=""
-      if grep -q '^## 사용자 커스텀[[:space:]]*$' "$override_file"; then
-        legacy_custom="$(awk '
-          begin == 1 { print }
-          /^## 사용자 커스텀[[:space:]]*$/ { begin = 1; next }
-        ' "$override_file")"
-      elif grep -q '^## 빌드[[:space:]]*$' "$override_file"; then
-        legacy_custom="$(awk '
-          begin == 1 { print }
-          /^## 빌드[[:space:]]*$/ { begin = 1; print; next }
-        ' "$override_file" | sed '1s/^## /### /')"
-      else
-        legacy_custom=$'### Legacy Markerless Content\n\n아래는 markerless `AGENTS.override.md`에서 보존한 원문이다.\n\n```markdown\n'"$(cat "$override_file")"$'\n```'
-      fi
-
-      cat > "$override_file" <<OVERRIDE
-# Codex CLI 보충 규칙
-
-## 이 파일의 역할
-
-AGENTS.md(= CLAUDE.md 심링크)의 프로젝트 규칙을 모두 따르되, 아래는 Codex 전용 보충이다.
-
-${start_marker}
-${auto_content}${end_marker}
-
-## 사용자 커스텀
-
-${legacy_custom}
-OVERRIDE
+      echo "Error: markerless AGENTS.override.md detected at $override_file" >&2
+      echo "Run a one-time manual migration to the marker-based format before re-running sync.sh agents-override." >&2
+      return 1
     fi
   else
     # Create new from template
