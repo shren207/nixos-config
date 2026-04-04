@@ -31,7 +31,7 @@ cmd_create() {
     shift
   done
 
-  [[ -z "$branch_name" ]] && _die "브랜치명을 지정하세요. 사용법: wt [--stay] [--claude] <branch>"
+  [[ -z "$branch_name" ]] && _die "브랜치명을 지정하세요. 사용법: wt [--stay] [--claude] [--tmux] <branch>"
 
   local git_root
   git_root=$(_get_repo_root) || _die "Git 저장소가 아닙니다"
