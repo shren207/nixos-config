@@ -9,6 +9,7 @@ NRS_LOCK_FILE="/tmp/nrs-state"
 NRS_LOCK_TIMEOUT_MINUTES=30
 NRS_LOCK_ACQUIRED=false    # 이 프로세스가 lock을 획득했는가? (EXIT trap 보호용)
 NRS_LOCK_REENTRY=false     # 기존 lock에 대한 재진입인가?
+NRS_LOCK_SWITCH_SUCCESS=false
 
 is_stale_lock() {
     # Returns 0 (true) if stale, 1 (false) if active
@@ -39,6 +40,7 @@ is_stale_lock() {
 acquire_nrs_lock() {
     local now
     now=$(date +%s)
+    NRS_LOCK_SWITCH_SUCCESS=false
 
     # Main worktree: lock 취득하지 않음, 기존 lock 존재 시 경고만 표시
     if [[ "$FLAKE_PATH" == "$MAIN_FLAKE_PATH" ]]; then
@@ -146,6 +148,16 @@ release_nrs_lock() {
     rm -f "$NRS_LOCK_FILE"
     NRS_LOCK_ACQUIRED=false
     log_info "🔓 Lock released"
+}
+
+release_nrs_lock_after_no_changes() {
+    if [[ "$NRS_LOCK_ACQUIRED" == true && "$NRS_LOCK_REENTRY" != true ]]; then
+        release_nrs_lock
+    fi
+}
+
+mark_nrs_lock_switch_success() {
+    NRS_LOCK_SWITCH_SUCCESS=true
 }
 
 release_nrs_lock_on_failure() {
