@@ -100,7 +100,7 @@ N개 에이전트를 **한 턴에 동시 병렬 실행**한다.
 - 담당 bundle에만 집중한다. 다른 bundle은 언급하지 않는다.
 - 발견 사항마다 구체적 파일:줄과 근거를 제시한다.
 - 발견이 없으면 SAFE를 반환한다.
-- direct Codex path에서는 `run-da` canonical contract의 strong review profile을 사용한다.
+- direct Codex path에서는 `run-da` canonical contract의 standard review profile을 사용한다.
 - `wait_agent` timeout이나 단순 지연만으로 auditor를 kill하거나 self-auditing으로 대체하지 않는다.
 - tracked workspace write, branch mutation, commit/push, GitHub write, `wt`/`nrs`/rebuild 계열은 auditor가 실행하지 않는다.
 - direct Codex path에서는 current session의 open slot을 넘기지 않는다. `agents.max_threads`는 unset일 때 기본 6이며, completed thread도 `close_agent` 전에는 슬롯을 점유한다.
@@ -108,7 +108,7 @@ N개 에이전트를 **한 턴에 동시 병렬 실행**한다.
 ### Step 3a: direct Codex path
 
 - direct Codex 세션에서는 이 경로를 기본으로 사용한다.
-- bundle마다 fresh native subagent 1개를 strong review profile로 `spawn_agent` 실행한다.
+- bundle마다 fresh native subagent 1개를 standard review profile로 `spawn_agent` 실행한다.
 - bundle 수가 현재 open slot보다 많으면 batch로 나눈다.
 - 모든 결과는 `wait_agent`로 수신한다. timeout만으로 실패 처리하거나 auditor를 중간 kill/self-auditing으로 대체하지 않는다.
 
