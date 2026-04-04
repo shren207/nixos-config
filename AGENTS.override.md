@@ -27,7 +27,7 @@ AGENTS.md(= CLAUDE.md 심링크)의 프로젝트 규칙을 모두 따르되, 아
 
 ### Direct Codex
 
-- 이 저장소의 reviewer/auditor/Arbiter/Intensity는 [run-da contract](/Users/green/Workspace/nixos-config/.claude/worktrees/issue_419/modules/shared/programs/claude/files/skills/run-da/SKILL.md#L85)를 따른다.
+- 이 저장소의 reviewer/auditor/Arbiter/Intensity는 [modules/shared/programs/claude/files/skills/run-da/SKILL.md](modules/shared/programs/claude/files/skills/run-da/SKILL.md)의 `direct Codex 하드닝 계약` 섹션을 따른다.
 - tracked workspace write, branch mutation, commit/push, GitHub write는 메인 에이전트 전용이며 explicit delegation만 예외다.
 - `wt`/`nrs`/rebuild 계열은 메인 에이전트 전용이다.
 

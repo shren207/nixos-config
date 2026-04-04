@@ -343,7 +343,7 @@ agents_override() {
       printf '%s\n' "$new_content" > "$override_file"
     else
       local legacy_preserved
-      legacy_preserved="$(sed 's/^#/##/' "$override_file")"
+      legacy_preserved="$(sed -E 's/^(#+)([[:space:]])/\1#\2/' "$override_file")"
       cat > "$override_file" <<OVERRIDE
 # Codex CLI 보충 규칙
 
