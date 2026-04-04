@@ -41,6 +41,8 @@ is_stale_lock() {
 acquire_nrs_lock() {
     local now
     now=$(date +%s)
+    NRS_LOCK_ACQUIRED=false
+    NRS_LOCK_REENTRY=false
     NRS_LOCK_SWITCH_SUCCESS=false
 
     # Main worktree: lock 취득하지 않음, 기존 lock 존재 시 경고만 표시
@@ -153,7 +155,11 @@ release_nrs_lock() {
 
 release_nrs_lock_after_no_changes() {
     if [[ "$NRS_LOCK_ACQUIRED" == true && "$NRS_LOCK_REENTRY" != true ]]; then
-        release_nrs_lock
+        local lock_pid
+        lock_pid=$(jq -r '.pid' "$NRS_LOCK_FILE" 2>/dev/null || echo "0")
+        if [[ "$lock_pid" == "$$" ]]; then
+            release_nrs_lock
+        fi
     fi
 }
 
