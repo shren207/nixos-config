@@ -39,13 +39,11 @@ The auto-generated section may include:
 - Skill invocation syntax: `$skill-name` (not `/skill-name`)
 - Claude hooks are experimental in Codex; only the compatibility-checked subset should be projected into `.codex/hooks.json`
 - Claude Code-only plugin/MCP UI surfaces do not map 1:1 onto Codex
-- direct Codex sessions should prefer native subagents for `run-da`, `parallel-audit`, and `plan-with-questions` fan-out
-- direct Codex reviewer/auditor/Arbiter/Intensity paths should use the named `strong review profile`
+- direct Codex sessions should prefer native subagents over nested `codex exec` for review/audit/planning fan-out when the project defines that pattern
 - `codex exec` remains the default only for subprocess automation or explicit CLI requests
 - direct Codex 세션도 `CODEX_CI=1`을 가질 수 있으므로, 이를 direct session vs `codex exec` subprocess의 sole discriminator로 쓰지 않는다
 - current session의 open agent thread cap(`agents.max_threads`, unset 기본 6)을 넘기지 말고, completed agent thread는 다음 round/retry 전에 close한다
-- tracked workspace write, branch mutation, commit/push, GitHub write, `wt`/`nrs`/rebuild 계열은 main-agent-only unless explicitly delegated
-- detailed direct-Codex wait/write/violation rules should stay in the canonical `run-da` contract rather than being duplicated into override notes
+- project-specific direct-Codex authority boundaries, write rules, and lock-sensitive command rules should stay in project-local skill docs or the custom section of `AGENTS.override.md`
 - `allowed-tools` frontmatter in `SKILL.md` is ignored by Codex
 
 ## Preservation Logic
