@@ -55,7 +55,7 @@ SessionEnd 훅에 의한 자동 아카이빙으로 수동 작업 없이 보존.
 | `/archive` 스킬 | 스크립트 호출 + 결과 표시 | `modules/shared/programs/claude/files/skills/archive/SKILL.md` |
 | `auto-archive.sh` | SessionEnd 자동 아카이빙 훅 | `modules/shared/programs/claude/files/hooks/auto-archive.sh` |
 | Nix 모듈 | 스크립트/훅 심링크 등록 | `modules/shared/programs/claude/default.nix` |
-| recall (포크) | 아카이브 TUI 열람 | `github:greenheadHQ/recall` (flake input) |
+| recall (포크) | 아카이브 TUI 열람 | `github:greenheadHQ/recall` (GitHub flake input) |
 
 ## CLI 인터페이스
 

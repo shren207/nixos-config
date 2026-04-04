@@ -455,7 +455,7 @@ main() {
     session)
       # --session <id>: CWD 인코딩으로 JSONL 경로 결정 (PID 파일 불필요)
       # UUID 형식 검증 (경로 traversal 방지)
-      if ! printf '%s' "$target_session_id" | grep -qE '^[0-9a-f-]+$'; then
+      if ! printf '%s' "$target_session_id" | grep -qE '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'; then
         err "Invalid session ID format: $target_session_id"
         exit 1
       fi
