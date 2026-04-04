@@ -77,7 +77,7 @@ DA 호출 자체를 생략하지 마라 — run-da를 호출하면
 | 경로 | 사용 시점 | fan-out / wait / close |
 |------|----------|------------------------|
 | direct Codex path | 현재 세션이 native subagent 오케스트레이션(`spawn_agent`, `wait_agent`, `close_agent`)을 사용할 수 있을 때 | native subagent를 직접 fan-out하고, `wait_agent`로 결과를 받고, 다음 round/retry 전 completed thread를 `close_agent`로 닫는다 |
-| fallback / explicit `codex exec` path | Claude Code에서 Codex CLI를 subprocess로 호출할 때, 비대화형 automation일 때, 또는 사용자가 `codex exec`를 명시적으로 요구할 때 | `codex exec --full-auto --ephemeral` + 임시 prompt/result 파일 + stderr/result 검증 |
+| fallback / explicit `codex exec` path | Claude Code에서 Codex CLI를 subprocess로 호출할 때, 비대화형 automation일 때, 또는 사용자가 `codex exec`를 명시적으로 요구할 때 | reviewer/Intensity: `codex exec --full-auto --ephemeral -c model_reasoning_effort="high"`, Arbiter: `codex exec --full-auto --ephemeral` (config 기본 xhigh) + 임시 prompt/result 파일 + stderr/result 검증 |
 
 `CODEX_CI=1`만으로 direct Codex 세션과 `codex exec` subprocess를 구분하지 않는다.
 direct Codex 세션에서도 같은 값이 보일 수 있으므로, **현재 세션 capability**를 기준으로 경로를 고른다.
