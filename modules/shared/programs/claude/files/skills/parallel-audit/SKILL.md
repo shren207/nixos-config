@@ -114,7 +114,7 @@ N개 에이전트를 **한 턴에 동시 병렬 실행**한다.
 
 ### Step 3b: fallback / explicit `codex exec` path
 
-- Claude Code subprocess/비대화형 경로에서는 bundle마다 `codex exec --full-auto --ephemeral` subprocess 1개를 사용한다.
+- Claude Code subprocess/비대화형 경로에서는 bundle마다 `codex exec --full-auto --ephemeral -c model_reasoning_effort="high"` subprocess 1개를 사용한다.
 - 임시 prompt/result 파일, stderr/result 검증, `run_in_background`, stdin pipe 경쟁, heredoc hang 제약은 [/using-codex-exec 스킬](../using-codex-exec/SKILL.md)과 [known-issues.md](../using-codex-exec/references/known-issues.md)를 따른다.
 
 ### Step 4: 결과 수신 및 검증

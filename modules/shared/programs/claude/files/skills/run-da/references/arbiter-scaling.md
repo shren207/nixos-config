@@ -53,6 +53,7 @@ Claude Code에서 Codex CLI를 subprocess로 호출할 때, 비대화형 automat
 - `"$(cat "$ARBITER_DIR/arbiter-prompt.md")"` 인라인 인자
 - `2>"$ARBITER_DIR/arbiter-stderr.log"` stderr 분리
 - `-m` 플래그 생략 (config.toml 기본 모델)
+- Arbiter는 config.toml 기본 `model_reasoning_effort`(xhigh = strong review profile)를 사용한다. `-c` 오버라이드 불필요.
 - 프롬프트에서 "리뷰만 수행하고 파일을 수정하지 마라" 명시
 - `--ephemeral`로 세션 히스토리 오염 방지
 

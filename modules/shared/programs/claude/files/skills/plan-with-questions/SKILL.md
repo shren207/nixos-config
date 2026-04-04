@@ -54,7 +54,7 @@ fan-out 에이전트에 할당할 수 있는 역할:
 | 의존성/사이드이펙트 | 변경의 영향 범위, 의존 관계 분석 | Sonnet |
 
 LLM이 작업의 복잡도/도메인에 따라 에이전트 수(2-6개)와 역할을 동적으로 결정한다.
-DA/review 에이전트는 Opus를 사용한다 (레퍼런스 수집 에이전트와 구분).
+DA/review 에이전트는 run-da canonical contract의 프로파일을 따른다 (reviewer/Intensity는 standard, Arbiter는 strong).
 
 ### fan-in 통합 전략
 
