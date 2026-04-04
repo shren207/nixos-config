@@ -1,11 +1,12 @@
 # shellcheck shell=bash
 #───────────────────────────────────────────────────────────────────────────────
 # NRS Lock: worktree 간 동시 rebuild 방지를 위한 협조적 잠금
-# Lock 파일: /tmp/nrs-state (JSON: worktree, branch, timestamp, pid)
+# Lock 파일: 기본값 /tmp/nrs-state (JSON: worktree, branch, timestamp, pid)
+# 테스트/격리 실행에서는 NRS_LOCK_FILE env로 override 가능
 # 타임아웃: 30분 자동 만료
 #───────────────────────────────────────────────────────────────────────────────
-NRS_LOCK_FILE="/tmp/nrs-state"
-# 주의: 이 값은 rebuild-common.sh, nrs-lock.sh, nrs-lock-guard.sh 3곳에서 동일하게 유지해야 함
+NRS_LOCK_FILE="${NRS_LOCK_FILE:-/tmp/nrs-state}"
+# 주의: 기본값은 rebuild-common.sh, nrs-lock.sh, nrs-lock-guard.sh와 동일하게 유지
 NRS_LOCK_TIMEOUT_MINUTES=30
 NRS_LOCK_ACQUIRED=false    # 이 프로세스가 lock을 획득했는가? (EXIT trap 보호용)
 NRS_LOCK_REENTRY=false     # 기존 lock에 대한 재진입인가?

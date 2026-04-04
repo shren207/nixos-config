@@ -942,13 +942,11 @@ EOF
 }
 
 test_darwin_nrs_no_changes_releases_worktree_lock() {
-  local sandbox home_dir repo_root worktree_root stub_dir output result_target current_target
+  local sandbox home_dir repo_root worktree_root stub_dir output result_target current_target lock_file
   sandbox=$(new_sandbox)
   home_dir="$sandbox/home"
   repo_root="$sandbox/repo"
   stub_dir="$sandbox/stub-bin"
-
-  rm -f /tmp/nrs-state
 
   create_git_fixture_repo "$repo_root"
   repo_root="$(cd "$repo_root" && pwd -P)"
@@ -959,6 +957,8 @@ test_darwin_nrs_no_changes_releases_worktree_lock() {
   mkdir -p "$stub_dir" "$home_dir/.local/bin"
   current_target="$sandbox/current-system"
   mkdir -p "$current_target"
+  lock_file="$sandbox/nrs-state"
+  rm -f "$lock_file"
 
   cat > "$stub_dir/sudo" <<'EOF'
 #!/usr/bin/env bash
@@ -1008,6 +1008,7 @@ EOF
     PATH="$stub_dir:$FIXTURE_DIR/bin:$PATH" \
     DARWIN_RESULT_TARGET="$result_target" \
     DARWIN_CURRENT_SYSTEM="$current_target" \
+    NRS_LOCK_FILE="$lock_file" \
     bash -c '
       set -euo pipefail
       cd "'"$worktree_root"'"
@@ -1018,7 +1019,7 @@ EOF
   assert_contains "$output" "Lock acquired"
   assert_contains "$output" "No changes to apply"
   assert_contains "$output" "Lock released"
-  [[ ! -e /tmp/nrs-state ]] || fail "expected nrs lock file to be removed after no-change early return"
+  [[ ! -e "$lock_file" ]] || fail "expected sandbox nrs lock file to be removed after no-change early return"
 }
 
 run_test "wt help uses deployed helper layout" test_wt_help_from_deployed_layout
