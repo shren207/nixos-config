@@ -172,7 +172,7 @@ N개 에이전트를 **한 턴에 동시 병렬 실행**한다.
 | 컨텍스트 부족 | 추가 파일/정보를 제공 후 재디스패치 |
 | 범위 과대 | bundle을 세분화하여 2개 에이전트로 분할 |
 | 접근 불가 | 해당 bundle을 사용자에게 보고하고 수동 확인 요청 |
-| 위반 상태 (`VIOLATION`) | current unit을 `BLOCKED (VIOLATION)`로 기록하고, tracked write/branch mutation/commit/push/GitHub/`wt`/`nrs`/rebuild 시도 여부와 이번 실행이 만든 산출물 범위를 먼저 확인한다. cleanup 범위가 특정되기 전에는 fresh auditor 재디스패치 금지 |
+| 위반 상태 (`VIOLATION`) | current unit을 `BLOCKED (VIOLATION)`로 기록하고, tracked write/branch mutation/commit/push/GitHub/main-agent-only command/host mutation 시도 여부와 이번 실행이 만든 산출물 범위를 먼저 확인한다. cleanup 범위가 특정되기 전에는 fresh auditor 재디스패치 금지 |
 
 에이전트의 BLOCKED를 무시하거나 같은 조건으로 재시도하지 않는다.
 

@@ -37,7 +37,8 @@
 
 - **유형**: RECOVERABLE / STATEFUL
 - **이유**: 어떤 규칙을 왜 위반했는지
-- **필요 작업**: 금지된 tracked write / branch mutation / GitHub write / `wt` / `nrs` / rebuild / 기타 main-agent-only command 여부
+- **필요 작업**: `run-da` canonical contract의 stateful-violation 정의에서 실제로 발생한 항목 (`tracked write`, `branch mutation`, `commit/push`, `GitHub write`, `main-agent-only command`, `host mutation`)을 그대로 적는다
+- **정리 대상**: 이번 실행이 만든 scratch dir, 임시 ref/branch, 기타 산출물처럼 cleanup 범위를 특정하는 정보
 - **로컬 정리 필요**: YES / NO
 ```
 
