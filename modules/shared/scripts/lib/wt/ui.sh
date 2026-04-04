@@ -8,7 +8,7 @@ _get_repo_root() {
   common_dir="$(git rev-parse --git-common-dir 2>/dev/null)" || return 1
   # common_dir: main repo → ".git" (상대), worktree → "/repo/.git" (절대)
   # 어느 경우든 dirname이 repo root를 반환
-  (cd "$(dirname "$common_dir")" && pwd)
+  (cd "$(dirname "$common_dir")" && pwd -P)
 }
 
 # 브랜치명을 디렉토리명으로 변환 (슬래시 → 언더스코어)

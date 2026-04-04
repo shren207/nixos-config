@@ -506,6 +506,46 @@ EOF
   assert_not_contains "$(cat "$marker_file")" "fallback"
 }
 
+test_wt_recreate_guard_uses_physical_paths() {
+  local sandbox home_dir repo_root link_root target_path fzf_dir origin_dir output
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  repo_root="$sandbox/repo"
+  link_root="$sandbox/link"
+  fzf_dir="$sandbox/fzf-bin"
+  origin_dir="$sandbox/origin.git"
+
+  create_git_fixture_repo "$repo_root"
+  repo_root="$(cd "$repo_root" && pwd -P)"
+  install_deployed_layout "$sandbox" "$repo_root"
+  git init --bare "$origin_dir" >/dev/null 2>&1
+  git -C "$repo_root" remote add origin "$origin_dir"
+  git -C "$repo_root/.claude/worktrees/feature_one" push -u origin feature-one >/dev/null 2>&1
+  ln -s "$repo_root" "$link_root"
+  target_path="$link_root/.claude/worktrees/feature_one"
+
+  mkdir -p "$fzf_dir"
+  cat > "$fzf_dir/fzf" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '재생성\n'
+EOF
+  chmod +x "$fzf_dir/fzf"
+
+  output=$(
+    HOME="$home_dir" \
+    PATH="$fzf_dir:$FIXTURE_DIR/bin:$PATH" \
+    bash -c '
+      set -euo pipefail
+      cd "'"$target_path"'"
+      "'"$home_dir/.local/bin/wt"'" feature/one
+    ' 2>&1 || true
+  )
+
+  assert_contains "$output" "재생성 불가: 현재 작업 디렉토리가 이 worktree 안에 있습니다"
+  [[ -d "$repo_root/.claude/worktrees/feature_one" ]] || fail "expected original worktree to survive recreate guard"
+}
+
 test_wt_cleanup_auto_removes_merged_worktree() {
   local sandbox home_dir repo_root gh_dir output target_path head_oid
   sandbox=$(new_sandbox)
@@ -900,6 +940,7 @@ run_test "shadow paths do not override managed helpers" test_shadow_paths_do_not
 run_test "wt symlink alias does not load adjacent helpers" test_wt_symlink_alias_does_not_load_adjacent_helpers
 run_test "rebuild-common symlink alias does not load adjacent helpers" test_rebuild_common_symlink_alias_does_not_load_adjacent_helpers
 run_test "wt create uses managed codex-sync path" test_wt_create_creates_worktree_without_shadow_codex_sync
+run_test "wt recreate guard uses physical paths" test_wt_recreate_guard_uses_physical_paths
 run_test "wt cleanup auto removes merged worktree" test_wt_cleanup_auto_removes_merged_worktree
 run_test "wt cleanup auto skips dirty merged worktree" test_wt_cleanup_auto_skips_dirty_merged_worktree
 run_test "wt cleanup auto skips unpushed merged worktree" test_wt_cleanup_auto_skips_unpushed_with_upstream
