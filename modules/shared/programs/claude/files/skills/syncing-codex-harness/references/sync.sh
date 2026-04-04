@@ -319,8 +319,8 @@ agents_override() {
 
   auto_content+=$'\n'"## 도구 차이"$'\n\n'
   auto_content+="- Codex hooks는 experimental이며, sync.sh는 Claude hooks 중 호환 가능한 subset만 \`.codex/hooks.json\`로 투영하고 진단은 \`.codex/hooks.compatibility.json\`에 기록한다"$'\n'
-  auto_content+="- plugins와 MCP UI는 여전히 Claude Code 전용 기능이다"$'\n'
-  auto_content+="- direct Codex 세션에서 \`run-da\`, \`parallel-audit\`, \`plan-with-questions\` fan-out은 native subagent를 우선 사용하고, reviewer/auditor/Arbiter/Intensity는 \`gpt-5.4\` + \`xhigh\` hardening contract를 따른다"$'\n'
+  auto_content+="- Claude Code 전용 plugin/MCP UI surface는 Codex에서 그대로 대응되지 않는다"$'\n'
+  auto_content+="- direct Codex 세션에서 \`run-da\`, \`parallel-audit\`, \`plan-with-questions\` fan-out은 native subagent를 우선 사용하고, reviewer/auditor/Arbiter/Intensity는 strong review profile hardening contract를 따른다"$'\n'
   auto_content+="- \`codex exec\`는 subprocess automation 또는 사용자의 명시적 CLI 요청일 때 기본 경로로 사용한다"$'\n'
   auto_content+="- \`CODEX_CI=1\`만으로 direct Codex 세션과 \`codex exec\` subprocess를 구분하지 않는다"$'\n'
   auto_content+="- current session의 open agent thread cap(\`agents.max_threads\`, unset 기본 6)을 넘기지 말고, completed agent thread는 다음 round/retry 전에 close한다"$'\n'
