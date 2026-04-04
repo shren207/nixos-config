@@ -19,6 +19,7 @@
 #
 # caller-facing 출력 변수:
 #   FLAKE_PATH - detect_worktree 후 실제 build/switch 대상 flake 경로
+#   OFFLINE_FLAG - --offline 전달 시 "--offline"
 #   NO_CHANGES - preview_changes() 실행 후 true/false (store 경로 비교)
 #   FORCE_FLAG - --force 전달 시 true
 #   CORES_FLAG - --cores N 전달 시 "--cores N"

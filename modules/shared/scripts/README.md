@@ -41,7 +41,7 @@
   `rebuild_is_main_flake`, `prepare_worktree_symlinks_for_rebuild`,
   `maybe_relink_or_restore`, `preview_changes`, `cleanup_build_artifacts`
 - Public caller-visible rebuild state:
-  `FLAKE_PATH`, `NO_CHANGES`, `FORCE_FLAG`, `CORES_FLAG`, `UNINSTALLED_CASKS`
+  `FLAKE_PATH`, `OFFLINE_FLAG`, `NO_CHANGES`, `FORCE_FLAG`, `CORES_FLAG`, `UNINSTALLED_CASKS`
 - Internal rebuild state:
   `MAIN_FLAKE_PATH`, `NRS_LOCK_ACQUIRED`, `NRS_LOCK_REENTRY`, `NRS_LOCK_SWITCH_SUCCESS`
 - Caller는 underscored helper와 internal rebuild state를 직접 참조하지 않는다.

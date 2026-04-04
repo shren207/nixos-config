@@ -15,6 +15,20 @@ REBUILD_CMD="nixos-rebuild"
 source "$HOME/.local/lib/rebuild-common.sh"
 parse_args "$@"
 
+# repo-local 최신 entrypoint가 이전 deployed helper tree와 조합돼도 동작하도록 유지.
+install_rebuild_common_compat_shims() {
+    declare -F rebuild_is_main_flake >/dev/null || rebuild_is_main_flake() {
+        [[ "$FLAKE_PATH" == "$MAIN_FLAKE_PATH" ]]
+    }
+    declare -F prepare_worktree_symlinks_for_rebuild >/dev/null || prepare_worktree_symlinks_for_rebuild() {
+        log_info "🔗 Removing worktree symlinks before rebuild..."
+        _remove_worktree_symlinks "$FLAKE_PATH/" "worktree" || true
+        "$HOME/.local/bin/nrs-relink" restore || log_warn "⚠️  nrs-relink restore failed (non-fatal)"
+    }
+}
+
+install_rebuild_common_compat_shims
+
 #───────────────────────────────────────────────────────────────────────────────
 # nixos-rebuild switch 실행
 #───────────────────────────────────────────────────────────────────────────────
