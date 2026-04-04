@@ -40,11 +40,14 @@ The auto-generated section may include:
 - Claude hooks are experimental in Codex; only the compatibility-checked subset should be projected into `.codex/hooks.json`
 - Plugins remain unsupported in Codex
 - direct Codex sessions should prefer native subagents for `run-da`, `parallel-audit`, and `plan-with-questions` fan-out
+- direct Codex reviewer/auditor/Arbiter/Intensity paths should use the hardened review profile: `gpt-5.4` + `xhigh`
 - `codex exec` remains the default only for subprocess automation or explicit CLI requests
 - DA Arbiter 흐름: AskUserQuestion(`request_user_input`)이 Codex exec에서 미지원이므로,
   NEEDS_MORE_INFO→자동 CONFIRMED 승격, SKIP→자동 LITE 승격, 3회 반복→자동 수용, 5회 초과→자동 종료
 - direct Codex 세션도 `CODEX_CI=1`을 가질 수 있으므로, 이를 direct session vs `codex exec` subprocess의 sole discriminator로 쓰지 않는다
 - current session의 open agent thread cap(`agents.max_threads`, unset 기본 6)을 넘기지 말고, completed agent thread는 다음 round/retry 전에 close한다
+- tracked workspace write, branch mutation, commit/push, GitHub write, `wt`/`nrs`/rebuild 계열은 main-agent-only unless explicitly delegated
+- detailed direct-Codex wait/write/violation rules should stay in the canonical `run-da` contract rather than being duplicated into override notes
 - 검증 기준: codex-cli v0.117.0+ (`CODEX_CI`), v0.118.0 (`request_user_input` Default 모드 미지원)
 
 ## Preservation Logic

@@ -30,6 +30,17 @@
 [reviewer bundle]: CLEAR
 ```
 
+계약 위반 또는 금지된 작업 필요 시:
+
+```text
+## [reviewer bundle] 위반 상태: VIOLATION
+
+- **유형**: RECOVERABLE / STATEFUL
+- **이유**: 어떤 규칙을 왜 위반했는지
+- **필요 작업**: 금지된 tracked write / branch mutation / GitHub write / `wt` / `nrs` / rebuild / 기타 main-agent-only command 여부
+- **로컬 정리 필요**: YES / NO
+```
+
 `{SUBDOMAIN}`은 bundle 내부에서 실제로 해당 finding을 포착한 세부 관점이다.
 예: `Correctness` bundle에서 `SECURITY`, `Maintainability` bundle에서 `READABILITY`.
 
@@ -57,6 +68,10 @@
 
 집중 대상:
 {FOCUS_TARGETS}
+
+PoC가 필요하면 repo 밖 scratch 디렉토리(`/tmp` 등)에서만 수행하라.
+tracked workspace write, branch mutation, commit/push, GitHub write, `wt`/`nrs`/rebuild 계열은 explicit delegation 없이는 금지다.
+위 규칙을 위반했거나 금지된 작업이 필요하면 finding 대신 `VIOLATION` 형식으로 반환하라.
 
 다른 bundle({OTHER_BUNDLES})의 우려는 언급하지 마라.
 위반이 없으면 CLEAR를 반환하라.
