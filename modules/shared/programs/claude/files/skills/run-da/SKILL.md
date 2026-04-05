@@ -87,6 +87,12 @@ Codex 세션에서도 같은 값이 보일 수 있으므로, **현재 세션 호
 
 본문에서 **codex exec 경로**는 Claude Code 세션과 headless 세션의 공통 실행 substrate를 가리킨다.
 
+### codex exec 경로 위생 규칙
+
+- **모드 시작 시 이전 임시 디렉토리 정리**: for_plan 시작 시 `rm -rf /tmp/da-pr-* /tmp/da-arbiter-*`, for_pr 시작 시 `rm -rf /tmp/da-plan-* /tmp/da-intensity-*`. 같은 모드의 이전 라운드는 라운드 교체 시 정리.
+- **결과 파일 참조**: `$INTENSITY_DIR`, `$DA_DIR`, `$ARBITER_DIR` 변수로 정확히 참조한다. **`/tmp/da-*` 와일드카드 glob 금지** — 이전 실행의 결과가 섞인다.
+- **Intensity/Arbiter는 foreground 실행**: 단일 exec이므로 `run_in_background` 없이 foreground로 실행하여 결과를 즉시 확인한다. **reviewer만 background 병렬 실행**(`run_in_background: true`).
+
 ## Claude Code 세션 Agent tool fallback contract
 
 Claude Code 세션에서 codex exec 사용 불가 시 Agent tool로 fallback할 때의 lifecycle:
@@ -190,7 +196,7 @@ modifier `full`은 Review Intensity를 건너뛰고 exhaustive 8-domain path로 
      PROMPT
      )
      ```
-   - `codex exec`로 실행한다 (`-o`는 --output-last-message: 에이전트 최종 응답만 저장):
+   - **foreground** Bash tool 호출로 `codex exec`를 실행한다 (`run_in_background` 사용 안 함. 단일 exec이므로 결과를 즉시 확인):
      ```zsh
      codex exec --full-auto --ephemeral \
        -c model_reasoning_effort="high" \
@@ -270,7 +276,7 @@ bundle별: Correctness CLEAR, Regression 2건(CONFIRMED 1, NOT_AN_ISSUE 1), ...
 3. 모든 reviewer 결과를 수신한 후 종합 리포트를 작성한다.
    - Codex 세션 경로: `wait_agent` 결과를 집계한 뒤, 다음 round/retry 전에 completed reviewer thread를 `close_agent`로 닫는다.
    - Codex 세션 경로: `VIOLATION` 처리 규칙은 위 `Codex 세션 하드닝 계약`의 공통 처리 정의를 따른다. offending unit은 rerun 또는 `BLOCKED` 해소 전까지 `CLEAR` 계산에 포함하지 않는다.
-   - codex exec 경로: 결과 파일(`$DA_DIR/*-result.md`)을 수집한다. 결과 파일이 없거나 빈 경우, 또는 exit code가 0이 아니면 실패로 판정한다.
+   - codex exec 경로: 4개 background 완료 후, 각 `$DA_DIR/{bundle}-result.md`를 `Read` 도구로 명시적으로 읽어 수집한다. 결과 파일이 없거나 빈 경우, 또는 exit code가 0이 아니면 실패로 판정한다.
    - 실패한 review unit만 재실행한다. codex exec 경로는 라운드마다 새 `DA_DIR`을 생성하여 이전 라운드 산출물과 분리한다.
 4. findings 0건이고 `VIOLATION`/`BLOCKED` review unit이 없으면 → ALL CLEAR, 종료.
 5. findings 1건 이상 → Arbiter 실행:
@@ -278,7 +284,7 @@ bundle별: Correctness CLEAR, Regression 2건(CONFIRMED 1, NOT_AN_ISSUE 1), ...
      for_plan에서는 반드시 계획 원문을 포함해야 하며,
      상세 조립 형식은 arbiter-prompt.md의 "프롬프트 조립 > for_plan 모드" 참조.
    - Codex 세션 경로: fresh Arbiter subagent 1개를 실행하고 `wait_agent`로 결과를 수신한 뒤, 다음 round/retry 전에 completed Arbiter thread를 `close_agent`로 닫는다.
-   - codex exec 경로: `codex exec`로 실행한다 ([arbiter-scaling.md](references/arbiter-scaling.md) 실행 계약 참조).
+   - codex exec 경로: **foreground** Bash tool 호출로 `codex exec`를 실행한다 ([arbiter-scaling.md](references/arbiter-scaling.md) 실행 계약 참조). 단일 exec이므로 `run_in_background` 사용 안 함.
    - 결과를 수집하여 사용자에게 전건 보고한다:
      - CONFIRMED_ISSUE + CRITICAL: **진행 차단** (현재 라운드 중단 → 즉시 수정 → 수정 확인 후 다음 라운드 진행).
      - CONFIRMED_ISSUE + HIGH/MEDIUM/LOW: 자동으로 계획에 반영한다.
@@ -323,7 +329,7 @@ bundle별: Correctness CLEAR, Regression 2건(CONFIRMED 1, NOT_AN_ISSUE 1), ...
 5. findings 1건 이상 → Arbiter 실행:
    - Arbiter 프롬프트를 조립한다 ([arbiter-prompt.md](references/arbiter-prompt.md) 참조).
    - Codex 세션 경로: fresh Arbiter subagent 1개를 실행하고 `wait_agent`로 결과를 수신한 뒤, 다음 round/retry 전에 completed Arbiter thread를 `close_agent`로 닫는다.
-   - codex exec 경로: `codex exec`로 실행한다 ([arbiter-scaling.md](references/arbiter-scaling.md) 실행 계약 참조).
+   - codex exec 경로: **foreground** Bash tool 호출로 `codex exec`를 실행한다 ([arbiter-scaling.md](references/arbiter-scaling.md) 실행 계약 참조). 단일 exec이므로 `run_in_background` 사용 안 함.
    - 결과를 수집하여 사용자에게 전건 보고한다:
      - CONFIRMED_ISSUE + CRITICAL: **진행 차단** (현재 라운드 중단 → 즉시 수정 → 수정 확인 후 다음 라운드 진행).
      - CONFIRMED_ISSUE + HIGH/MEDIUM/LOW: 자동으로 코드에 반영하고 커밋한다.
