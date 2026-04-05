@@ -99,8 +99,10 @@ register_recursive() {
 }
 
 register_replace_vars() {
-  local nix_file="$1" deployed_path="$2" flake_path="$3" repo_source="$4"
-  assert_nix_has_attr "$nix_file" "$deployed_path"
+  local nix_file="$1" deployed_path="$2" flake_path="$3" repo_source="$4" nix_source_expr="$5"
+  # shellcheck disable=SC2016  # Literal Nix source string.
+  assert_nix_has_attr "$nix_file" "$deployed_path" \
+    "    source = pkgs.replaceVars \"$nix_source_expr\" {"
   local gen_name; gen_name="$(basename "$deployed_path")"
   sed "s|@flakePath@|$flake_path|g" "$REPO_ROOT/$repo_source" > "$generated_dir/$gen_name"
   ln -sf "$generated_dir/$gen_name" "$home_dir/$deployed_path"
@@ -153,8 +155,10 @@ install_deployed_layout() {
   register_recursive "$shell_nix" ".local/lib/wt" \
     '${sharedScriptsDir}/lib/wt' "modules/shared/scripts/lib/wt"
 
+  # shellcheck disable=SC2016  # Literal Nix source strings.
   register_replace_vars "$shell_nix" ".local/lib/rebuild-common.sh" \
-    "$flake_path" "modules/shared/scripts/rebuild-common.sh"
+    "$flake_path" "modules/shared/scripts/rebuild-common.sh" \
+    '${sharedScriptsDir}/rebuild-common.sh'
 
   # shellcheck disable=SC2016  # Literal Nix source strings.
   register_recursive "$shell_nix" ".local/lib/rebuild" \
