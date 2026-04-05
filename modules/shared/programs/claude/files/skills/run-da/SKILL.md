@@ -97,7 +97,7 @@ Claude Code 세션에서 codex exec 사용 불가 시 Agent tool로 fallback할 
 | wait | 자동 완료 알림 (background task notification) |
 | close | 불필요 (Agent tool은 완료 시 자동 해제) |
 | thread-cap | Claude Code의 병렬 Agent 제한을 따름 |
-| violation 처리 | Arbiter/reviewer는 읽기 전용 — 결과 텍스트만 수신하므로 stateful violation 불가 |
+| violation 처리 | 프롬프트에서 읽기 전용을 지시하지만, 구조적 보증이 아닌 프롬프트 수준 제약이다. 하위 Agent가 side effect를 만들 가능성이 있으므로, Codex 세션 하드닝 계약의 역할별 경계(reviewer: 읽기+검색+scratch PoC만, Arbiter/Intensity: 읽기 전용)를 프롬프트에 명시한다 |
 | review profile | Arbiter: `model: "opus"`, reviewer/Intensity: `model: "sonnet"` |
 
 ## Codex 세션 하드닝 계약

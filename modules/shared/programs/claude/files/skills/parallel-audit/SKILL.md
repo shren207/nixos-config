@@ -110,7 +110,7 @@ N개 에이전트를 **한 턴에 동시 병렬 실행**한다.
 
 ### Step 3a: Codex 세션 경로
 
-- direct Codex 세션에서는 이 경로를 기본으로 사용한다.
+- Codex 세션에서는 이 경로를 기본으로 사용한다.
 - bundle마다 fresh native subagent 1개를 standard review profile로 `spawn_agent` 실행한다.
 - bundle 수가 현재 open slot보다 많으면 batch로 나눈다.
 - 모든 결과는 `wait_agent`로 수신한다. timeout만으로 실패 처리하거나 auditor를 중간 kill/self-auditing으로 대체하지 않는다.

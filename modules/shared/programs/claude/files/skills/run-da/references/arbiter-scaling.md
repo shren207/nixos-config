@@ -99,7 +99,7 @@ codex exec 실패 시 (exit code != 0, 빈 결과 파일):
 2. 사용자에게 AskUserQuestion으로 보고한다 (맥락 설명 의무 적용).
 3. 재시도하지 않는다 (사용자가 판단).
 
-## direct Codex violation 처리
+## Codex 세션 violation 처리
 
 Codex 세션 경로에서는 Arbiter/Intensity가 새 verdict를 반환하는 것이 아니라, 메인 에이전트가 contract breach 또는 malformed output을 감지했을 때 아래 규칙으로 분류한다.
 
