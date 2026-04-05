@@ -8,9 +8,11 @@ description: |
 
 # Codex Exec 사용
 
-이 문서는 **`codex exec` / `codex exec review`를 직접 호출하는 subprocess 경로**를 다룬다.
-direct Codex 세션에서 `run-da`, `parallel-audit`, `plan-with-questions` fan-out을 수행할 때의 기본 경로는 native subagent이며,
-이 스킬은 fallback 경로나 사용자의 명시적 `codex exec` 요청에만 적용한다.
+이 문서는 **`codex exec` / `codex exec review`를 직접 호출하는 절차**를 다룬다.
+이 스킬은 다음 경로에서 참조된다:
+- **Claude Code 세션**: `run-da`, `parallel-audit` 등의 fan-out 시 **기본 경로** (codex exec subprocess)
+- **headless 세션**: CI, `claude -p` 등에서의 codex exec 직접 실행
+- **Codex 세션**: fan-out은 native subagent가 기본이므로, 이 스킬은 사용자의 명시적 `codex exec` 요청에만 적용
 
 ## 작성 기준
 
