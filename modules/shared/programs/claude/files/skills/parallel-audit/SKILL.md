@@ -117,8 +117,15 @@ N개 에이전트를 **한 턴에 동시 병렬 실행**한다.
 
 ### Step 3b: codex exec 경로 (Claude Code 세션 · headless 세션)
 
-- Claude Code subprocess/비대화형 경로에서는 bundle마다 `codex exec --full-auto --ephemeral -c model_reasoning_effort="high"` subprocess 1개를 사용한다.
+- Claude Code 세션 · headless 세션에서는 bundle마다 `codex exec --full-auto --ephemeral -c model_reasoning_effort="high"` subprocess 1개를 사용한다.
 - 임시 prompt/result 파일, stderr/result 검증, `run_in_background`, stdin pipe 경쟁, heredoc hang 제약은 [/using-codex-exec 스킬](../using-codex-exec/SKILL.md)과 [known-issues.md](../using-codex-exec/references/known-issues.md)를 따른다.
+
+### Step 3c: Claude Code Agent tool fallback (codex 미가용 시)
+
+- `command -v codex`/`codex --version` 사전점검 실패 또는 codex exec 실행 실패 시에만 진입한다.
+- bundle별 `Agent` tool을 `run_in_background: true`로 병렬 실행한다.
+- reviewer는 read-only/no-write 범위를 프롬프트에 명시한다.
+- 완료 알림 수신 후 결과를 집계하고, `RECOVERABLE VIOLATION`/`STATEFUL VIOLATION` 분류 규칙은 Step 4와 동일하게 적용한다.
 
 ### Step 4: 결과 수신 및 검증
 
