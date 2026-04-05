@@ -5,6 +5,23 @@
 
 command -v jq >/dev/null 2>&1 || exit 0
 
+# [WHY] fence strip을 document 모드의 SCAN_INPUT과 delta 검사의 OLD_STRIPPED
+# 양쪽에서 사용하므로 함수로 추출. Markdown spec 기준 0-3칸 들여쓰기 + 3개 이상 backtick.
+_strip_fences() {
+  awk '
+    BEGIN { depth = 0; fence_len = 0 }
+    {
+      s = $0; sub(/^[ ]{0,3}/, "", s); ticks = 0
+      while (substr(s, ticks+1, 1) == "`") ticks++
+      if (ticks >= 3) {
+        tail = substr(s, ticks+1); gsub(/[ \t\r]/, "", tail)
+        if (depth == 0) { depth = 1; fence_len = ticks; next }
+        if (ticks >= fence_len && tail == "") { depth = 0; fence_len = 0; next }
+      }
+      if (depth == 0) print
+    }'
+}
+
 INPUT=$(cat)
 TOOL_NAME=$(printf '%s' "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
 
@@ -60,76 +77,48 @@ fi
 # [WHY] fence strip은 전체 문서(document 모드)에서만 적용.
 # fragment 모드에서 미완결 fence(opening만 있고 closing 없음)를 strip하면
 # 이후 라인이 모두 제거되어 false negative 발생.
-# awk fence parser: Markdown spec 기준 0-3칸 들여쓰기 + 3개 이상 backtick.
-#   depth=fence 내부 여부, fence_len=opening backtick 수.
-#   닫힘 조건: backtick 수 >= opening 길이 && 뒤에 텍스트 없음.
 if [ "$SCAN_MODE" = "document" ]; then
-  SCAN_INPUT=$(printf '%s' "$CONTENT" | awk '
-    BEGIN { depth = 0; fence_len = 0 }
-    {
-      s = $0; sub(/^[ ]{0,3}/, "", s); ticks = 0
-      while (substr(s, ticks+1, 1) == "`") ticks++
-      if (ticks >= 3) {
-        tail = substr(s, ticks+1); gsub(/[ \t\r]/, "", tail)
-        if (depth == 0) { depth = 1; fence_len = ticks; next }
-        if (ticks >= fence_len && tail == "") { depth = 0; fence_len = 0; next }
-      }
-      if (depth == 0) print
-    }')
+  SCAN_INPUT=$(printf '%s' "$CONTENT" | _strip_fences)
 else
   SCAN_INPUT="$CONTENT"
 fi
 
 # [WHY] Edit + document 모드에서 post-edit 전체 문서를 검사하면
 # 원본에 이미 있던 하드코딩도 차단됨 (이번 Edit과 무관한 회귀).
-# 원본에 대해서도 동일한 fence strip + 패턴 검사를 수행하고,
-# 원본에도 있는 경고는 이번 Edit이 도입한 것이 아니므로 제외.
-OLD_HAS_LINE="" OLD_HAS_FILE="" OLD_HAS_PATH=""
+# 원본과 post-edit의 매치 수를 비교하여 새로 추가된 매치만 차단.
+# 카테고리 단위 boolean이 아닌 count 비교로 정밀 판정.
+OLD_LINE_COUNT=0 OLD_FILE_COUNT=0 OLD_PATH_COUNT=0
 if [ "$TOOL_NAME" = "Edit" ] && [ "$SCAN_MODE" = "document" ]; then
-  OLD_STRIPPED=$(awk '
-    BEGIN { depth = 0; fence_len = 0 }
-    {
-      s = $0; sub(/^[ ]{0,3}/, "", s); ticks = 0
-      while (substr(s, ticks+1, 1) == "`") ticks++
-      if (ticks >= 3) {
-        tail = substr(s, ticks+1); gsub(/[ \t\r]/, "", tail)
-        if (depth == 0) { depth = 1; fence_len = ticks; next }
-        if (ticks >= fence_len && tail == "") { depth = 0; fence_len = 0; next }
-      }
-      if (depth == 0) print
-    }' "$FILE_PATH")
-  printf '%s' "$OLD_STRIPPED" | grep -E '[0-9]+줄|[0-9]+ lines' | \
-    grep -qvE '[0-9]+줄[[:space:]]*(이내|이하|미만|이상|설명|요약|제한)' && OLD_HAS_LINE=1
-  printf '%s' "$OLD_STRIPPED" | grep -E '[0-9]+개 파일|[0-9]+곳' | \
-    grep -qvE '[1-9]-[1-9]개 파일' && OLD_HAS_FILE=1
-  OLD_PATH_COUNT=$(printf '%s' "$OLD_STRIPPED" | grep -oE '\.claude/skills/[a-z0-9_-]+' | sort -u | wc -l)
-  [ "$OLD_PATH_COUNT" -ge 3 ] && OLD_HAS_PATH=1
+  OLD_STRIPPED=$(_strip_fences < "$FILE_PATH")
+  # [WHY_EXCLUDE] exclusion 패턴은 SCAN_INPUT 검사와 동일하게 적용하여 일관성 유지
+  OLD_LINE_COUNT=$(printf '%s' "$OLD_STRIPPED" | grep -E '[0-9]+줄|[0-9]+ lines' | \
+    grep -vE '[0-9]+줄[[:space:]]*(이내|이하|미만|이상|설명|요약|제한)' | grep -c '.' || true)
+  OLD_FILE_COUNT=$(printf '%s' "$OLD_STRIPPED" | grep -E '[0-9]+개 파일|[0-9]+곳' | \
+    grep -vE '[1-9]-[1-9]개 파일' | grep -c '.' || true)
+  OLD_PATH_COUNT=$(printf '%s' "$OLD_STRIPPED" | grep -oE '\.claude/skills/[a-z0-9_-]+' | sort -u | wc -l | tr -d ' ')
 fi
 
 WARNINGS=""
 
 # [WHY] 줄 수는 코드 수정 시 즉시 변경됨 → wc -l로 동적 확인 가능
 # [WHY_EXCLUDE] "N줄 이내/이하/설명" 등은 작성 규칙 표현이지 코드 상태 하드코딩이 아님
-if [ -z "$OLD_HAS_LINE" ]; then
-  printf '%s' "$SCAN_INPUT" | grep -E '[0-9]+줄|[0-9]+ lines' | \
-    grep -qvE '[0-9]+줄[[:space:]]*(이내|이하|미만|이상|설명|요약|제한)' && \
-    WARNINGS="${WARNINGS}줄 수 하드코딩. "
-fi
+NEW_LINE_COUNT=$(printf '%s' "$SCAN_INPUT" | grep -E '[0-9]+줄|[0-9]+ lines' | \
+  grep -vE '[0-9]+줄[[:space:]]*(이내|이하|미만|이상|설명|요약|제한)' | grep -c '.' || true)
+[ "$NEW_LINE_COUNT" -gt "$OLD_LINE_COUNT" ] && \
+  WARNINGS="${WARNINGS}줄 수 하드코딩. "
 
 # [WHY] 파일/참조 수는 파일 추가/삭제 시 변경됨 → grep -c로 동적 확인 가능
 # [WHY_EXCLUDE] "N-N개 파일"(예: "1-2개 파일")은 범위 지침이지 정확한 수량 아님
-if [ -z "$OLD_HAS_FILE" ]; then
-  printf '%s' "$SCAN_INPUT" | grep -E '[0-9]+개 파일|[0-9]+곳' | \
-    grep -qvE '[1-9]-[1-9]개 파일' && \
-    WARNINGS="${WARNINGS}파일/참조 수 하드코딩. "
-fi
+NEW_FILE_COUNT=$(printf '%s' "$SCAN_INPUT" | grep -E '[0-9]+개 파일|[0-9]+곳' | \
+  grep -vE '[1-9]-[1-9]개 파일' | grep -c '.' || true)
+[ "$NEW_FILE_COUNT" -gt "$OLD_FILE_COUNT" ] && \
+  WARNINGS="${WARNINGS}파일/참조 수 하드코딩. "
 
 # [WHY] 스킬 경로를 3개 이상 나열하면 스킬 추가/삭제 시 목록이 stale 됨.
 # 3개 미만은 정당한 교차 참조(예: "NOT for X, use Y")로 간주.
-if [ -z "$OLD_HAS_PATH" ]; then
-  SKILL_PATH_COUNT=$(printf '%s' "$SCAN_INPUT" | grep -oE '\.claude/skills/[a-z0-9_-]+' | sort -u | wc -l)
-  [ "$SKILL_PATH_COUNT" -ge 3 ] && \
-    WARNINGS="${WARNINGS}.claude/skills/ 경로 ${SKILL_PATH_COUNT}개 열거. "
+NEW_PATH_COUNT=$(printf '%s' "$SCAN_INPUT" | grep -oE '\.claude/skills/[a-z0-9_-]+' | sort -u | wc -l | tr -d ' ')
+if [ "$NEW_PATH_COUNT" -ge 3 ] && [ "$NEW_PATH_COUNT" -gt "$OLD_PATH_COUNT" ]; then
+  WARNINGS="${WARNINGS}.claude/skills/ 경로 ${NEW_PATH_COUNT}개 열거. "
 fi
 
 [ -z "$WARNINGS" ] && exit 0
