@@ -71,6 +71,15 @@
             "command": "~/.claude/hooks/fragile-hardcoding-guard.sh"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/rm-path-guard.sh"
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
