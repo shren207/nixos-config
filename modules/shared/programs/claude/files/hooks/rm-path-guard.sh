@@ -27,10 +27,11 @@ _contains_rm() {
 }
 _contains_rm "$COMMAND" || exit 0
 
-# [WHY] 보호 경로 목록. 시스템 디렉터리와 홈 디렉터리를 열거한다.
+# [WHY] 보호 경로 목록. 시스템 디렉터리와 홈 디렉터리를 개별 열거한다.
+# "/" catch-all은 사용하지 않는다 — bash [[ "$path" == "/"/* ]]가 "//*"로
+# 전개되어 일반 절대경로를 매칭하지 못하기 때문이다.
 # $HOME은 런타임에 확장되어 실제 홈 경로와 매칭한다.
 PROTECTED_PREFIXES=(
-  "/"
   "/home"
   "/etc"
   "/var"
@@ -39,6 +40,17 @@ PROTECTED_PREFIXES=(
   "/sys"
   "/proc"
   "/nix"
+  "/opt"
+  "/lib"
+  "/lib64"
+  "/dev"
+  "/bin"
+  "/sbin"
+  "/run"
+  "/root"
+  "/mnt"
+  "/media"
+  "/srv"
   "$HOME"
 )
 
@@ -51,12 +63,13 @@ _is_tmp_path() {
 # [WHY] 경로가 보호 대상인지 검사한다.
 # 정확히 보호 경로이거나 그 하위 경로이면 차단 대상.
 # /tmp 예외를 먼저 확인하여 /tmp 하위 삭제는 허용한다.
-_is_protected_path() {
+# Returns: 매칭된 prefix를 stdout으로 출력. exit code 0=보호 대상, 1=아님.
+_find_protected_prefix() {
   local path="$1"
   _is_tmp_path "$path" && return 1
   for prefix in "${PROTECTED_PREFIXES[@]}"; do
     if [ "$path" = "$prefix" ] || [[ "$path" == "$prefix"/* ]]; then
-      MATCHED_PREFIX="$prefix"
+      echo "$prefix"
       return 0
     fi
   done
@@ -91,11 +104,10 @@ _extract_rm_paths() {
 
 # [WHY] 추출된 각 경로를 보호 목록과 대조한다.
 # 첫 번째 매치에서 즉시 차단하여 불필요한 반복을 방지한다.
-MATCHED_PREFIX=""
 while IFS= read -r path; do
   [ -z "$path" ] && continue
-  if _is_protected_path "$path"; then
-    jq -n --arg reason "[rm-path-guard] 보호 경로입니다: $path (prefix: $MATCHED_PREFIX)" \
+  if matched_prefix=$(_find_protected_prefix "$path"); then
+    jq -n --arg reason "[rm-path-guard] 보호 경로입니다: $path (prefix: $matched_prefix)" \
       '{decision: "block", reason: $reason}'
     exit 0
   fi
