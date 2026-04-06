@@ -84,7 +84,7 @@ _extract_rm_paths() {
   local cmd="$1"
   local past_double_dash=false
   # [WHY] grep -oE로 rm 명령 부분만 추출. 파이프/체인의 다른 명령은 무시.
-  printf '%s' "$cmd" | grep -oE '(^|[;&|]+)\s*rm\b[^;&|]*' | while IFS= read -r rm_segment; do
+  printf '%s' "$cmd" | grep -oE '(^|[;&|]\s*)\s*rm\b[^;&|]*' | while IFS= read -r rm_segment; do
     past_double_dash=false
     for token in $rm_segment; do
       case "$token" in
@@ -94,7 +94,9 @@ _extract_rm_paths() {
           continue
           ;;
         -*)
-          $past_double_dash && echo "$token" || continue
+          if $past_double_dash; then
+            echo "$token"
+          fi
           ;;
         *) echo "$token" ;;
       esac
