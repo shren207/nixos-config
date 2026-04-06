@@ -67,10 +67,19 @@ new_sandbox() {
 assert_nix_has_attr() {
   local nix_file="$1" deployed_path="$2"
   shift 2
-  assert_file_contains "$nix_file" "  home.file.\"$deployed_path\" = {"
+  local block
+  block="$(
+    awk -v target="  home.file.\"$deployed_path\" = {" '
+      $0 == target { in_block = 1 }
+      in_block { print }
+      in_block && $0 == "  };" { exit }
+    ' "$nix_file"
+  )"
+  [[ -n "$block" ]] || fail "expected $nix_file to define home.file.\"$deployed_path\""
   local prop
   for prop in "$@"; do
-    assert_file_contains "$nix_file" "$prop"
+    grep -Fqx "$prop" <<<"$block" >/dev/null || \
+      fail "expected $nix_file:$deployed_path to contain exact line: $prop"
   done
 }
 
@@ -99,10 +108,11 @@ register_recursive() {
 }
 
 register_replace_vars() {
-  local nix_file="$1" deployed_path="$2" flake_path="$3" repo_source="$4" nix_source_expr="$5"
+  local nix_file="$1" deployed_path="$2" flake_path="$3" repo_source="$4" nix_source_expr="$5" nix_var_line="$6"
   # shellcheck disable=SC2016  # Literal Nix source string.
   assert_nix_has_attr "$nix_file" "$deployed_path" \
-    "    source = pkgs.replaceVars \"$nix_source_expr\" {"
+    "    source = pkgs.replaceVars \"$nix_source_expr\" {" \
+    "$nix_var_line"
   local gen_name; gen_name="$(basename "$deployed_path")"
   sed "s|@flakePath@|$flake_path|g" "$REPO_ROOT/$repo_source" > "$generated_dir/$gen_name"
   ln -sf "$generated_dir/$gen_name" "$home_dir/$deployed_path"
@@ -148,8 +158,11 @@ install_deployed_layout() {
   register_copy_exec "$shell_nix" ".local/bin/wt" \
     '${sharedScriptsDir}/wt.sh' "modules/shared/scripts/wt.sh"
 
-  # codex-sync: Nix 배포 있지만 테스트에서는 fixture stub 사용 (shadow-path 테��트용)
-  ln -sf "$FIXTURE_DIR/bin/codex-sync" "$home_dir/.local/bin/codex-sync"
+  # codex-sync: Nix 배포 있지만 테스트에서는 fixture stub 사용 (shadow-path 테스트용)
+  # cp로 sandbox에 복사하여 원본 fixture 보호
+  cp "$FIXTURE_DIR/bin/codex-sync" "$generated_dir/codex-sync"
+  chmod +x "$generated_dir/codex-sync"
+  ln -sf "$generated_dir/codex-sync" "$home_dir/.local/bin/codex-sync"
 
   # shellcheck disable=SC2016  # Literal Nix source strings.
   register_recursive "$shell_nix" ".local/lib/wt" \
@@ -158,7 +171,8 @@ install_deployed_layout() {
   # shellcheck disable=SC2016  # Literal Nix source strings.
   register_replace_vars "$shell_nix" ".local/lib/rebuild-common.sh" \
     "$flake_path" "modules/shared/scripts/rebuild-common.sh" \
-    '${sharedScriptsDir}/rebuild-common.sh'
+    '${sharedScriptsDir}/rebuild-common.sh' \
+    '      flakePath = nixosConfigDefaultPath;'
 
   # shellcheck disable=SC2016  # Literal Nix source strings.
   register_recursive "$shell_nix" ".local/lib/rebuild" \
