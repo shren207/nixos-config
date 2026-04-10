@@ -20,7 +20,9 @@ SESSION_ID=$(basename "$TRANSCRIPT" .jsonl)
 # refreshInterval=1(매초)에서 Plan/Memory 감지(grep/git/find)를 매초 실행하면 비효율적.
 # 캐시 TTL만 매초 갱신하고, heavy 연산은 HEAVY_INTERVAL 간격으로만 실행한다.
 NOW=$(date +%s)
-HEAVY_STATE="${TMPDIR:-/tmp}/.statusline-heavy-${SESSION_ID}"
+HEAVY_CACHE_DIR="${XDG_RUNTIME_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/claude-statusline}"
+mkdir -p "$HEAVY_CACHE_DIR"
+HEAVY_STATE="${HEAVY_CACHE_DIR}/heavy-${SESSION_ID}"
 HEAVY_INTERVAL=10
 DO_HEAVY=true
 
@@ -375,8 +377,11 @@ fi
 # green(≥2min) / yellow(1-2min) / red(<1min) / muted(expired)
 # 세션별 파일 우선, 글로벌 fallback
 CACHE_TTL_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/claude-hooks"
-LAST_STOP_FILE="${CACHE_TTL_DIR}/last-stop-${SESSION_ID}"
-[ -f "$LAST_STOP_FILE" ] || LAST_STOP_FILE="${CACHE_TTL_DIR}/last-stop"
+if [ -n "$SESSION_ID" ]; then
+  LAST_STOP_FILE="${CACHE_TTL_DIR}/last-stop-${SESSION_ID}"
+else
+  LAST_STOP_FILE="${CACHE_TTL_DIR}/last-stop"
+fi
 CACHE_TTL=300  # 5분
 
 if [ -f "$LAST_STOP_FILE" ]; then
