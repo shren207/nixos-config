@@ -240,10 +240,10 @@ playwright-cli fill e2 "password123"
 playwright-cli click e3
 
 # Save the authenticated state
-playwright-cli state-save auth.json
+playwright-cli state-save auth-state.json
 
 # Step 2: Later, restore state and skip login
-playwright-cli state-load auth.json
+playwright-cli state-load auth-state.json
 playwright-cli open https://app.example.com/dashboard
 # Already logged in!
 ```
