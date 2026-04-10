@@ -384,7 +384,14 @@ if [ -f "$LAST_STOP_FILE" ]; then
   if [ -n "$last_stop" ] 2>/dev/null; then
     if [ "$last_stop" = "0" ]; then
       # API 호출 중 — 캐시가 활발히 갱신되므로 5:00 고정
-      print_icon "36" "" "\xe2\x8f\xb1\xef\xb8\x8f" "5:00"
+      # 안전장치: 프로세스 kill 등으로 Stop 미발동 시 "0"이 영구 지속되는 것을 방지
+      # 파일 수정 시각이 CACHE_TTL을 초과하면 expired로 전환
+      file_mtime=$(stat -c %Y "$LAST_STOP_FILE" 2>/dev/null || stat -f %m "$LAST_STOP_FILE" 2>/dev/null || echo 0)
+      if [ "$((NOW - file_mtime))" -ge "$CACHE_TTL" ]; then
+        print_icon "$MUTED" "" "\xf0\x9f\x92\xa4" "expired"
+      else
+        print_icon "36" "" "\xe2\x8f\xb1\xef\xb8\x8f" "5:00"
+      fi
     elif [ "$last_stop" -gt 0 ] 2>/dev/null; then
       elapsed=$((NOW - last_stop))
       remaining=$((CACHE_TTL - elapsed))

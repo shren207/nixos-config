@@ -23,6 +23,7 @@ mkdir -p "$DATADIR"
 
 if [ -n "$SESSION_ID" ]; then
   echo 0 > "$DATADIR/last-stop-${SESSION_ID}"
+else
+  # 글로벌 fallback (SESSION_ID 없는 환경용)
+  echo 0 > "$DATADIR/last-stop"
 fi
-# 글로벌 fallback (SESSION_ID 없는 환경용)
-echo 0 > "$DATADIR/last-stop"
