@@ -89,8 +89,13 @@ codex exec --full-auto --ephemeral \
   < /dev/null \
   2>"$ARBITER_DIR/arbiter-stderr.log"
 
-# 4. 결과 수집 — 같은 호출 안에서 결과를 출력 (ARBITER_DIR이 다음 호출에서 유실되므로)
-cat "$ARBITER_DIR/arbiter-result.md" 2>/dev/null || echo "ARBITER_FAILED: result file missing or empty"
+# 4. 결과 수집 — exit code + 빈 파일 모두 확인 (ARBITER_DIR이 다음 호출에서 유실되므로 같은 호출에서 처리)
+_EC=$?
+if [ $_EC -ne 0 ] || [ ! -s "$ARBITER_DIR/arbiter-result.md" ]; then
+  echo "ARBITER_FAILED: exit=$_EC result=$([ -f "$ARBITER_DIR/arbiter-result.md" ] && echo 'empty' || echo 'missing')"
+else
+  cat "$ARBITER_DIR/arbiter-result.md"
+fi
 ```
 
 ### Bash tool 변수 유실 방지
@@ -98,19 +103,24 @@ cat "$ARBITER_DIR/arbiter-result.md" 2>/dev/null || echo "ARBITER_FAILED: result
 `codex exec` 결과를 파일로 받아 후속 처리하는 경우, `mktemp` + `codex exec` + `cat result`를 **단일 Bash 호출**로 체이닝한다:
 
 ```bash
-# 올바른 패턴 — 단일 호출로 체이닝
-ARBITER_DIR=$(mktemp -d /tmp/da-XXXXXX-arbiter) && \
+# 올바른 패턴 — 단일 호출로 체이닝 (arbiter-prompt.md는 이전 단계에서 생성됨 — 위 코드블록 #2 참조)
+ARBITER_DIR=$(mktemp -d /tmp/da-${_DA_SID}-arbiter-XXXXXX) && \
 codex exec --full-auto --ephemeral \
   -o "$ARBITER_DIR/arbiter-result.md" \
   "$(cat "$ARBITER_DIR/arbiter-prompt.md")" \
   < /dev/null \
-  2>"$ARBITER_DIR/arbiter-stderr.log" && \
-cat "$ARBITER_DIR/arbiter-result.md"
+  2>"$ARBITER_DIR/arbiter-stderr.log"
+_EC=$?
+if [ $_EC -ne 0 ] || [ ! -s "$ARBITER_DIR/arbiter-result.md" ]; then
+  echo "ARBITER_FAILED: exit=$_EC result=$([ -f "$ARBITER_DIR/arbiter-result.md" ] && echo 'empty' || echo 'missing')"
+else
+  cat "$ARBITER_DIR/arbiter-result.md"
+fi
 ```
 
 ```bash
 # 잘못된 패턴 — 변수가 다음 호출에서 유실됨
-# [호출 1] ARBITER_DIR=$(mktemp -d /tmp/da-XXXXXX-arbiter)
+# [호출 1] ARBITER_DIR=$(mktemp -d /tmp/da-${_DA_SID}-arbiter-XXXXXX)
 # [호출 2] codex exec -o "$ARBITER_DIR/result.md" ...
 #   ← $ARBITER_DIR이 unset → "/result.md" (루트 경로)로 확장됨
 ```
