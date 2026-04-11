@@ -104,8 +104,8 @@ Max 구독자는 1시간 캐시 TTL이 적용된다. Claude Code 소스의 `shou
 
 ### TTL 감지 방법
 
-statusline은 transcript JSONL에서 `cache_creation.ephemeral_1h_input_tokens` 필드를 파싱하여
-1시간 TTL 적용 여부를 감지한다. 한번 감지되면 세션 내에서 유지 (sticky).
+statusline은 transcript JSONL에서 가장 최근 `cache_creation` 필드의 TTL 타입을 파싱하여
+1시간/5분 TTL을 동적으로 감지한다. Extra Usage 진입 시 5분으로 자동 복귀한다.
 
 `CLAUDE_CACHE_TTL` 환경변수로 수동 override 가능:
 ```bash

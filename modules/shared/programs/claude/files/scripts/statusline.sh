@@ -203,20 +203,25 @@ fi
 # v2 (이번): Max 구독자 1시간 TTL 대응. transcript에서 assistant usage의
 #   cache_creation.ephemeral_1h_input_tokens를 jq로 파싱하여 감지.
 #   grep 대신 jq: user 메시지에 포함된 필드명 텍스트 오탐 방지 (DA Regression-F2).
-#   sticky: 이전 heavy에서 감지한 CACHE_TTL을 vars에서 복원하여 3600이면 재스캔 skip.
-#     이렇게 하면 1h 세션에서 10초마다 불필요한 전체 transcript 스캔을 방지한다.
-#   다운그레이드(1h→5m) 감지는 별도 이슈로 분리.
+#   sticky: 이전 heavy에서 감지한 CACHE_TTL을 vars에서 복원.
+#     pure cache hit(cache_creation 없음)에서는 이전 값을 유지한다.
+#     cache_creation이 있는 가장 최근 메시지의 TTL 타입으로 업데이트한다.
+#   다운그레이드 감지: 마지막 cache_creation이 5m이면 300으로 복귀.
 # 우선순위: CLAUDE_CACHE_TTL env > transcript 감지 > vars 캐시 > 기본값 300
 CACHE_TTL=300
 if [ -f "${HEAVY_STATE}.vars" ]; then
   eval "$(grep '^CACHE_TTL=' "${HEAVY_STATE}.vars" 2>/dev/null)" 2>/dev/null || true
 fi
-if [ "${CACHE_TTL:-300}" -ne 3600 ] && [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
-  # 정순 파싱 + tail -1로 마지막 매칭을 취함 (tac 의존성 제거, DA Correctness-F1).
-  # jq만 필요 (이미 보장됨). macOS/Linux 모두 동작.
-  _1h=$(jq -r 'select(.message.usage.cache_creation.ephemeral_1h_input_tokens > 0) | "1"' \
-    "$TRANSCRIPT" 2>/dev/null | tail -1)
-  [ "$_1h" = "1" ] && CACHE_TTL=3600
+if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
+  # 가장 최근 cache_creation의 TTL 타입을 감지 (jq, macOS/Linux 모두 동작).
+  # 1h → 3600, 5m → 300, cache_creation 없음(pure hit) → empty(이전 값 유지).
+  _detected=$(jq -r '
+    select(.message.usage.cache_creation)
+    | if .message.usage.cache_creation.ephemeral_1h_input_tokens > 0 then "3600"
+      elif .message.usage.cache_creation.ephemeral_5m_input_tokens > 0 then "300"
+      else empty end
+  ' "$TRANSCRIPT" 2>/dev/null | tail -1)
+  [ -n "$_detected" ] && CACHE_TTL="$_detected"
 fi
 
 # -- Heavy 결과 저장 --
