@@ -93,12 +93,13 @@ Claude Code standalone binary에 billing sentinel(`cch=00000`) 교체 로직이 
 - **감지**: resume 직후 ✗, 이후 ✓로 회복
 - **수정**: [v2.1.97](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md#2197)에서 수정됨
 
-### Bug 2b: --resume/--continue/branch Cache Miss (v2.1.97+, **미해결**)
+### Bug 2b: --resume/--continue Cache Miss (v2.1.97+, **미해결**)
 
 동적 attachment(deferred_tools_delta, skill listing 등)가 JSONL에 persist되지 않아,
 resume 시 `messages[0]`의 content block 구조가 달라진다 (블록 수/순서 변경).
+`/branch`에서도 동일 원인으로 영향받으나, hook sessionId 변경이 추가 악화 요인으로 작용한다.
 
-- **영향**: resume/continue/branch 첫 요청에서 full cache miss
+- **영향**: resume/continue 첫 요청에서 full cache miss. /branch는 Bug 2b + hook 복합 원인
 - **감지**: resume/continue 직후 ✗, 이후 ✓로 즉시 회복 (두 번째 호출부터 정상)
 - **upstream**: [#44045](https://github.com/anthropics/claude-code/issues/44045), [#43657](https://github.com/anthropics/claude-code/issues/43657)
 - **실측**: 세션 b7e5b535 (v2.1.101) — 232K 토큰 cache rebuild, 5.1% hit → 99.5% 즉시 회복

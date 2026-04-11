@@ -123,7 +123,7 @@ codex exec 사용 불가 시 Agent tool로 대체한다.
 Agent({
   description: "...",
   subagent_type: "Explore",
-  prompt: "{프롬프트 내용}\n\n파일을 수정하지 마라.",
+  prompt: "{프롬프트 내용}\n\n파일을 수정하지 마라. 읽기와 검색만 수행하라.\ntracked write, branch mutation, commit/push, GitHub write, wt/nrs/rebuild 계열 명령을 실행하지 마라.",
   run_in_background: true,
   model: "sonnet"
 })
