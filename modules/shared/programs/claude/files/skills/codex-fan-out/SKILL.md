@@ -52,25 +52,22 @@ command -v codex >/dev/null && codex --version >/dev/null 2>&1
 
 using-codex-exec 패턴 1 (기본 exec)과 run-da의 codex exec 경로 위생 규칙을 따른다.
 
-### 세션 네임스페이스
+### 세션 네임스페이스 + 디렉토리 생성
+
+**Bash tool 간 변수 비공유 대응**: 세션 네임스페이스 계산과 디렉토리 생성을
+**단일 Bash tool 호출로 체이닝**한다. 출력된 `FO_DIR` 리터럴 경로를
+이후 모든 호출에서 그대로 재사용한다.
 
 ```zsh
 _FO_SID="${CODEX_COMPANION_SESSION_ID:+${CODEX_COMPANION_SESSION_ID:0:8}}"
 [ -z "$_FO_SID" ] && _FO_SID="$(printf '%s' "$PWD" | sha1sum 2>/dev/null | head -c 8 || printf '%s' "$PWD" | shasum | head -c 8)"
+FO_DIR=$(mktemp -d /tmp/fo-${_FO_SID}-XXXXXX)
+echo "FO_DIR=$FO_DIR"
 ```
 
+이후 호출에서 `$FO_DIR` 대신 출력된 리터럴 경로 (예: `/tmp/fo-c4a35fc4-AbCdEf`)를 사용한다.
+
 ### 프롬프트 생성 + 실행
-
-**Bash tool 간 변수 비공유 대응**: Step 1에서 `echo`로 출력한 `FO_DIR` 경로를
-이후 모든 Bash tool 호출에서 **리터럴 문자열로** 재사용한다.
-`$FO_DIR` 변수는 다음 호출에서 참조할 수 없다.
-
-1. 임시 디렉토리를 생성하고 경로를 출력한다:
-   ```zsh
-   FO_DIR=$(mktemp -d /tmp/fo-${_FO_SID}-XXXXXX)
-   echo "FO_DIR=$FO_DIR"
-   ```
-   이후 호출에서 `$FO_DIR` 대신 출력된 리터럴 경로 (예: `/tmp/fo-c4a35fc4-AbCdEf`)를 사용한다.
 
 2. 에이전트별 프롬프트 파일을 생성한다 (별도 Bash tool 호출, 리터럴 경로 사용):
    ```zsh
@@ -150,4 +147,4 @@ codex exec fan-out 패턴은 /codex-fan-out 스킬 참조.
 - `--full-auto`는 workspace-write 권한을 부여하므로, 반드시 no-write boundary와 stateful-violation 금지 작업 목록(tracked write, branch mutation, commit/push, GitHub write, wt/nrs/rebuild)을 프롬프트에 명시한다.
 - `& + wait` shell-level 병렬을 사용하지 않는다. Bash tool의 `run_in_background`를 사용한다.
 - 인라인 인자 `"$(cat file)"`는 사용하지 않는다. stdin pipe만 사용한다.
-- 정리: fan-out 완료 후 `rm -rf "$FO_DIR"`로 임시 디렉토리를 정리한다.
+- 정리: fan-out 완료 후 `rm -rf "/tmp/fo-c4a35fc4-AbCdEf"`처럼 리터럴 경로로 임시 디렉토리를 정리한다 (`$FO_DIR` 변수는 다음 호출에서 사용 불가).

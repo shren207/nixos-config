@@ -57,7 +57,7 @@
 | 증상 | 원인 | 대응 |
 |------|------|------|
 | 매 턴마다 ✗ 표시 | Sentinel replacement bug | npm 패키지로 전환 |
-| --resume 직후 ✗ | Resume cache miss bug | 알려진 이슈, 첫 턴만 영향 |
+| resume/continue/branch 직후 ✗ | Resume cache miss bug (Bug 2a/2b) | 알려진 이슈, 첫 턴만 영향 |
 | Agent fan-in 직후 ✗ | 서브에이전트 fan-in cache miss | codex exec로 전환 (아래 참조) |
 | 갑자기 ✗ 전환 | 대규모 컨텍스트 변경 | 정상 동작, 다음 턴에 회복 |
 | 항상 ✗ | Extra Usage 다운그레이드 | 플랜 확인 (5분 TTL로 변경됨) |
