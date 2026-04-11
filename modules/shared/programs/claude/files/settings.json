@@ -186,6 +186,5 @@
   "voiceEnabled": true,
   "autoMemoryEnabled": false,
   "showThinkingSummaries": true,
-  "skipDangerousModePermissionPrompt": true,
-  "advisorModel": "opus"
+  "skipDangerousModePermissionPrompt": true
 }
