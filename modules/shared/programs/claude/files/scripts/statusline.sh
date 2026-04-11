@@ -42,6 +42,10 @@ fi
 IS_SSH=false
 [ -n "$SSH_CONNECTION" ] && IS_SSH=true
 
+# 캐시 가이드 URL (TTL + 히트율 아이콘 클릭 시 브라우저에서 열림)
+CACHE_GUIDE_URL="https://github.com/greenheadHQ/nixos-config/blob/main/modules/shared/programs/claude/files/docs/cache-guide.md"
+$IS_SSH && CACHE_GUIDE_URL=""
+
 # 256-color 고정 그레이 — 터미널 팔레트 의존 \e[90m 대신 사용
 # Termius 등 bright black을 검정으로 렌더링하는 터미널에서 가시성 확보
 MUTED="38;5;242"   # #6c6c6c
@@ -203,9 +207,10 @@ fi
 #   sticky: 한번 3600 감지 후 재감지 skip (pure cache hit에서 ephemeral_1h=0 대응, DA Correctness-F1).
 #   다운그레이드(1h→5m) 감지는 별도 이슈로 분리.
 if [ "${CACHE_TTL:-300}" -ne 3600 ] && [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
-  _1h=$(tac "$TRANSCRIPT" \
-    | jq -r 'select(.message.usage.cache_creation.ephemeral_1h_input_tokens > 0) | "1"' 2>/dev/null \
-    | head -1)
+  # 정순 파싱 + tail -1로 마지막 매칭을 취함 (tac 의존성 제거, DA Correctness-F1).
+  # jq만 필요 (이미 보장됨). macOS/Linux 모두 동작.
+  _1h=$(jq -r 'select(.message.usage.cache_creation.ephemeral_1h_input_tokens > 0) | "1"' \
+    "$TRANSCRIPT" 2>/dev/null | tail -1)
   [ "$_1h" = "1" ] && CACHE_TTL=3600
 fi
 
@@ -324,7 +329,7 @@ _render_cache_hit() {
 render_cache_ttl() {
   local remaining=$1
   if [ "$remaining" -le 0 ]; then
-    print_icon "$MUTED" "" "\xf0\x9f\x92\xa4" "expired"
+    print_icon "$MUTED" "$CACHE_GUIDE_URL" "\xf0\x9f\x92\xa4" "expired"
     _render_cache_hit
     return
   fi
@@ -339,7 +344,7 @@ render_cache_ttl() {
   elif [ "$remaining" -ge "$yellow_th" ]; then cache_color="33"
   else cache_color="31"
   fi
-  print_icon "$cache_color" "" "\xe2\x8f\xb1\xef\xb8\x8f" "$cache_label"
+  print_icon "$cache_color" "$CACHE_GUIDE_URL" "\xe2\x8f\xb1\xef\xb8\x8f" "$cache_label"
   _render_cache_hit
 }
 
