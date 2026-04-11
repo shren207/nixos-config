@@ -92,7 +92,7 @@ codex exec --full-auto --ephemeral \
 # 4. 결과 수집 — exit code + 빈 파일 모두 확인 (ARBITER_DIR이 다음 호출에서 유실되므로 같은 호출에서 처리)
 _EC=$?
 if [ $_EC -ne 0 ] || [ ! -s "$ARBITER_DIR/arbiter-result.md" ]; then
-  echo "ARBITER_FAILED: exit=$_EC result=$([ -f "$ARBITER_DIR/arbiter-result.md" ] && echo 'empty' || echo 'missing')"
+  echo "ARBITER_FAILED: exit=$_EC result=$([ ! -f "$ARBITER_DIR/arbiter-result.md" ] && echo 'missing' || ([ ! -s "$ARBITER_DIR/arbiter-result.md" ] && echo 'empty' || echo 'present-but-exit-failed'))"
 else
   cat "$ARBITER_DIR/arbiter-result.md"
 fi
@@ -100,23 +100,9 @@ fi
 
 ### Bash tool 변수 유실 방지
 
-`codex exec` 결과를 파일로 받아 후속 처리하는 경우, `mktemp` + `codex exec` + `cat result`를 **단일 Bash 호출**로 체이닝한다:
+`codex exec` 결과를 파일로 받아 후속 처리하는 경우, **위 코드블록 전체(#1~#4)**를 단일 Bash 호출로 체이닝한다. 위 코드블록이 올바른 패턴이다.
 
-```bash
-# 올바른 패턴 — 단일 호출로 체이닝 (arbiter-prompt.md는 이전 단계에서 생성됨 — 위 코드블록 #2 참조)
-ARBITER_DIR=$(mktemp -d /tmp/da-${_DA_SID}-arbiter-XXXXXX) && \
-codex exec --full-auto --ephemeral \
-  -o "$ARBITER_DIR/arbiter-result.md" \
-  "$(cat "$ARBITER_DIR/arbiter-prompt.md")" \
-  < /dev/null \
-  2>"$ARBITER_DIR/arbiter-stderr.log"
-_EC=$?
-if [ $_EC -ne 0 ] || [ ! -s "$ARBITER_DIR/arbiter-result.md" ]; then
-  echo "ARBITER_FAILED: exit=$_EC result=$([ -f "$ARBITER_DIR/arbiter-result.md" ] && echo 'empty' || echo 'missing')"
-else
-  cat "$ARBITER_DIR/arbiter-result.md"
-fi
-```
+아래는 호출을 분리하면 발생하는 잘못된 패턴이다:
 
 ```bash
 # 잘못된 패턴 — 변수가 다음 호출에서 유실됨
