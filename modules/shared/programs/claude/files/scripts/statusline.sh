@@ -205,8 +205,12 @@ fi
 #   grep 대신 jq: user 메시지에 포함된 필드명 텍스트 오탐 방지 (DA Regression-F2).
 #   sticky: 이전 heavy에서 감지한 CACHE_TTL을 vars에서 복원.
 #     pure cache hit(cache_creation 없음)에서는 이전 값을 유지한다.
+#     실측: 매 턴 새 메시지 추가로 cache_creation > 0 (최솟값 ~120 tokens),
+#     ephemeral 상세도 항상 존재하므로 pure hit에 의한 stale은 발생하지 않음.
 #     cache_creation이 있는 가장 최근 메시지의 TTL 타입으로 업데이트한다.
 #   다운그레이드 감지: 마지막 cache_creation이 5m이면 300으로 복귀.
+#     Extra Usage 진입 후에도 기존 1h 캐시는 유효하므로 3600 유지가 정확하고,
+#     캐시 만료 시 새 creation(5m 타입)이 발생하면 자동 감지한다.
 # 우선순위: CLAUDE_CACHE_TTL env > transcript 감지 > vars 캐시 > 기본값 300
 CACHE_TTL=300
 if [ -f "${HEAVY_STATE}.vars" ]; then
