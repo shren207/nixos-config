@@ -60,7 +60,13 @@ using-codex-exec 패턴 1 (기본 exec)과 run-da의 codex exec 경로 위생 �
 
 ```zsh
 _FO_SID="${CODEX_COMPANION_SESSION_ID:+${CODEX_COMPANION_SESSION_ID:0:8}}"
-[ -z "$_FO_SID" ] && _FO_SID="$(printf '%s' "$PWD" | sha1sum 2>/dev/null | head -c 8 || printf '%s' "$PWD" | shasum | head -c 8)"
+if [ -z "$_FO_SID" ]; then
+  if command -v sha1sum >/dev/null 2>&1; then
+    _FO_SID="$(printf '%s' "$PWD" | sha1sum | head -c 8)"
+  else
+    _FO_SID="$(printf '%s' "$PWD" | shasum | head -c 8)"
+  fi
+fi
 FO_DIR=$(mktemp -d /tmp/fo-${_FO_SID}-XXXXXX)
 echo "FO_DIR=$FO_DIR"
 ```
