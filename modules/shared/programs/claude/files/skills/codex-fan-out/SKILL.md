@@ -82,6 +82,7 @@ echo "FO_DIR=$FO_DIR"
 
    파일을 수정하지 마라. 읽기와 검색만 수행하라.
    tracked write, branch mutation, commit/push, GitHub write,
+   main-agent-only command, host mutation,
    wt/nrs/rebuild 계열 명령을 실행하지 마라.
    PROMPT
    )
@@ -129,7 +130,7 @@ codex exec 사용 불가 시 Agent tool로 대체한다.
 Agent({
   description: "...",
   subagent_type: "Explore",
-  prompt: "{프롬프트 내용}\n\n파일을 수정하지 마라. 읽기와 검색만 수행하라.\ntracked write, branch mutation, commit/push, GitHub write, wt/nrs/rebuild 계열 명령을 실행하지 마라.",
+  prompt: "{프롬프트 내용}\n\n파일을 수정하지 마라. 읽기와 검색만 수행하라.\ntracked write, branch mutation, commit/push, GitHub write, main-agent-only command, host mutation, wt/nrs/rebuild 계열 명령을 실행하지 마라.",
   run_in_background: true,
   model: "sonnet"
 })
@@ -150,7 +151,7 @@ codex exec fan-out 패턴은 /codex-fan-out 스킬 참조.
 
 ## 주의사항
 
-- `--full-auto`는 workspace-write 권한을 부여하므로, 반드시 no-write boundary와 stateful-violation 금지 작업 목록(tracked write, branch mutation, commit/push, GitHub write, wt/nrs/rebuild)을 프롬프트에 명시한다.
+- `--full-auto`는 workspace-write 권한을 부여하므로, 반드시 no-write boundary와 stateful-violation 금지 작업 목록(tracked write, branch mutation, commit/push, GitHub write, main-agent-only command, host mutation, wt/nrs/rebuild)을 프롬프트에 명시한다.
 - `& + wait` shell-level 병렬을 사용하지 않는다. Bash tool의 `run_in_background`를 사용한다.
 - 인라인 인자 `"$(cat file)"`는 사용하지 않는다. stdin pipe만 사용한다.
 - 정리: fan-out 완료 후 `rm -rf "/tmp/fo-c4a35fc4-AbCdEf"`처럼 리터럴 경로로 임시 디렉토리를 정리한다 (`$FO_DIR` 변수는 다음 호출에서 사용 불가).
