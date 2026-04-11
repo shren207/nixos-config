@@ -258,11 +258,11 @@ $(git diff main...HEAD)
 PROMPT
 ```
 
-**⚠️ `run_in_background` 환경**: 여기서 Bash tool 호출을 종료하고, 아래를 별도 호출로 실행한다. diff가 클 수 있으므로 file redirect를 사용한다.
+**⚠️ `run_in_background` 환경**: 여기서 Bash tool 호출을 종료하고, 아래를 별도 호출로 실행한다. diff가 클 수 있으므로 stdin pipe를 사용한다.
 
 ```bash
-codex exec --full-auto --output-schema /tmp/review-schema.json \
-  -o /tmp/review-structured.json < /tmp/review-prompt.md 2>&1
+cat /tmp/review-prompt.md | codex exec --full-auto --output-schema /tmp/review-schema.json \
+  -o /tmp/review-structured.json - 2>&1
 ```
 
 주의: `--output-schema`는 exec 전용. review 서브커맨드에서 사용 불가.
@@ -325,7 +325,7 @@ cat /tmp/smoke-result.md
 | 리뷰 (기본) | 2 | `codex exec review --base main --full-auto > result` |
 | 리뷰 (stdin PROMPT) | 2b | `cat prompt \| codex exec review - --full-auto > result` |
 | 리뷰 + 커스텀 지시 (영구) | 3 | AGENTS.md 작성 후 review --base |
-| 리뷰 + 커스텀 지시 (1회) | 4 | `codex exec --full-auto -o result < diff+지시` |
+| 리뷰 + 커스텀 지시 (1회) | 4 | `cat diff+지시 \| codex exec --full-auto -o result -` |
 | 피드백 루프 | 5 | 라운드별 prompt → exec -o → 분석 → 반복 |
 | 구조화 출력 | 6 | `exec --output-schema schema.json -o result` |
 | JSONL 스트림 | 7 | `exec --full-auto --json > events.jsonl` |
