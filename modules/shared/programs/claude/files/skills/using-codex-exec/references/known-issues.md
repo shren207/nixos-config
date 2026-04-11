@@ -404,6 +404,8 @@ codex exec --full-auto --ephemeral \
 
 ### 13. 병렬 Bash 호출 시 codex exec background 전환 → stdin hang
 
+> **대체됨**: 이 항목의 `< /dev/null` 해결 패턴은 §14의 stdin pipe 패턴으로 대체되었다. 새 코드에서는 §14를 따른다. 이 항목은 역사적 기록으로 보존한다.
+
 **심각도**: 높음 — Claude Code에서 병렬 Bash tool 호출 시 발생
 
 **증상**: foreground로 실행한 codex exec가 Claude Code에 의해 background로 자동 전환됨. background 전환 후 `Reading additional input from stdin...`에서 무한 대기. 결과 파일(`-o`)이 생성되지 않고 프로세스가 Ss(sleeping) 상태로 남음.
