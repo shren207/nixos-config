@@ -28,7 +28,7 @@
 
 **적중 시 리셋**: TTL은 캐시가 적중(hit)할 때마다 리셋된다.
 연속 대화 중에는 매 요청마다 리셋되므로 사실상 만료되지 않는다.
-`expired`는 유휴 상태에서만 발생한다.
+`expired`는 주로 유휴 상태에서 발생한다. 요청 중단(Escape/Ctrl+C) 시에도 표시될 수 있다.
 
 ### 히트율 (✓ / △ / ✗)
 
@@ -75,7 +75,7 @@
 
 ### Bug 1: Sentinel Replacement
 
-Claude Code standalone binary(228MB ELF)에 billing sentinel(`cch=00000`) 교체 로직이 존재.
+Claude Code standalone binary에 billing sentinel(`cch=00000`) 교체 로직이 존재.
 대화 내용에 sentinel 문자열이 포함되면 `messages[]`의 sentinel이 먼저 교체되어
 **매 요청마다 캐시 prefix가 변경** → 캐시 full rebuild.
 
@@ -83,14 +83,14 @@ Claude Code standalone binary(228MB ELF)에 billing sentinel(`cch=00000`) 교체
 - **감지**: statusline에서 매 턴 ✗ (red) 표시
 - **회피**: `npx @anthropic-ai/claude-code`로 실행 (standalone 대신 npm 패키지)
 
-### Bug 2: --resume Cache Miss (v2.1.69~)
+### Bug 2: --resume Cache Miss (v2.1.69~v2.1.96, **수정됨**)
 
 `--resume` 시 `deferred_tools_delta`가 `messages[N]`(끝)에 추가되어
 `messages[0]`의 내용이 달라짐 → 캐시 prefix 불일치 → resume 첫 요청에서 full cache miss.
 
 - **영향**: resume마다 ~$0.15 일회성 비용 (500K 컨텍스트)
 - **감지**: resume 직후 ✗, 이후 ✓로 회복
-- **회피**: 없음 (v2.1.68 핀닝 외)
+- **수정**: [v2.1.97](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md#2197)에서 수정됨
 
 ## Max 구독자 특이사항
 

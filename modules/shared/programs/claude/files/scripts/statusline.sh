@@ -25,7 +25,6 @@ mkdir -p "$HEAVY_CACHE_DIR"
 HEAVY_STATE="${HEAVY_CACHE_DIR}/heavy-${SESSION_ID}"
 HEAVY_INTERVAL=10
 DO_HEAVY=true
-CACHE_TTL=300  # 기본값 (5분). 우선순위: CLAUDE_CACHE_TTL env > transcript 감지 > 기본값
 
 if [ -f "$HEAVY_STATE" ]; then
   last_heavy=$(head -1 "$HEAVY_STATE" 2>/dev/null || echo 0)
@@ -204,8 +203,14 @@ fi
 # v2 (이번): Max 구독자 1시간 TTL 대응. transcript에서 assistant usage의
 #   cache_creation.ephemeral_1h_input_tokens를 jq로 파싱하여 감지.
 #   grep 대신 jq: user 메시지에 포함된 필드명 텍스트 오탐 방지 (DA Regression-F2).
-#   sticky: 한번 3600 감지 후 재감지 skip (pure cache hit에서 ephemeral_1h=0 대응, DA Correctness-F1).
+#   sticky: 이전 heavy에서 감지한 CACHE_TTL을 vars에서 복원하여 3600이면 재스캔 skip.
+#     이렇게 하면 1h 세션에서 10초마다 불필요한 전체 transcript 스캔을 방지한다.
 #   다운그레이드(1h→5m) 감지는 별도 이슈로 분리.
+# 우선순위: CLAUDE_CACHE_TTL env > transcript 감지 > vars 캐시 > 기본값 300
+CACHE_TTL=300
+if [ -f "${HEAVY_STATE}.vars" ]; then
+  eval "$(grep '^CACHE_TTL=' "${HEAVY_STATE}.vars" 2>/dev/null)" 2>/dev/null || true
+fi
 if [ "${CACHE_TTL:-300}" -ne 3600 ] && [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
   # 정순 파싱 + tail -1로 마지막 매칭을 취함 (tac 의존성 제거, DA Correctness-F1).
   # jq만 필요 (이미 보장됨). macOS/Linux 모두 동작.
