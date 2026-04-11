@@ -1,5 +1,8 @@
 # Codex Hooks Sync Design
 
+> **Historical Note:** 이 문서의 hook 분류 예시에 pain-point/archive 관련 hook이 포함되어 있으나,
+> 해당 기능은 #455에서 제거되었다. 현재 hook surface는 settings.json을 참조할 것.
+
 ## 상태
 
 - 작성일: 2026-04-03

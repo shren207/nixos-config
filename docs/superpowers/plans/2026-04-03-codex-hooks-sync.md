@@ -1,5 +1,8 @@
 # Codex Hooks Sync Implementation Plan
 
+> **Historical Note:** 이 문서의 hook 분류 예시에 pain-point/archive 관련 hook이 포함되어 있으나,
+> 해당 기능은 #455에서 제거되었다. 현재 hook surface는 settings.json을 참조할 것.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add safe, declarative Codex hooks sync for this repository by enabling the Codex hooks feature globally, compiling the Claude hook declarations into `<repo>/.codex/hooks.json`, and generating a machine-readable compatibility report for unsupported or lossy hooks.
