@@ -156,14 +156,7 @@ LLM이 커밋 메시지를 자의적으로 작성하지 않고, 가이드에 명
 gh issue comment <number> --body-file <path-to-guide.md>
 ```
 
-또는 quoted HEREDOC:
-
-```bash
-gh issue comment <number> --body "$(cat <<'EOF'
-<가이드 본문>
-EOF
-)"
-```
+`--body-file` 사용을 **강력히 권장**한다. 가이드 본문에 `EOF` 또는 `$(...)` 같은 토큰이 포함되면 `$(cat <<'EOF'...)` 방식은 outer heredoc가 조기 종료되어 본문이 잘리거나 명령이 실행될 수 있다.
 
 ## 복잡도별 분기
 
