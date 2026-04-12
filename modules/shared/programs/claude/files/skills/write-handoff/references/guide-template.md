@@ -237,9 +237,9 @@ EOF
   git status
   git log --oneline -3
   ```
-  - **BRANCH placeholder 치환 필수**: `gh repo clone`은 기본 branch(main)를 체크아웃하므로, handoff가 가리키는 작업 상태에 도달하려면 `$BRANCH`로 실제 branch명을 넣어야 한다. 치환하지 않으면 main 상태만 보여 handoff 맥락과 어긋난다.
-  - **다른 repo 대상 handoff**: `greenheadHQ/nixos-config`와 clone 대상 디렉토리명도 해당 값으로 치환.
+  - **BRANCH와 repo slug은 `write-handoff/SKILL.md`의 "동적 Context" 섹션 주입 값으로 치환**한다. `!`git branch --show-current`` 및 `!`gh repo view --json nameWithOwner``의 preprocessing 결과가 skill 로드 시 실제 값으로 대체되므로, 작성자 LLM은 placeholder(`<BRANCH_NAME>`, `greenheadHQ/nixos-config`)를 그대로 두지 않고 주입된 값으로 치환한다. 주입 실패 시 대응은 `write-handoff/SKILL.md` "동적 Context" 섹션 참조.
   - `git rev-parse --show-toplevel`은 repo 밖에서 `fatal: not a git repository`를 반환하므로 `2>/dev/null` + 빈 변수 검사로 우회. 이미 repo 안이면 toplevel 이동 후 동일 branch로 `checkout`.
+  - **주의**: `gh repo clone`은 기본 branch(main)를 체크아웃하므로 `git fetch origin $BRANCH && git checkout $BRANCH` 단계로 handoff 작업 맥락 복귀.
 - **이전 세션 산출물 위치**: <파일 경로 또는 PR/이슈 URL>
 - **재개 지점**: Phase N-M부터
 - **남은 Blockers**: <있으면 명시, 없으면 "없음">

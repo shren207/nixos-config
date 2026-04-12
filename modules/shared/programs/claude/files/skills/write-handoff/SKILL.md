@@ -19,6 +19,17 @@ Phase 기반 이행 가이드를 작성하고, 이슈 코멘트로 게시한다.
 |------|------|
 | 이행 가이드 마크다운 템플릿 | [references/guide-template.md](references/guide-template.md) |
 
+## 동적 Context (스킬 로드 시 주입)
+
+아래 값은 Claude Code의 [동적 context 주입](https://code.claude.com/docs/en/skills#inject-dynamic-context) 기능(`` !`<command>` ``)으로 스킬 로드 preprocessing 단계에 실제 값으로 대체된다.
+
+- **현재 repo slug**: !`gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "<unknown-repo>"`
+- **현재 branch**: !`git branch --show-current 2>/dev/null || echo "<unknown-branch>"`
+
+Next Session Starter 블록 작성 시 위 두 값을 실제 값으로 치환하여 handoff 본문에 포함한다. `<BRANCH_NAME>` placeholder와 `greenheadHQ/nixos-config` 하드코딩을 그대로 두지 않는다.
+
+**주입 비활성화 환경 대응**: `settings.json`의 `disableSkillShellExecution: true` 또는 repo 밖 cwd에서는 위 주입이 실패할 수 있다. 이 경우 Step 3(변경 대상 추출) 과정에서 `git branch --show-current`와 `gh repo view --json nameWithOwner -q .nameWithOwner`를 직접 실행하여 값을 확보한다.
+
 ## 가이드 구조
 
 이행 가이드는 다음 섹션으로 구성한다.
