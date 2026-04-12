@@ -8,7 +8,7 @@
 ## TL;DR
 
 - **상황**: <배경 + 지금까지의 맥락>
-- **현재 상태**: <branch, 워크트리 상태, 변경 대상 파일 현황>
+- **현재 상태**: <관련 파일 현황 (repo-relative), 남은 단계, 실패한 검증 결과 등 공개 안전 정보>
 - **다음 액션**: <Phase 1부터 시작할 첫 명령어>
 - **Blockers**: <있으면 명시, 없으면 "없음">
 ````
@@ -16,6 +16,7 @@
 **작성 규칙**:
 - 가이드 상단 10줄 이내에 배치 (primacy bias 활용).
 - 4슬롯 모두 채운다. 해당 없으면 "없음" 명시.
+- **공개 노출 주의**: 이 가이드는 `gh issue comment`로 GitHub에 게시된다. `현재 상태` 슬롯에 민감한 로컬 컨텍스트(`git status` 출력, 워크트리 dirty state, 개인 작업 경로)를 적지 않는다. 공개 안전 정보(repo-relative 파일 경로, 작업 단계, 검증 결과)만 기술.
 - 출처: [Lost in the Middle (TACL 2024)](https://direct.mit.edu/tacl/article/doi/10.1162/tacl_a_00638/119630/Lost-in-the-Middle-How-Language-Models-Use-Long) — 장문에서 모델은 시작/끝 정보에 강하고 중간 정보 활용이 약함.
 
 ## 헤더 블록
@@ -233,7 +234,7 @@ EOF
 ````
 
 **작성 규칙**:
-- 가이드 말미 10줄 이내에 배치 (recency bias 활용).
+- 가이드의 마지막 섹션으로 배치 (recency bias 활용). 필수 슬롯(재개 명령/산출물 위치/재개 지점/Blockers)만 포함하고 간결하게 유지한다.
 - **공개 노출 주의**: 이 가이드는 `gh issue comment`로 GitHub에 게시된다. 로컬 사용자명/절대 경로/워크트리 메타데이터가 공개 코멘트에 포함되지 않도록 한다. `<worktree-root>` 같은 placeholder 또는 repo-relative 경로를 우선 사용한다.
 - 출처: [Lost in the Middle (TACL 2024)](https://direct.mit.edu/tacl/article/doi/10.1162/tacl_a_00638/119630/Lost-in-the-Middle-How-Language-Models-Use-Long).
 

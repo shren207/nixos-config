@@ -78,7 +78,7 @@
 
 ## Self-verification 절차 (CoVe 경량판, E2)
 
-`write-handoff` 초안 완료 후 다음 패스를 1회 수행:
+`create-issue`/`write-handoff` 초안 완료 후 다음 패스를 1회 수행:
 
 1. **Claim 추출**: 본문에서 비자명한 주장을 추출. 단순/자명 사실 제외.
 2. **검증 질문 재작성**: 각 claim을 질문 형태로 전환. 예: `"Step 1에 Glob/Grep이 없다"` → `"실제 Step 1 본문에 Glob/Grep이 포함되어 있는가?"`

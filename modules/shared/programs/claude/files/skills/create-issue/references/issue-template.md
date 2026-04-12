@@ -5,7 +5,7 @@
 
 ## 템플릿
 
-```markdown
+````markdown
 ## Summary (필수)
 
 [1-2 문장으로 무엇을 왜 해야 하는지 요약. 체크리스트 A1: '무슨 문제 / 누가 / 현재 증상 / 기대 결과']
@@ -29,7 +29,7 @@
 
 [재현이 중요한 주장에 포함. 체크리스트 C1. 6필드 예시:]
 
-\```bash
+```bash
 # 환경: macOS 14.x, nrs 최신
 # 입력: ...
 # 절차:
@@ -37,7 +37,7 @@
 # 기대 결과: ...
 # 실제 결과: ...
 # 성공 기준: ...
-\```
+```
 
 ## Related Commits (선택)
 
@@ -60,7 +60,7 @@
 ## Notes (선택)
 
 [제약사항, 관련 이슈 번호, YAGNI 판단 근거, `[UNVERIFIED]` 항목 목록]
-```
+````
 
 ## 섹션별 작성 가이드
 
@@ -109,6 +109,8 @@
 
 ## 작성 예시
 
+> **가상 예시 주의**: 아래는 템플릿 작성 형식 예시이며, 실제 repo 상태와 시점에 따라 불일치할 수 있다 (예: `darwinConfigurations` 평가는 이미 `tests/eval-tests.nix`에 존재). line 번호는 작성 시점 기준으로 실측 반영한다.
+
 ```markdown
 ## Summary
 
@@ -125,8 +127,8 @@ Darwin(macOS) 설정에 대한 eval-test를 추가하여 macOS 설정 회귀를 
 ## References
 
 - [nix flake check docs](https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-flake-check.html) — "평가 가능성"만 확인함을 뒷받침
-- `tests/eval-tests.nix:1-40` — 현재 nixos-only 구조 근거 (`greenhead-minipc.config`만 평가하는 블록)
-- `lefthook.yml:27` — pre-push `nix flake check --all-systems` 훅 근거
+- `tests/eval-tests.nix:15-17` — NixOS config 평가 블록 (`nixosCfg = flake.nixosConfigurations.greenhead-minipc.config`)
+- `lefthook.yml:21-22` — pre-push `nix flake check --all-systems` 훅 근거
 - `[UNVERIFIED]` Darwin eval이 x86_64-linux에서 평가 가능한지는 실측 필요 (Notes 참조)
 
 ## Related Commits
