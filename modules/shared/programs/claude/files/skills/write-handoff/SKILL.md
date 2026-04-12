@@ -21,14 +21,19 @@ Phase 기반 이행 가이드를 작성하고, 이슈 코멘트로 게시한다.
 
 ## 동적 Context (스킬 로드 시 주입)
 
-아래 값은 Claude Code의 [동적 context 주입](https://code.claude.com/docs/en/skills#inject-dynamic-context) 기능(`` !`<command>` ``)으로 스킬 로드 preprocessing 단계에 실제 값으로 대체된다.
+아래 값은 Claude Code의 [동적 context 주입](https://code.claude.com/docs/en/skills#inject-dynamic-context) 기능(`` !`<command>` ``)으로 스킬 로드 preprocessing 단계에 실제 값으로 대체된다. 두 명령은 cwd 위치와 무관하게 동작하도록 **이슈 인자 기반 다단 fallback**으로 구성된다.
 
-- **현재 repo slug**: !`gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "<unknown-repo>"`
-- **현재 branch**: !`git branch --show-current 2>/dev/null || echo "<unknown-branch>"`
+- **현재 repo slug**: !`gh issue view "$ARGUMENTS" --json repository -q .repository.nameWithOwner 2>/dev/null || gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null`
+- **handoff 대상 branch**: !`gh issue view "$ARGUMENTS" --json linkedBranches -q '.linkedBranches[0].ref.name' 2>/dev/null || git branch --show-current 2>/dev/null`
 
-Next Session Starter 블록 작성 시 위 두 값을 실제 값으로 치환하여 handoff 본문에 포함한다. `<BRANCH_NAME>` placeholder와 `greenheadHQ/nixos-config` 하드코딩을 그대로 두지 않는다.
+우선순위: (1) `$ARGUMENTS`의 이슈에 연결된 repo/branch → (2) 현재 cwd의 repo/branch. 두 값 모두 빈 문자열로 주입될 수 있다.
 
-**주입 비활성화 환경 대응**: `settings.json`의 `disableSkillShellExecution: true` 또는 repo 밖 cwd에서는 위 주입이 실패할 수 있다. 이 경우 Step 3(변경 대상 추출) 과정에서 `git branch --show-current`와 `gh repo view --json nameWithOwner -q .nameWithOwner`를 직접 실행하여 값을 확보한다.
+**주입 실패 처리** (주입된 값이 빈 문자열이거나 placeholder 형태일 때):
+1. `disableSkillShellExecution: true` 설정되어 있는 환경이면, 이 지시서의 LLM이 Step 3에서 위 두 명령을 직접 실행하여 값 확보.
+2. 이슈와 연결된 branch가 없고 `git branch --show-current`도 비어 있으면, **`AskUserQuestion`으로 사용자에게 handoff 대상 branch를 직접 질의**한다. 확답 없이는 NSS 블록을 작성하지 않는다.
+3. **NSS 블록에 unresolved placeholder(`<BRANCH_NAME>`, `<unknown-*>`, 빈 문자열)가 남은 상태로는 절대 게시하지 않는다.** Step 8 Self-verification에서 placeholder 잔존 여부를 검증.
+
+Next Session Starter 블록 작성 시 위에서 확보한 두 값을 실제 값으로 치환하여 handoff 본문에 포함한다. `<BRANCH_NAME>` placeholder와 `greenheadHQ/nixos-config` 하드코딩을 그대로 두지 않는다.
 
 ## 가이드 구조
 
@@ -157,6 +162,7 @@ LLM이 커밋 메시지를 자의적으로 작성하지 않고, 가이드에 명
 2. **검증 질문 재작성**: 각 claim을 검증 질문으로 변환. 예: `"파일 X에 Y 함수가 있다"` → `"실제 파일 X에 Y 함수가 있는가?"`
 3. **독립 답변**: 초안을 보지 않은 상태로 `Read`/`Grep`/`gh` 재실행으로 질문에 답.
 4. **불일치 처리**: 답변과 초안이 일치하지 않으면 초안 수정. 확인 불가 시 `[UNVERIFIED]` 라벨 또는 삭제.
+5. **NSS placeholder 검증 (필수)**: Next Session Starter 블록의 BRANCH와 repo slug이 `<...>` 형태 placeholder이거나 `<unknown-*>`/빈 문자열인지 점검. 하나라도 남아 있으면 "동적 Context" 섹션의 "주입 실패 처리" 순서로 실제 값 확보 후 치환. 치환 완료 전에는 Step 9(게시)로 진행하지 않는다.
 
 ### Step 9: 이슈 코멘트로 게시
 
