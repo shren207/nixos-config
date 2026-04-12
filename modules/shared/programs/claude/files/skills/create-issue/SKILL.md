@@ -51,10 +51,10 @@ description: |
 
 ### Step 3 — Anti-hallucination 자체 검증
 
-작성된 이슈 본문에 대해 다음을 수행한다 (LLM 친화성 체크리스트 E1/E2 참조).
+작성된 이슈 본문에 체크리스트 E1/E2를 적용한다 (규칙 상세 정의와 출처는 [`../write-handoff/references/llm-friendly-checklist.md`](../write-handoff/references/llm-friendly-checklist.md) Normative E1/E2 참조).
 
-- **E1. `[UNVERIFIED]` 라벨**: 코드베이스 직접 확인 또는 출처 링크가 없는 모든 주장에 `[UNVERIFIED]` 라벨을 붙이거나 삭제한다. 근접 근거로부터의 추론은 `[INFERRED]`, 두 출처 상충은 `[CONFLICTING]`. 출처: [Anthropic: Reduce hallucinations](https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/reduce-hallucinations), [MetaFaith (EMNLP 2025)](https://aclanthology.org/2025.emnlp-main.1505/).
-- **E2. Self-verification 패스 (CoVe 경량)**: 초안의 비자명 주장을 질문으로 변환 → `Read`/`Grep`/`gh` 재실행으로 독립 확인 → 불일치 또는 근거 부재 시 `[UNVERIFIED]` 라벨 또는 삭제. 출처: [Chain-of-Verification (arXiv 2309.11495)](https://arxiv.org/abs/2309.11495).
+- **E1**: 근거 링크 또는 코드 직접 확인이 없는 주장에 `[UNVERIFIED]` 라벨을 붙이거나 삭제한다. 근접 근거 추론은 `[INFERRED]`, 출처 상충은 `[CONFLICTING]`.
+- **E2**: 비자명 주장을 검증 질문으로 변환 → `Read`/`Grep`/`gh` 재실행으로 독립 확인 → 불일치/근거 부재 시 라벨 또는 삭제.
 
 ### Step 4 — 라벨 자동 결정
 
