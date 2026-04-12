@@ -34,6 +34,8 @@ Phase 기반 이행 가이드를 작성하고, 이슈 코멘트로 게시한다.
 
 복잡도에 따라 Phase 수가 3-6개로 조정된다. 상세 템플릿은 [references/guide-template.md](references/guide-template.md) 참조.
 
+템플릿 상단의 **TL;DR 블록** (상황/현재 상태/다음 액션/Blockers)과 말미의 **Next Session Starter 블록** (재개 지점)은 `references/guide-template.md`에서 정의한다. primacy/recency bias를 활용하여 새 세션 LLM의 맥락 파악 속도를 높인다 (출처: [Lost in the Middle (TACL 2024)](https://direct.mit.edu/tacl/article/doi/10.1162/tacl_a_00638/119630/Lost-in-the-Middle-How-Language-Models-Use-Long)).
+
 ## 절차
 
 ### Step 1: 이슈 내용 읽기
@@ -74,6 +76,14 @@ gh issue view <url> --json title,body,labels,assignees,comments
 
 코드베이스를 직접 탐색하여 이슈에 명시되지 않은 관련 파일(예: 상수 참조, 테스트, 설정)도 식별한다.
 
+**탐색 도구 예시** (체크리스트 B4):
+- `Glob "**/*.nix"` 또는 `find . -name "*.nix" -path "*<키워드>*"` — 파일 경로 검색
+- `Grep -n "<심볼>" <경로>` — import/상수/테스트 참조 발견
+- `git log --oneline -20 -- <경로>` — 최근 변경 이력
+- `git blame <파일>` — 라인별 맥락
+
+관련 파일 누락 방지: `Grep "<심볼>" modules/ libraries/ tests/`로 repo 전체 재검색.
+
 ### Step 4: Phase별 가이드 작성
 
 [references/guide-template.md](references/guide-template.md)의 템플릿에 따라 각 Phase를 작성한다.
@@ -81,7 +91,9 @@ gh issue view <url> --json title,body,labels,assignees,comments
 **Phase 작성 원칙:**
 - 각 Phase는 독립 실행 가능해야 한다 (이전 Phase의 출력에 의존하되, 맥락 공유 없이도 수행 가능).
 - 명령어와 기대 결과를 코드블록으로 제공한다.
-- BEFORE/AFTER 형식으로 치환 내용을 명시한다.
+- BEFORE/AFTER 형식으로 치환 내용을 명시한다 (체크리스트 C3).
+- **비자명한 주장에는 인라인 citation을 붙인다** (체크리스트 B1). 예: `Nix rebuild 경로는 main-agent-only [run-da/SKILL.md의 single-writer 섹션 참조]`.
+- **근거 없는 주장은 `[UNVERIFIED]` 라벨 또는 삭제** (체크리스트 E1). 근접 추론은 `[INFERRED]`, 출처 상충은 `[CONFLICTING]`.
 
 ### Step 5: "진실 원천 우선" 원칙 적용
 
@@ -122,7 +134,18 @@ LLM이 커밋 메시지를 자의적으로 작성하지 않고, 가이드에 명
 코드 품질을 검증한 뒤 PR을 생성하라.
 ```
 
-### Step 8: 이슈 코멘트로 게시
+### Step 8: Self-verification 패스 (CoVe 경량)
+
+게시 전 초안에 대해 Chain-of-Verification 경량판을 수행한다 (체크리스트 E2).
+출처: [Chain-of-Verification (arXiv 2309.11495)](https://arxiv.org/abs/2309.11495), [Self-Alignment for Factuality (ACL 2024)](https://aclanthology.org/2024.acl-long.107/).
+
+절차:
+1. **Claim 추출**: 가이드 본문에서 비자명한 주장을 추출. 자명/trivial 사실 제외.
+2. **검증 질문 재작성**: 각 claim을 검증 질문으로 변환. 예: `"파일 X에 Y 함수가 있다"` → `"실제 파일 X에 Y 함수가 있는가?"`
+3. **독립 답변**: 초안을 보지 않은 상태로 `Read`/`Grep`/`gh` 재실행으로 질문에 답.
+4. **불일치 처리**: 답변과 초안이 일치하지 않으면 초안 수정. 확인 불가 시 `[UNVERIFIED]` 라벨 또는 삭제.
+
+### Step 9: 이슈 코멘트로 게시
 
 작성한 가이드를 이슈 코멘트로 게시한다.
 
@@ -173,8 +196,9 @@ gh issue comment <number> --body "<가이드 본문>"
 - **환경별 분기 명시**: macOS/NixOS 분기, `ssh minipc` 필요 여부 등 환경에 따라 달라지는 행동을 명확히 기술한다.
 - **QA 체인**: 스킬 관련 이슈의 경우 skill-reviewer -> skill-creator 순서의 QA 체인을 가이드에 포함한다.
 - **병렬 힌트 제공**: 독립적으로 실행 가능한 명령에는 `(병렬 가능)` 힌트를 명시하여 LLM이 병렬 실행을 활용하도록 유도한다.
-- **미검증 주석**: 가이드 작성 시점에 확인하지 못한 사항(예: 특정 환경에서만 재현 가능한 동작)은 `<!-- 미검증: ... -->` 주석으로 표시하여 실행 LLM이 인지하도록 한다.
+- **Anti-hallucination 라벨**: 미검증 사항은 `[UNVERIFIED]` 인라인 라벨 사용 (체크리스트 E1). 근접 추론은 `[INFERRED]`, 출처 상충은 `[CONFLICTING]`. `<!-- 미검증: ... -->` HTML 주석은 **DEPRECATED** — 신규 가이드는 `[UNVERIFIED]` 라벨을 사용한다.
 
 ## 참조 자료
 
-- **[references/guide-template.md](references/guide-template.md)** — LLM 이행 가이드 마크다운 템플릿 + 헤더 블록/Phase 구조/커밋 템플릿/QA 체크리스트 + 모범 패턴
+- **[references/guide-template.md](references/guide-template.md)** — LLM 이행 가이드 마크다운 템플릿 + TL;DR 블록 + Next Session Starter 블록 + 헤더 블록/Phase 구조/커밋 템플릿/QA 체크리스트 + 모범 패턴
+- **[references/llm-friendly-checklist.md](references/llm-friendly-checklist.md)** — `create-issue`/`write-handoff` 공유 체크리스트. Normative(스킬 강제) + Informational(권장) 분리. 라벨 체계(`[UNVERIFIED]`/`[INFERRED]`/`[CONFLICTING]`)와 출처 링크

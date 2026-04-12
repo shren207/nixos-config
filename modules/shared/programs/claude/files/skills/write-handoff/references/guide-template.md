@@ -1,5 +1,23 @@
 # LLM 이행 가이드 마크다운 템플릿
 
+## TL;DR 블록 (최상단)
+
+가이드 최상단(헤더 블록보다 앞)에 4슬롯 TL;DR을 배치한다. 새 세션 LLM이 첫 화면에서 전체 맥락을 파악하도록 한다. 체크리스트 D1 참조.
+
+````markdown
+## TL;DR
+
+- **상황**: <배경 + 지금까지의 맥락>
+- **현재 상태**: <branch, 워크트리 상태, 변경 대상 파일 현황>
+- **다음 액션**: <Phase 1부터 시작할 첫 명령어>
+- **Blockers**: <있으면 명시, 없으면 "없음">
+````
+
+**작성 규칙**:
+- 가이드 상단 10줄 이내에 배치 (primacy bias 활용).
+- 4슬롯 모두 채운다. 해당 없으면 "없음" 명시.
+- 출처: [Lost in the Middle (TACL 2024)](https://direct.mit.edu/tacl/article/doi/10.1162/tacl_a_00638/119630/Lost-in-the-Middle-How-Language-Models-Use-Long) — 장문에서 모델은 시작/끝 정보에 강하고 중간 정보 활용이 약함.
+
 ## 헤더 블록
 
 blockquote 형태로 작업의 메타 정보를 한눈에 제공한다.
@@ -196,6 +214,29 @@ EOF
    - negative에 인접 스킬 트리거 포함
 ```
 
+## Next Session Starter 블록 (최하단)
+
+가이드 말미(QA 체크리스트 뒤)에 Next Session Starter를 배치한다. 다음 세션 LLM이 이 가이드만 읽고 즉시 작업을 시작할 수 있도록 재개 지점을 명시한다. 체크리스트 D2 참조.
+
+````markdown
+## Next Session Starter
+
+- **이 가이드 읽고 바로 시작할 명령어** (절대 경로 + 초기 상태 확인):
+  ```bash
+  cd /absolute/path/to/worktree
+  git status
+  git log --oneline -3
+  ```
+- **이전 세션 산출물 위치**: <파일 경로 또는 PR/이슈 URL>
+- **재개 지점**: Phase N-M부터
+- **남은 Blockers**: <있으면 명시, 없으면 "없음">
+````
+
+**작성 규칙**:
+- 가이드 말미 10줄 이내에 배치 (recency bias 활용).
+- 절대 경로 사용 (LLM이 환경 가정 없이 실행 가능하도록).
+- 출처: [Lost in the Middle (TACL 2024)](https://direct.mit.edu/tacl/article/doi/10.1162/tacl_a_00638/119630/Lost-in-the-Middle-How-Language-Models-Use-Long).
+
 ## 모범 패턴 (Issue #252 기반)
 
 Issue #252의 LLM 이행 가이드에서 관찰된 효과적인 패턴:
@@ -234,11 +275,28 @@ Issue #252의 LLM 이행 가이드에서 관찰된 효과적인 패턴:
 
 실행 환경에 따라 달라지는 행동을 명시하여 LLM이 올바른 경로를 선택하도록 한다.
 
-### "미검증 주석" 패턴
+### "TL;DR + Next Session Starter" 패턴
+
+장문 가이드에서 핵심 맥락을 상단 TL;DR에, 재개 지점을 하단 Next Session Starter에 배치한다. "Lost in the Middle" 현상을 상쇄하여 새 세션 LLM의 맥락 파악을 돕는다. 출처: [Lost in the Middle (TACL 2024)](https://direct.mit.edu/tacl/article/doi/10.1162/tacl_a_00638/119630/Lost-in-the-Middle-How-Language-Models-Use-Long), [Anthropic: Long context tips](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/long-context-tips).
+
+### "`[UNVERIFIED]` 라벨" 패턴
+
+근거 없는 주장을 가이드에 남길 때 인라인 라벨을 사용한다. `[INFERRED]`(근접 근거의 추론), `[CONFLICTING]`(출처 상충)도 함께. 출처: [Anthropic: Reduce hallucinations](https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/reduce-hallucinations), [MetaFaith (EMNLP 2025)](https://aclanthology.org/2025.emnlp-main.1505/).
+
+예:
+```markdown
+`[UNVERIFIED]` 이 옵션은 NixOS 24.11에서 동작하지만 24.05에서는 미확인.
+`[INFERRED]` PoC 추가가 품질을 개선한다 — 정량 벤치마크 부재, PROMPTEVALS 등 인접 근거로 추론.
+`[CONFLICTING]` FRONT(2024)는 pipeline 분리 우세, Evaluating Design Choices(2025)는 direct generation 우세.
+```
+
+### "미검증 주석" 패턴 (DEPRECATED)
+
+> **DEPRECATED**: 이 HTML 주석 패턴은 더 이상 권장되지 않는다. 신규 산출물은 위 [`[UNVERIFIED]` 라벨 패턴](#unverified-라벨-패턴)을 사용한다. 기존 산출물은 점진적으로 마이그레이션한다.
 
 ```markdown
 <!-- 미검증: NixOS에서 이 옵션이 적용되는지 확인 필요. macOS에서만 테스트됨. -->
 ```
 
-가이드 작성 시점에 확인하지 못한 사항을 HTML 주석으로 표시한다.
-실행 LLM이 해당 부분에서 추가 검증을 수행하도록 유도한다.
+(참고용 — 가이드 작성 시점에 확인하지 못한 사항을 HTML 주석으로 표시하던 구 패턴.
+`[UNVERIFIED]` 라벨은 본문에 인라인으로 노출되어 실행 LLM이 더 안정적으로 인지한다.)
