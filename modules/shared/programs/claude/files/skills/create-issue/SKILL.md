@@ -69,21 +69,36 @@ description: |
 ### Step 5 — 등록 및 확인
 
 1. 등록 전 **제목, 라벨 조합을 사용자에게 보여주고 확인**을 받는다.
-2. 확인 후 `gh issue create`를 **`--body-file`로 실행**한다. 본문은 임시 파일에 저장 후 전달.
+2. 확인 후 `gh issue create`를 **`--body-file`로 실행**한다. 본문은 임시 파일에 저장 후 전달. 실패 시 Step 6으로 진행하지 않는다.
    ```bash
-   # 본문을 /tmp에 저장
-   # BSD/macOS mktemp는 템플릿 끝(trailing)에 XXXXXX가 와야 랜덤 치환함 (suffix 앞 X는 리터럴 취급).
+   # BSD/macOS mktemp는 템플릿 끝(trailing)에 XXXXXX가 와야 랜덤 치환함.
    # 확장자 없이 랜덤 파일 생성 — gh issue create --body-file은 확장자 무관.
    umask 077
    ISSUE_BODY=$(mktemp -t issue-body.XXXXXX) || { echo "ERROR: mktemp 실패"; exit 1; }
-   # <작성된 본문>을 $ISSUE_BODY에 기록
-   gh issue create --title "<제목>" --label "<라벨>" --body-file "$ISSUE_BODY" \
-     && rm -f "$ISSUE_BODY" \
-     || { echo "ERROR: gh issue create 실패. 본문 보존: $ISSUE_BODY (재시도 시 재사용 가능)"; }
+   # <작성된 본문>을 $ISSUE_BODY에 기록 (Write 도구)
+
+   # gh issue create — 성공 시 URL 캡처, 실패 시 본문 경로/미리보기 출력 후 exit 1
+   if ISSUE_URL=$(gh issue create --title "<제목>" --label "<라벨>" --body-file "$ISSUE_BODY"); then
+     echo "ISSUE_URL=$ISSUE_URL"
+     rm -f "$ISSUE_BODY"
+   else
+     rc=$?
+     echo "ERROR: gh issue create 실패 (exit $rc)"
+     echo "ISSUE_BODY_PATH=$ISSUE_BODY  # 본문 보존됨 (재시도 시 재사용)"
+     echo "--- 본문 미리보기 (상위 20줄, shell 세션 외 접근 가능하도록 stdout에 표시) ---"
+     head -20 "$ISSUE_BODY"
+     echo "---"
+     echo "재시도 명령 (동일 shell 세션 또는 ISSUE_BODY_PATH 값을 직접 입력):"
+     echo "  gh issue create --title '<제목>' --label '<라벨>' --body-file \"\$ISSUE_BODY_PATH\""
+     echo "**Step 6(이행 가이드 연계)은 이슈 등록 완료 전에는 진행하지 않는다.**"
+     exit 1
+   fi
    ```
-3. 생성된 이슈 URL을 반환한다.
+3. 반환된 `ISSUE_URL`이 실제 GitHub URL(`https://github.com/.../issues/N`)인지 확인. 실패 시 Step 6 진행 금지.
 
 ### Step 6 — LLM 이행 가이드 연계
+
+**진입 가드**: Step 5가 성공적으로 `ISSUE_URL` 을 반환했는지 확인한다. 반환이 없거나 `ERROR:` 출력이 있었다면 **Step 6으로 진행하지 않는다** — 존재하지 않는 이슈 번호로 `/write-handoff`를 호출하면 handoff comment가 엉뚱한 곳에 게시되거나 오류로 중단된다.
 
 **호출 맥락 확인**: plan-with-questions에서 호출된 경우(Step I-5), 이 Step을 건너뛴다.
 (plan-with-questions Step I-6에서 통합 선택지로 제안하므로 중복 방지.)

@@ -24,9 +24,16 @@ Phase 기반 이행 가이드를 작성하고, 이슈 코멘트로 게시한다.
 아래 값은 Claude Code의 [동적 context 주입](https://code.claude.com/docs/en/skills#inject-dynamic-context) 기능(`` !`<command>` ``)으로 스킬 로드 preprocessing 단계에 실제 값으로 대체된다. 두 명령은 cwd 위치와 무관하게 동작하도록 **이슈 인자 기반 다단 fallback**으로 구성된다.
 
 - **현재 repo slug**: !`gh issue view "$ARGUMENTS" --json url -q .url 2>/dev/null | sed -nE 's|^https?://[^/]+/([^/]+/[^/]+)/.*$|\1|p' | grep -vE '^(null|)$' || gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null | grep -vE '^(null|)$' || true`
-- **handoff 대상 branch**: !`git branch --show-current 2>/dev/null | grep -vE '^(null|main|master|)$' || true`
+- **handoff 대상 branch**: *(자동 주입 없음 — 아래 "branch 확보 절차" 참조)*
 
 우선순위 (repo slug): (1) `$ARGUMENTS`의 이슈 URL 파싱 (cwd 무관) → (2) cwd repo.
+
+**branch 자동 주입 제거 이유**: `git branch --show-current`는 **작성자 LLM의 cwd 현재 branch**일 뿐, handoff 대상 branch가 아니다. 사용자가 main으로 돌아왔거나 다른 feature branch에서 `/write-handoff <num>`을 호출한 경우, 엉뚱한 branch가 NSS에 주입되어 placeholder 검증(`<...>`/null/main/master 가드)을 통과해도 **의미상 잘못된 branch**가 게시될 수 있다. cwd 기반 추정보다 아래 확보 절차 중 하나로 명시적 확답을 받는다.
+
+**branch 확보 절차 (Step 3/8에서 LLM이 실행)**:
+1. **GraphQL linkedBranches 1순위**: 이슈에 Development panel로 명시적 연결된 branch 조회 (아래 GraphQL 예시). `nodes`가 비어 있지 않으면 그 값 사용.
+2. **closedByPullRequestsReferences 2순위**: 이미 PR이 연결된 이슈면 `gh issue view $NUM --json closedByPullRequestsReferences` → 해당 PR의 `headRefName`.
+3. **사용자 직접 확답 (필수 최종 게이트)**: 1·2에서 값 확보 실패 시 **`AskUserQuestion`으로 사용자에게 handoff 대상 branch를 질의**한다. 이것은 bypass 불가. `git branch --show-current`의 cwd branch를 묵시적 default로 사용하지 않는다.
 
 **gh CLI `--json` wrapper 제약 vs GraphQL API**: `gh issue view --json`은 REST-style wrapper 필드만 노출하여 `repository`/`linkedBranches` 필드를 지원하지 않는다(gh 2.89.0 최신에서도 동일). 그러나 **GitHub GraphQL API 자체는 [`Issue.repository`](https://docs.github.com/en/graphql/reference/objects#repository)와 [`Issue.linkedBranches`](https://docs.github.com/en/graphql/reference/objects#linkedbranch) 타입을 제공**하므로, 필요 시 `gh api graphql`로 직접 조회할 수 있다:
 
@@ -47,8 +54,8 @@ gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){
 **`grep -vE '^(null|main|master|)$'` 가드**: null 문자열, 빈 줄, 기본 branch는 shell pipe에서 exit 1을 유도해 `||` fallback/최종 빈 값으로 연결. 최종 값이 비어 있으면 "주입 실패 처리" 순서로 수동 확보.
 
 **주입 실패 처리** (주입된 값이 빈 문자열이거나 placeholder 형태일 때):
-1. `disableSkillShellExecution: true` 설정되어 있는 환경이면, 이 지시서의 LLM이 Step 3에서 위 두 명령을 직접 실행하여 값 확보.
-2. 이슈와 연결된 branch가 없고 `git branch --show-current`도 비어 있으면, **`AskUserQuestion`으로 사용자에게 handoff 대상 branch를 직접 질의**한다. 확답 없이는 NSS 블록을 작성하지 않는다.
+1. `disableSkillShellExecution: true` 설정되어 있는 환경이면, 이 지시서의 LLM이 Step 3에서 repo slug 주입 명령을 직접 실행하여 값 확보. branch는 "branch 확보 절차"를 따른다.
+2. branch 확보는 **항상 명시적** — cwd branch 묵시적 default 금지. linkedBranches/closedByPullRequestsReferences에서 확보 실패 시 반드시 `AskUserQuestion`으로 사용자에게 질의한다.
 3. **NSS 블록에 unresolved placeholder(`<BRANCH_NAME>`, `<unknown-*>`, 빈 문자열)가 남은 상태로는 절대 게시하지 않는다.** Step 8 Self-verification에서 placeholder 잔존 여부를 검증.
 
 Next Session Starter 블록 작성 시 위에서 확보한 두 값을 실제 값으로 치환하여 handoff 본문에 포함한다. `<BRANCH_NAME>` placeholder와 `greenheadHQ/nixos-config` 하드코딩을 그대로 두지 않는다.
