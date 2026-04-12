@@ -249,7 +249,7 @@ EOF
     git log --oneline -3
   ) || { echo "ERROR: handoff restore failed. REPO=$REPO BRANCH=$BRANCH"; echo "수동으로 repo/branch 확보 후 재시도하세요."; }
   ```
-  - **REPO와 BRANCH는 `write-handoff/SKILL.md`의 "동적 Context" 섹션 주입 값으로 치환**한다. 이슈 인자 기반 다단 fallback(`gh issue view ... --json repository|linkedBranches` → `git branch --show-current`)으로 cwd 무관 주입되므로, 작성자 LLM은 placeholder(`<REPO_SLUG>`, `<BRANCH_NAME>`)를 그대로 두지 않고 주입된 값으로 치환한다. 특정 repo slug(`greenheadHQ/nixos-config` 등)을 예시로 하드코딩하지 않는다 — 다른 repo handoff에서 엉뚱한 clone을 유발한다.
+  - **REPO와 BRANCH는 `write-handoff/SKILL.md`의 "동적 Context" 섹션 주입 값으로 치환**한다. 주입 경로: repo slug는 `gh issue view $NUM --json url -q .url`로 URL을 받아 `owner/name`을 파싱(또는 cwd에서 `gh repo view --json nameWithOwner`), branch는 `gh api graphql`로 `linkedBranches` 조회(1순위), 미확보 시 `closedByPullRequestsReferences`의 PR 번호로 `gh pr view --json headRefName` 호출(2순위), 최종 미확보 시 `AskUserQuestion`. `gh issue view --json`은 `repository`/`linkedBranches` 필드를 지원하지 않으므로 절대 `gh issue view --json repository` 또는 `gh issue view --json linkedBranches`로 대체하지 않는다. 작성자 LLM은 placeholder(`<REPO_SLUG>`, `<BRANCH_NAME>`)를 그대로 두지 않고 주입된 값으로 치환한다. 특정 repo slug(`greenheadHQ/nixos-config` 등)을 예시로 하드코딩하지 않는다 — 다른 repo handoff에서 엉뚱한 clone을 유발한다.
   - **게시 전 placeholder 검증 필수**: Step 8 Self-verification 5번 항목에서 다음 중 하나라도 남아 있으면 게시 금지.
     - `<...>` 형태 placeholder (`<REPO_SLUG>`, `<BRANCH_NAME>`, `<unknown-*>` 등)
     - 빈 문자열

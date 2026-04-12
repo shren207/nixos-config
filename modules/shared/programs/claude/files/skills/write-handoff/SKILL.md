@@ -32,7 +32,13 @@ Phase 기반 이행 가이드를 작성하고, 이슈 코멘트로 게시한다.
 
 **branch 확보 절차 (Step 3/8에서 LLM이 실행)**:
 1. **GraphQL linkedBranches 1순위**: 이슈에 Development panel로 명시적 연결된 branch 조회 (아래 GraphQL 예시). `nodes`가 비어 있지 않으면 그 값 사용.
-2. **closedByPullRequestsReferences 2순위**: 이미 PR이 연결된 이슈면 `gh issue view $NUM --json closedByPullRequestsReferences` → 해당 PR의 `headRefName`.
+2. **closedByPullRequestsReferences 2순위**: 이미 PR이 연결된 이슈면 2-step hop으로 branch 조회. `gh issue view --json closedByPullRequestsReferences`는 `number`/`url`/`repository`만 반환하고 `headRefName`을 포함하지 않으므로 PR 번호를 받은 뒤 `gh pr view`로 다시 조회한다.
+   ```bash
+   PR_NUM=$(gh issue view "$NUM" --json closedByPullRequestsReferences \
+     -q '.closedByPullRequestsReferences[0].number' 2>/dev/null)
+   [ -n "$PR_NUM" ] && [ "$PR_NUM" != "null" ] && \
+     gh pr view "$PR_NUM" --json headRefName -q .headRefName
+   ```
 3. **사용자 직접 확답 (필수 최종 게이트)**: 1·2에서 값 확보 실패 시 **`AskUserQuestion`으로 사용자에게 handoff 대상 branch를 질의**한다. 이것은 bypass 불가. `git branch --show-current`의 cwd branch를 묵시적 default로 사용하지 않는다.
 
 **gh CLI `--json` wrapper 제약 vs GraphQL API**: `gh issue view --json`은 REST-style wrapper 필드만 노출하여 `repository`/`linkedBranches` 필드를 지원하지 않는다(gh 2.89.0 최신에서도 동일). 그러나 **GitHub GraphQL API 자체는 [`Issue.repository`](https://docs.github.com/en/graphql/reference/objects#repository)와 [`Issue.linkedBranches`](https://docs.github.com/en/graphql/reference/objects#linkedbranch) 타입을 제공**하므로, 필요 시 `gh api graphql`로 직접 조회할 수 있다:
