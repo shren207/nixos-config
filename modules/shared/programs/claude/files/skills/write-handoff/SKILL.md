@@ -26,9 +26,23 @@ Phase 기반 이행 가이드를 작성하고, 이슈 코멘트로 게시한다.
 - **현재 repo slug**: !`gh issue view "$ARGUMENTS" --json url -q .url 2>/dev/null | sed -nE 's|^https?://[^/]+/([^/]+/[^/]+)/.*$|\1|p' | grep -vE '^(null|)$' || gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null | grep -vE '^(null|)$' || true`
 - **handoff 대상 branch**: !`git branch --show-current 2>/dev/null | grep -vE '^(null|main|master|)$' || true`
 
-우선순위 (repo slug): (1) `$ARGUMENTS`의 이슈 URL 파싱 (cwd 무관) → (2) cwd repo. branch는 자동 주입 제한: `git branch --show-current`만 사용하며 main/master/detached HEAD는 빈 값으로 떨어뜨려 Self-verification이 수동 확보 경로(AskUserQuestion)로 전환하도록 한다.
+우선순위 (repo slug): (1) `$ARGUMENTS`의 이슈 URL 파싱 (cwd 무관) → (2) cwd repo.
 
-**gh CLI 지원 필드 제약**: 현 `gh issue view` 는 `--json repository`/`--json linkedBranches`를 지원하지 않으며(`Unknown JSON field` 에러), `--json url` 등 제한적 필드만 제공한다. 따라서 1순위 repo 조회는 `--json url`에서 sed로 `owner/name`을 파싱한다. `linkedBranches`는 GitHub Issue 타입에 해당 필드가 존재하지 않아 작성자 branch는 **자동 주입 대상에서 제외**하고 Step 8 Self-verification이 사용자에게 직접 질의한다.
+**gh CLI `--json` wrapper 제약 vs GraphQL API**: `gh issue view --json`은 REST-style wrapper 필드만 노출하여 `repository`/`linkedBranches` 필드를 지원하지 않는다(gh 2.89.0 최신에서도 동일). 그러나 **GitHub GraphQL API 자체는 [`Issue.repository`](https://docs.github.com/en/graphql/reference/objects#repository)와 [`Issue.linkedBranches`](https://docs.github.com/en/graphql/reference/objects#linkedbranch) 타입을 제공**하므로, 필요 시 `gh api graphql`로 직접 조회할 수 있다:
+
+```bash
+# 이슈에 연결된 branch 조회 (handoff 대상 branch 자동 유도에 유효)
+gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){
+  repository(owner:$o,name:$r){
+    issue(number:$n){
+      linkedBranches(first:1){nodes{ref{name}}}
+    }
+  }
+}' -f o="<OWNER>" -f r="<REPO>" -F n=<NUM> \
+  -q '.data.repository.issue.linkedBranches.nodes[0].ref.name'
+```
+
+위 주입은 inline `!` 구문 복잡성 때문에 `--json url` sed 파싱을 1순위로 두되, **GitHub Development panel에서 branch가 이슈에 명시적으로 연결된 handoff**의 경우 Step 3에서 LLM이 위 GraphQL 쿼리를 직접 실행하여 `handoff 대상 branch` 값을 확보한다. 대부분 이슈에는 연결 branch가 없으므로(`nodes: []`) `git branch --show-current`가 현실적 기본값.
 
 **`grep -vE '^(null|main|master|)$'` 가드**: null 문자열, 빈 줄, 기본 branch는 shell pipe에서 exit 1을 유도해 `||` fallback/최종 빈 값으로 연결. 최종 값이 비어 있으면 "주입 실패 처리" 순서로 수동 확보.
 
