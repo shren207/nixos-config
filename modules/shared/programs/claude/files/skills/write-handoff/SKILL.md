@@ -164,11 +164,12 @@ LLM이 커밋 메시지를 자의적으로 작성하지 않고, 가이드에 명
 2. **검증 질문 재작성**: 각 claim을 검증 질문으로 변환. 예: `"파일 X에 Y 함수가 있다"` → `"실제 파일 X에 Y 함수가 있는가?"`
 3. **독립 답변**: 초안을 보지 않은 상태로 `Read`/`Grep`/`gh` 재실행으로 질문에 답.
 4. **불일치 처리**: 답변과 초안이 일치하지 않으면 초안 수정. 확인 불가 시 `[UNVERIFIED]` 라벨 또는 삭제.
-5. **NSS placeholder 검증 (필수)**: Next Session Starter 블록의 BRANCH와 repo slug이 다음 중 하나라도 해당하면 "동적 Context" 섹션의 "주입 실패 처리" 순서로 실제 값 확보 후 치환. 치환 완료 전에는 Step 9(게시)로 진행하지 않는다.
-    - `<...>` 형태 placeholder (`<BRANCH_NAME>`, `<unknown-*>`, `<repo-root-path>` 등)
+5. **NSS placeholder 검증 (필수)**: Next Session Starter 블록의 BRANCH와 REPO가 다음 중 하나라도 해당하면 "동적 Context" 섹션의 "주입 실패 처리" 순서로 실제 값 확보 후 치환. 치환 완료 전에는 Step 9(게시)로 진행하지 않는다.
+    - `<...>` 형태 placeholder (`<REPO_SLUG>`, `<BRANCH_NAME>`, `<unknown-*>`, `<repo-root-path>` 등)
     - 빈 문자열
     - `null` 리터럴 문자열 (jq 쿼리가 `linkedBranches=[]`에서 `null`을 출력하는 케이스)
     - `refs/heads/main` 같은 기본 branch가 실제 handoff 대상과 다른 경우
+    - **REPO 값이 동적 Context 주입값과 불일치**: 예시 template의 repo slug(`greenheadHQ/nixos-config` 등)이 남아 있고 실제 handoff 대상이 다른 repo인 경우. 주입된 `$ARGUMENTS`의 이슈 repository 값과 **문자열 비교하여 동일 여부 확인**. 다르면 반드시 치환.
 
 ### Step 9: 이슈 코멘트로 게시
 

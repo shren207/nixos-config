@@ -224,12 +224,14 @@ EOF
 
 - **이 가이드 읽고 바로 시작할 명령어** (복붙 즉시 실행 가능. repo 확보 + 올바른 branch 복귀):
   ```bash
-  BRANCH="<BRANCH_NAME>"   # handoff 작성 시 실제 작업 branch로 치환 (예: refactor/improving-documenting-skill)
+  # 작성자 LLM: 아래 두 placeholder를 write-handoff/SKILL.md "동적 Context" 주입값으로 치환
+  REPO="<REPO_SLUG>"      # 예: acme/project (owner/name)
+  BRANCH="<BRANCH_NAME>"  # 예: feat/foo (handoff 대상 branch)
 
   ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
   if [ -z "$ROOT" ]; then
-    gh repo clone greenheadHQ/nixos-config nixos-config
-    cd nixos-config
+    gh repo clone "$REPO" "${REPO##*/}"
+    cd "${REPO##*/}"
   else
     cd "$ROOT"
   fi
@@ -237,12 +239,13 @@ EOF
   git status
   git log --oneline -3
   ```
-  - **BRANCH와 repo slug은 `write-handoff/SKILL.md`의 "동적 Context" 섹션 주입 값으로 치환**한다. 이슈 인자 기반 다단 fallback(`gh issue view ... --json repository|linkedBranches` → `git branch --show-current`)으로 cwd 무관 주입되므로, 작성자 LLM은 placeholder(`<BRANCH_NAME>`, `greenheadHQ/nixos-config`)를 그대로 두지 않고 주입된 값으로 치환한다.
+  - **REPO와 BRANCH는 `write-handoff/SKILL.md`의 "동적 Context" 섹션 주입 값으로 치환**한다. 이슈 인자 기반 다단 fallback(`gh issue view ... --json repository|linkedBranches` → `git branch --show-current`)으로 cwd 무관 주입되므로, 작성자 LLM은 placeholder(`<REPO_SLUG>`, `<BRANCH_NAME>`)를 그대로 두지 않고 주입된 값으로 치환한다. 특정 repo slug(`greenheadHQ/nixos-config` 등)을 예시로 하드코딩하지 않는다 — 다른 repo handoff에서 엉뚱한 clone을 유발한다.
   - **게시 전 placeholder 검증 필수**: Step 8 Self-verification 5번 항목에서 다음 중 하나라도 남아 있으면 게시 금지.
-    - `<...>` 형태 placeholder (`<BRANCH_NAME>`, `<unknown-*>` 등)
+    - `<...>` 형태 placeholder (`<REPO_SLUG>`, `<BRANCH_NAME>`, `<unknown-*>` 등)
     - 빈 문자열
     - `null` 리터럴 문자열
     - 실제 handoff 대상과 다른 기본 branch(`main`/`master`)
+    - 이 template의 예시 repo slug(`greenheadHQ/nixos-config` 등) 리터럴이 실제 handoff 대상 repo와 다름에도 남아 있는 경우
     해당 시 SKILL.md "동적 Context > 주입 실패 처리" 순서(Step 3 수동 실행 → `AskUserQuestion`)로 실제 값 확보 후 치환.
   - `git rev-parse --show-toplevel`은 repo 밖에서 `fatal: not a git repository`를 반환하므로 `2>/dev/null` + 빈 변수 검사로 우회. 이미 repo 안이면 toplevel 이동 후 동일 branch로 `checkout`.
   - **주의**: `gh repo clone`은 기본 branch(main)를 체크아웃하므로 `git fetch origin $BRANCH && git checkout $BRANCH` 단계로 handoff 작업 맥락 복귀.
