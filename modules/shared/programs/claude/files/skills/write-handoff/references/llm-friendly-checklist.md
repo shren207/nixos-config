@@ -33,9 +33,9 @@
 - [ ] **D1.** `write-handoff` 가이드 상단 10줄 이내에 **TL;DR** (상황/현재 상태/다음 액션/Blockers 4슬롯)을 둔다. 출처: [Lost in the Middle (TACL 2024)](https://direct.mit.edu/tacl/article/doi/10.1162/tacl_a_00638/119630/Lost-in-the-Middle-How-Language-Models-Use-Long) — 중간 정보는 활용률이 낮고 앞/뒤 정보에 강함.
 - [ ] **D2.** `write-handoff` 가이드의 **마지막 섹션**으로 **Next Session Starter**를 둔다 (이 가이드 읽고 바로 실행할 명령어/재개 지점). 필수 슬롯만 포함하고 간결하게 유지. 출처: recency bias, 위 D1과 동일 논문.
 
-  ❌ **BAD**: `cd /Users/alice/projects/myrepo && git fetch origin feat/foo` _(why: 하드코딩된 로컬 경로/브랜치명으로 새 세션이 그대로 실행 불가 — NSS의 '재개 지점' 목적과 간결성 저해)_
+  ❌ **BAD**: `cd /Users/alice/projects/myrepo && git fetch origin feat/foo` _(why: 작성자의 로컬 사용자 경로가 공개 이슈 코멘트에 노출 — 다른 세션/머신에서 재사용 불가, NSS 재개 지점 목적 저해)_
 
-  ✅ **GOOD**: `REPO="<REPO_SLUG>"; BRANCH="<BRANCH_NAME>"` — 주입된 실제 값으로 치환 후 `guide-template.md`의 Next Session Starter 패턴(서브쉘 + `set -e` + clone-or-reuse 분기) 사용.
+  ✅ **GOOD**: `REPO="acme/project"; BRANCH="feat/foo"` — Step 8 Self-verification으로 `<REPO_SLUG>`/`<BRANCH_NAME>` placeholder 치환 완료 검증 후 `guide-template.md`의 NSS 패턴(서브쉘 + `set -e` + clone-or-reuse 분기) 사용.
 
 ### E. Anti-hallucination (Evidence-gated)
 
