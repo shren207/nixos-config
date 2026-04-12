@@ -23,12 +23,14 @@ Phase 기반 이행 가이드를 작성하고, 이슈 코멘트로 게시한다.
 
 아래 값은 Claude Code의 [동적 context 주입](https://code.claude.com/docs/en/skills#inject-dynamic-context) 기능(`` !`<command>` ``)으로 스킬 로드 preprocessing 단계에 실제 값으로 대체된다. 두 명령은 cwd 위치와 무관하게 동작하도록 **이슈 인자 기반 다단 fallback**으로 구성된다.
 
-- **현재 repo slug**: !`gh issue view "$ARGUMENTS" --json repository -q .repository.nameWithOwner 2>/dev/null | grep -vE '^(null|)$' || gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null | grep -vE '^(null|)$' || true`
-- **handoff 대상 branch**: !`gh issue view "$ARGUMENTS" --json linkedBranches -q '.linkedBranches[0].ref.name' 2>/dev/null | grep -vE '^(null|)$' || git branch --show-current 2>/dev/null | grep -vE '^(null|)$' || true`
+- **현재 repo slug**: !`gh issue view "$ARGUMENTS" --json url -q .url 2>/dev/null | sed -nE 's|^https?://[^/]+/([^/]+/[^/]+)/.*$|\1|p' | grep -vE '^(null|)$' || gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null | grep -vE '^(null|)$' || true`
+- **handoff 대상 branch**: !`git branch --show-current 2>/dev/null | grep -vE '^(null|main|master|)$' || true`
 
-우선순위: (1) `$ARGUMENTS`의 이슈에 연결된 repo/branch → (2) 현재 cwd의 repo/branch. 두 값 모두 빈 문자열로 주입될 수 있다.
+우선순위 (repo slug): (1) `$ARGUMENTS`의 이슈 URL 파싱 (cwd 무관) → (2) cwd repo. branch는 자동 주입 제한: `git branch --show-current`만 사용하며 main/master/detached HEAD는 빈 값으로 떨어뜨려 Self-verification이 수동 확보 경로(AskUserQuestion)로 전환하도록 한다.
 
-**`grep -vE '^(null|)$'` 가드**: `jq -q` 쿼리는 linkedBranches가 `[]`이거나 repository가 접근 불가일 때 `null` 문자열을 stdout에 출력하며 exit 0으로 종료하므로 shell `||` fallback이 작동하지 않는다. grep으로 `null`/빈 줄을 제외하여 exit 1을 유도하고 fallback으로 연결한다. 최종 값이 여전히 비어 있으면 `true`로 exit 0을 보장하되, "주입 실패 처리"의 수동 확보 경로로 연결된다.
+**gh CLI 지원 필드 제약**: 현 `gh issue view` 는 `--json repository`/`--json linkedBranches`를 지원하지 않으며(`Unknown JSON field` 에러), `--json url` 등 제한적 필드만 제공한다. 따라서 1순위 repo 조회는 `--json url`에서 sed로 `owner/name`을 파싱한다. `linkedBranches`는 GitHub Issue 타입에 해당 필드가 존재하지 않아 작성자 branch는 **자동 주입 대상에서 제외**하고 Step 8 Self-verification이 사용자에게 직접 질의한다.
+
+**`grep -vE '^(null|main|master|)$'` 가드**: null 문자열, 빈 줄, 기본 branch는 shell pipe에서 exit 1을 유도해 `||` fallback/최종 빈 값으로 연결. 최종 값이 비어 있으면 "주입 실패 처리" 순서로 수동 확보.
 
 **주입 실패 처리** (주입된 값이 빈 문자열이거나 placeholder 형태일 때):
 1. `disableSkillShellExecution: true` 설정되어 있는 환경이면, 이 지시서의 LLM이 Step 3에서 위 두 명령을 직접 실행하여 값 확보.

@@ -215,14 +215,21 @@ PROMPT
 #    - shared refs: 대상 skill이 의존하는 sibling skill의 references
 #    순서: 지시 → 컨텍스트 (LLM이 지시를 먼저 인지하도록)
 CAT_FILES=(/tmp/e2e-prompt.md "skills/{name}/SKILL.md" "agents/{name}.md")
-CAT_FILES+=("skills/{name}/references/"*.md)
+
+# skill-local references — nullglob로 매칭 없을 때 리터럴 '*.md' 포함 방지
+# (일부 skill은 references/ 디렉토리가 비어 있거나 존재하지 않음)
+shopt -s nullglob 2>/dev/null || true
+_refs=(skills/{name}/references/*.md)
+shopt -u nullglob 2>/dev/null || true
+[ ${#_refs[@]} -gt 0 ] && CAT_FILES+=("${_refs[@]}")
 
 # shared refs 의존 목록 (sibling skill references that {name} relies on):
 # - create-issue, plan-with-questions  →  skills/write-handoff/references/llm-friendly-checklist.md
 # 새 의존 추가 시 이 case 블록 갱신
 case "{name}" in
   create-issue|plan-with-questions)
-    CAT_FILES+=("skills/write-handoff/references/llm-friendly-checklist.md")
+    [ -f "skills/write-handoff/references/llm-friendly-checklist.md" ] \
+      && CAT_FILES+=("skills/write-handoff/references/llm-friendly-checklist.md")
     ;;
 esac
 

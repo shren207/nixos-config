@@ -71,11 +71,15 @@ description: |
 1. 등록 전 **제목, 라벨 조합을 사용자에게 보여주고 확인**을 받는다.
 2. 확인 후 `gh issue create`를 **`--body-file`로 실행**한다. 본문은 임시 파일에 저장 후 전달.
    ```bash
-   # 본문을 /tmp에 저장 (umask 077 + mktemp 권장)
-   umask 077 && ISSUE_BODY=$(mktemp /tmp/issue-body.XXXXXX.md)
+   # 본문을 /tmp에 저장
+   # BSD/macOS mktemp는 템플릿 끝(trailing)에 XXXXXX가 와야 랜덤 치환함 (suffix 앞 X는 리터럴 취급).
+   # 확장자 없이 랜덤 파일 생성 — gh issue create --body-file은 확장자 무관.
+   umask 077
+   ISSUE_BODY=$(mktemp -t issue-body.XXXXXX) || { echo "ERROR: mktemp 실패"; exit 1; }
    # <작성된 본문>을 $ISSUE_BODY에 기록
-   gh issue create --title "<제목>" --label "<라벨>" --body-file "$ISSUE_BODY"
-   rm "$ISSUE_BODY"
+   gh issue create --title "<제목>" --label "<라벨>" --body-file "$ISSUE_BODY" \
+     && rm -f "$ISSUE_BODY" \
+     || { echo "ERROR: gh issue create 실패. 본문 보존: $ISSUE_BODY (재시도 시 재사용 가능)"; }
    ```
 3. 생성된 이슈 URL을 반환한다.
 

@@ -77,9 +77,10 @@ grep "toolPath" libraries/constants.nix
 ```
 
 **기대 결과**:
-- version = "1.2.3" (이슈에 "1.2.3"이라 적혀 있지만, 실제 값이 다르면 실제 값 기준으로 진행)
-- config.nix에 `enableFeature = false;` 존재
-- constants.nix에 `toolPath = "/old/path";` 존재
+- `modules/shared/programs/tool/default.nix:15` 에 `version = "1.2.3"` (이슈 본문 line 42의 주장에 따라, 실제 값이 다르면 실제 값 기준으로 진행 — [이슈 #NNN](https://github.com/<owner>/<repo>/issues/NNN))
+- `modules/shared/programs/tool/config.nix:8` 에 `enableFeature = false;` 존재
+- `libraries/constants.nix:42` 에 `toolPath = "/old/path";` 존재
+- `[UNVERIFIED]` `toolPath`가 다른 모듈에서 import되는지 여부는 구현 시점에 `grep -rn toolPath modules/` 로 실측 필요
 ````
 
 **작성 규칙:**
@@ -96,7 +97,7 @@ BEFORE/AFTER 형식으로 변경 내용을 명시한다.
 
 ### 2-1. 버전 업데이트
 
-**파일**: `modules/shared/programs/tool/default.nix`
+**파일**: `modules/shared/programs/tool/default.nix:15` ([upstream v1.3.0 release notes](https://github.com/example/tool/releases/tag/v1.3.0) 근거)
 
 BEFORE:
 ```nix
@@ -107,6 +108,8 @@ AFTER:
 ```nix
 version = "1.3.0";
 ```
+
+> `[UNVERIFIED]` v1.3.0에서 breaking change가 있는지 릴리스 노트 재확인 권장.
 
 ### 2-2. 설정 변경
 
