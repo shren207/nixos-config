@@ -21,9 +21,11 @@ Phase 기반 이행 가이드를 작성하고, 이슈 코멘트로 게시한다.
 
 ## 동적 Context (스킬 로드 시 주입)
 
-아래 값은 Claude Code의 [동적 context 주입](https://code.claude.com/docs/en/skills#inject-dynamic-context) 기능(`` !`<command>` ``)으로 스킬 로드 preprocessing 단계에 실제 값으로 대체된다. 두 명령은 cwd 위치와 무관하게 동작하도록 **이슈 인자 기반 다단 fallback**으로 구성된다.
+아래 값은 Claude Code의 [동적 context 주입](https://code.claude.com/docs/en/skills#inject-dynamic-context) 기능(backtick-bang syntax)으로 스킬 로드 preprocessing 단계에 실제 값으로 대체된다. 명령은 cwd 위치와 무관하게 동작하도록 **이슈 인자 기반 다단 fallback**으로 구성된다.
 
-- **현재 repo slug**: !`gh issue view "$ARGUMENTS" --json url -q .url 2>/dev/null | sed -nE 's|^https?://[^/]+/([^/]+/[^/]+)/.*$|\1|p' | grep -vE '^(null|)$' || gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null | grep -vE '^(null|)$' || true`
+**스킬 저자 주의**: Inject syntax 는 zsh eval 로 실행되며 nested single quotes 와 redirect 토큰을 안전하게 처리하지 못한다 (Claude Code known bug — anthropics/claude-code issue 14315, 13655, 17119). 복잡한 파이프 또는 sed 패턴은 SKILL.md inline 이 아니라 standalone script 로 분리해야 한다. 본 파일은 sed 와 grep 파이프를 scripts 디렉토리의 write-handoff-repo-slug helper 로 옮겨 inline 토큰이 단일 스크립트 호출 더하기 인자만 포함하도록 한다. 본 주의 문단은 backtick, 부등호, redirect 토큰을 리터럴로 포함하지 않는다 — parser 가 이 문단을 또다른 명령으로 잘못 감지하지 않도록 한국어 평문만 사용한다.
+
+- **현재 repo slug**: !`~/.claude/scripts/write-handoff-repo-slug.sh "$ARGUMENTS"`
 - **handoff 대상 branch**: *(자동 주입 없음 — 아래 "branch 확보 절차" 참조)*
 
 우선순위 (repo slug): (1) `$ARGUMENTS`의 이슈 URL 파싱 (cwd 무관) → (2) cwd repo.
@@ -55,7 +57,7 @@ gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){
   -q '.data.repository.issue.linkedBranches.nodes[0].ref.name'
 ```
 
-위 GraphQL 쿼리는 inline `` !` ` `` 주입으로 쓰이지 않는다(`--json url` sed 파싱은 **repo slug 주입 전용**). branch는 inline 주입 없이 Step 3에서 LLM이 위 `branch 확보 절차`(linkedBranches → closedByPullRequestsReferences 2-step hop → `AskUserQuestion`)를 직접 실행하여 확보한다. `linkedBranches.nodes`가 비어 있어도 `git branch --show-current`를 묵시적 default로 사용하지 않는다 — 위 "branch 자동 주입 제거 이유" 참조.
+위 GraphQL 쿼리는 inline 주입(backtick-bang syntax)으로 쓰이지 않는다 — `--json url` sed 파싱은 **repo slug 주입 전용**이다. branch는 inline 주입 없이 Step 3에서 LLM이 위 `branch 확보 절차`(linkedBranches → closedByPullRequestsReferences 2-step hop → `AskUserQuestion`)를 직접 실행하여 확보한다. `linkedBranches.nodes`가 비어 있어도 `git branch --show-current`를 묵시적 default로 사용하지 않는다 — 위 "branch 자동 주입 제거 이유" 참조.
 
 **`grep -vE '^(null|)$'` 가드** (line 26 repo slug 주입 전용): `null` 리터럴 문자열과 빈 줄을 pipe에서 exit 1로 전환해 `||` fallback/최종 빈 값으로 연결. 최종 값이 비어 있으면 "주입 실패 처리" 순서로 수동 확보. (branch 자동 주입은 제거되었으므로 `main`/`master` 필터는 사용하지 않는다 — cwd branch 자체가 주입 경로가 아니기 때문.)
 
