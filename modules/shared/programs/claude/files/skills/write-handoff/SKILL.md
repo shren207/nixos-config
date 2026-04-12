@@ -78,7 +78,7 @@ gh issue view <url> --json title,body,labels,assignees,comments
 
 코드베이스를 직접 탐색하여 이슈에 명시되지 않은 관련 파일(예: 상수 참조, 테스트, 설정)도 식별한다.
 
-**탐색 도구 예시** (체크리스트 B4):
+**탐색 도구 예시** (관련 파일/경로를 찾아 Phase 작성 시 B4 `path:LINE` citation에 활용):
 - `Glob "**/*.nix"` 또는 `find . -name "*.nix" -path "*<키워드>*"` — 파일 경로 검색
 - `Grep -n "<심볼>" <경로>` — import/상수/테스트 참조 발견
 - `git log --oneline -20 -- <경로>` — 최근 변경 이력
@@ -94,7 +94,7 @@ gh issue view <url> --json title,body,labels,assignees,comments
 - 각 Phase는 독립 실행 가능해야 한다 (이전 Phase의 출력에 의존하되, 맥락 공유 없이도 수행 가능).
 - 명령어와 기대 결과를 코드블록으로 제공한다.
 - BEFORE/AFTER 형식으로 치환 내용을 명시한다 (체크리스트 C3).
-- **비자명한 주장에는 인라인 citation을 붙인다** (체크리스트 B1). 예: `Nix rebuild 경로는 main-agent-only [run-da/SKILL.md의 single-writer 섹션 참조]`.
+- **비자명한 주장에는 인라인 citation을 붙인다** (체크리스트 B1). 예: `Nix rebuild 경로는 main-agent-only [run-da/SKILL.md의 main-agent-only commands 항목 참조]`.
 - **근거 없는 주장은 `[UNVERIFIED]` 라벨 또는 삭제** (체크리스트 E1). 근접 추론은 `[INFERRED]`, 출처 상충은 `[CONFLICTING]`.
 
 ### Step 5: "진실 원천 우선" 원칙 적용
@@ -149,10 +149,20 @@ LLM이 커밋 메시지를 자의적으로 작성하지 않고, 가이드에 명
 
 ### Step 9: 이슈 코멘트로 게시
 
-작성한 가이드를 이슈 코멘트로 게시한다.
+작성한 가이드를 이슈 코멘트로 게시한다. 본문에 `$HOME`, `$(...)`, 백틱, 큰따옴표가 포함될 수 있으므로 셸 재해석을 방지하기 위해 **`--body-file` 또는 quoted HEREDOC** 을 사용한다 (`--body "..."`로 직접 전달하지 않는다).
 
 ```bash
-gh issue comment <number> --body "<가이드 본문>"
+# 권장: 파일에 본문을 저장한 뒤 --body-file 사용
+gh issue comment <number> --body-file <path-to-guide.md>
+```
+
+또는 quoted HEREDOC:
+
+```bash
+gh issue comment <number> --body "$(cat <<'EOF'
+<가이드 본문>
+EOF
+)"
 ```
 
 ## 복잡도별 분기

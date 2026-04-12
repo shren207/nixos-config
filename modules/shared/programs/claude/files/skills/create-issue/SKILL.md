@@ -26,7 +26,7 @@ description: |
 
 ### Step 1 — 코드베이스 탐색
 
-이슈 내용을 기반으로 관련 컨텍스트를 수집한다. LLM 친화성 체크리스트 A1/A5 참조 ([../write-handoff/references/llm-friendly-checklist.md](../write-handoff/references/llm-friendly-checklist.md)).
+이슈 내용을 기반으로 관련 컨텍스트를 수집한다 (Summary A1/Context A2 작성에 필요). LLM 친화성 체크리스트 A 섹션 참조 ([../write-handoff/references/llm-friendly-checklist.md](../write-handoff/references/llm-friendly-checklist.md)).
 
 - **(a) 관련 파일 탐색**: 이슈에 언급된 경로는 `Read`로, 모듈/키워드는 `Glob`/`Grep`으로 탐색.
   예: `Glob "**/*.nix"`, `Grep -n "<키워드>" modules/`, `find . -name "*.nix" -path "*<모듈>*"`.

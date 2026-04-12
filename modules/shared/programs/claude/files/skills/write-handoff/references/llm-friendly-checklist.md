@@ -1,6 +1,6 @@
 # LLM-Friendly Issue/Handoff Checklist
 
-> `create-issue`와 `write-handoff` 스킬이 공유하는 품질 체크리스트.
+> `create-issue`/`write-handoff`/`plan-with-questions` 스킬이 공유하는 품질 체크리스트.
 > **Normative**는 스킬이 실제로 강제한다. **Informational**은 작성 시 참고용 권장.
 
 배경: 세션 로그 전수조사 결과 스킬 산출물에 대한 피드백이 "근거/레퍼런스 부족"과 "맥락 부족"에 집중된다. 본 체크리스트는 이 두 축을 구조적으로 방어한다. 상세 배경은 [#461](https://github.com/greenheadHQ/nixos-config/issues/461) 참조.
@@ -31,7 +31,7 @@
 ### D. 구조 (Structuring)
 
 - [ ] **D1.** `write-handoff` 가이드 상단 10줄 이내에 **TL;DR** (상황/현재 상태/다음 액션/Blockers 4슬롯)을 둔다. 출처: [Lost in the Middle (TACL 2024)](https://direct.mit.edu/tacl/article/doi/10.1162/tacl_a_00638/119630/Lost-in-the-Middle-How-Language-Models-Use-Long) — 중간 정보는 활용률이 낮고 앞/뒤 정보에 강함.
-- [ ] **D2.** `write-handoff` 가이드 말미 10줄 이내에 **Next Session Starter**를 둔다 (이 가이드 읽고 바로 실행할 명령어/재개 지점). 출처: recency bias, 위 D1과 동일 논문.
+- [ ] **D2.** `write-handoff` 가이드의 **마지막 섹션**으로 **Next Session Starter**를 둔다 (이 가이드 읽고 바로 실행할 명령어/재개 지점). 필수 슬롯만 포함하고 간결하게 유지. 출처: recency bias, 위 D1과 동일 논문.
 
 ### E. Anti-hallucination (Evidence-gated)
 

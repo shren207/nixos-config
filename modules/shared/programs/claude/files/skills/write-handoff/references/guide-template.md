@@ -222,9 +222,9 @@ EOF
 ````markdown
 ## Next Session Starter
 
-- **이 가이드 읽고 바로 시작할 명령어** (repo-relative 경로 우선. 절대 경로 필요 시 `<worktree-root>` placeholder 권장):
+- **이 가이드 읽고 바로 시작할 명령어** (repo-relative. 복붙 즉시 실행 가능하도록 `git rev-parse` 기반 사용):
   ```bash
-  cd <worktree-root>   # 예: $HOME/Workspace/nixos-config
+  cd "$(git rev-parse --show-toplevel)"
   git status
   git log --oneline -3
   ```

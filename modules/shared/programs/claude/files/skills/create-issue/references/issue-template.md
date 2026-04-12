@@ -19,10 +19,10 @@
 
 ## References (필수)
 
-[비자명 주장의 근거. 체크리스트 B1/B4. 최소 1개 이상. 근거 부재 시 `[UNVERIFIED]` 라벨로 대체]
+[체크리스트 B1/B4. **실제 근거가 있으면 최소 1개 링크를 포함**한다. 근거가 전혀 없으면 섹션을 비우지 말고 `[UNVERIFIED]` 항목만으로 채운다.]
 
 - [링크 텍스트](URL) — 한 문장으로 "무엇을 뒷받침하는지"
-- `path/to/file.nix:LINE` — 코드 근거
+- `path/to/file.nix:LINE` 또는 `path/to/file.nix:START-END` — 코드 근거 (단일 라인 또는 라인 범위 허용)
 - `#NNN` / `abc1234` — 관련 이슈/커밋
 
 ## PoC / Reproduction (선택)
@@ -76,8 +76,9 @@
 
 ### References (필수)
 - 비자명한 주장마다 근거 제공 (체크리스트 B1/B4)
-- 근거 타입 (Source reliability 순위 — 체크리스트 B3): 공식 docs URL > repo 내부 파일(`path/to/file.nix:LINE`) > 관련 이슈/커밋(`#NNN`/`abc1234`) > blog > LLM 기억
-- 근거 없는 주장은 `[UNVERIFIED]` 라벨을 붙이거나 삭제 (체크리스트 E1)
+- 근거 타입 (Source reliability 순위 — 체크리스트 B3): 공식 docs URL > repo 내부 파일(`path/to/file.nix:LINE` 또는 `path:START-END`) > 관련 이슈/커밋(`#NNN`/`abc1234`) > blog > LLM 기억
+- **근거 존재 시**: 최소 1개 링크 또는 path 참조 필수
+- **근거 부재 시**: 섹션을 비우지 않고 `[UNVERIFIED]` 항목으로 대체 (체크리스트 E1)
 - 둘 이상 출처가 상충하면 `[CONFLICTING]` + 양측 인용 (체크리스트 E3)
 
 ### PoC / Reproduction (선택)
