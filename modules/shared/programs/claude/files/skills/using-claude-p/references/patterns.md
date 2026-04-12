@@ -211,9 +211,22 @@ PROMPT
 # 2. 스킬 지시서 + 에이전트 지시서 + 참조 파일을 합성하여 주입
 #    - e2e-prompt.md: 에이전트에게 주는 지시 (what to do)
 #    - SKILL.md: 스킬 원문 (how to do, 컨텍스트)
-#    - agent.md + refs: 추가 컨텍스트
+#    - agent.md + skill-local refs: 추가 컨텍스트
+#    - shared refs: 대상 skill이 의존하는 sibling skill의 references
 #    순서: 지시 → 컨텍스트 (LLM이 지시를 먼저 인지하도록)
-cat /tmp/e2e-prompt.md skills/{name}/SKILL.md agents/{name}.md skills/{name}/references/*.md \
+CAT_FILES=(/tmp/e2e-prompt.md "skills/{name}/SKILL.md" "agents/{name}.md")
+CAT_FILES+=("skills/{name}/references/"*.md)
+
+# shared refs 의존 목록 (sibling skill references that {name} relies on):
+# - create-issue, plan-with-questions  →  skills/write-handoff/references/llm-friendly-checklist.md
+# 새 의존 추가 시 이 case 블록 갱신
+case "{name}" in
+  create-issue|plan-with-questions)
+    CAT_FILES+=("skills/write-handoff/references/llm-friendly-checklist.md")
+    ;;
+esac
+
+cat "${CAT_FILES[@]}" \
   | MY_TOKEN="xxx" claude -p --output-format text --dangerously-skip-permissions \
   > /tmp/result.md 2>/tmp/stderr.txt
 ```

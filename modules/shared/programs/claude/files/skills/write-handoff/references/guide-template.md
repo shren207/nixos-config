@@ -222,12 +222,16 @@ EOF
 ````markdown
 ## Next Session Starter
 
-- **이 가이드 읽고 바로 시작할 명령어** (repo-relative. 복붙 즉시 실행 가능하도록 `git rev-parse` 기반 사용):
+- **이 가이드 읽고 바로 시작할 명령어** (2단계 — fresh session이 repo 밖에서 시작되는 경우 대응):
   ```bash
-  cd "$(git rev-parse --show-toplevel)"
+  # Step 1: repo 확보 및 진입
+  #   (이미 repo 안이면 이 블록 생략하고 `cd "$(git rev-parse --show-toplevel)"` 실행)
+  cd <repo-root-path>   # 예: gh repo clone <owner/repo> <dir> && cd <dir>
+  # Step 2: 현재 상태 확인
   git status
   git log --oneline -3
   ```
+  - 첫 줄 `cd <repo-root-path>`는 placeholder다. 새 세션 LLM은 context에서 저장소 위치를 파악 후 실제 경로(절대 경로/상대 경로)로 치환하거나 `gh repo clone`으로 먼저 확보한다. `$(git rev-parse --show-toplevel)`는 **repo 안 cwd에서만** 동작하므로 fresh session 첫 명령으로 사용하지 않는다.
 - **이전 세션 산출물 위치**: <파일 경로 또는 PR/이슈 URL>
 - **재개 지점**: Phase N-M부터
 - **남은 Blockers**: <있으면 명시, 없으면 "없음">

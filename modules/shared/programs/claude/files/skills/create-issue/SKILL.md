@@ -69,7 +69,14 @@ description: |
 ### Step 5 — 등록 및 확인
 
 1. 등록 전 **제목, 라벨 조합을 사용자에게 보여주고 확인**을 받는다.
-2. 확인 후 `gh issue create`를 실행한다.
+2. 확인 후 `gh issue create`를 **`--body-file`로 실행**한다. 본문은 임시 파일에 저장 후 전달.
+   ```bash
+   # 본문을 /tmp에 저장 (umask 077 + mktemp 권장)
+   umask 077 && ISSUE_BODY=$(mktemp /tmp/issue-body.XXXXXX.md)
+   # <작성된 본문>을 $ISSUE_BODY에 기록
+   gh issue create --title "<제목>" --label "<라벨>" --body-file "$ISSUE_BODY"
+   rm "$ISSUE_BODY"
+   ```
 3. 생성된 이슈 URL을 반환한다.
 
 ### Step 6 — LLM 이행 가이드 연계
@@ -99,7 +106,7 @@ description: |
 
 - 이슈 본문에 시크릿/credential/API 키를 포함하지 않는다. `.age` 복호화 값, `.env` 내용은 파일 경로만 참조한다.
 - 조회(`gh issue list`), 감사(audit), 라이프사이클(close/reopen/edit), 라벨 관리(CRUD)는 이 스킬의 범위 밖이다. `gh` CLI를 직접 사용한다.
-- `gh issue create` 실행 시 본문은 HEREDOC(`<<'EOF'`)으로 전달하여 셸 해석을 방지한다.
+- `gh issue create` 실행 시 본문은 **`--body-file`로 전달**한다. HEREDOC(`$(cat <<'EOF' ... EOF)`) 방식은 본문 내부에 PoC/Reproduction 섹션의 nested `cat <<'EOF'` 예시나 독립 `EOF` 라인이 포함될 때 outer heredoc가 조기 종료되어 등록이 실패하거나 본문이 잘린다. `PoC / Reproduction` 섹션(issue-template)의 shell 재현 스니펫이 기본 기능이므로 HEREDOC 전달은 금지.
 - **근거 없는 주장 금지**: 코드베이스 직접 확인 또는 출처 링크가 없는 주장은 `[UNVERIFIED]` 라벨을 붙이거나 삭제한다 (체크리스트 E1). `<!-- 미검증 -->` HTML 주석은 DEPRECATED.
 
 ## 참조 자료
