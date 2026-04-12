@@ -12,6 +12,7 @@ description: |
 Agent tool로 서브에이전트를 병렬 호출하면 fan-in 시 cache miss가 발생한다
 (TASK_NOTIFICATION attachment 가변 순서 누적 → cache prefix 불일치).
 codex exec는 별도 프로세스로 실행되어 메인 컨텍스트에 attachment를 주입하지 않는다.
+"codex-fan-out"은 codex exec CLI를 fan-out 실행 엔진으로 사용한다는 의미이며, Codex 세션(spawn_agent)과는 무관하다.
 
 이 스킬은 **codex exec 병렬 호출 패턴만 정의**한다.
 역할 카탈로그, fan-in 통합 전략, 프롬프트 내용은 호출자의 책임이다.
@@ -151,7 +152,7 @@ codex exec fan-out 패턴은 /codex-fan-out 스킬 참조.
 
 ## 주의사항
 
-- `--full-auto`는 workspace-write 권한을 부여하므로, 반드시 no-write boundary와 stateful-violation 금지 작업 목록(tracked write, branch mutation, commit/push, GitHub write, main-agent-only command, host mutation, wt/nrs/rebuild)을 프롬프트에 명시한다.
+- `--full-auto`는 workspace-write 권한을 부여하므로, 반드시 no-write boundary와 stateful-violation 금지 작업 목록(tracked write, branch mutation, commit/push, GitHub write, main-agent-only command, host mutation, wt/nrs/rebuild)을 프롬프트에 명시한다. subprocess가 exit 0으로 종료하더라도 tracked file 수정을 자동 감지하지 않으므로, no-write boundary는 프롬프트 수준 제약이다.
 - `& + wait` shell-level 병렬을 사용하지 않는다. Bash tool의 `run_in_background`를 사용한다.
 - 인라인 인자 `"$(cat file)"`는 사용하지 않는다. stdin pipe만 사용한다.
 - 정리: fan-out 완료 후 `rm -rf "/tmp/fo-c4a35fc4-AbCdEf"`처럼 리터럴 경로로 임시 디렉토리를 정리한다 (`$FO_DIR` 변수는 다음 호출에서 사용 불가).

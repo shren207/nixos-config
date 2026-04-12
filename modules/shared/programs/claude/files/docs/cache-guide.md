@@ -143,7 +143,10 @@ Agent tool로 서브에이전트를 병렬 호출하면, fan-in 시 `TASK_NOTIFI
 
 **대응**: codex exec는 별도 프로세스로 실행되어 메인 컨텍스트에 attachment를 주입하지 않는다.
 `-o`로 결과만 파일 수집하면 cache prefix에 무영향. run-da/parallel-audit/codex-fan-out이
-이 방식을 사용한다.
+이 방식을 사용한다. Agent tool fallback 시에는 동일한 cache miss가 그대로 발생한다.
+
+> 이 workaround는 Claude Code의 `TASK_NOTIFICATION` attachment 가변 순서 누적이 원인이다.
+> upstream에서 attachment 순서 결정성이 보장되면 codex exec 우회 없이 Agent tool을 사용할 수 있으므로 재평가가 필요하다.
 
 ## 최적화 팁
 
