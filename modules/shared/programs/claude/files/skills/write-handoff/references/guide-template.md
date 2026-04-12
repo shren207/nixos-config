@@ -238,7 +238,12 @@ EOF
   git log --oneline -3
   ```
   - **BRANCH와 repo slug은 `write-handoff/SKILL.md`의 "동적 Context" 섹션 주입 값으로 치환**한다. 이슈 인자 기반 다단 fallback(`gh issue view ... --json repository|linkedBranches` → `git branch --show-current`)으로 cwd 무관 주입되므로, 작성자 LLM은 placeholder(`<BRANCH_NAME>`, `greenheadHQ/nixos-config`)를 그대로 두지 않고 주입된 값으로 치환한다.
-  - **게시 전 placeholder 검증 필수**: Step 8 Self-verification 4번 항목에서 `<...>` / `<unknown-*>` / 빈 문자열 잔존 여부를 점검한다. 하나라도 남으면 SKILL.md "동적 Context > 주입 실패 처리" 순서(Step 3 수동 실행 → `AskUserQuestion`)로 실제 값 확보 후 치환. 치환 완료 전에는 게시 금지.
+  - **게시 전 placeholder 검증 필수**: Step 8 Self-verification 5번 항목에서 다음 중 하나라도 남아 있으면 게시 금지.
+    - `<...>` 형태 placeholder (`<BRANCH_NAME>`, `<unknown-*>` 등)
+    - 빈 문자열
+    - `null` 리터럴 문자열
+    - 실제 handoff 대상과 다른 기본 branch(`main`/`master`)
+    해당 시 SKILL.md "동적 Context > 주입 실패 처리" 순서(Step 3 수동 실행 → `AskUserQuestion`)로 실제 값 확보 후 치환.
   - `git rev-parse --show-toplevel`은 repo 밖에서 `fatal: not a git repository`를 반환하므로 `2>/dev/null` + 빈 변수 검사로 우회. 이미 repo 안이면 toplevel 이동 후 동일 branch로 `checkout`.
   - **주의**: `gh repo clone`은 기본 branch(main)를 체크아웃하므로 `git fetch origin $BRANCH && git checkout $BRANCH` 단계로 handoff 작업 맥락 복귀.
 - **이전 세션 산출물 위치**: <파일 경로 또는 PR/이슈 URL>
