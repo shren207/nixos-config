@@ -15,11 +15,12 @@
 
 - [ ] **A1.** 첫 5줄 이내에 `무슨 문제 / 누가 겪는지 / 현재 증상 / 기대 결과`를 기술한다. 출처: [Anthropic: Be clear and direct](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/be-clear-and-direct) (minimal-context colleague test), [GitHub Copilot: Prompt engineering](https://docs.github.com/en/copilot/concepts/prompting/prompt-engineering).
 - [ ] **A2.** "왜" 이 작업이 필요한지, 안 하면 어떤 리스크가 있는지 2-4문장으로 명시한다. 출처: [Anthropic: Be clear and direct](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/be-clear-and-direct) — end goal을 주면 성능이 향상된다.
-- [ ] **A3.** 범위/비범위/제약/금지사항을 별도 섹션으로 분리한다. 출처: [OpenAI: GPT-5 prompting guide (2025)](https://developers.openai.com/cookbook/examples/gpt-5/gpt-5_prompting_guide) — 모순되거나 vague한 지시는 agent 성능을 크게 해친다.
+
+(A3 `범위/비범위/제약/금지사항 별도 섹션`은 아래 Informational로 이동 — create-issue/write-handoff 기본 템플릿이 해당 섹션을 별도로 강제하지 않으므로 Normative에서 제외.)
 
 ### B. 근거 / 레퍼런스 (Evidence-first)
 
-- [ ] **B1.** 비자명한 주장에 인라인 citation을 붙인다 (`[링크 텍스트](URL)`). 출처: [Anthropic: Reduce hallucinations](https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/reduce-hallucinations), [Learning Fine-Grained Grounded Citations (ACL Findings 2024)](https://aclanthology.org/2024.findings-acl.838/).
+- [ ] **B1.** 비자명한 주장에 인라인 citation을 붙인다 (`[링크 텍스트](URL)`). `write-handoff`는 가이드 본문 인라인에 붙이고, `create-issue`는 필수 `References` 섹션에서 출처 링크 목록으로 제공한다. 출처: [Anthropic: Reduce hallucinations](https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/reduce-hallucinations), [Learning Fine-Grained Grounded Citations (ACL Findings 2024)](https://aclanthology.org/2024.findings-acl.838/).
 - [ ] **B4.** 파일/함수/PR/doc URL은 본문에 직접 적는다 (예: `path/to/file.nix:42`, `#123`, `abc1234`). 출처: [Anthropic: Best Practices for Claude Code (2025)](https://code.claude.com/docs/en/best-practices).
 
 ### C. PoC / 재현 (Reproducibility-first)
@@ -35,7 +36,7 @@
 ### E. Anti-hallucination (Evidence-gated)
 
 - [ ] **E1.** 근거가 없거나 확신 없는 주장은 `[UNVERIFIED]` 라벨을 붙이거나 삭제한다. 출처: [Anthropic: Reduce hallucinations](https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/reduce-hallucinations), [MetaFaith (EMNLP 2025)](https://aclanthology.org/2025.emnlp-main.1505/) — faithful uncertainty 표현이 개선됨.
-- [ ] **E2.** `write-handoff`는 초안 후 **Self-verification 패스** (CoVe 경량)를 수행한다: 주요 claim을 검증 질문으로 바꾸고 독립적으로 답한 뒤 불일치 시 수정. 출처: [Chain-of-Verification (arXiv 2309.11495)](https://arxiv.org/abs/2309.11495), [Self-Alignment for Factuality (ACL 2024)](https://aclanthology.org/2024.acl-long.107/).
+- [ ] **E2.** 초안 후 **Self-verification 패스** (CoVe 경량)를 수행한다: 주요 claim을 검증 질문으로 바꾸고 독립적으로 답한 뒤 불일치 시 수정. `create-issue`/`write-handoff` 모두 적용한다. 출처: [Chain-of-Verification (arXiv 2309.11495)](https://arxiv.org/abs/2309.11495), [Self-Alignment for Factuality (ACL 2024)](https://aclanthology.org/2024.acl-long.107/).
 
 ---
 
@@ -45,6 +46,7 @@
 
 | ID | 원칙 | 출처 |
 |----|------|------|
+| A3 | 범위/비범위/제약/금지사항 별도 섹션 분리 (기본 템플릿은 Context/Notes 내 서술로 충분) | [OpenAI: GPT-5 prompting guide (2025)](https://developers.openai.com/cookbook/examples/gpt-5/gpt-5_prompting_guide) |
 | A4 | Assumptions/Glossary 명시 | [GitHub Copilot: Prompt engineering](https://docs.github.com/en/copilot/concepts/prompting/prompt-engineering) |
 | A5 | unrelated 배경 배제 | [Anthropic: Best Practices for Claude Code (2025)](https://code.claude.com/docs/en/best-practices) — context hygiene |
 | B2 | 레퍼런스 앞에 한 문장으로 "왜 읽어야 하는지" 설명 | [Anthropic Contextual Retrieval (2024)](https://www.anthropic.com/engineering/contextual-retrieval) |

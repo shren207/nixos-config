@@ -221,9 +221,9 @@ EOF
 ````markdown
 ## Next Session Starter
 
-- **이 가이드 읽고 바로 시작할 명령어** (절대 경로 + 초기 상태 확인):
+- **이 가이드 읽고 바로 시작할 명령어** (repo-relative 경로 우선. 절대 경로 필요 시 `<worktree-root>` placeholder 권장):
   ```bash
-  cd /absolute/path/to/worktree
+  cd <worktree-root>   # 예: $HOME/Workspace/nixos-config
   git status
   git log --oneline -3
   ```
@@ -234,7 +234,7 @@ EOF
 
 **작성 규칙**:
 - 가이드 말미 10줄 이내에 배치 (recency bias 활용).
-- 절대 경로 사용 (LLM이 환경 가정 없이 실행 가능하도록).
+- **공개 노출 주의**: 이 가이드는 `gh issue comment`로 GitHub에 게시된다. 로컬 사용자명/절대 경로/워크트리 메타데이터가 공개 코멘트에 포함되지 않도록 한다. `<worktree-root>` 같은 placeholder 또는 repo-relative 경로를 우선 사용한다.
 - 출처: [Lost in the Middle (TACL 2024)](https://direct.mit.edu/tacl/article/doi/10.1162/tacl_a_00638/119630/Lost-in-the-Middle-How-Language-Models-Use-Long).
 
 ## 모범 패턴 (Issue #252 기반)

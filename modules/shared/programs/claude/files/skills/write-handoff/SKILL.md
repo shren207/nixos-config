@@ -25,12 +25,14 @@ Phase 기반 이행 가이드를 작성하고, 이슈 코멘트로 게시한다.
 
 | # | 섹션 | 역할 |
 |---|------|------|
+| 0 | **TL;DR 블록** | 상황/현재 상태/다음 액션/Blockers — 새 세션 LLM이 가이드 상단에서 전체 맥락 파악 (primacy bias) |
 | 1 | 헤더 블록 | 대상/목표/예상소요/난이도 — 한눈에 파악 가능한 메타 정보 |
 | 2 | 핵심 원칙 | 행동 제약 1-3개 — 작업 전체에 적용되는 불변 규칙 |
 | 3 | Phase 1: 사전 확인 | CLI/파일시스템에서 현재 값 확인 (병렬 가능 힌트 포함) |
 | 4 | Phase 2: 실행 | BEFORE/AFTER 치환 또는 상세 변경 지시 |
 | 5 | Phase 3: 검증 + 커밋 | 빌드 확인 + git add/commit 템플릿 |
 | 6 | 주의사항 | 환경 분기, 대체 행동, 예외 처리 |
+| 7 | **Next Session Starter 블록** | 다음 세션 LLM이 바로 실행할 명령어/재개 지점 (recency bias) |
 
 복잡도에 따라 Phase 수가 3-6개로 조정된다. 상세 템플릿은 [references/guide-template.md](references/guide-template.md) 참조.
 
