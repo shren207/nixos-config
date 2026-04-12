@@ -222,16 +222,19 @@ EOF
 ````markdown
 ## Next Session Starter
 
-- **이 가이드 읽고 바로 시작할 명령어** (2단계 — fresh session이 repo 밖에서 시작되는 경우 대응):
+- **이 가이드 읽고 바로 시작할 명령어** (복붙 즉시 실행 가능. repo 안 cwd면 toplevel로 이동, fresh session이면 clone):
   ```bash
-  # Step 1: repo 확보 및 진입
-  #   (이미 repo 안이면 이 블록 생략하고 `cd "$(git rev-parse --show-toplevel)"` 실행)
-  cd <repo-root-path>   # 예: gh repo clone <owner/repo> <dir> && cd <dir>
-  # Step 2: 현재 상태 확인
+  ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+  if [ -n "$ROOT" ]; then
+    cd "$ROOT"
+  else
+    gh repo clone greenheadHQ/nixos-config nixos-config && cd nixos-config
+  fi
   git status
   git log --oneline -3
   ```
-  - 첫 줄 `cd <repo-root-path>`는 placeholder다. 새 세션 LLM은 context에서 저장소 위치를 파악 후 실제 경로(절대 경로/상대 경로)로 치환하거나 `gh repo clone`으로 먼저 확보한다. `$(git rev-parse --show-toplevel)`는 **repo 안 cwd에서만** 동작하므로 fresh session 첫 명령으로 사용하지 않는다.
+  - 위 블록은 이 repo 기본값. **다른 repo 대상 handoff**를 작성할 때는 `greenheadHQ/nixos-config`와 clone 대상 디렉토리명을 해당 값으로 치환한다.
+  - `git rev-parse --show-toplevel`은 repo 밖에서 `fatal: not a git repository`를 반환하므로 `2>/dev/null` + 빈 변수 검사로 우회한다.
 - **이전 세션 산출물 위치**: <파일 경로 또는 PR/이슈 URL>
 - **재개 지점**: Phase N-M부터
 - **남은 Blockers**: <있으면 명시, 없으면 "없음">
