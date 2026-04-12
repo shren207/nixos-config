@@ -222,28 +222,29 @@ EOF
 ````markdown
 ## Next Session Starter
 
-- **이 가이드 읽고 바로 시작할 명령어** (복붙 즉시 실행 가능. 임의 git 체크아웃에서 실행해도 대상 repo로 복귀):
+- **이 가이드 읽고 바로 시작할 명령어** (복붙 즉시 실행 가능. 임의 cwd에서 실행해도 대상 repo로 복귀 + 실패 시 즉시 중단):
   ```bash
   # 작성자 LLM: 아래 두 placeholder를 write-handoff/SKILL.md "동적 Context" 주입값으로 치환
   REPO="<REPO_SLUG>"      # 예: acme/project (owner/name)
   BRANCH="<BRANCH_NAME>"  # 예: feat/foo (handoff 대상 branch)
 
-  # 현재 cwd가 대상 repo 안인지 확인 (단순 git toplevel 이동은 엉뚱한 repo로 갈 위험)
-  TOPLEVEL="$(git rev-parse --show-toplevel 2>/dev/null)"
-  CURRENT_REPO=""
-  if [ -n "$TOPLEVEL" ]; then
-    CURRENT_REPO="$(cd "$TOPLEVEL" && gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null)"
-  fi
-
-  if [ "$CURRENT_REPO" = "$REPO" ]; then
-    cd "$TOPLEVEL"
-  else
-    gh repo clone "$REPO" "${REPO##*/}"
-    cd "${REPO##*/}"
-  fi
-  git fetch origin "$BRANCH" && git checkout "$BRANCH"
-  git status
-  git log --oneline -3
+  # 서브쉘 + set -e: 중간 명령 실패 시 즉시 중단하여 엉뚱한 cwd의 follow-up 명령 실행 방지
+  (
+    set -e
+    TOPLEVEL="$(git rev-parse --show-toplevel 2>/dev/null)" || true
+    CURRENT_REPO=""
+    [ -n "$TOPLEVEL" ] && CURRENT_REPO="$(cd "$TOPLEVEL" && gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null)" || true
+    if [ "$CURRENT_REPO" = "$REPO" ]; then
+      cd "$TOPLEVEL"
+    else
+      gh repo clone "$REPO" "${REPO##*/}"
+      cd "${REPO##*/}"
+    fi
+    git fetch origin "$BRANCH"
+    git checkout "$BRANCH"
+    git status
+    git log --oneline -3
+  ) || { echo "ERROR: handoff restore failed. REPO=$REPO BRANCH=$BRANCH"; echo "수동으로 repo/branch 확보 후 재시도하세요."; }
   ```
   - **REPO와 BRANCH는 `write-handoff/SKILL.md`의 "동적 Context" 섹션 주입 값으로 치환**한다. 이슈 인자 기반 다단 fallback(`gh issue view ... --json repository|linkedBranches` → `git branch --show-current`)으로 cwd 무관 주입되므로, 작성자 LLM은 placeholder(`<REPO_SLUG>`, `<BRANCH_NAME>`)를 그대로 두지 않고 주입된 값으로 치환한다. 특정 repo slug(`greenheadHQ/nixos-config` 등)을 예시로 하드코딩하지 않는다 — 다른 repo handoff에서 엉뚱한 clone을 유발한다.
   - **게시 전 placeholder 검증 필수**: Step 8 Self-verification 5번 항목에서 다음 중 하나라도 남아 있으면 게시 금지.
@@ -253,8 +254,9 @@ EOF
     - 실제 handoff 대상과 다른 기본 branch(`main`/`master`)
     - 이 template의 예시 repo slug(`greenheadHQ/nixos-config` 등) 리터럴이 실제 handoff 대상 repo와 다름에도 남아 있는 경우
     해당 시 SKILL.md "동적 Context > 주입 실패 처리" 순서(Step 3 수동 실행 → `AskUserQuestion`)로 실제 값 확보 후 치환.
-  - `git rev-parse --show-toplevel`은 repo 밖에서 `fatal: not a git repository`를 반환하므로 `2>/dev/null` + 빈 변수 검사로 우회한다.
-  - **"어떤 git repo든 toplevel로 이동" 방지**: 사용자가 다른 repo 체크아웃 안에서 이 명령을 실행해도 `CURRENT_REPO ≠ REPO`일 때 clone 경로로 분기하므로 엉뚱한 repo를 재사용하지 않는다. `gh repo view` 로 nameWithOwner를 비교하여 정확히 대상 repo인지 확인.
+  - `git rev-parse --show-toplevel`은 repo 밖에서 `fatal: not a git repository`를 반환하므로 `2>/dev/null` + `|| true`로 우회하고 `CURRENT_REPO` 빈 변수 검사로 분기한다.
+  - **"어떤 git repo든 toplevel로 이동" 방지**: 사용자가 다른 repo 체크아웃 안에서 이 명령을 실행해도 `CURRENT_REPO ≠ REPO`일 때 clone 경로로 분기하므로 엉뚱한 repo를 재사용하지 않는다.
+  - **실패 경로 격리 (서브쉘 + `set -e`)**: `gh repo clone` 실패, `cd` 실패, `git fetch` 실패 등 어떤 중간 명령이 실패해도 서브쉘이 즉시 exit 1로 종료한다. 따라서 `git fetch`/`git checkout`가 **엉뚱한 cwd**(예: clone 실패 후 이전 디렉토리)에서 실행되는 경로가 원천 차단. 서브쉘 종료 후 `||` 에러 메시지로 사용자에게 명시적 복구 안내.
   - **주의**: `gh repo clone`은 기본 branch(main)를 체크아웃하므로 `git fetch origin $BRANCH && git checkout $BRANCH` 단계로 handoff 작업 맥락 복귀.
 - **이전 세션 산출물 위치**: <파일 경로 또는 PR/이슈 URL>
 - **재개 지점**: Phase N-M부터
