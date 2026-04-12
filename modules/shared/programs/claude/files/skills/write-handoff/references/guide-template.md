@@ -222,18 +222,24 @@ EOF
 ````markdown
 ## Next Session Starter
 
-- **이 가이드 읽고 바로 시작할 명령어** (복붙 즉시 실행 가능. repo 확보 + 올바른 branch 복귀):
+- **이 가이드 읽고 바로 시작할 명령어** (복붙 즉시 실행 가능. 임의 git 체크아웃에서 실행해도 대상 repo로 복귀):
   ```bash
   # 작성자 LLM: 아래 두 placeholder를 write-handoff/SKILL.md "동적 Context" 주입값으로 치환
   REPO="<REPO_SLUG>"      # 예: acme/project (owner/name)
   BRANCH="<BRANCH_NAME>"  # 예: feat/foo (handoff 대상 branch)
 
-  ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
-  if [ -z "$ROOT" ]; then
+  # 현재 cwd가 대상 repo 안인지 확인 (단순 git toplevel 이동은 엉뚱한 repo로 갈 위험)
+  TOPLEVEL="$(git rev-parse --show-toplevel 2>/dev/null)"
+  CURRENT_REPO=""
+  if [ -n "$TOPLEVEL" ]; then
+    CURRENT_REPO="$(cd "$TOPLEVEL" && gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null)"
+  fi
+
+  if [ "$CURRENT_REPO" = "$REPO" ]; then
+    cd "$TOPLEVEL"
+  else
     gh repo clone "$REPO" "${REPO##*/}"
     cd "${REPO##*/}"
-  else
-    cd "$ROOT"
   fi
   git fetch origin "$BRANCH" && git checkout "$BRANCH"
   git status
@@ -247,7 +253,8 @@ EOF
     - 실제 handoff 대상과 다른 기본 branch(`main`/`master`)
     - 이 template의 예시 repo slug(`greenheadHQ/nixos-config` 등) 리터럴이 실제 handoff 대상 repo와 다름에도 남아 있는 경우
     해당 시 SKILL.md "동적 Context > 주입 실패 처리" 순서(Step 3 수동 실행 → `AskUserQuestion`)로 실제 값 확보 후 치환.
-  - `git rev-parse --show-toplevel`은 repo 밖에서 `fatal: not a git repository`를 반환하므로 `2>/dev/null` + 빈 변수 검사로 우회. 이미 repo 안이면 toplevel 이동 후 동일 branch로 `checkout`.
+  - `git rev-parse --show-toplevel`은 repo 밖에서 `fatal: not a git repository`를 반환하므로 `2>/dev/null` + 빈 변수 검사로 우회한다.
+  - **"어떤 git repo든 toplevel로 이동" 방지**: 사용자가 다른 repo 체크아웃 안에서 이 명령을 실행해도 `CURRENT_REPO ≠ REPO`일 때 clone 경로로 분기하므로 엉뚱한 repo를 재사용하지 않는다. `gh repo view` 로 nameWithOwner를 비교하여 정확히 대상 repo인지 확인.
   - **주의**: `gh repo clone`은 기본 branch(main)를 체크아웃하므로 `git fetch origin $BRANCH && git checkout $BRANCH` 단계로 handoff 작업 맥락 복귀.
 - **이전 세션 산출물 위치**: <파일 경로 또는 PR/이슈 URL>
 - **재개 지점**: Phase N-M부터
