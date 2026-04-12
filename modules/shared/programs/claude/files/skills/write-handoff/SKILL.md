@@ -55,9 +55,9 @@ gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){
   -q '.data.repository.issue.linkedBranches.nodes[0].ref.name'
 ```
 
-위 주입은 inline `!` 구문 복잡성 때문에 `--json url` sed 파싱을 1순위로 두되, **GitHub Development panel에서 branch가 이슈에 명시적으로 연결된 handoff**의 경우 Step 3에서 LLM이 위 GraphQL 쿼리를 직접 실행하여 `handoff 대상 branch` 값을 확보한다. 대부분 이슈에는 연결 branch가 없으므로(`nodes: []`) `git branch --show-current`가 현실적 기본값.
+위 GraphQL 쿼리는 inline `` !` ` `` 주입으로 쓰이지 않는다(`--json url` sed 파싱은 **repo slug 주입 전용**). branch는 inline 주입 없이 Step 3에서 LLM이 위 `branch 확보 절차`(linkedBranches → closedByPullRequestsReferences 2-step hop → `AskUserQuestion`)를 직접 실행하여 확보한다. `linkedBranches.nodes`가 비어 있어도 `git branch --show-current`를 묵시적 default로 사용하지 않는다 — 위 "branch 자동 주입 제거 이유" 참조.
 
-**`grep -vE '^(null|main|master|)$'` 가드**: null 문자열, 빈 줄, 기본 branch는 shell pipe에서 exit 1을 유도해 `||` fallback/최종 빈 값으로 연결. 최종 값이 비어 있으면 "주입 실패 처리" 순서로 수동 확보.
+**`grep -vE '^(null|)$'` 가드** (line 26 repo slug 주입 전용): `null` 리터럴 문자열과 빈 줄을 pipe에서 exit 1로 전환해 `||` fallback/최종 빈 값으로 연결. 최종 값이 비어 있으면 "주입 실패 처리" 순서로 수동 확보. (branch 자동 주입은 제거되었으므로 `main`/`master` 필터는 사용하지 않는다 — cwd branch 자체가 주입 경로가 아니기 때문.)
 
 **주입 실패 처리** (주입된 값이 빈 문자열이거나 placeholder 형태일 때):
 1. `disableSkillShellExecution: true` 설정되어 있는 환경이면, 이 지시서의 LLM이 Step 3에서 repo slug 주입 명령을 직접 실행하여 값 확보. branch는 "branch 확보 절차"를 따른다.
