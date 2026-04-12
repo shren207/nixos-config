@@ -35,7 +35,7 @@
 
   ❌ **BAD**: `cd /Users/alice/projects/myrepo && git fetch origin feat/foo` _(why: 하드코딩된 로컬 경로/브랜치명으로 새 세션이 그대로 실행 불가 — NSS의 '재개 지점' 목적과 간결성 저해)_
 
-  ✅ **GOOD**: `cd "$(git rev-parse --show-toplevel)" && git fetch origin "$BRANCH"`
+  ✅ **GOOD**: `REPO="<REPO_SLUG>"; BRANCH="<BRANCH_NAME>"` — 주입된 실제 값으로 치환 후 `guide-template.md`의 Next Session Starter 패턴(서브쉘 + `set -e` + clone-or-reuse 분기) 사용.
 
 ### E. Anti-hallucination (Evidence-gated)
 
@@ -43,12 +43,12 @@
 
   ❌ **BAD**: `"이 옵션은 Claude Code 2.0+에서 동작한다."` _(why: 버전별 동작은 공식 docs 또는 로컬 재현 없이 단정 불가 — hallucination 위험)_
 
-  ✅ **GOOD**: `"[UNVERIFIED] Claude Code 2.1.104에서 동작 확인. 이전 버전 미검증."`
+  ✅ **GOOD**: `"Claude Code 2.1.104에서 동작 확인. [UNVERIFIED] 이전 버전 호환성은 미확인."`
 - [ ] **E2.** 초안 후 **Self-verification 패스** (CoVe 경량)를 수행한다: 주요 claim을 검증 질문으로 바꾸고 독립적으로 답한 뒤 불일치 시 수정. `create-issue`/`write-handoff` 모두 적용한다. 출처: [Chain-of-Verification (arXiv 2309.11495)](https://arxiv.org/abs/2309.11495), [Self-Alignment for Factuality (ACL 2024)](https://aclanthology.org/2024.acl-long.107/).
 
   ❌ **BAD**: `"1차 초안 작성 후 즉시 gh issue create 실행."` _(why: CoVe 검증 단계 생략 → 오류가 게시된 이슈로 그대로 확산)_
 
-  ✅ **GOOD**: `"1차 초안의 비자명 주장 3개를 Read/Grep으로 재검증 후 [UNVERIFIED] 라벨 추가 또는 삭제, 그 다음 gh issue create."`
+  ✅ **GOOD**: `"1차 초안의 비자명 주장을 Read/Grep/gh로 재검증 후 [UNVERIFIED] 라벨 추가 또는 삭제, 그 다음 게시(create-issue: gh issue create / write-handoff: gh issue comment --body-file)."`
 
 ---
 
