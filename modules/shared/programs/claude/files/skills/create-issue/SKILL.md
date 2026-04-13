@@ -53,7 +53,7 @@ description: |
 
 작성된 이슈 본문에 체크리스트 E1/E2를 적용한다 (규칙 상세 정의와 출처는 [`../write-handoff/references/llm-friendly-checklist.md`](../write-handoff/references/llm-friendly-checklist.md) Normative E1/E2 참조).
 
-- **E1**: 근거 링크 또는 코드 직접 확인이 없는 주장에 `[UNVERIFIED]` 라벨을 붙이거나 삭제한다. 근접 근거 추론은 `[INFERRED]`, 출처 상충은 `[CONFLICTING]`.
+- **E1**: 근거 링크 또는 코드 직접 확인이 없거나 확신이 낮은 주장에 `[UNVERIFIED]` 라벨을 붙이거나 삭제한다. 근접 근거 추론은 `[INFERRED]`, 출처 상충은 `[CONFLICTING]`.
 - **E2**: 비자명 주장을 검증 질문으로 변환 → `Read`/`Grep`/`gh` 재실행으로 독립 확인 → 불일치/근거 부재 시 라벨 또는 삭제.
 
 ### Step 4 — 라벨 자동 결정
