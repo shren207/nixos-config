@@ -148,18 +148,17 @@ return {
               },
             },
             actions = {
-              -- macOS 파일은 Zed, 디렉토리/non-mac은 기본 동작(Finder/xdg-open).
-              -- upstream explorer_open 동작은 유지하고 macOS 파일만 Zed로 우회한다.
-              explorer_open = function(_, item)
-                if not item then return end
-                local opts
-                if vim.fn.has("mac") == 1 and not item.dir then
-                  opts = { cmd = { "open", "-a", "Zed" } }
+              -- macOS 파일은 Zed로 열고, 디렉토리/non-mac은 upstream explorer_open에 위임한다.
+              -- 위임으로 snacks 업데이트 시 upstream 구현 변경을 자동 반영한다.
+              explorer_open = function(picker, item)
+                if vim.fn.has("mac") == 1 and item and item.file and not item.dir then
+                  local _, err = vim.ui.open(item.file, { cmd = { "open", "-a", "Zed" } })
+                  if err then
+                    Snacks.notify.error(err)
+                  end
+                  return
                 end
-                local _, err = vim.ui.open(item.file, opts)
-                if err then
-                  Snacks.notify.error(err)
-                end
+                require("snacks.explorer.actions").actions.explorer_open(picker, item)
               end,
             },
           },
