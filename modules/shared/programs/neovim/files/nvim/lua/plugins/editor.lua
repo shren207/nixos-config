@@ -159,9 +159,8 @@ return {
                     { text = true },
                     vim.schedule_wrap(function(res)
                       if res.code ~= 0 then
-                        Snacks.notify.error(
-                          "Failed to open `" .. item.file .. "` with Zed:\n- " .. (res.stderr or "")
-                        )
+                        -- Zed launch 실패 시 조용히 upstream으로 fallback.
+                        -- 최종 실패는 upstream의 vim.ui.open 에러 처리가 노출한다.
                         upstream(picker, item, action)
                       end
                     end)
