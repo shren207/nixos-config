@@ -147,6 +147,21 @@ return {
                 },
               },
             },
+            actions = {
+              -- macOS 파일은 Zed, 디렉토리/non-mac은 기본 동작(Finder/xdg-open).
+              -- upstream explorer_open 동작은 유지하고 macOS 파일만 Zed로 우회한다.
+              explorer_open = function(_, item)
+                if not item then return end
+                local opts
+                if vim.fn.has("mac") == 1 and not item.dir then
+                  opts = { cmd = { "open", "-a", "Zed" } }
+                end
+                local _, err = vim.ui.open(item.file, opts)
+                if err then
+                  Snacks.notify.error(err)
+                end
+              end,
+            },
           },
           grep = {
             case_sens = false,
