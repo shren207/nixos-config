@@ -20,7 +20,14 @@ Environment 섹션의 `Platform` 값으로 현재 환경을 판별한다.
 
 ## Bash tool 환경
 
-Bash tool의 inline 스크립트는 zsh에서 실행된다. `${!arr[@]}` 등 bash 전용 간접 확장을 사용하지 않는다.
+Bash tool의 inline 스크립트는 zsh에서 실행된다. 아래 bash 전용 문법은 zsh에서 `bad substitution`으로 실패하므로 사용하지 않는다.
+
+| 카테고리 | 금지 예 | zsh-native 대안 |
+|---|---|---|
+| 간접 확장 | `${!arr[@]}`, `${!var}` | `${(k)arr}` (assoc 키), `${(P)var}` (간접 참조) |
+| Case modification | `${var^^}`, `${var,,}`, `${var^}`, `${var,}` | `${(U)var}`, `${(L)var}`, 또는 `typeset -u VAR` / `typeset -l VAR` |
+
+위 표는 카테고리 수준 규칙이다. 표에 없는 bash 전용 문법도 동일 원칙으로 금지 대상이며, 의심되면 `zsh -fc '<표현식>'`으로 실측 확인 후 사용한다.
 
 ## 상수
 

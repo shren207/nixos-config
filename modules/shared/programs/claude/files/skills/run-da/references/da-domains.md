@@ -15,7 +15,7 @@
 ## [reviewer bundle] 문제 발견: [count]건
 
 ### 1. [문제 제목]
-- **ID**: {BUNDLE}-{순번}
+- **ID**: {BUNDLE}-{순번} (예: `Correctness-1` — bundle 정의 표의 값을 대소문자 변환 없이 그대로 사용)
 - **세부 관점**: {SUBDOMAIN}
 - **위치**: [파일:줄] 또는 [계획 항목 번호]
 - **문제**: 구체적 문제 기술
@@ -60,6 +60,7 @@
 `{BUNDLE}`, `{SUBDOMAINS}`, `{FOCUS_QUESTION}`, `{FOCUS_TARGETS}`, `{OTHER_BUNDLES}`를 bundle별로 치환한다.
 
 > **⚠️ 이 플레이스홀더는 셸 변수가 아니다.** 조립 절차는 [run-da/SKILL.md](../SKILL.md)를 참조한다.
+> `{BUNDLE}` / `{SUBDOMAINS}` / `{FOCUS_QUESTION}` 등의 UPPERCASE 표기는 플레이스홀더 관용이며, 치환 값은 bundle 정의 표의 Title Case (`Correctness` / `Design` / `Regression` / `Maintainability`) 를 **대소문자 변환 없이** 그대로 사용한다. bash 의 `${var^^}` / `${var,,}` 등 case modification 문법은 Bash tool(zsh) 에서 `bad substitution` 으로 실패한다 — 자세한 규칙은 repo 루트 `CLAUDE.md` "Bash tool 환경" 섹션 참조.
 > `{OTHER_BUNDLES}`는 현재 bundle을 제외한 reviewer bundle 이름의 쉼표 구분 목록이다.
 
 ```text
