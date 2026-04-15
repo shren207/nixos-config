@@ -228,8 +228,10 @@ EOF
 - **이 가이드 읽고 바로 시작할 명령어** (복붙 즉시 실행 가능. 임의 cwd에서 실행해도 대상 repo로 복귀 + 실패 시 즉시 중단):
   ```bash
   # 작성자 LLM: 아래 두 placeholder를 write-handoff/SKILL.md Step 1-B(repo slug) / Step 1-C(branch)에서 확보한 값으로 치환
-  REPO="<REPO_SLUG>"      # 예: acme/project (owner/name)
-  BRANCH="<BRANCH_NAME>"  # 예: feat/foo (handoff 대상 branch)
+  # single-quoted literal로 emit하여 $(...), 백틱, $var 해석을 차단한다.
+  # 값에 '(single quote) 또는 \가 포함되면 Step 9(게시)를 중단하고 사용자에게 확답받는다 (Step 1-D).
+  REPO='<REPO_SLUG>'      # 예: acme/project (owner/name)
+  BRANCH='<BRANCH_NAME>'  # 예: feat/foo (handoff 대상 branch)
 
   # 서브쉘 + set -e: 중간 명령 실패 시 즉시 중단하여 엉뚱한 cwd의 follow-up 명령 실행 방지
   (

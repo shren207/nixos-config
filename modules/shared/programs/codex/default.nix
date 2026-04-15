@@ -32,9 +32,10 @@ let
     "write-handoff"
   ];
 
-  # 의도적 비노출 (5) — 각 항목 주석에 근거 명시.
-  # 런타임 surface를 만들지 않으며, verify 스크립트는 이 리스트 멤버가
-  # ~/.codex/skills/ 에 존재하면 FAIL한다.
+  # 의도적 비노출 (5) — 정책 선언 전용 리스트.
+  # Nix evaluation에서 직접 소비되지 않으며 (lazy eval로 자동 생략),
+  # verify-ai-compat.sh가 독립 감사 오라클로 이 목록을 재확인한다.
+  # 이 리스트 멤버가 ~/.codex/skills/ 에 존재하면 verify가 FAIL한다.
   intentionallyNotExposed = [
     # set-icons: Claude UI(status bar) 전용
     "set-icons"
@@ -54,10 +55,6 @@ let
     value.source = config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/skills/${name}";
   };
   codexSkillEntries = builtins.listToAttrs (map mkCodexSkillEntry exposedCodexSkills);
-
-  # 사용하지 않는 리스트(intentionallyNotExposed)를 참조하여 Nix evaluation에서
-  # 죽은 코드가 되지 않도록 assertion으로 바인딩한다 (정책 선언 목적).
-  _policyAssertion = builtins.length intentionallyNotExposed;
 in
 {
   # ─── 글로벌 설정 (~/.codex/) ───
