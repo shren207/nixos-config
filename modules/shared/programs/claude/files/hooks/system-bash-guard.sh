@@ -38,9 +38,29 @@ case "$TOOL_NAME" in
     fi
     ;;
   Edit)
+    FILE_PATH=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+    OLD_STR=$(printf '%s' "$INPUT" | jq -r '.tool_input.old_string // empty' 2>/dev/null)
     NEW_STR=$(printf '%s' "$INPUT" | jq -r '.tool_input.new_string // empty' 2>/dev/null)
-    if printf '%s' "$NEW_STR" | grep -Eq '^#!/bin/bash([[:space:]]|$)'; then
-      _deny "[system-bash-guard] Edit new_string의 shebang이 #!/bin/bash입니다. macOS /bin/bash는 3.2 (GPLv3 legacy)로 bash 4+ 기능이 실패합니다. 대안: #!/usr/bin/env bash (호출 환경 PATH를 통해 bash가 해석됨; launchd/systemd처럼 PATH가 통제된 컨텍스트에서는 해당 agent의 PATH에 Nix bash 경로가 포함되는지 별도 확인 필요)."
+    # [WHY] new_string만 검사하면 partial 치환(예: old="/usr/bin/env bash",
+    # new="/bin/bash")이 post-edit shebang을 #!/bin/bash로 만들어도 우회된다.
+    # old_string을 new_string으로 치환한 전체 결과에서 검사하여 bypass를 차단.
+    # fragile-hardcoding-guard.sh:52-74의 awk 재구성 패턴을 따른다.
+    POST_EDIT=""
+    if [ -n "$OLD_STR" ] && [ -n "$FILE_PATH" ] && [ -f "$FILE_PATH" ]; then
+      POST_EDIT=$(OLD_STR="$OLD_STR" NEW_STR="$NEW_STR" awk '
+        BEGIN { RS="\0"; ORS="" }
+        {
+          old = ENVIRON["OLD_STR"]; new = ENVIRON["NEW_STR"]
+          idx = index($0, old)
+          if (idx > 0) { print substr($0, 1, idx-1) new substr($0, idx+length(old)); exit 0 }
+          else { exit 1 }
+        }' "$FILE_PATH" 2>/dev/null)
+      [ -z "$POST_EDIT" ] && POST_EDIT="$NEW_STR"
+    else
+      POST_EDIT="$NEW_STR"
+    fi
+    if printf '%s' "$POST_EDIT" | grep -Eq '^#!/bin/bash([[:space:]]|$)'; then
+      _deny "[system-bash-guard] Edit 결과 파일의 shebang이 #!/bin/bash입니다 (post-edit 재구성 검사). macOS /bin/bash는 3.2 (GPLv3 legacy)로 bash 4+ 기능이 실패합니다. 대안: #!/usr/bin/env bash (호출 환경 PATH를 통해 bash가 해석됨; launchd/systemd처럼 PATH가 통제된 컨텍스트에서는 해당 agent의 PATH에 Nix bash 경로가 포함되는지 별도 확인 필요)."
     fi
     ;;
 esac
