@@ -233,7 +233,8 @@ else
       fi
       pass "shared 노출 정상: $skill_name"
     elif in_list "$skill_name" "${INTENTIONAL_EXCLUDE[@]}"; then
-      if [ -e "$exposed_path" ]; then
+      # broken symlink도 노출 상태로 간주 (-e는 깨진 심링크에 false; -L || -e로 둘 다 검출)
+      if [ -L "$exposed_path" ] || [ -e "$exposed_path" ]; then
         fail "의도적 비노출이 노출됨: $skill_name"
       else
         pass "의도적 비노출 확인: $skill_name"
