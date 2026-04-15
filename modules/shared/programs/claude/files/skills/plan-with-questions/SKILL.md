@@ -23,11 +23,11 @@ description: |
 |------|------------------|------------|
 | 사용자에게 질문 | `AskUserQuestion` 도구 | plain-text 번호 질문 |
 | 계획 추적 상태 진입 | `EnterPlanMode` (계획 파일 경로 배정 + write 제한 모드) | `update_plan` 도구 (단계별 chat state만 관리; 파일 IO 없음) |
-| 계획 파일 작성 | EnterPlanMode가 배정한 경로에 계획 파일 작성 | Write/Edit 도구로 `.claude/plans/<slug>.md` 경로에 계획 파일을 직접 작성 (`update_plan`은 상태 추적 전용) |
+| 계획 파일 작성 | `Write`/`Edit` 도구로 EnterPlanMode가 배정한 경로에 작성 | `apply_patch` 도구로 `.claude/plans/<slug>.md`에 직접 작성 (`update_plan`은 상태 추적 전용) |
 | 계획 승인 요청 | `ExitPlanMode`로 계획 파일 제시 및 승인 대기 | 계획 파일 경로와 요약을 plain-text로 제시하고 사용자 confirm 대기 |
 
-본문의 "질문 도구", "계획 추적 도구", "승인 요청 도구"는 위 표의 런타임별 실제 도구를 가리킨다.
-**중요**: 두 런타임 모두 최종 산출물은 `.claude/plans/<slug>.md` 계획 **파일**이다. Codex 세션에서 `update_plan`은 chat state 표시 전용이며 파일을 생성/편집하지 않으므로, 계획 파일 작성은 Write/Edit 도구로 수행해야 한다.
+본문의 "질문 도구", "계획 추적 도구", "승인 요청 도구", "파일 편집 도구"는 위 표의 런타임별 실제 도구를 가리킨다.
+**중요**: 두 런타임 모두 최종 산출물은 `.claude/plans/<slug>.md` 계획 **파일**이다. Codex 세션에서 `update_plan`은 chat state 표시 전용이며 파일을 생성/편집하지 않으므로, 계획 파일 작성은 `apply_patch`로 수행한다.
 
 ## 모드 판별
 
@@ -269,8 +269,8 @@ DA for_plan의 Arbiter 판정 결과를 처리한다:
 
 모든 분석, 질문, DA 검토가 완료되었으므로 런타임 도구 매핑의 계획 추적 도구로 진입한다.
 
-- **Claude Code 세션**: `EnterPlanMode`가 계획 파일 경로를 배정하고 write 제한 모드로 전환한다. Step 8에서 해당 경로에 계획 파일을 작성한다.
-- **Codex 세션**: `update_plan` 도구로 단계별 chat state 추적을 시작한 뒤, Step 8에서 **Write/Edit 도구로 `.claude/plans/<slug>.md` 파일을 직접 작성**한다 (`update_plan`은 상태 표시 전용이며 파일을 생성하지 않는다).
+- **Claude Code 세션**: `EnterPlanMode`가 계획 파일 경로를 배정하고 write 제한 모드로 전환한다. Step 8에서 `Write`/`Edit` 도구로 해당 경로에 계획 파일을 작성한다.
+- **Codex 세션**: `update_plan` 도구로 단계별 chat state 추적을 시작한 뒤, Step 8에서 **`apply_patch`로 `.claude/plans/<slug>.md` 파일을 직접 작성**한다 (`update_plan`은 상태 표시 전용이며 파일을 생성하지 않는다).
 
 ### Step 8: 계획 파일 작성 [계획 추적 상태]
 
