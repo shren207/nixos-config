@@ -28,6 +28,7 @@
     theme.flavor.dark = "catppuccin-mocha";
 
     # git.yazi 플러그인 등록: git repo의 파일 목록에 git 상태 linemode 표시.
+    # 두 패턴 모두 필요: "*"는 개별 파일, "*/"는 디렉터리 매칭 (git.yazi 공식 README 기준).
     settings.plugin.prepend_fetchers = [
       {
         id = "git";
