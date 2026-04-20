@@ -8,7 +8,7 @@ macOS와 NixOS 개발 환경을 **nix-darwin/NixOS + Home Manager**로 선언적
 |------|-------------|
 | 빌드 | `nrs` (`darwin-rebuild`/`nixos-rebuild` 직접 실행 금지) |
 | 플랫폼 판별 | Environment `Platform`: `darwin` → Mac · `linux` → MiniPC |
-| MiniPC 접속 | `ssh minipc` (Tailscale VPN 연결 시) 또는 `ssh greenhead@100.79.80.95` |
+| MiniPC 접속 | `ssh minipc` (Tailscale VPN 연결 시). 호스트/IP: [`libraries/constants.nix`](./libraries/constants.nix) |
 | LLM 행동 규칙 | [`CLAUDE.md`](./CLAUDE.md) |
 
 ---
@@ -42,7 +42,7 @@ macOS와 NixOS 개발 환경을 **nix-darwin/NixOS + Home Manager**로 선언적
 
 **디렉토리 구조**:
 
-```
+```text
 flake.nix
 libraries/        # 상수, 공통 패키지, overlay
 modules/
