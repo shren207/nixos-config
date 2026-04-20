@@ -44,6 +44,16 @@
       }
     ];
 
+    # C: cheat-browse (cheat + fzf) 띄우기. nvim <leader>C / tmux prefix+C 와 동일 키로 일관성.
+    # preset [mgr] 섹션에 C 단독 바인딩 없음 — 충돌 없음.
+    keymap.mgr.prepend_keymap = [
+      {
+        on = [ "C" ];
+        run = "shell 'cheat-browse' --block";
+        desc = "Browse cheatsheets (cheat + fzf)";
+      }
+    ];
+
     # 세 플러그인 모두 명시적 setup 필요 (upstream README 기준).
     initLua = ''
       require("full-border"):setup()
