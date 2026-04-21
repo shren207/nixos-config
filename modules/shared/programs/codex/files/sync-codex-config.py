@@ -1,22 +1,25 @@
 #!/usr/bin/env python3
 # Merge repo template into ~/.codex/config.toml.
 #
-# Ownership policy:
-#   * Template-owned keys   = every top-level key that appears in the template
-#                             PLUS every [mcp_servers.<name>] where <name> is
-#                             declared in the template.
+# Ownership policy (recursive leaf-level):
+#   * Template-owned leaves = every leaf key that the template defines,
+#                             including leaves nested inside tables the template
+#                             declares (e.g. `[features].voice_transcription`,
+#                             `[plugins."github@openai-curated"].enabled`,
+#                             `[mcp_servers.<name>]` entries the template sets).
 #     These are (re-)applied from the template on each activation.
-#   * User-owned sections   = everything else in the existing file — any
-#                             top-level key NOT in the template, `[projects.*]`,
-#                             and every [mcp_servers.<name>] where <name> is
-#                             NOT declared in the template.
-#     These are preserved verbatim, including unknown tables introduced by
-#     future Codex CLI features.
+#   * User-owned leaves     = everything the template does NOT declare at the
+#                             same path — including sibling leaves inside the
+#                             same table (e.g. user-added `[plugins.foo]`,
+#                             `[features].my_extra_flag`) and any top-level key
+#                             that is not in the template (`[projects.*]`, new
+#                             Codex CLI tables we haven't seen yet).
+#     These are preserved verbatim.
 #
-# On a same-key conflict template ALWAYS wins for template-owned keys; user
-# always wins for user-owned keys. This makes the merge "repo overwrite on its
-# own keys, leave everything else alone" — the script does not need to learn
-# about new Codex sections just to avoid deleting them.
+# On a same-path conflict template ALWAYS wins. The policy can be read as
+# "template overwrites its own leaves and leaves everything else alone" — we
+# do not need to teach the script about every new Codex section just to avoid
+# deleting user data.
 #
 # Write is atomic (tempfile + os.replace) so a codex process reading the file
 # concurrently sees either the old or new content, never a partial merge.
@@ -139,6 +142,49 @@ def as_table_or_warn(value, *, where: str) -> Optional[dict]:
         return None
 
 
+def _is_table(value) -> bool:
+    # tomlkit Table / Inline Table / dict는 모두 Mapping 프로토콜을 따른다.
+    try:
+        value.keys  # type: ignore[attr-defined]
+        return True
+    except Exception:
+        return False
+
+
+def _values_equal(a, b) -> bool:
+    # tomlkit 값 비교. 비교 중 예외 발생은 "다르다"로 간주.
+    try:
+        return a == b
+    except Exception:
+        return False
+
+
+def merge_template_into(dest, tmpl, *, path: str = "") -> int:
+    """Template leaf를 dest에 재귀적으로 덮어쓰고, template이 선언하지 않은 key는
+    건드리지 않는다. same-value 덮어쓰기는 stderr 로그에 포함하지 않는다.
+
+    반환: 실제로 교체된 leaf 개수 (debug/observability 목적).
+    """
+    changed = 0
+    for key in list(tmpl.keys()):
+        full_path = f"{path}.{key}" if path else key
+        tmpl_val = tmpl[key]
+        if key not in dest:
+            dest[key] = copy.deepcopy(tmpl_val)
+            continue
+        existing_val = dest[key]
+        if _is_table(tmpl_val) and _is_table(existing_val):
+            changed += merge_template_into(existing_val, tmpl_val, path=full_path)
+            continue
+        # scalar, array, or type mismatch: template wins.
+        if _values_equal(existing_val, tmpl_val):
+            continue
+        log(f"{full_path}: template-managed value overriding user edit (template wins)")
+        dest[key] = copy.deepcopy(tmpl_val)
+        changed += 1
+    return changed
+
+
 def main() -> int:
     if len(sys.argv) != 3:
         usage()
@@ -149,9 +195,6 @@ def main() -> int:
     template = load_required_toml(template_path)
     existing = load_optional_toml(target_path, quarantine=True)
 
-    # template-owned keys = template에 정의된 top-level 키 전부.
-    # mcp_servers의 subkey 중 template에 있는 이름만 template-owned로 취급한다.
-    template_mcps = as_table_or_warn(template.get("mcp_servers"), where="template.mcp_servers") or {}
     if template.get("projects") is not None:
         # template이 projects를 선언하면 정책 위반이므로 경고만 남기고 무시.
         # user trust는 오직 runtime mutation이 소유한다.
@@ -160,37 +203,13 @@ def main() -> int:
     # result는 existing의 deep copy에서 시작한다. 즉 "user 소유 섹션은 기본적으로 보존".
     result = copy.deepcopy(existing)
 
-    # template top-level 키를 덮어쓴다. projects는 user-owned이므로 skip.
-    template_top_keys: list[str] = []
-    for key in list(template.keys()):
-        if key == "projects":
-            continue
-        template_top_keys.append(key)
-        if key == "mcp_servers":
-            # subkey 단위 merge: template에 있는 이름만 덮어쓰고, 사용자가 추가한
-            # 이름은 그대로 둔다.
-            existing_mcps = as_table_or_warn(
-                result.get("mcp_servers"), where="existing.mcp_servers"
-            )
-            if existing_mcps is None:
-                result["mcp_servers"] = copy.deepcopy(template_mcps)
-                continue
-            for name in list(template_mcps.keys()):
-                if name in existing_mcps:
-                    # 사용자가 template-managed MCP 키를 수정했어도 template이 이긴다.
-                    # stderr 로그로 투명하게 알린다.
-                    log(
-                        f"mcp_servers.{name}: template-managed key — overwriting "
-                        f"existing user edit (template wins)"
-                    )
-                result["mcp_servers"][name] = copy.deepcopy(template_mcps[name])
-        else:
-            if key in result:
-                log(
-                    f"top-level key '{key}': template-managed — overwriting "
-                    f"existing user edit (template wins)"
-                )
-            result[key] = copy.deepcopy(template[key])
+    # template의 top-level 키를 재귀 merge. projects는 user-owned이므로 skip.
+    template_top_keys: list[str] = [k for k in template.keys() if k != "projects"]
+    # projects 키는 얕은 사본 내에서만 임시 제거하고 원본 template은 건드리지 않는다.
+    template_clone = copy.deepcopy(template)
+    if "projects" in template_clone:
+        del template_clone["projects"]
+    merge_template_into(result, template_clone)
 
     serialized = tomlkit.dumps(result)
 
@@ -215,12 +234,10 @@ def main() -> int:
 
     # Summary.
     projects_tbl = as_table_or_warn(existing.get("projects"), where="existing.projects")
+    template_mcps = as_table_or_warn(template.get("mcp_servers"), where="template.mcp_servers") or {}
     existing_mcps = as_table_or_warn(existing.get("mcp_servers"), where="existing.mcp_servers") or {}
     user_mcp_count = sum(1 for k in existing_mcps.keys() if k not in template_mcps)
-    user_top_keys = [
-        k for k in existing.keys()
-        if k not in template_top_keys and k != "projects" and k != "mcp_servers"
-    ]
+    user_top_keys = [k for k in existing.keys() if k not in template_top_keys and k != "projects"]
     log(
         f"preserved {len(projects_tbl) if projects_tbl else 0} projects entries, "
         f"{user_mcp_count} user-owned mcp_servers, "
