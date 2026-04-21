@@ -83,12 +83,16 @@ in
   // codexSkillEntries;
 
   # ─── ~/.codex/config.toml 동기화 (activation) ───
-  # repo-managed 키(model, approval_policy, sandbox_mode, plugins 등)는 매 activation에서
-  # template으로 재적용한다. 사용자 소유 섹션은 보존한다:
-  #   - [projects.*]                              (runtime trust — codex CLI가 append)
-  #   - [mcp_servers.<template에 없는 이름>]      (codex mcp add 등)
+  # Ownership policy: template이 선언한 leaf만 overwrite (재귀, leaf 단위).
+  # template이 선언하지 않은 나머지는 preserve:
+  #   - [projects.*]                    (runtime trust — codex CLI가 append; template에서 선언 금지)
+  #   - template 밖의 top-level 키       (사용자/새 Codex CLI 테이블)
+  #   - template 선언 테이블 안의 sibling leaf (예: [features].my_extra_flag)
+  #   - [mcp_servers.<template에 없는 이름>]  (codex mcp add 등)
   # 결과는 regular file (mode 0600). symlink 기반 관리와 달리 codex CLI의 config write가
   # repo 원본에 write-through되지 않아 git working tree가 오염되지 않는다.
+  # 동일 ownership policy는 `sync-codex-config.py check` 모드가 drift 검증에 재사용한다
+  # (writer와 checker가 _walk_template_leaves를 공유하여 정책 drift를 차단).
   home.activation.syncCodexConfig = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     config_dir="$HOME/.codex"
     $DRY_RUN_CMD mkdir -p "$config_dir"

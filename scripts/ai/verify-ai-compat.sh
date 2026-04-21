@@ -32,75 +32,107 @@ then
 fi
 
 # ─── TOML helper ───
-# 여러 곳에서 쓰이는 python3 inline 블록을 단일 헬퍼로 통일.
-# 사용법:
-#   _toml_parse        <file>                : valid TOML이면 0, 아니면 1
-#   _toml_get_scalar   <file> <dotted.path>  : 경로의 scalar(str/int/float/bool)을
-#                                              stdout으로. 없거나 table이면 empty.
-#                                              TOML parse 실패 시에도 empty + 0으로
-#                                              끝나므로 `set -euo pipefail` 환경에서
-#                                              command substitution으로 안전하게 호출 가능.
-#   _toml_has_table    <file> <dotted.path>  : table로 존재하면 0, 아니면 1
-#   _file_mode         <file>                : 8진수 mode 문자열 (예: "600"), 실패 시 "?"
-_toml_parse() {
-  python3 - "$1" <<'PY' >/dev/null 2>&1
-import sys, tomllib
-with open(sys.argv[1], 'rb') as f:
-    tomllib.load(f)
-PY
-}
+# 통합 helper. 모든 TOML inspection을 단일 `_toml_inspect --what=<mode>`로 수행한다.
+# 이전의 _toml_parse/_toml_get_scalar/_toml_has_table/_file_mode는 모두 여기로 통합.
+#
+# Mode별 반환 계약 (soft-fail 계약 유지 — 한 체크 실패가 이후 섹션을 끊지 않도록):
+#   --what=scalar <file> <dotted.path>
+#       stdout: scalar 값(str/int/float/bool). 없거나 파싱 실패면 empty.
+#       exit  : 항상 0 (command substitution 안전)
+#   --what=table  <file> <dotted.path>
+#       stdout: 없음.
+#       exit  : table로 존재하면 0, 아니면 1 (if/then 분기용)
+#   --what=parse  <file>
+#       stdout: 없음.
+#       exit  : 유효한 TOML이면 0, 아니면 1
+#   --what=mode   <file>
+#       stdout: 8진수 mode 문자열 (예: "600"). 실패 시 "?".
+#       exit  : 항상 0
+_toml_inspect() {
+  # $1 = --what=<mode>, $2 = file, $3 = optional dotted path (scalar/table 전용)
+  local what="${1#--what=}"
+  shift
+  python3 - "$what" "$@" <<'PY'
+import os, stat, sys, tomllib
 
-_toml_get_scalar() {
-  python3 - "$1" "$2" <<'PY' 2>/dev/null || true
-import sys, tomllib
-try:
-    with open(sys.argv[1], 'rb') as f:
-        data = tomllib.load(f)
-except Exception:
-    sys.exit(0)
-cur = data
-for part in sys.argv[2].split('.'):
-    if not isinstance(cur, dict) or part not in cur:
-        sys.exit(0)
-    cur = cur[part]
-if isinstance(cur, (str, int, float, bool)):
-    print(cur)
-PY
-}
+what = sys.argv[1]
+args = sys.argv[2:]
 
-_toml_has_table() {
-  python3 - "$1" "$2" <<'PY'
-import sys, tomllib
-try:
-    with open(sys.argv[1], 'rb') as f:
-        data = tomllib.load(f)
-except Exception:
-    sys.exit(1)
-cur = data
-for part in sys.argv[2].split('.'):
-    if not isinstance(cur, dict) or part not in cur:
+
+def inspect_parse(path):
+    try:
+        with open(path, "rb") as f:
+            tomllib.load(f)
+    except Exception:
         sys.exit(1)
-    cur = cur[part]
-sys.exit(0 if isinstance(cur, dict) else 1)
-PY
-}
+    sys.exit(0)
 
-_file_mode() {
-  python3 -c 'import os, stat, sys; print(f"{stat.S_IMODE(os.stat(sys.argv[1]).st_mode):o}")' "$1" 2>/dev/null || echo "?"
+
+def inspect_scalar(path, dotted):
+    # soft-fail: 파일/파싱/경로 문제는 empty stdout + exit 0.
+    try:
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+    except Exception:
+        sys.exit(0)
+    cur = data
+    for part in dotted.split("."):
+        if not isinstance(cur, dict) or part not in cur:
+            sys.exit(0)
+        cur = cur[part]
+    if isinstance(cur, (str, int, float, bool)):
+        print(cur)
+    sys.exit(0)
+
+
+def inspect_table(path, dotted):
+    try:
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+    except Exception:
+        sys.exit(1)
+    cur = data
+    for part in dotted.split("."):
+        if not isinstance(cur, dict) or part not in cur:
+            sys.exit(1)
+        cur = cur[part]
+    sys.exit(0 if isinstance(cur, dict) else 1)
+
+
+def inspect_mode(path):
+    try:
+        print(f"{stat.S_IMODE(os.stat(path).st_mode):o}")
+    except Exception:
+        print("?")
+    sys.exit(0)
+
+
+dispatch = {
+    "parse":  lambda: inspect_parse(args[0]),
+    "scalar": lambda: inspect_scalar(args[0], args[1]),
+    "table":  lambda: inspect_table(args[0], args[1]),
+    "mode":   lambda: inspect_mode(args[0]),
+}
+handler = dispatch.get(what)
+if handler is None:
+    print(f"_toml_inspect: unknown --what={what}", file=sys.stderr)
+    sys.exit(2)
+handler()
+PY
 }
 
 echo "=== Codex 실행 정책 확인 ==="
 
 CODEX_CONFIG="$HOME/.codex/config.toml"
 if [ -f "$CODEX_CONFIG" ]; then
-  _ap="$(_toml_get_scalar "$CODEX_CONFIG" approval_policy)"
+  _ap="$(_toml_inspect --what=scalar "$CODEX_CONFIG" approval_policy)"
   if [ "$_ap" = "never" ]; then
     pass "approval_policy = \"never\""
   else
     fail "approval_policy = \"never\" 미설정 (actual: \"$_ap\")"
   fi
 
-  _sm="$(_toml_get_scalar "$CODEX_CONFIG" sandbox_mode)"
+  _sm="$(_toml_inspect --what=scalar "$CODEX_CONFIG" sandbox_mode)"
   if [ "$_sm" = "danger-full-access" ]; then
     pass "sandbox_mode = \"danger-full-access\""
   else
@@ -229,13 +261,13 @@ elif [ -L "$_codex_cfg" ]; then
 elif [ ! -f "$_codex_cfg" ]; then
   fail "$_codex_cfg regular file 아님"
 else
-  _mode="$(_file_mode "$_codex_cfg")"
+  _mode="$(_toml_inspect --what=mode "$_codex_cfg")"
   if [ "$_mode" = "600" ]; then
     pass "$_codex_cfg regular file, mode=0600"
   else
     fail "$_codex_cfg mode=$_mode (기대: 0600) — 권한 제한 실패"
   fi
-  if ! _toml_parse "$_codex_cfg"; then
+  if ! _toml_inspect --what=parse "$_codex_cfg"; then
     fail "$_codex_cfg TOML 파싱 실패"
   fi
 fi
@@ -249,39 +281,113 @@ else
   warn "$HOME/.codex/AGENTS.md 없음"
 fi
 
-# ─── template-managed 계약 검증 ───
-# syncCodexConfig merge 정책은 "repo-managed 키는 template wins"를 보장한다.
-# 이 계약을 verify 수준에서 검증할 수 있도록, template이 반드시 가져야 하는 구조를 확인한다.
+# ─── template ↔ live drift 검증 ───
+# sync-codex-config.py의 `check` 서브커맨드에게 drift 계산을 위임한다. writer와
+# 동일한 `_walk_template_leaves` iterator를 쓰므로 ownership policy drift가 구조적으로
+# 차단된다. 플랫폼별 하드코딩(예: [mcp_servers.chrome-devtools] Darwin 전용) 없이,
+# 해당 플랫폼의 template 파일에 선언된 leaf만 자동으로 검증된다.
 echo ""
-echo "=== template-managed 계약 확인 ==="
+echo "=== template ↔ live drift 검증 ==="
 
-if [ -f "$CODEX_CONFIG" ] && _toml_parse "$CODEX_CONFIG"; then
-  # top-level 필수 키
-  for _k in model approval_policy sandbox_mode service_tier personality; do
-    if [ -n "$(_toml_get_scalar "$CODEX_CONFIG" "$_k")" ]; then
-      pass "top-level 키 존재: $_k"
-    else
-      fail "top-level 키 누락: $_k (template-managed 계약 위반)"
-    fi
-  done
-  # template table 존재
-  if _toml_has_table "$CODEX_CONFIG" features; then
-    pass "[features] table 존재"
-  else
-    fail "[features] table 누락"
-  fi
-  # Darwin template은 [mcp_servers.chrome-devtools]를 가지며 누락 시 fail.
-  # Non-Darwin template에는 해당 섹션이 없으므로 존재하지 않는 것이 정상(pass).
-  if _toml_has_table "$CODEX_CONFIG" "mcp_servers.chrome-devtools"; then
-    pass "[mcp_servers.chrome-devtools] 존재 (Darwin template)"
-  else
-    case "$(uname -s)" in
-      Darwin) fail "[mcp_servers.chrome-devtools] 누락 (Darwin template-managed 계약 위반)" ;;
-      *)      pass "[mcp_servers.chrome-devtools] 없음 (non-Darwin platform)" ;;
-    esac
-  fi
+# Nix store에 복사된 template seed가 아니라 현재 flake 워킹트리의 template을 검증 기준으로 쓴다.
+if [ "$(uname -s)" = "Darwin" ]; then
+  _TEMPLATE="$REPO_ROOT/modules/shared/programs/codex/files/config.darwin.toml"
 else
-  warn "template 계약 체크 스킵 (config 파일 없음 또는 파싱 실패)"
+  _TEMPLATE="$REPO_ROOT/modules/shared/programs/codex/files/config.toml"
+fi
+_CHECK_SCRIPT="$REPO_ROOT/modules/shared/programs/codex/files/sync-codex-config.py"
+
+if [ ! -f "$_TEMPLATE" ]; then
+  fail "template 파일 없음: $_TEMPLATE"
+elif [ ! -f "$_CHECK_SCRIPT" ]; then
+  fail "sync-codex-config.py 없음: $_CHECK_SCRIPT"
+else
+  # rc 흡수 패턴: EXIT_DRIFT(1)는 데이터 있는 정상 경로이므로 `if ...; then rc=0; else rc=$?; fi`로
+  # 받아 set -euo pipefail 하에서도 verifier가 조기 종료되지 않는다. EXIT_ERROR(2)만 섹션 종료.
+  _check_stdout=""
+  _check_stderr=""
+  _check_rc=0
+  _check_err_file="$(mktemp "${TMPDIR:-/tmp}/verify-ai-compat-check-err.XXXXXX")"
+  if _check_stdout="$(python3 "$_CHECK_SCRIPT" check "$_TEMPLATE" "$CODEX_CONFIG" 2>"$_check_err_file")"; then
+    _check_rc=0
+  else
+    _check_rc=$?
+  fi
+  _check_stderr="$(cat "$_check_err_file")"
+  rm -f "$_check_err_file"
+
+  case "$_check_rc" in
+    0|1)
+      # JSON 파싱 후 target_state + drift 분기. malformed shape는 한 건 fail로 처리하고 이후 섹션 계속.
+      _verdict="$(
+        python3 - <<'PY' "$_check_stdout"
+import json, sys
+try:
+    payload = json.loads(sys.argv[1])
+except Exception as e:
+    print(f"PARSE_ERROR {e}")
+    sys.exit(0)
+if not isinstance(payload, dict):
+    print("PARSE_ERROR not a JSON object")
+    sys.exit(0)
+state = payload.get("target_state")
+drift = payload.get("drift")
+if state not in ("present", "missing"):
+    print(f"PARSE_ERROR unexpected target_state={state!r}")
+    sys.exit(0)
+if not isinstance(drift, list):
+    print(f"PARSE_ERROR drift not a list")
+    sys.exit(0)
+if state == "missing":
+    print("MISSING")
+elif not drift:
+    print("OK")
+else:
+    print(f"DRIFT {len(drift)}")
+    for item in drift:
+        if not isinstance(item, dict):
+            print(f"  malformed item: {item!r}")
+            continue
+        print(f"  {item.get('path','?')}: {item.get('reason','?')} expected={item.get('expected')!r} actual={item.get('actual')!r}")
+PY
+      )"
+      case "$_verdict" in
+        OK)
+          pass "template이 선언한 모든 leaf가 live와 일치"
+          ;;
+        MISSING)
+          fail "$CODEX_CONFIG 없음 (target_state=missing) — activation이 실행되지 않은 상태일 수 있음 (nrs --force 권장)"
+          ;;
+        DRIFT*)
+          # 첫 줄 "DRIFT <N>" 헤드는 정보성 출력, 이후 각 항목을 fail()로 누적해 errors에 1건씩 반영.
+          # 주의: `| while ...`는 pipe 우측이 subshell이라 `fail()`의 errors 증가가 부모로 전파되지 않는다.
+          # process substitution `< <(...)`으로 while을 현재 shell에서 실행해야 한다.
+          while IFS= read -r _line; do
+            case "$_line" in
+              "DRIFT "*)
+                echo "  → template ↔ live drift: ${_line#DRIFT }건 감지" >&2
+                ;;
+              *)
+                fail "drift: $_line"
+                ;;
+            esac
+          done < <(echo "$_verdict" | awk 'NR==1 {print; next} {sub(/^  /,""); print}')
+          ;;
+        PARSE_ERROR*)
+          fail "check.py 출력 파싱 실패: ${_verdict#PARSE_ERROR }"
+          ;;
+        *)
+          fail "check.py 출력 예상치 못한 상태: $_verdict"
+          ;;
+      esac
+      ;;
+    2)
+      fail "check.py EXIT_ERROR (template 읽기/파싱 실패): $_check_stderr"
+      ;;
+    *)
+      fail "check.py 비정상 종료 (rc=$_check_rc): $_check_stderr"
+      ;;
+  esac
 fi
 
 echo ""

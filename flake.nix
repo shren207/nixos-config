@@ -215,5 +215,21 @@
           };
         }
       );
+
+      # test/verifier 래핑용 tomlkit 포함 python3.
+      # pre-push hook(lefthook.yml)과 verify-ai-compat이 `nix shell .#pythonWithTomlkit --command`로
+      # 호출한다. devShell은 건드리지 않아 direnv/bare python3 해석에는 영향 없음.
+      # 동일 derivation을 codex/default.nix의 activation도 `pythonWithTomlkit`라는 이름으로
+      # 로컬 let-binding 형태로 쓰고 있고, 둘은 같은 `pkgs.python3.withPackages (ps: [ ps.tomlkit ])`
+      # 식을 평가하므로 내용상 동일 store path다.
+      packages = nixpkgs.lib.genAttrs [ systems.darwin systems.linux ] (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        {
+          pythonWithTomlkit = pkgs.python3.withPackages (ps: [ ps.tomlkit ]);
+        }
+      );
     };
 }
