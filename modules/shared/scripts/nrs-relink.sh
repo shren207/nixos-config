@@ -137,6 +137,13 @@ cmd_relink() {
     # 공격자가 `.git` 파일에 `gitdir: MAIN_REPO/.git[/worktrees/<name>]`을 써 넣어
     # common-dir/git-dir을 위조해도 등록 목록에는 없으므로 차단된다.
     # MAIN_REPO 자체가 git repo가 아니면 명령이 실패해 거부 경로로 떨어진다 (fail-closed).
+    #
+    # 위협 모델 범위: "등록되지 않은 외부 레포 또는 위조된 `.git` 거부".
+    # 미대응 (out of scope): stale registered-path 재점유 — 등록된 worktree를
+    # 수동으로 삭제(git에는 prunable 등록 잔존) 후 동일 절대경로에 fake 디렉토리를
+    # 재생성하면 `worktree list` 매칭이 통과한다. 사용자 자신의 HOME에 dir를 만드는
+    # 시나리오라 trust boundary 외부에 가깝지만, 강한 방어가 필요하면 wt 레벨에서
+    # out-of-band capability marker를 부여하는 후속 작업이 필요하다.
     if ! git -C "$MAIN_REPO" worktree list --porcelain 2>/dev/null \
         | grep -qxF "worktree $git_toplevel"; then
         echo -e "${RED}Worktree $git_toplevel is not registered in $MAIN_REPO (git worktree list).${NC}" >&2
