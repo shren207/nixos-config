@@ -52,13 +52,16 @@ maybe_relink_or_restore() {
         # v1 (PR #239): probe 3개(settings.json, mcp.json, config.toml) 기반 복원 도입.
         #    기존 엔트리 전환/복원은 충분했으나, 워크트리에서 새로 추가된 엔트리는 현재
         #    HMF에 없어 nrs-relink restore가 인식 불가 → HM clobber 에러 발생.
-        # v2 (이번 변경): 대안 검토:
+        # v2 (후속): 대안 검토:
         #    (a) probe 목록 확장 → 새 엔트리가 추가될 때마다 수동 관리 필요, 근본 해결 아님
         #    (b) nrs-relink restore가 ./result의 새 HMF 참조 → 플랫폼별 경로 해석 복잡
         #    (c) dangling 심링크만 제거 → 워크트리가 살아있으면 dangling 아니라 탐지 실패
         #    (d) 워크트리 경로 패턴 매칭으로 직접 제거 → 채택
         #    trade-off: .claude/worktrees/ 외부에 수동 생성된 워크트리는 탐지 불가하지만,
         #              wt 스크립트가 .claude/worktrees/에만 생성하므로 실용적으로 충분.
+        # v3 (이번 변경): ~/.codex/config.toml을 HM out-of-store symlink에서 activation
+        #    seed+merge 기반 regular file로 전환. probe 대상에서 제외하여 이제 probe 2개
+        #    (settings.json, mcp.json)로 축소.
         if _remove_worktree_symlinks "$MAIN_FLAKE_PATH/.claude/worktrees/" "stale worktree"; then
             # stale worktree 심링크가 제거되면 probe 파일(settings.json 등)도 사라져
             # Phase 2의 probe 탐지가 실패할 수 있음. NO_CHANGES 경로에서는 HM activation이
@@ -74,7 +77,7 @@ maybe_relink_or_restore() {
             # relink skip으로 partial mismatch가 발생한 경우를 방어
             local _needs_restore=false
             local _p
-            for _p in "$HOME/.claude/settings.json" "$HOME/.claude/mcp.json" "$HOME/.codex/config.toml"; do
+            for _p in "$HOME/.claude/settings.json" "$HOME/.claude/mcp.json"; do
                 [[ ! -L "$_p" ]] && continue
                 local _target
                 _target=$(readlink "$_p" 2>/dev/null) || continue
