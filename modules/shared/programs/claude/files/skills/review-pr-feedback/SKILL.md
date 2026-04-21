@@ -52,10 +52,19 @@ gh pr view --json number -q .number
 
 ### Step 2: 코멘트 분류
 
-Step 1 수집 결과가 비어 있으면(`unresolved review thread == 0` AND `PR 일반 코멘트 == 0`)
-no-op로 종료하고 Step 3-7을 건너뛴다.
+Step 1 수집 결과가 **모두 비어 있을 때**만 no-op로 종료한다 (Step 3-7 건너뛰기).
+"모두 비어 있음"은 다음 세 조건을 동시에 만족하는 상태다.
 
-비어 있지 않으면 각 코멘트를 다음 3개 카테고리로 분류한다.
+- `unresolved review thread == 0`
+- PR 일반 코멘트 (`/issues/{pr}/comments`) 중 actionable == 0
+- **review summary body (`/pulls/{pr}/reviews[].body`) 중 non-empty == 0**
+
+위 셋 중 하나라도 있으면 분류를 진행한다. 특히 리뷰어가 inline thread 없이
+summary body에만 의견을 남기는 패턴(전체 reject 사유를 summary에 기술하는 경우)은
+thread/issue-comment 카운트만으로는 보이지 않으므로 summary 본문을 반드시 함께 본다.
+summary-only 리뷰의 응답 경로는 Step 6의 PR top-level follow-up이다.
+
+비어 있지 않으면 각 코멘트/summary를 다음 3개 카테고리로 분류한다.
 
 | 카테고리 | 설명 | 기본 처리 |
 |----------|------|----------|
@@ -106,12 +115,16 @@ PR #399 반례는 [references/reply-and-resolve.md](references/reply-and-resolve
 
 각 thread 처리 전에 다음 가드를 적용한다.
 - **thread.id가 null/empty** → Step 6/7을 건너뛰고 사용자 보고 대상으로 분리.
-- **preflight requery**: 동시 실행/중복 reply 방지를 위해 reply 직전 `thread.id`로 최신 상태를 다시 조회한다. 이미 resolved이거나 동일 run이 남긴 답글이 있으면 no-op로 성공 처리한다.
+- **preflight requery**: reply 직전 `thread.id`로 최신 `isResolved`와 최신 comments를 다시 조회하고, 결과에 따라 reply / resolve를 독립적으로 분기한다.
+  - `isResolved=true` → 전체 no-op (이미 완료).
+  - `isResolved=false` + 이번 run이 남긴 답글 존재 → reply는 skip, **resolve는 반드시 수행** (이전 run이 reply 성공 + resolve 실패로 중단된 케이스 복구).
+  - `isResolved=false` + 답글 없음 → reply + resolve 순차 수행.
 
 | 대상 | 액션 |
 |------|------|
 | Review thread | `addPullRequestReviewThreadReply` → `resolveReviewThread` |
 | PR 일반 코멘트 | `addComment` 또는 REST `/issues/{pr}/comments`로 **PR에 top-level follow-up 코멘트** 추가. resolve 없음. 원 코멘트 URL/`@<author>` 멘션으로 연결 |
+| Review summary body (inline thread 없음) | `addComment` 또는 REST `/issues/{pr}/comments`로 **PR에 top-level follow-up 코멘트** 추가. 원 review URL(`pull/<n>#pullrequestreview-<id>`)과 `@<reviewer>` 멘션으로 연결. resolve 없음 |
 
 처리 결과별 답글 내용:
 
