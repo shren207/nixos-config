@@ -202,24 +202,28 @@ def load_optional_toml(path: Path, *, quarantine: bool):
             log(f"existing {path} {reason}; regenerating from template")
         return tomlkit.document()
 
-    # Pre-check: symlink 를 follow 한 referent 까지 regular file 인지 확인한다. special
-    # file (FIFO/socket/block/char device) 또는 symlink → special referent 는
-    # path.read_bytes() 가 영구 block 될 수 있으므로 read 전에 quarantine 경로로 보낸다.
-    # path.stat() (= os.stat) 은 symlink 를 따라 referent 의 type 을 본다. follow 가
-    # 실패(ELOOP/EACCES/...) 하면 read_bytes 단계의 OSError handler 에서 다시 처리한다.
-    # lstat 만 쓰면 symlink → FIFO 같은 케이스를 detect 하지 못하므로 stat 을 쓴다.
+    # TOCTOU-safe single-fd inspection + read: symlink 를 follow 한 referent 까지
+    # regular file 인지 확인하고 같은 fd 로 read 해야 path re-lookup race 가 사라진다.
+    # stat → read_bytes 두 단계 조회는 그 사이 target 이 FIFO/socket 으로 swap 되면 read
+    # 가 여전히 block 될 수 있다 (이전 구현의 한계). 여기서는 O_NONBLOCK 으로 open 하여
+    # special file 에서도 즉시 open 이 성공하고, fstat S_ISREG 체크가 false 면 read 없이
+    # 바로 quarantine 으로 빠진다. O_NOFOLLOW 는 쓰지 않는다 — readable symlink referent
+    # 의 내용 import 는 기존 계약(docstring Symlink semantics) 이므로 symlink 는 follow
+    # 한다 (special referent 는 fstat 에서 잡힌다).
+    fd = None
     try:
-        pre_st = path.stat()
-    except FileNotFoundError:
-        return tomlkit.document()
-    except OSError:
-        pre_st = None
-    if pre_st is not None and not stat.S_ISREG(pre_st.st_mode):
-        kind = oct(stat.S_IFMT(pre_st.st_mode))
-        return _quarantine(f"target is not a regular file (st_ifmt={kind})")
-
-    try:
-        raw = path.read_bytes()
+        fd = os.open(str(path), os.O_RDONLY | os.O_NONBLOCK)
+        pre_st = os.fstat(fd)
+        if not stat.S_ISREG(pre_st.st_mode):
+            kind = oct(stat.S_IFMT(pre_st.st_mode))
+            return _quarantine(f"target is not a regular file (st_ifmt={kind})")
+        parts: list[bytes] = []
+        while True:
+            buf = os.read(fd, 65536)
+            if not buf:
+                break
+            parts.append(buf)
+        raw = b"".join(parts)
     except FileNotFoundError:
         return tomlkit.document()
     except OSError as e:
@@ -236,6 +240,12 @@ def load_optional_toml(path: Path, *, quarantine: bool):
                 f"overwrite to avoid data loss. Fix permissions then re-run."
             )
         die(f"cannot read existing {path}: {e}")
+    finally:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
 
     try:
         text = raw.decode("utf-8")
@@ -250,26 +260,33 @@ def load_optional_toml(path: Path, *, quarantine: bool):
 def load_target_for_check(path: Path):
     # check 모드 전용. target 부재는 target_state="missing"으로 처리 (drift 아님).
     # 읽기 실패(EACCES 등)와 TOML/UTF-8 파싱 실패는 EXIT_ERROR (writer처럼 quarantine하지 않음).
-    # Pre-check: special file (FIFO/socket/device) 또는 symlink → special referent 는
-    # path.read_bytes() 가 영구 block 될 수 있다. read 전에 die 하여 check CLI 가
-    # 외부 호출자(verify-ai-compat, CI 등) 에서 hang 되는 것을 차단한다. cmd_sync 의
-    # self-heal 과 달리 check 는 read-only contract 라 quarantine 하지 않는다.
+    # TOCTOU-safe: load_optional_toml 과 동일하게 fd 기반 single open + fstat + read 로
+    # path 재조회 race 를 차단한다. cmd_sync self-heal 과 달리 check 는 read-only contract
+    # 라 non-regular/unreadable 은 quarantine 하지 않고 die 한다. symlink 는 follow.
+    fd = None
     try:
-        pre_st = path.stat()
-    except FileNotFoundError:
-        return None
-    except OSError as e:
-        die(f"cannot stat target {path} ({_errno_tag(e)}): {e}")
-    if not stat.S_ISREG(pre_st.st_mode):
-        kind = oct(stat.S_IFMT(pre_st.st_mode))
-        die(f"target is not a regular file (st_ifmt={kind}): {path}")
-
-    try:
-        data = path.read_bytes()
+        fd = os.open(str(path), os.O_RDONLY | os.O_NONBLOCK)
+        pre_st = os.fstat(fd)
+        if not stat.S_ISREG(pre_st.st_mode):
+            kind = oct(stat.S_IFMT(pre_st.st_mode))
+            die(f"target is not a regular file (st_ifmt={kind}): {path}")
+        parts: list[bytes] = []
+        while True:
+            buf = os.read(fd, 65536)
+            if not buf:
+                break
+            parts.append(buf)
+        data = b"".join(parts)
     except FileNotFoundError:
         return None
     except OSError as e:
         die(f"cannot read target {path} ({_errno_tag(e)}): {e}")
+    finally:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
     try:
         text = data.decode("utf-8")
     except UnicodeDecodeError as e:
