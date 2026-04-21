@@ -270,7 +270,8 @@ if [ -f "$CODEX_CONFIG" ] && _toml_parse "$CODEX_CONFIG"; then
   else
     fail "[features] table 누락"
   fi
-  # Darwin 전용: chrome-devtools MCP가 있어야 함. 다른 플랫폼에서는 경고 수준.
+  # Darwin template은 [mcp_servers.chrome-devtools]를 가지며 누락 시 fail.
+  # Non-Darwin template에는 해당 섹션이 없으므로 존재하지 않는 것이 정상(pass).
   if _toml_has_table "$CODEX_CONFIG" "mcp_servers.chrome-devtools"; then
     pass "[mcp_servers.chrome-devtools] 존재 (Darwin template)"
   else
