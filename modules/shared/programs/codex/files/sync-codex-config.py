@@ -94,7 +94,14 @@ def die(msg: str, code: int = EXIT_ERROR) -> "None":
 try:
     import tomlkit
 except ImportError:
-    die("tomlkit module required (nix: pkgs.python3Packages.tomlkit)")
+    # lazy: tomlkit은 sync/check 실제 실행 시점에만 필요하다. argparse만 쓰는 `--help`는
+    # tomlkit 없이도 docstring을 출력할 수 있어야 한다 (audit Docs-2 반영).
+    tomlkit = None
+
+
+def _require_tomlkit() -> None:
+    if tomlkit is None:
+        die("tomlkit module required (nix: pkgs.python3Packages.tomlkit)")
 
 
 def load_required_toml(path: Path):
@@ -134,8 +141,10 @@ def load_optional_toml(path: Path, *, quarantine: bool):
 
     def _quarantine(reason: str):
         if quarantine and path.exists():
+            # stamp에 PID를 덧붙여 동일 초에 두 activation이 나란히 quarantine할 때도
+            # 고유 경로가 되도록 한다 (audit EDGECASE-3 반영: 초 해상도 stamp race).
             stamp = _dt.datetime.now().strftime("%Y%m%dT%H%M%S")
-            bad = path.with_name(f"{path.name}.bad-{stamp}")
+            bad = path.with_name(f"{path.name}.bad-{stamp}-{os.getpid()}")
             try:
                 path.rename(bad)
                 log(
@@ -392,6 +401,7 @@ def write_atomic(target_path: Path, serialized: str) -> None:
 
 
 def cmd_sync(template_path: Path, target_path: Path) -> int:
+    _require_tomlkit()
     template = load_required_toml(template_path)
     existing = load_optional_toml(target_path, quarantine=True)
 
@@ -427,6 +437,7 @@ def cmd_sync(template_path: Path, target_path: Path) -> int:
 
 
 def cmd_check(template_path: Path, target_path: Path) -> int:
+    _require_tomlkit()
     template = load_required_toml(template_path)
     target = load_target_for_check(target_path)
 

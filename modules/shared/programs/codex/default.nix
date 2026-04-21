@@ -3,7 +3,9 @@
 # Claude Code 스킬을 Codex에서도 사용할 수 있도록 심볼릭 링크 관리
 # trust는 런타임 mutation(사용자 승인, 디렉토리당 1회)이 SoT. template은 trust를
 # 하드코딩하지 않으며, ~/.codex/config.toml은 activation의 syncCodexConfig가
-# repo-managed 키와 사용자 소유 섹션(projects/사용자 MCP)을 merge한 regular file.
+# template-declared leaf는 template wins, template 밖의 top-level 키/sibling leaf/
+# [projects.*]/template 없는 mcp_servers.<이름>은 preserve하는 방식으로 merge한 regular file.
+# (상세 policy는 home.activation.syncCodexConfig 위 주석 참조.)
 {
   config,
   pkgs,

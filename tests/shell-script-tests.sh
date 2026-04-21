@@ -353,7 +353,8 @@ test_codex_config_check_fixtures() {
   local scenario dir sandbox template target_path actual_stdout actual_stderr rc expected_exit
   for scenario in check_match check_value_mismatch check_missing_leaf check_type_mismatch \
                   check_target_missing check_template_missing check_template_parse_error \
-                  check_quoted_dotted_key_match; do
+                  check_quoted_dotted_key_match check_quoted_dotted_key_value_mismatch \
+                  check_empty_template; do
     dir="$CODEX_CONFIG_FIXTURE_DIR/$scenario"
     [[ -d "$dir" ]] || fail "check fixture missing: $dir"
     sandbox=$(new_sandbox)
