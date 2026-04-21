@@ -539,28 +539,26 @@ find_candidates() {
     find "$WATCH_DIR" -maxdepth 1 -type f ! -name ".*"
 }
 
-# 처리 후 큐 재스캔: 처리 중 도착한 파일이 다음 외부 이벤트까지
-# 방치되지 않도록 락 보유 상태에서 큐가 빌 때까지 반복.
-while true; do
-    find_candidates | while read -r f; do
-        [ -f "$f" ] || continue
+process_one() {
+    local f="$1"
+    local filename name_no_ext target_dir rar_output_path checksum_val guide_file
 
-        filename=$(basename "$f")
-        name_no_ext="${filename%.*}"
+    filename=$(basename "$f")
+    name_no_ext="${filename%.*}"
 
-        # 결과 폴더 생성
-        target_dir="${DEST_ROOT}/${name_no_ext}"
-        /bin/mkdir -p "$target_dir"
+    # 결과 폴더 생성
+    target_dir="${DEST_ROOT}/${name_no_ext}"
+    /bin/mkdir -p "$target_dir"
 
-        # RAR 압축
-        rar_output_path="${target_dir}/${name_no_ext}.rar"
-        if rar a -rr10% -ma5 -ep1 -idq "$rar_output_path" "$f"; then
-            # 체크섬 계산
-            checksum_val=$(/usr/bin/shasum -a 256 "$rar_output_path" | /usr/bin/awk '{print $1}')
+    # RAR 압축
+    rar_output_path="${target_dir}/${name_no_ext}.rar"
+    if rar a -rr10% -ma5 -ep1 -idq "$rar_output_path" "$f"; then
+        # 체크섬 계산
+        checksum_val=$(/usr/bin/shasum -a 256 "$rar_output_path" | /usr/bin/awk '{print $1}')
 
-            # 품질보증서 생성
-            guide_file="${target_dir}/데이터_무결성_검증방법.txt"
-            cat <<EOF_GUIDE > "$guide_file"
+        # 품질보증서 생성
+        guide_file="${target_dir}/데이터_무결성_검증방법.txt"
+        cat <<EOF_GUIDE > "$guide_file"
 [데이터 품질 보증서]
 
 파일명: ${name_no_ext}.rar
@@ -588,16 +586,17 @@ $ shasum -a 256 "${name_no_ext}.rar"
 ================================================================
 EOF_GUIDE
 
-            # 원본 삭제
-            /bin/rm -f "$f"
-            log_info "압축 완료: $filename -> ${target_dir}/"
-        else
-            log_error "압축 실패: $filename"
-            move_to_failed "$f" || true
+        # 원본 삭제
+        /bin/rm -f "$f"
+        log_info "압축 완료: $filename -> ${target_dir}/"
+    else
+        log_error "압축 실패: $filename"
+        if ! move_to_failed "$f"; then
+            log_error "quarantine 실패; run 중단 (락 해제 후 다음 wakeup 재시도)"
+            exit 1
         fi
-    done
-    # find | while 는 subshell이라 변수 전달 불가 → find로 잔여 재확인
-    _remaining=$(find_candidates 2>/dev/null | /usr/bin/wc -l | /usr/bin/tr -d '[:space:]')
-    [ "$_remaining" -eq 0 ] && break
-    log_info "재스캔: ${_remaining}개 파일 남음"
-done
+    fi
+}
+
+# 큐 비우기 + 락 보유 재스캔 (#374). drain_queue가 안정화 대기와 종료 조건을 통합.
+drain_queue process_one

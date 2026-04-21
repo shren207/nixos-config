@@ -596,35 +596,32 @@ find_candidates() {
            -o -iname "*.mkv" -o -iname "*.wmv" \)
 }
 
-# 처리 후 큐 재스캔: 처리 중 도착한 파일이 다음 외부 이벤트까지
-# 방치되지 않도록 락 보유 상태에서 큐가 빌 때까지 반복.
-while true; do
-    find_candidates | while read -r f; do
-        [ -f "$f" ] || continue
+process_one() {
+    local f="$1"
+    local filename timestamp output_filename output_path
 
-        filename=$(basename "$f")
-        timestamp=$(/bin/date +"%Y%m%dT%H%M%S")
-        output_filename="${timestamp}_${CURRENT_PID}_$RANDOM.mp4"
-        output_path="${DEST_DIR}/${output_filename}"
+    filename=$(basename "$f")
+    timestamp=$(/bin/date +"%Y%m%dT%H%M%S")
+    output_filename="${timestamp}_${CURRENT_PID}_$RANDOM.mp4"
+    output_path="${DEST_DIR}/${output_filename}"
 
-        log_info "압축 시작: $filename"
+    log_info "압축 시작: $filename"
 
-        # H.265 압축 (VideoToolbox 하드웨어 가속, hvc1 태그로 Apple 호환성 확보)
-        if ffmpeg -nostdin -hide_banner -loglevel error -i "$f" \
-            -c:v hevc_videotoolbox -q:v "$VT_QUALITY" -tag:v hvc1 \
-            -c:a eac3 -b:a 224k \
-            -y "$output_path"; then
-
-            # 원본 삭제
-            /bin/rm -f "$f"
-            log_info "압축 완료: $filename -> ${output_filename}"
-        else
-            log_error "압축 실패: $filename"
-            move_to_failed "$f" || true
+    # H.265 압축 (VideoToolbox 하드웨어 가속, hvc1 태그로 Apple 호환성 확보)
+    if ffmpeg -nostdin -hide_banner -loglevel error -i "$f" \
+        -c:v hevc_videotoolbox -q:v "$VT_QUALITY" -tag:v hvc1 \
+        -c:a eac3 -b:a 224k \
+        -y "$output_path"; then
+        /bin/rm -f "$f"
+        log_info "압축 완료: $filename -> ${output_filename}"
+    else
+        log_error "압축 실패: $filename"
+        if ! move_to_failed "$f"; then
+            log_error "quarantine 실패; run 중단 (락 해제 후 다음 wakeup 재시도)"
+            exit 1
         fi
-    done
-    # find | while 는 subshell이라 변수 전달 불가 → find로 잔여 재확인
-    _remaining=$(find_candidates 2>/dev/null | /usr/bin/wc -l | /usr/bin/tr -d '[:space:]')
-    [ "$_remaining" -eq 0 ] && break
-    log_info "재스캔: ${_remaining}개 파일 남음"
-done
+    fi
+}
+
+# 큐 비우기 + 락 보유 재스캔 (#374). drain_queue가 안정화 대기와 종료 조건을 통합.
+drain_queue process_one
