@@ -36,7 +36,8 @@ gh api graphql \
               isOutdated
               path
               line
-              comments(first: 20) {
+              comments(last: 20) {
+                pageInfo { hasPreviousPage startCursor }
                 nodes {
                   id
                   author { login }
@@ -51,7 +52,11 @@ gh api graphql \
     }'
 ```
 
-Pagination은 `pageInfo.hasNextPage == true`인 동안 `$cursor`를 `endCursor`로 갱신하여 반복한다.
+Thread pagination: `pageInfo.hasNextPage == true`인 동안 `$cursor`를 `endCursor`로 갱신하여 반복한다.
+
+Thread 내부 comment는 기본 계약이 **최신 20개**(`comments(last: 20)`)이다.
+체크리스트의 "최신 comment 보관" 요구와 일치한다. 과거 맥락 전체가 필요한 edge case(리뷰어·작성자가 long back-and-forth를 이어간 thread)에서는 `comments(last: N)` 크기를 키우거나,
+`pageInfo.hasPreviousPage == true`일 때 별도 쿼리로 `comments(last: M, before: $startCursor)`를 반복하여 앞 페이지를 이어 붙인다.
 
 ## actionable set 정의
 

@@ -41,7 +41,8 @@ gh pr view --json number -q .number
   각 thread의 `id` / `isResolved` / `isOutdated` / `path` / `line` / 내부 comments를 받는다.
 - PR 일반 코멘트(대화 탭)는 REST `/issues/{pr}/comments`, review 요약은 REST `/pulls/{pr}/reviews`로 보조 수집한다.
 - `isResolved == false`인 thread를 actionable로 간주한다. `isOutdated == true`는 수집하되 Step 2에서 `STALE_REVIEW` 후보로 분류한다.
-- `thread.id`와 `comment.id`는 Step 6 mutation 입력에 반드시 필요하므로 보관한다.
+- `thread.id`는 Step 6 review thread mutation 입력에 반드시 필요하므로 보관한다.
+  `comment.id`는 개별 코멘트 단위로 REST reply 엔드포인트를 쓰는 선택 경로에서만 쓴다.
 
 상세 쿼리 템플릿, pagination, 수집 매트릭스는 [references/comment-collection.md](references/comment-collection.md)가 정본이다.
 
@@ -92,12 +93,14 @@ actionable로 분류된 각 피드백을 다음 7개 기준으로 검증한다.
 
 ### Step 6: 답글 + resolve
 
-모든 피드백(반영 여부 무관)에 대해 사유를 담은 답글을 작성하고 review thread는 resolve한다.
+모든 피드백(반영 여부 무관)에 대해 사유를 담은 답글/follow-up을 남기고 review thread는 resolve한다.
+분기 요약만 여기 둔다. 구체 mutation, multiline body 전송 규칙, `mktemp` 처리,
+PR #399 반례는 [references/reply-and-resolve.md](references/reply-and-resolve.md)가 정본이다.
 
-| 대상 | 답글 | resolve |
-|------|------|--------|
-| Review thread | `addPullRequestReviewThreadReply` mutation | `resolveReviewThread` mutation |
-| PR 일반 코멘트 | `addComment` mutation 또는 REST `/issues/{pr}/comments` | 없음 (개념 없음) |
+| 대상 | 액션 |
+|------|------|
+| Review thread | `addPullRequestReviewThreadReply` → `resolveReviewThread` |
+| PR 일반 코멘트 | `addComment` 또는 REST `/issues/{pr}/comments`로 **PR에 top-level follow-up 코멘트** 추가. resolve 없음. 원 코멘트 URL/`@<author>` 멘션으로 연결 |
 
 처리 결과별 답글 내용:
 
@@ -107,26 +110,10 @@ actionable로 분류된 각 피드백을 다음 7개 기준으로 검증한다.
 | **기각** | [references/rejection-taxonomy.md](references/rejection-taxonomy.md)의 4필드 포맷 (기각 분류 / 검증 방법 / 기술적 근거 / 신뢰도) |
 | **별도 이슈 분리** | 생성한 이슈 번호 링크 + `SCOPE_DEFERRAL` 분류 |
 
-multiline body는 `gh api graphql -f body="$(cat "$BODY_FILE")"` 또는
-`jq -n --arg body "..." '{body:$body}' | gh api --input -` 패턴으로 보낸다.
-고정 경로(`/tmp/reply.md` 등)를 피하고 `mktemp` + `trap 'rm -f' EXIT`를 쓴다.
-상세 스니펫과 PR #399의 반례는 [references/reply-and-resolve.md](references/reply-and-resolve.md)가 정본이다.
-
 ### Step 7: resolve 재확인
 
 `resolveReviewThread` 직후 동일 `thread.id`로 재조회하여 `isResolved == true`가 실제로 반영됐는지 확인한다.
-
-```bash
-gh api graphql \
-  -f tid="$TID" \
-  -f query='query($tid: ID!) {
-    node(id: $tid) { ... on PullRequestReviewThread { isResolved } }
-  }' | jq '.data.node.isResolved'
-```
-
-`true` → 통과. `false` → [references/reply-and-resolve.md#retry-policy](references/reply-and-resolve.md#retry-policy)의 retry 정책을 따른다
-(1회 재시도 후 여전히 false면 사용자 보고).
-
+쿼리 스니펫과 retry/실패 정책은 [references/reply-and-resolve.md#retry-policy](references/reply-and-resolve.md#retry-policy)가 정본이다.
 PR 일반 코멘트는 resolve가 없으므로 이 단계를 건너뛴다.
 
 ## 검증 의무
@@ -150,5 +137,5 @@ PR 일반 코멘트는 resolve가 없으므로 이 단계를 건너뛴다.
   특히 플랫폼 간(macOS/NixOS) 호환성에 주의.
 - **기각 사유는 구체적으로**: "불필요합니다"가 아니라 왜 불필요한지 근거 제시.
   [references/rejection-taxonomy.md](references/rejection-taxonomy.md)의 4필드 포맷을 지킨다.
-- **multiline body는 stdin 경유**: REST form(`-f body="..."`)은 newline이 리터럴화될 수 있다.
-  [references/reply-and-resolve.md](references/reply-and-resolve.md)의 권장 패턴을 사용한다.
+- **multiline body는 stdin/GraphQL variables 경유**: `gh api -f body="..."` 직접 전달은 쉘/터미널 문맥에 따라 의도와 다르게 escaping된다.
+  [references/reply-and-resolve.md](references/reply-and-resolve.md)의 권장 패턴(`gh api --input -` + `jq -n --arg body`, 또는 GraphQL variables)을 사용한다.

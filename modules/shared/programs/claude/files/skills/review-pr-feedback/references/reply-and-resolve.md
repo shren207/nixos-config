@@ -83,17 +83,23 @@ gh api graphql \
 
 `true`이면 통과. `false`이면 아래 retry 정책을 따른다.
 
-## PR 일반 코멘트 플로우
+## PR 일반 코멘트 플로우 (top-level follow-up)
 
-review thread가 아닌 PR 본문 아래 대화 탭 코멘트는 resolve가 없다.
-답글만 남기고 종료한다.
+review thread가 아닌 PR 본문 아래 대화 탭 코멘트에는 thread/resolve 개념이 없고,
+`addComment`/REST `/issues/{pr}/comments`는 개별 코멘트에 귀속된 "답글"이 아니라
+**PR에 새 top-level follow-up 코멘트를 추가**한다.
+
+그래서 원 코멘트에 사유를 되돌려 주려면 follow-up 본문에 원 코멘트 URL 인용과
+`@<author>` 멘션으로 연결해 컨텍스트를 잃지 않게 한다.
 
 ### REST 경로 (간단)
 
 ```bash
 BODY_FILE="$(mktemp)"
 trap 'rm -f "$BODY_FILE"' EXIT
-# ... BODY_FILE 작성 ...
+# BODY_FILE 작성 시 원 코멘트 URL 인용과 @<author> 멘션을 포함한다.
+#   > @<author> <원 코멘트 URL>
+#   > 요약 인용: ...
 jq -n --arg body "$(cat "$BODY_FILE")" '{body: $body}' \
   | gh api --input - \
       --method POST \
@@ -119,6 +125,9 @@ gh api graphql \
     }'
 ```
 
+`addComment`는 subject(PR)에 새 코멘트를 추가한다. 개별 코멘트에 귀속된 reply가 아니므로
+follow-up 본문에서 원 코멘트 URL과 `@<author>` 멘션으로 연결한다.
+
 ## Multiline body 전송: 안전한 기본 경로와 반례
 
 ### 권장 default
@@ -127,7 +136,7 @@ gh api graphql \
 2. **REST JSON via stdin**: `jq -n --arg body "..." '{body:$body}' | gh api --input - ...` — JSON string escape 처리.
 3. **파일이 필요하면 `mktemp` + `trap`**: 고정 경로(`/tmp/reply.md` 등)를 쓰지 말 것. `/tmp`는 world-writable sticky 디렉토리라 다른 프로세스의 파일을 재사용하거나 읽을 위험이 있다.
 
-### 반례: REST form에서 `-f body="..."` 사용 (PR #399 mishap)
+### 반례: REST `-f body="..."` 직접 전달 (PR #399 mishap)
 
 ```bash
 # ❌ 이렇게 하지 말 것
@@ -136,10 +145,13 @@ gh api "/repos/$OWNER/$REPO/pulls/$PR_NUMBER/comments/$CID/replies" \
 line2"
 ```
 
-REST `-f`는 application/x-www-form-urlencoded field이다. GitHub REST endpoint가
-raw JSON body를 기대하는 경우 newline이 리터럴 `\n`으로 들어가거나 payload 자체가
-예상과 다르게 encoding된다. PR #399에서 multiline 답글 한 줄이 통째로 리터럴
-이스케이프 상태로 전송된 이슈가 바로 이 패턴이었다.
+`gh api -f body="..."`는 shell에서 이미 확장된 멀티라인 리터럴을 그대로 넘긴다.
+`gh help api`는 `-f/--raw-field`를 "request payload에 static string parameter 추가"로 설명하지만,
+쉘/터미널 문맥에 따라 멀티라인 escaping이 의도와 다르게 처리되거나 엔드포인트별
+기대 payload shape와 어긋날 수 있다. PR #399에서 multiline 답글 한 줄이 리터럴
+이스케이프 상태로 전송된 이슈가 이 패턴이었다.
+multiline/escaping을 명시적으로 통제하려면 **stdin JSON(`jq -n --arg body ... | gh api --input -`)**
+또는 **GraphQL variables**를 기본값으로 선호한다.
 
 수정된 기본값:
 
