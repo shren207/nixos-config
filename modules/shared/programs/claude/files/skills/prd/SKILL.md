@@ -2,10 +2,11 @@
 name: prd
 argument-hint: "[feature-name or PRD file path (optional)]"
 description: |
-  Create or update evidence-backed living PRD/phase execution files under .claude/prds/.
-  Trigger: 'PRD', 'PRD 작성', 'PRD 업데이트', 'phase 계획', '기능 스펙', 'PRD 생성'.
-  NOT for quick one-off plans (use plan-with-questions). NOT for DA (use run-da).
-  NOT for 구현 검토 (use review-implementation).
+  Use this skill when the user wants to create or update a feature PRD, product/technical spec, or phase-based execution plan stored under `.claude/prds/`. Covers intents like "PRD 만들어", "이 기능 스펙 정리", "기능 명세 작성", "phase 계획", "Discovery Gate 있는 계획서", evidence-backed living spec, or turning a feature idea into a junior-executable document with discovery, phases, validation, and multi-pass review.
+
+  Trigger whenever the user frames the work as writing or revising a structured feature document — whether they call it PRD, spec, 명세, 기획서, phase plan, or execution plan — especially when phases, discovery gates, or validation criteria are mentioned.
+
+  NOT for quick one-off implementation plans without spec structure (use plan-with-questions). NOT for Devil's Advocate review (use run-da). NOT for auditing implementation against an existing spec (use review-implementation).
 ---
 
 # Evidence-Backed Living PRD
