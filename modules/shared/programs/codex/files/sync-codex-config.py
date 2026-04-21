@@ -89,9 +89,11 @@ mode drift, and content drift are all repaired in a single code path.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import copy
 import datetime as _dt
 import errno
+import fcntl
 import json
 import os
 import re
@@ -469,6 +471,36 @@ def repair_reserved_roots(result) -> None:
             del result[_top_key]
 
 
+@contextlib.contextmanager
+def _sync_lock(target_path: Path) -> Iterator[None]:
+    """advisory exclusive lock 으로 같은 sync-codex-config 호출들(activation +
+    NO_CHANGES repair) 간 race 를 차단한다.
+
+    POSIX ``fcntl.flock`` 기반이라 추가 의존성이 없고, lockfile 은 target 디렉터리
+    안의 ``.sync-codex.lock`` 으로 둔다 (원본 파일은 건드리지 않음).
+
+    Scope 한정: same-host, advisory, file-descriptor based. 같은 lockfile 을 acquire
+    하지 않는 외부 writer (codex CLI 의 trust append, ``sync.sh --user-mcp`` 등) 와의
+    race 는 별개 follow-up (#511 코멘트 #4) 영역이다.
+    """
+    lock_path = target_path.parent / ".sync-codex.lock"
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    # umask 에 의존하지 않고 0o600 으로 lockfile 권한 명시.
+    fd = os.open(str(lock_path), os.O_WRONLY | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        except OSError:
+            pass
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+
+
 def _noop_probe_target(target_path: Path) -> tuple[bool, bool, Optional[bytes]]:
     """TOCTOU-safe inspection for `cmd_sync` no-op decision.
 
@@ -547,6 +579,13 @@ def write_atomic(target_path: Path, serialized: str) -> None:
 
 def cmd_sync(template_path: Path, target_path: Path) -> int:
     _require_tomlkit()
+    # advisory lock 으로 activation + NO_CHANGES repair 호출 간 race 차단.
+    # 외부 writer (codex CLI append, sync.sh --user-mcp) 와의 race 는 별개 follow-up.
+    with _sync_lock(target_path):
+        return _cmd_sync_locked(template_path, target_path)
+
+
+def _cmd_sync_locked(template_path: Path, target_path: Path) -> int:
     template = load_required_toml(template_path)
     existing = load_optional_toml(target_path, quarantine=True)
 
