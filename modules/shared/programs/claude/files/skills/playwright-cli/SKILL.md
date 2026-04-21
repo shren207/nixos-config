@@ -192,6 +192,7 @@ playwright-cli open --profile=/path/to/profile
 playwright-cli attach --extension
 
 # Connect to a running Chrome or Edge by channel name
+# (security notes: see references/session-management.md §Attaching to a Running Browser)
 playwright-cli attach --cdp=chrome
 playwright-cli attach --cdp=msedge
 
