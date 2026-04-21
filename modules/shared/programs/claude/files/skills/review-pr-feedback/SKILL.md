@@ -1,8 +1,11 @@
 ---
 name: review-pr-feedback
 description: |
-  Triage PR comments (CodeRabbit, AI, human) and apply valid feedback.
-  Trigger: 'PR 코멘트', 'coderabbit', '코드리뷰 반영', '리뷰 피드백', 'PR 피드백 처리'.
+  Triage PR comments (CodeRabbit, AI, human) and apply valid feedback end-to-end.
+  수집(GraphQL reviewThreads) → 분류(7개 기각 taxonomy, stale review 포함) → 검증 →
+  반영 → 답글(review thread reply / PR 일반 코멘트) → resolve → isResolved 재확인까지.
+  Trigger: 'PR 코멘트', 'coderabbit', '코드리뷰 반영', '리뷰 피드백', 'PR 피드백 처리',
+  'stale review', 'review thread resolve', '리뷰 스레드 해결', 'multiline reply'.
   NOT for DA (use run-da). NOT for PR 본문 (use create-pr).
 ---
 
@@ -49,7 +52,10 @@ gh pr view --json number -q .number
 
 ### Step 2: 코멘트 분류
 
-각 코멘트를 다음 3개 카테고리로 분류한다.
+Step 1 수집 결과가 비어 있으면(`unresolved review thread == 0` AND `PR 일반 코멘트 == 0`)
+no-op로 종료하고 Step 3-7을 건너뛴다.
+
+비어 있지 않으면 각 코멘트를 다음 3개 카테고리로 분류한다.
 
 | 카테고리 | 설명 | 기본 처리 |
 |----------|------|----------|
@@ -98,6 +104,10 @@ actionable로 분류된 각 피드백을 다음 7개 기준으로 검증한다.
 분기 요약만 여기 둔다. 구체 mutation, multiline body 전송 규칙, `mktemp` 처리,
 PR #399 반례는 [references/reply-and-resolve.md](references/reply-and-resolve.md)가 정본이다.
 
+각 thread 처리 전에 다음 가드를 적용한다.
+- **thread.id가 null/empty** → Step 6/7을 건너뛰고 사용자 보고 대상으로 분리.
+- **preflight requery**: 동시 실행/중복 reply 방지를 위해 reply 직전 `thread.id`로 최신 상태를 다시 조회한다. 이미 resolved이거나 동일 run이 남긴 답글이 있으면 no-op로 성공 처리한다.
+
 | 대상 | 액션 |
 |------|------|
 | Review thread | `addPullRequestReviewThreadReply` → `resolveReviewThread` |
@@ -113,8 +123,10 @@ PR #399 반례는 [references/reply-and-resolve.md](references/reply-and-resolve
 
 ### Step 7: resolve 재확인
 
-`resolveReviewThread` 직후 동일 `thread.id`로 재조회하여 `isResolved == true`가 실제로 반영됐는지 확인한다.
-쿼리 스니펫과 retry/실패 정책은 [references/reply-and-resolve.md#retry-policy](references/reply-and-resolve.md#retry-policy)가 정본이다.
+`resolveReviewThread` mutation 응답의 `thread.isResolved`를 먼저 확인한다.
+`true`면 통과, `false`일 때만 동일 `thread.id`로 재조회하여 확정한다.
+쿼리 스니펫과 retry/실패 정책은 [references/reply-and-resolve.md](references/reply-and-resolve.md)의 "Retry policy"가 정본이다.
+`thread.id`가 null/empty인 thread는 이 단계를 건너뛰고 사용자 보고 대상으로 남긴다.
 PR 일반 코멘트는 resolve가 없으므로 이 단계를 건너뛴다.
 
 ## 검증 의무
