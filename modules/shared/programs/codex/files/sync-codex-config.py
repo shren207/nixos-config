@@ -387,16 +387,59 @@ def repair_reserved_roots(result) -> None:
             del result[_top_key]
 
 
-def _read_fd_all(fd: int, chunk: int = 65536) -> bytes:
-    # open(O_NOFOLLOW)로 얻은 fd에서 전체 바이트를 읽는다. 같은 fd를 써야 lstat/read_bytes
-    # 두 번 경로 조회로 생기는 TOCTOU 윈도우가 사라진다.
-    parts: list[bytes] = []
-    while True:
-        buf = os.read(fd, chunk)
-        if not buf:
-            break
-        parts.append(buf)
-    return b"".join(parts)
+def _noop_probe_target(target_path: Path) -> tuple[bool, bool, Optional[bytes]]:
+    """TOCTOU-safe inspection for `cmd_sync` no-op decision.
+
+    반환값: ``(is_regular, is_mode_600, existing_bytes)``. ``existing_bytes``는 no-op 자격
+    이 있을 때만 채워지며, ``None``이면 caller가 write 경로로 진입한다.
+
+    경로 한 번만 조회하기 위해 ``os.open(O_RDONLY | O_NOFOLLOW)``로 얻은 단일 fd에서
+    fstat + read를 수행한다. 경로 재조회가 없으므로 ``lstat`` → ``read_bytes`` 사이의
+    symlink/mode swap race가 없다.
+
+    OSError 정책:
+      - ``ENOENT``          → ``(False, False, None)`` (write 진입, 새로 생성)
+      - ``ELOOP`` (symlink) → ``(False, False, None)`` (write 진입, regular file로 치환)
+      - 그 외 (``EACCES``/``EPERM``/``EIO``/…) → ``load_optional_toml``과 같은 정책으로 ``die``
+    """
+    try:
+        fd = os.open(str(target_path), os.O_RDONLY | os.O_NOFOLLOW)
+    except FileNotFoundError:
+        return False, False, None
+    except OSError as e:
+        if e.errno == errno.ELOOP:
+            return False, False, None
+        die(
+            f"cannot open target {target_path} (errno={e.errno}): {e} — refusing to "
+            f"overwrite to avoid data loss. Fix permissions then re-run."
+        )
+
+    try:
+        try:
+            st = os.fstat(fd)
+        except OSError as e:
+            die(f"cannot fstat target {target_path} (errno={e.errno}): {e}")
+        is_regular = stat.S_ISREG(st.st_mode)
+        is_mode_600 = stat.S_IMODE(st.st_mode) == 0o600
+        if not (is_regular and is_mode_600):
+            return is_regular, is_mode_600, None
+        try:
+            # same-fd read: 파일 시작부터 EOF까지 (방금 open한 fd라 offset=0).
+            parts: list[bytes] = []
+            while True:
+                buf = os.read(fd, 65536)
+                if not buf:
+                    break
+                parts.append(buf)
+            return is_regular, is_mode_600, b"".join(parts)
+        except OSError as e:
+            die(f"cannot read target {target_path} (errno={e.errno}): {e}")
+    finally:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+    return False, False, None  # die()가 no-return이라 실제로는 도달하지 않는다.
 
 
 def write_atomic(target_path: Path, serialized: str) -> None:
@@ -438,60 +481,16 @@ def cmd_sync(template_path: Path, target_path: Path) -> int:
     merge_template_into(result, template_clone)
 
     new_text = tomlkit.dumps(result)
-
-    # Idempotent no-op: write + summary log를 생략하려면 세 invariant가 모두 참이어야 한다.
-    #   (a) target이 regular file (symlink 아님)  — legacy symlink를 자동으로 regular file로 교체
-    #   (b) mode == 0o600                          — 0644/0666 drift도 write_atomic이 normalize
-    #   (c) 기존 bytes == merge 결과 bytes          — 실제 내용 변경 없음
-    # 하나라도 거짓이면 write_atomic 경로로 진입해 symlink→regular file 치환, mode 교정,
-    # 재직렬화를 한 번에 수행한다.
-    # `load_optional_toml`는 parsed view(ownership/quarantine 판단)를 쓰고 이 블록은 raw
-    # bytes view(write suppression 판단)를 쓴다. 첫 호출은 tomlkit round-trip 정규화로 write가
-    # 발생하고, 이후 stable bytes라면 no-op이 되어 inotify churn/불필요한 summary log를 막는다.
-    #
-    # TOCTOU: path를 두 번 조회하면 lstat/read_bytes 사이에 target이 바뀔 수 있다. 그래서
-    # 단일 fd로 open(O_NOFOLLOW)→fstat→read를 묶어 same-inode 보장을 얻는다. O_NOFOLLOW는
-    # symlink일 때 ELOOP로 실패해 자동으로 "regular file 아님 → write 경로" 분기로 빠진다.
-    # Read-level failure 계약: `load_optional_toml`은 ENOENT 외 OSError를 die로 abort한다.
-    # no-op 블록도 ENOENT/ELOOP(→ write 진입)만 허용하고 EACCES/EPERM/EIO/... 는 die한다.
-    is_regular = False
-    is_mode_600 = False
-    existing_bytes: Optional[bytes] = None
-    fd: Optional[int] = None
-    try:
-        try:
-            fd = os.open(str(target_path), os.O_RDONLY | os.O_NOFOLLOW)
-        except FileNotFoundError:
-            fd = None
-        except OSError as e:
-            if e.errno == errno.ELOOP:
-                # target이 symlink — write_atomic이 regular file로 치환.
-                fd = None
-            else:
-                die(
-                    f"cannot open target {target_path} (errno={e.errno}): {e} — refusing to "
-                    f"overwrite to avoid data loss. Fix permissions then re-run."
-                )
-        if fd is not None:
-            try:
-                st = os.fstat(fd)
-            except OSError as e:
-                die(f"cannot fstat target {target_path} (errno={e.errno}): {e}")
-            is_regular = stat.S_ISREG(st.st_mode)
-            is_mode_600 = stat.S_IMODE(st.st_mode) == 0o600
-            if is_regular and is_mode_600:
-                try:
-                    existing_bytes = _read_fd_all(fd)
-                except OSError as e:
-                    die(f"cannot read target {target_path} (errno={e.errno}): {e}")
-    finally:
-        if fd is not None:
-            try:
-                os.close(fd)
-            except OSError:
-                pass
-
     new_bytes = new_text.encode("utf-8")
+
+    # Idempotent no-op: 세 invariant((a) regular file (symlink 아님) / (b) mode 0o600 /
+    # (c) 기존 bytes == merge 결과)가 모두 참일 때만 write + summary log를 건너뛴다.
+    # 하나라도 거짓이면 write_atomic이 symlink→regular file 치환, mode normalize, 재직렬화를
+    # 한 번에 수행한다. `load_optional_toml`의 parsed view와 분리된 raw bytes view를 쓰는
+    # 이유는 tomlkit round-trip 후의 최종 바이트와 on-disk 바이트를 비교해야 하기 때문이며,
+    # 첫 호출은 정규화로 write가 발생하고 이후 stable bytes면 no-op이 되어 inotify churn과
+    # 불필요한 summary log를 막는다. 실제 TOCTOU/errno 정책은 `_noop_probe_target` 참조.
+    is_regular, is_mode_600, existing_bytes = _noop_probe_target(target_path)
     if is_regular and is_mode_600 and existing_bytes is not None and existing_bytes == new_bytes:
         return EXIT_OK
 
