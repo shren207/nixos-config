@@ -95,9 +95,15 @@ maybe_relink_or_restore() {
         # Migration window guard: ~/.codex/config.toml은 이제 activation이 regular
         # file로 관리한다. 이전 symlink 세대에서 업그레이드하는 환경에서는 NO_CHANGES
         # 경로가 activation을 건너뛰어 자동 self-heal이 안 될 수 있으므로 명시 경고.
+        # 또한 legacy symlink가 worktree 경로로 relink된 상태였다면 Phase 1의
+        # _remove_worktree_symlinks가 이미 그 symlink를 제거해 파일 자체가 없어진
+        # 상태로 도달할 수 있다. "symlink" / "missing" 두 케이스 모두 경고 대상.
         if [[ -L "$HOME/.codex/config.toml" ]]; then
             log_warn "⚠️  ~/.codex/config.toml is still a symlink (legacy)."
             log_warn "    Run \`nrs --force\` once to let syncCodexConfig rewrite it as a regular file."
+        elif [[ ! -e "$HOME/.codex/config.toml" ]]; then
+            log_warn "⚠️  ~/.codex/config.toml is missing (likely removed by worktree symlink cleanup)."
+            log_warn "    Run \`nrs --force\` to regenerate it via syncCodexConfig."
         fi
     fi
 }
