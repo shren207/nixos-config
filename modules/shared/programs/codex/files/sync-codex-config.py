@@ -387,6 +387,18 @@ def repair_reserved_roots(result) -> None:
             del result[_top_key]
 
 
+def _read_fd_all(fd: int, chunk: int = 65536) -> bytes:
+    # open(O_NOFOLLOW)로 얻은 fd에서 전체 바이트를 읽는다. 같은 fd를 써야 lstat/read_bytes
+    # 두 번 경로 조회로 생기는 TOCTOU 윈도우가 사라진다.
+    parts: list[bytes] = []
+    while True:
+        buf = os.read(fd, chunk)
+        if not buf:
+            break
+        parts.append(buf)
+    return b"".join(parts)
+
+
 def write_atomic(target_path: Path, serialized: str) -> None:
     target_path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp_name = tempfile.mkstemp(
@@ -436,20 +448,48 @@ def cmd_sync(template_path: Path, target_path: Path) -> int:
     # `load_optional_toml`는 parsed view(ownership/quarantine 판단)를 쓰고 이 블록은 raw
     # bytes view(write suppression 판단)를 쓴다. 첫 호출은 tomlkit round-trip 정규화로 write가
     # 발생하고, 이후 stable bytes라면 no-op이 되어 inotify churn/불필요한 summary log를 막는다.
-    try:
-        st = target_path.lstat()
-        is_regular = stat.S_ISREG(st.st_mode)
-        is_mode_600 = stat.S_IMODE(st.st_mode) == 0o600
-    except FileNotFoundError:
-        is_regular = False
-        is_mode_600 = False
-
+    #
+    # TOCTOU: path를 두 번 조회하면 lstat/read_bytes 사이에 target이 바뀔 수 있다. 그래서
+    # 단일 fd로 open(O_NOFOLLOW)→fstat→read를 묶어 same-inode 보장을 얻는다. O_NOFOLLOW는
+    # symlink일 때 ELOOP로 실패해 자동으로 "regular file 아님 → write 경로" 분기로 빠진다.
+    # Read-level failure 계약: `load_optional_toml`은 ENOENT 외 OSError를 die로 abort한다.
+    # no-op 블록도 ENOENT/ELOOP(→ write 진입)만 허용하고 EACCES/EPERM/EIO/... 는 die한다.
+    is_regular = False
+    is_mode_600 = False
     existing_bytes: Optional[bytes] = None
-    if is_regular:
+    fd: Optional[int] = None
+    try:
         try:
-            existing_bytes = target_path.read_bytes()
-        except OSError:
-            existing_bytes = None
+            fd = os.open(str(target_path), os.O_RDONLY | os.O_NOFOLLOW)
+        except FileNotFoundError:
+            fd = None
+        except OSError as e:
+            if e.errno == errno.ELOOP:
+                # target이 symlink — write_atomic이 regular file로 치환.
+                fd = None
+            else:
+                die(
+                    f"cannot open target {target_path} (errno={e.errno}): {e} — refusing to "
+                    f"overwrite to avoid data loss. Fix permissions then re-run."
+                )
+        if fd is not None:
+            try:
+                st = os.fstat(fd)
+            except OSError as e:
+                die(f"cannot fstat target {target_path} (errno={e.errno}): {e}")
+            is_regular = stat.S_ISREG(st.st_mode)
+            is_mode_600 = stat.S_IMODE(st.st_mode) == 0o600
+            if is_regular and is_mode_600:
+                try:
+                    existing_bytes = _read_fd_all(fd)
+                except OSError as e:
+                    die(f"cannot read target {target_path} (errno={e.errno}): {e}")
+    finally:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
 
     new_bytes = new_text.encode("utf-8")
     if is_regular and is_mode_600 and existing_bytes is not None and existing_bytes == new_bytes:

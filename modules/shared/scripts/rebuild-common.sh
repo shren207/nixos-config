@@ -15,7 +15,8 @@
 #   release_rebuild_lock_on_failure, preflight_source_build_check,
 #   preflight_cask_conflict_check, rebuild_is_main_flake,
 #   prepare_worktree_symlinks_for_rebuild, maybe_relink_or_restore,
-#   preview_changes, cleanup_build_artifacts
+#   preview_changes, cleanup_build_artifacts,
+#   repair_codex_config_drift_no_changes
 #
 # caller-facing 출력 변수:
 #   FLAKE_PATH - detect_worktree 후 실제 build/switch 대상 flake 경로

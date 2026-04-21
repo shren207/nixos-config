@@ -13,6 +13,11 @@
 #     byte-identical 3조건 no-op 계약은 cmd_sync 가 담당한다.
 #   - 실패는 log_warn 으로 다운그레이드 (non-fatal) — NO_CHANGES 흐름을 막지 않는다.
 #
+# Offline contract:
+#   `nrs --offline`은 preview/switch 경로에 `OFFLINE_FLAG`를 전달해 NO_CHANGES 경로에서도
+#   substituter 접근을 피한다. 이 helper도 동일 플래그를 `nix shell` 앞에 붙여 cold cache
+#   또는 air-gapped 환경에서 online work를 새로 도입하지 않는다.
+#
 # 장기 수렴 경로(참고):
 #   scripts/ai/lib/tomlkit-bootstrap.sh 가 `nix shell .#pythonWithTomlkit` self-wrap
 #   (exec) 패턴을 관리한다. 이 helper 는 exec 이 아닌 subprocess 호출이 필요해
@@ -38,7 +43,10 @@ repair_codex_config_drift_no_changes() {
         return 0
     fi
 
-    nix shell "$FLAKE_PATH#pythonWithTomlkit" --command \
+    # $OFFLINE_FLAG 는 rebuild-common.sh 가 set 하며 "" 또는 "--offline". unquoted expansion 으로
+    # 빈 문자열이면 자동 생략. --offline 이면 nix shell 도 substituter 접근을 시도하지 않는다.
+    # shellcheck disable=SC2086
+    nix shell ${OFFLINE_FLAG:-} "$FLAKE_PATH#pythonWithTomlkit" --command \
         python3 "$script" sync "$template" "$HOME/.codex/config.toml" \
         || log_warn "⚠️  codex config drift 복구 실패 (non-fatal) — 'verify-ai-compat.sh'로 진단"
 }

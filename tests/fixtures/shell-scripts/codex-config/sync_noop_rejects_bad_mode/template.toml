@@ -1,4 +1,0 @@
-model = "gpt-5.4"
-
-[features]
-multi_agent = true
