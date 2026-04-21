@@ -55,18 +55,16 @@ fi
 
 # ─── TOML helper ───
 # 통합 helper. 모든 TOML inspection을 단일 `_toml_inspect --what=<mode>`로 수행한다.
-# 이전의 _toml_parse/_toml_get_scalar/_toml_has_table/_file_mode는 모두 여기로 통합.
+# 이전의 _toml_parse/_toml_get_scalar/_toml_has_table/_file_mode는 모두 여기로 통합했다.
+# 현재 호출 지점이 있는 모드만 남겨두며, 새 모드가 필요하면 호출처와 함께 추가한다.
 #
 # Mode별 반환 계약 (soft-fail 계약 유지 — 한 체크 실패가 이후 섹션을 끊지 않도록):
 #   --what=scalar <file> <dotted.path>
 #       stdout: scalar 값(str/int/float/bool). 없거나 파싱 실패면 empty.
 #       exit  : 항상 0 (command substitution 안전)
-#   --what=table  <file> <dotted.path>
-#       stdout: 없음.
-#       exit  : table로 존재하면 0, 아니면 1 (if/then 분기용)
 #   --what=parse  <file>
 #       stdout: 없음.
-#       exit  : 유효한 TOML이면 0, 아니면 1
+#       exit  : 유효한 TOML이면 0, 아니면 1 (if/then 분기용)
 #   --what=mode   <file>
 #       stdout: 8진수 mode 문자열 (예: "600"). 실패 시 "?".
 #       exit  : 항상 0
@@ -107,20 +105,6 @@ def inspect_scalar(path, dotted):
     sys.exit(0)
 
 
-def inspect_table(path, dotted):
-    try:
-        with open(path, "rb") as f:
-            data = tomllib.load(f)
-    except Exception:
-        sys.exit(1)
-    cur = data
-    for part in dotted.split("."):
-        if not isinstance(cur, dict) or part not in cur:
-            sys.exit(1)
-        cur = cur[part]
-    sys.exit(0 if isinstance(cur, dict) else 1)
-
-
 def inspect_mode(path):
     try:
         print(f"{stat.S_IMODE(os.stat(path).st_mode):o}")
@@ -132,7 +116,6 @@ def inspect_mode(path):
 dispatch = {
     "parse":  lambda: inspect_parse(args[0]),
     "scalar": lambda: inspect_scalar(args[0], args[1]),
-    "table":  lambda: inspect_table(args[0], args[1]),
     "mode":   lambda: inspect_mode(args[0]),
 }
 handler = dispatch.get(what)
@@ -404,7 +387,9 @@ PY
       esac
       ;;
     2)
-      fail "check.py EXIT_ERROR (template 읽기/파싱 실패): $_check_stderr"
+      # EXIT_ERROR는 template read/parse, target read/parse 모두를 포함한 hard error 공용 신호다.
+      # 원인을 제자리에서 단정하지 말고 subprocess stderr를 그대로 노출한다.
+      fail "check.py EXIT_ERROR: ${_check_stderr:-(no stderr)}"
       ;;
     *)
       fail "check.py 비정상 종료 (rc=$_check_rc): $_check_stderr"

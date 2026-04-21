@@ -22,8 +22,10 @@ let
   # activation에서 repo-managed 키와 사용자 소유 섹션을 merge하는 Python 스크립트.
   # 동일하게 store path로 copy되므로 현 flake 기준으로 동작한다.
   codexSyncScript = ./files/sync-codex-config.py;
-  # tomlkit: 주석/순서 보존 가능한 TOML read/write 라이브러리. nixpkgs 제공.
-  pythonWithTomlkit = pkgs.python3.withPackages (ps: [ ps.tomlkit ]);
+  # tomlkit 포함 python3. 정의는 `libraries/python-runtimes.nix` 단일 소스 (flake.nix의
+  # `packages.${system}.pythonWithTomlkit` output도 같은 파일을 import하여 store path를 공유).
+  pythonWithTomlkit =
+    (import ../../../../libraries/python-runtimes.nix { inherit pkgs; }).pythonWithTomlkit;
   # Claude 파일 경로 (공유 소스)
   claudeFilesPath = "${nixosConfigPath}/modules/shared/programs/claude/files";
 
