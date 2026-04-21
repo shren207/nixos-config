@@ -19,7 +19,7 @@ warn() { echo "  [WARN] $1" >&2; warnings=$((warnings + 1)); }
 # ─── tomlkit bootstrap ───
 # sync-codex-config.py의 `check` subcommand가 tomlkit에 의존한다. 정책과 재실행 guard는
 # scripts/ai/lib/tomlkit-bootstrap.sh 단일 소스에서 관리한다.
-# COR-002 반영: Python 사전 체크보다 먼저 실행한다. host python3가 없거나 3.11 미만이어도
+# Python 사전 체크보다 먼저 실행한다. host python3가 없거나 3.11 미만이어도
 # nix shell .#pythonWithTomlkit으로 self-wrap된 뒤 그 안의 python3로 다시 사전 체크를 수행한다.
 # 그래야 파일 상단의 "tomlkit 미가용 시 자동 재실행" 계약이 실제로 성립한다.
 _VERIFY_AI_COMPAT_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -316,8 +316,7 @@ else
     0|1)
       # check.py JSON 소비는 scripts/ai/lib/render-check-report.py 단일 helper에 위임한다.
       # helper가 `OK_LINE/FAIL_LINE/INFO_LINE <message>` 형식의 directive를 stdout에 쓰고,
-      # verifier는 그 라인을 case 분기로 pass/fail/info에 매핑만 한다. (M-002 해소: Bash +
-      # inline Python + awk 3언어 혼재를 Python 1회 + Bash orchestration 2계층으로 축소.)
+      # verifier는 그 라인을 case 분기로 pass/fail/info에 매핑만 한다.
       # subshell pipe 대신 process substitution을 써서 fail()의 errors 증가가 부모 shell로 반영되도록 한다.
       while IFS= read -r _line; do
         case "$_line" in

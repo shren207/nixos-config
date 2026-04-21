@@ -12,8 +12,8 @@ Exit code:
     0  verifier가 orchestration을 계속한다. 실제 pass/fail은 생성된 라인으로 표현한다.
     2  JSON shape malformed. 이 경우 verifier 쪽에서 `FAIL_LINE` 한 건을 찍고 섹션을 종료한다.
 
-이 helper는 verify-ai-compat.sh의 drift 검증 섹션이 Bash + inline Python + awk 3언어로
-분산돼 있던 것을 단일 Python 블록으로 모으기 위해 도입되었다 (DA for_pr Round 4 M-002).
+이 helper는 verify-ai-compat.sh의 drift 검증을 단일 Python 블록으로 모아두기 위한 것이다.
+Bash + inline Python + awk 3언어 혼재를 피하려는 목적.
 """
 from __future__ import annotations
 

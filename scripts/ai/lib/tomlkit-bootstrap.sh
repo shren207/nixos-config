@@ -3,15 +3,15 @@
 #
 # tomlkit 포함 Python interpreter 부트스트랩 helper. verifier/test runner가 source한 뒤
 # `tomlkit_bootstrap_require` 를 호출한다. 같은 파일을 여러 진입점이 재사용하므로 재진입
-# guard env var와 nix shell re-exec 정책을 한 곳에만 둔다 (M-001, REG-1 해소).
+# guard env var와 nix shell re-exec 정책을 한 곳에만 둔다.
 #
-# 정책 (M-001 공용화):
+# 정책:
 #   1) 이미 `_TOMLKIT_BOOTSTRAP_READY=1` 이면 추가 검사 없이 즉시 반환한다.
 #      lefthook pre-push가 `nix shell .#pythonWithTomlkit --command ...`로 이미 감쌌거나,
 #      자체 스크립트가 이전에 self-wrap으로 재진입한 경우다.
 #   2) 아니면 ambient `python3`가 tomlkit을 import할 수 있는지와 **무관하게** 항상
 #      repo-pinned `nix shell .#pythonWithTomlkit --command bash "$0" ...`로 재실행한다.
-#      (REG-1 해소) host python에 우연히 tomlkit이 있더라도 pre-push와 동일한 store path의
+#      host python에 우연히 tomlkit이 있더라도 pre-push와 동일한 store path의
 #      interpreter를 쓰게 만들어 hermetic 속성을 유지한다.
 #   3) nix가 없으면 마지막 fallback으로 ambient python3 tomlkit import를 체크해 있으면 그대로
 #      진행(경고 출력), 없으면 hard fail. 개발자가 직접 nix shell을 띄운 상태라면 (1)으로 빠진다.
