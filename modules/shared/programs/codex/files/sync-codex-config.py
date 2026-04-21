@@ -98,9 +98,17 @@ EXIT_ERROR = 2
 #                              symlink-to-directory) — quarantine 후 template 재생성.
 # - _UNREADABLE_REGULAR_ERRNOS: 일반 파일의 permission / I/O 장애 — abort 하여
 #                              데이터 보존. self-heal path 로 보내지 않는다.
-# 더 상세한 문서는 모듈 docstring 의 "No-op suppression" 블록 참고.
+# errno 분류 정책의 authoritative 설명은 모듈 docstring 의 "ATOMIC WRITE (sync mode)"
+# 블록(quarantine + self-heal 정책)을 참고한다. "No-op suppression" 블록은 별개로
+# regular file/0o600/byte-identical 3조건만 다룬다.
 _SELF_HEAL_ERRNOS = (errno.ELOOP, errno.EISDIR)
 _UNREADABLE_REGULAR_ERRNOS = (errno.EACCES, errno.EPERM, errno.EIO)
+
+
+def _errno_tag(e: OSError) -> str:
+    # `errno=13/EACCES` 처럼 숫자 + 심볼명을 한 토큰으로 묶어 stderr/quarantine reason 의
+    # read-failure 메시지 포맷을 단일화한다.
+    return f"errno={e.errno}/{errno.errorcode.get(e.errno, '?')}"
 
 
 def log(msg: str) -> None:
@@ -180,16 +188,16 @@ def load_optional_toml(path: Path, *, quarantine: bool):
     except FileNotFoundError:
         return tomlkit.document()
     except OSError as e:
-        reason = f"errno={e.errno}/{errno.errorcode.get(e.errno, '?')}"
+        tag = _errno_tag(e)
         if e.errno in _SELF_HEAL_ERRNOS:
-            return _quarantine(f"not readable as regular file ({reason})")
+            return _quarantine(f"not readable as regular file ({tag})")
         # symlink 자체가 존재하면 referent의 상태(EACCES/EPERM/EIO 포함)와 무관하게 self-heal.
         # legacy symlink는 원본 referent를 신뢰하지 않고 template으로 재생성하는 것이 안전.
         if path.is_symlink():
-            return _quarantine(f"legacy symlink referent not readable ({reason})")
+            return _quarantine(f"legacy symlink referent not readable ({tag})")
         if e.errno in _UNREADABLE_REGULAR_ERRNOS:
             die(
-                f"cannot read existing {path} ({reason}): {e} — refusing to "
+                f"cannot read existing {path} ({tag}): {e} — refusing to "
                 f"overwrite to avoid data loss. Fix permissions then re-run."
             )
         die(f"cannot read existing {path}: {e}")
@@ -436,7 +444,7 @@ def _noop_probe_target(target_path: Path) -> tuple[bool, bool, Optional[bytes]]:
         if e.errno in _SELF_HEAL_ERRNOS:
             return False, False, None
         die(
-            f"cannot open target {target_path} (errno={e.errno}): {e} — refusing to "
+            f"cannot open target {target_path} ({_errno_tag(e)}): {e} — refusing to "
             f"overwrite to avoid data loss. Fix permissions then re-run."
         )
 
@@ -444,7 +452,7 @@ def _noop_probe_target(target_path: Path) -> tuple[bool, bool, Optional[bytes]]:
         try:
             st = os.fstat(fd)
         except OSError as e:
-            die(f"cannot fstat target {target_path} (errno={e.errno}): {e}")
+            die(f"cannot fstat target {target_path} ({_errno_tag(e)}): {e}")
         is_regular = stat.S_ISREG(st.st_mode)
         is_mode_600 = stat.S_IMODE(st.st_mode) == 0o600
         if not (is_regular and is_mode_600):
@@ -459,7 +467,7 @@ def _noop_probe_target(target_path: Path) -> tuple[bool, bool, Optional[bytes]]:
                 parts.append(buf)
             return is_regular, is_mode_600, b"".join(parts)
         except OSError as e:
-            die(f"cannot read target {target_path} (errno={e.errno}): {e}")
+            die(f"cannot read target {target_path} ({_errno_tag(e)}): {e}")
     finally:
         try:
             os.close(fd)
