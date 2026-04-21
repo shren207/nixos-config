@@ -26,6 +26,13 @@
 #───────────────────────────────────────────────────────────────────────────────
 
 repair_codex_config_drift_no_changes() {
+    # FLAKE_PATH 는 rebuild-common.sh 가 caller 진입점에서 채우는 contract 변수다.
+    # public helper 로 노출돼 있어 partial init 호출(set -u 등)에서도 hard crash 대신
+    # log_warn 으로 다운그레이드해야 한다는 함수 계약과 어긋나지 않도록 가드.
+    if [[ -z "${FLAKE_PATH:-}" ]]; then
+        log_warn "⚠️  FLAKE_PATH 미설정 — codex config drift 복구 스킵"
+        return 0
+    fi
     local template
     if [[ "$(uname -s)" == "Darwin" ]]; then
         template="$FLAKE_PATH/modules/shared/programs/codex/files/config.darwin.toml"

@@ -58,12 +58,26 @@ If the existing target can be read but is malformed TOML / invalid UTF-8, it is
 quarantined to <target>.bad-<ts> and regenerated from the template — a stray
 hand-edit must not brick the whole home-manager generation. The same quarantine
 path also handles legacy structural states that cannot be read as a regular
-file (``ELOOP`` for symlink loops, ``EISDIR`` for directories or
-symlinks-to-directories) so the generation does not abort just because the
-target has drifted from its regular-file invariant. Hard read failures that
-indicate permission/I/O problems on a real file (``EACCES``/``EPERM``/``EIO``)
-still abort, because silently replacing an unreadable regular file would
-destroy user trust and MCP data.
+file: ``ELOOP`` (symlink loops), ``EISDIR`` (directories or
+symlinks-to-directories), and any non-regular ``stat`` result (FIFO, socket,
+block/char device, symlink-to-special-file detected via the pre-read
+``path.stat()`` check). The generation does not abort just because the target
+has drifted from its regular-file invariant. Hard read failures that indicate
+permission/I/O problems on a real file (``EACCES``/``EPERM``/``EIO``) still
+abort, because silently replacing an unreadable regular file would destroy
+user trust and MCP data — except when the path itself is a symlink, in which
+case the entry is treated as legacy and quarantined regardless of the
+referent's errno.
+
+Symlink semantics: a symlink whose referent is a *readable regular file* is
+followed by ``path.read_bytes()``; that referent's user-owned sections (e.g.
+``[mcp_servers.*]``, ``[projects.*]``) are merged with the template and
+written into the new regular ``~/.codex/config.toml``. The symlink itself is
+then replaced via ``os.replace`` in ``write_atomic`` (the no-op probe sees
+``ELOOP`` through ``O_NOFOLLOW`` and forces the write path). This is intentional
+self-heal behavior: legacy symlinks are upgraded to regular files while
+preserving their effective contents. If you want a fresh template-only file,
+remove the symlink before running sync.
 
 No-op suppression: sync skips the atomic write (and the summary log) only when
 three invariants all hold — the target is a regular file (not a symlink), its
@@ -234,6 +248,20 @@ def load_optional_toml(path: Path, *, quarantine: bool):
 def load_target_for_check(path: Path):
     # check 모드 전용. target 부재는 target_state="missing"으로 처리 (drift 아님).
     # 읽기 실패(EACCES 등)와 TOML/UTF-8 파싱 실패는 EXIT_ERROR (writer처럼 quarantine하지 않음).
+    # Pre-check: special file (FIFO/socket/device) 또는 symlink → special referent 는
+    # path.read_bytes() 가 영구 block 될 수 있다. read 전에 die 하여 check CLI 가
+    # 외부 호출자(verify-ai-compat, CI 등) 에서 hang 되는 것을 차단한다. cmd_sync 의
+    # self-heal 과 달리 check 는 read-only contract 라 quarantine 하지 않는다.
+    try:
+        pre_st = path.stat()
+    except FileNotFoundError:
+        return None
+    except OSError as e:
+        die(f"cannot stat target {path} ({_errno_tag(e)}): {e}")
+    if not stat.S_ISREG(pre_st.st_mode):
+        kind = oct(stat.S_IFMT(pre_st.st_mode))
+        die(f"target is not a regular file (st_ifmt={kind}): {path}")
+
     try:
         data = path.read_bytes()
     except FileNotFoundError:
