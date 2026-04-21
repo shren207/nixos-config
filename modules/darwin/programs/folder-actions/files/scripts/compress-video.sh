@@ -616,10 +616,7 @@ process_one() {
         log_info "압축 완료: $filename -> ${output_filename}"
     else
         log_error "압축 실패: $filename"
-        if ! move_to_failed "$f"; then
-            log_error "quarantine 실패; run 중단 (락 해제 후 다음 wakeup 재시도)"
-            exit 1
-        fi
+        quarantine_or_abort "$f"
     fi
 }
 

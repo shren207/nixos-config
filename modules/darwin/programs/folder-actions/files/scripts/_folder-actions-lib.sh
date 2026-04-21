@@ -141,22 +141,34 @@ wait_file_stable() {
 
 # 큐 비우기: find_candidates 결과를 process_one으로 처리하며,
 # 처리 중 도착한 파일도 같은 락 하에서 재스캔으로 회수한다 (#374 핵심 로직).
-# - wait_file_stable로 복사 중 파일은 지연시켜 다음 launchd wakeup에 재시도
+# - wait_file_stable로 복사 중 파일은 지연시켜 같은 run에서 재시도하지 않는다.
 # - process_one에서 quarantine 실패 시 exit 1로 무한 루프 차단 (호출부 책임)
 # - process substitution 사용으로 outer shell 변수(예: rename-asset의 i)가 유지됨
-# - unstable로 판정된 파일은 deferred set에 누적하여, 같은 run에서 재대기하지 않고
-#   대신 stable 잔여만 계속 처리한다 (모두 unstable일 때만 종료)
+# - unstable 파일은 deferred 배열에 누적해 같은 run에서 재대기하지 않는다.
+#   stable 잔여만 계속 처리하며, 모두 unstable일 때만 종료한다.
+#
+# Deferred 파일의 재처리는 launchd `WatchPaths`가 다음 watch dir 변경을 감지할
+# 때만 자동으로 일어난다. 즉 unstable 파일이 더 이상 size/mtime 변경을 일으키지
+# 않으면, 그 파일은 새 외부 이벤트(다른 파일 추가/이동)가 watch dir에 도착할
+# 때까지 잔류한다. 운영상 일시적 처리 지연이지 데이터 유실은 아니지만,
+# “자동 재시도 보장”은 launchd 계약상 성립하지 않는다 (#374 R3 C-1).
+# 영구 보장이 필요하면 `QueueDirectories` + ready-marker 프로토콜 전환이 필요하나,
+# 이슈 본문에서 “과도한 변경, YAGNI”로 판단해 이번 스코프에서 제외했다.
 drain_queue() {
     local processor="$1"
+    # deferred는 함수 local. 멤버십 검사는 함수 안에서 인라인으로 수행하여
+    # outer 함수의 local에 암묵 의존하는 helper(dynamic scope)를 만들지 않는다.
     local -a deferred=()
-    local total_remaining stable_remaining
+    local total_remaining stable_remaining f entry skip
 
     while true; do
         while IFS= read -r f; do
             [ -f "$f" ] || continue
-            if _fa_lib_is_deferred "$f"; then
-                continue
-            fi
+            skip=0
+            for entry in "${deferred[@]:-}"; do
+                if [ "$entry" = "$f" ]; then skip=1; break; fi
+            done
+            [ "$skip" -eq 1 ] && continue
             if ! wait_file_stable "$f"; then
                 log_warn "unstable; deferred to next wakeup: $(basename "$f")"
                 deferred+=("$f")
@@ -170,12 +182,16 @@ drain_queue() {
         stable_remaining=0
         while IFS= read -r f; do
             total_remaining=$((total_remaining + 1))
-            _fa_lib_is_deferred "$f" || stable_remaining=$((stable_remaining + 1))
+            skip=0
+            for entry in "${deferred[@]:-}"; do
+                if [ "$entry" = "$f" ]; then skip=1; break; fi
+            done
+            [ "$skip" -eq 0 ] && stable_remaining=$((stable_remaining + 1))
         done < <(find_candidates 2>/dev/null)
 
         if [ "$stable_remaining" -eq 0 ]; then
             if [ "$total_remaining" -gt 0 ]; then
-                log_info "unstable 파일 ${total_remaining}개 잔존; run 종료 (다음 launchd wakeup 재시도)"
+                log_info "unstable 파일 ${total_remaining}개 잔존; run 종료 (외부 이벤트 시 자동 재시도)"
             fi
             return 0
         fi
@@ -183,12 +199,12 @@ drain_queue() {
     done
 }
 
-# drain_queue 내부 헬퍼 — deferred 배열 멤버십 검사.
-_fa_lib_is_deferred() {
-    local target="$1"
-    local entry
-    for entry in "${deferred[@]:-}"; do
-        [ "$entry" = "$target" ] && return 0
-    done
-    return 1
+# move_to_failed 호출 + 실패 시 abort.
+# 4개 스크립트의 process_one에서 동일 분기를 반복하던 것을 헬퍼로 추출.
+quarantine_or_abort() {
+    local f="$1"
+    if ! move_to_failed "$f"; then
+        log_error "quarantine 실패; run 중단 (락 해제 후 외부 이벤트 시 재시도)"
+        exit 1
+    fi
 }

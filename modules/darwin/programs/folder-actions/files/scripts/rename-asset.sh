@@ -539,8 +539,9 @@ find_candidates() {
 # 같은 초/같은 batch에 들어온 파일들의 출력 파일명 충돌 회피용 카운터.
 # drain_queue가 process substitution을 사용하므로 이 변수는 outer shell에 있고
 # process_one 호출 사이에 정상 증가한다 (라운드 간에도 단조 증가 보장).
-# macOS BSD date는 GNU `%N`(나노초)을 지원하지 않으므로 초 단위 timestamp +
-# CURRENT_PID + RANDOM + i 조합으로 유일성을 확보한다.
+# macOS BSD date는 GNU `%N`(나노초)을 지원하지 않으므로 초 단위 timestamp + i를
+# 우선 정렬 키로 두고, PID + RANDOM은 카운터 뒤에 두어 lexicographic sort가
+# 처리 순서를 보존하도록 한다 (#374 R3 R-1).
 i=1
 
 process_one() {
@@ -550,17 +551,14 @@ process_one() {
     filename=$(basename "$f")
     ext="${filename##*.}"
     timestamp=$(/bin/date +"%Y%m%dT%H%M%S")
-    new_filename="${timestamp}_${CURRENT_PID}_${RANDOM}_${i}.${ext}"
+    new_filename="${timestamp}_${i}_${CURRENT_PID}_${RANDOM}.${ext}"
     output_path="${DEST_DIR}/${new_filename}"
 
     if /bin/mv -- "$f" "$output_path"; then
         log_info "이동 완료: $filename -> $new_filename"
     else
         log_error "이동 실패: $filename"
-        if ! move_to_failed "$f"; then
-            log_error "quarantine 실패; run 중단 (락 해제 후 다음 wakeup 재시도)"
-            exit 1
-        fi
+        quarantine_or_abort "$f"
     fi
 
     ((i++))
