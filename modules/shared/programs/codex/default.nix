@@ -1,7 +1,9 @@
 # Codex CLI 설정 (공통)
 # 바이너리: macOS=brew cask, NixOS=GitHub releases 직접 다운로드
 # Claude Code 스킬을 Codex에서도 사용할 수 있도록 심볼릭 링크 관리
-# 이전 시도(5ef4e67)에서 trust 미설정으로 실패 → config.toml에 trust 필수
+# trust는 런타임 mutation(사용자 승인, 디렉토리당 1회)이 SoT. template은 trust를
+# 하드코딩하지 않으며, ~/.codex/config.toml은 activation의 syncCodexConfig가
+# repo-managed 키와 사용자 소유 섹션(projects/사용자 MCP)을 merge한 regular file.
 {
   config,
   pkgs,
@@ -13,6 +15,12 @@
 let
   codexFilesPath = "${nixosConfigPath}/modules/shared/programs/codex/files";
   codexConfigFile = if pkgs.stdenv.isDarwin then "config.darwin.toml" else "config.toml";
+  codexConfigSeedPath = "${codexFilesPath}/${codexConfigFile}";
+  # activation에서 repo-managed 키와 사용자 소유 섹션을 merge하는 Python 스크립트.
+  # 순수 store path로 실행되므로 런타임에 repo 경로를 읽지 않는다.
+  codexSyncScript = ./files/sync-codex-config.py;
+  # tomlkit: 주석/순서 보존 가능한 TOML read/write 라이브러리. nixpkgs 제공.
+  pythonWithTomlkit = pkgs.python3.withPackages (ps: [ ps.tomlkit ]);
   # Claude 파일 경로 (공유 소스)
   claudeFilesPath = "${nixosConfigPath}/modules/shared/programs/claude/files";
 
@@ -60,12 +68,6 @@ in
   # ─── 글로벌 설정 (~/.codex/) ───
 
   home.file = {
-    # Codex config.toml - 양방향 수정 가능 (codex mcp add 등 반영)
-    # ⚠️ trust 설정 포함 — 이것이 .agents/skills/ 발견의 전제조건
-    # 주의: macOS는 chrome-devtools-mcp user-scope MCP를 포함한 별도 템플릿 사용
-    ".codex/config.toml".source =
-      config.lib.file.mkOutOfStoreSymlink "${codexFilesPath}/${codexConfigFile}";
-
     # 글로벌 AGENTS.md - Claude의 CLAUDE.md와 동일 소스 공유
     ".codex/AGENTS.md".source = config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/CLAUDE.md";
 
@@ -76,6 +78,22 @@ in
   }
   # 글로벌 스킬 (Claude와 동일 소스 공유) — exposedCodexSkills에서 자동 생성
   // codexSkillEntries;
+
+  # ─── ~/.codex/config.toml 동기화 (activation) ───
+  # repo-managed 키(model, approval_policy, sandbox_mode, plugins 등)는 매 activation에서
+  # template으로 재적용한다. 사용자 소유 섹션은 보존한다:
+  #   - [projects.*]                              (runtime trust — codex CLI가 append)
+  #   - [mcp_servers.<template에 없는 이름>]      (codex mcp add 등)
+  # 결과는 regular file (mode 0600). symlink 기반 관리와 달리 codex CLI의 config write가
+  # repo 원본에 write-through되지 않아 git working tree가 오염되지 않는다.
+  home.activation.syncCodexConfig = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    config_dir="$HOME/.codex"
+    $DRY_RUN_CMD mkdir -p "$config_dir"
+    $DRY_RUN_CMD ${pythonWithTomlkit}/bin/python3 \
+      ${codexSyncScript} \
+      "${codexConfigSeedPath}" \
+      "$config_dir/config.toml"
+  '';
 
   # ─── NixOS: Codex CLI 바이너리 설치 (GitHub releases) ───
   # macOS는 brew cask로 관리 (modules/darwin/programs/homebrew.nix)
