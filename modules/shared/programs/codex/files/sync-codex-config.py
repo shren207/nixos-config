@@ -80,7 +80,7 @@ import stat
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Iterator, Optional
+from typing import Any, Iterator, NoReturn, Optional
 
 PREFIX = "sync-codex-config"
 
@@ -93,7 +93,7 @@ def log(msg: str) -> None:
     print(f"{PREFIX}: {msg}", file=sys.stderr)
 
 
-def die(msg: str, code: int = EXIT_ERROR) -> "None":
+def die(msg: str, code: int = EXIT_ERROR) -> NoReturn:
     log(msg)
     sys.exit(code)
 
@@ -132,22 +132,15 @@ def load_required_toml(path: Path):
 def load_optional_toml(path: Path, *, quarantine: bool):
     # 사용자 파일처럼 없거나 깨져 있을 수 있는 입력.
     # - ENOENT                         -> empty document (첫 실행)
-    # - 기타 OSError (EACCES 등)       -> hard fail (데이터 보존)
+    # - ELOOP / EISDIR                 -> legacy symlink loop / symlink-to-directory;
+    #                                     quarantine 후 template 재생성 (self-heal 확장)
+    # - 그 외 OSError (EACCES 등)       -> hard fail (데이터 보존)
     # - UnicodeDecodeError / TOML 오류 -> quarantine 후 empty (self-heal)
-    try:
-        raw = path.read_bytes()
-    except FileNotFoundError:
-        return tomlkit.document()
-    except OSError as e:
-        if e.errno in (errno.EACCES, errno.EPERM, errno.EIO, errno.EISDIR):
-            die(
-                f"cannot read existing {path} (errno={e.errno}): {e} — refusing to "
-                f"overwrite to avoid data loss. Fix permissions then re-run."
-            )
-        die(f"cannot read existing {path}: {e}")
 
     def _quarantine(reason: str):
-        if quarantine and path.exists():
+        # symlink loop 는 path.exists() 가 False 로 돌아오지만 symlink 엔트리 자체는 존재한다.
+        # is_symlink() 또는 exists() 중 하나라도 참이면 rename 시도한다.
+        if quarantine and (path.is_symlink() or path.exists()):
             # stamp에 PID를 덧붙여 동일 초에 두 activation이 나란히 quarantine할 때도
             # 고유 경로가 되도록 한다 (초 해상도 stamp만으로는 race 발생 가능).
             stamp = _dt.datetime.now().strftime("%Y%m%dT%H%M%S")
@@ -166,6 +159,23 @@ def load_optional_toml(path: Path, *, quarantine: bool):
         else:
             log(f"existing {path} {reason}; regenerating from template")
         return tomlkit.document()
+
+    try:
+        raw = path.read_bytes()
+    except FileNotFoundError:
+        return tomlkit.document()
+    except OSError as e:
+        if e.errno in (errno.ELOOP, errno.EISDIR):
+            # legacy symlink loop 또는 symlink-to-directory — self-heal 경로.
+            return _quarantine(
+                f"not readable as regular file (errno={e.errno}/{errno.errorcode.get(e.errno, '?')})"
+            )
+        if e.errno in (errno.EACCES, errno.EPERM, errno.EIO):
+            die(
+                f"cannot read existing {path} (errno={e.errno}): {e} — refusing to "
+                f"overwrite to avoid data loss. Fix permissions then re-run."
+            )
+        die(f"cannot read existing {path}: {e}")
 
     try:
         text = raw.decode("utf-8")
@@ -439,7 +449,6 @@ def _noop_probe_target(target_path: Path) -> tuple[bool, bool, Optional[bytes]]:
             os.close(fd)
         except OSError:
             pass
-    return False, False, None  # die()가 no-return이라 실제로는 도달하지 않는다.
 
 
 def write_atomic(target_path: Path, serialized: str) -> None:
@@ -483,13 +492,8 @@ def cmd_sync(template_path: Path, target_path: Path) -> int:
     new_text = tomlkit.dumps(result)
     new_bytes = new_text.encode("utf-8")
 
-    # Idempotent no-op: 세 invariant((a) regular file (symlink 아님) / (b) mode 0o600 /
-    # (c) 기존 bytes == merge 결과)가 모두 참일 때만 write + summary log를 건너뛴다.
-    # 하나라도 거짓이면 write_atomic이 symlink→regular file 치환, mode normalize, 재직렬화를
-    # 한 번에 수행한다. `load_optional_toml`의 parsed view와 분리된 raw bytes view를 쓰는
-    # 이유는 tomlkit round-trip 후의 최종 바이트와 on-disk 바이트를 비교해야 하기 때문이며,
-    # 첫 호출은 정규화로 write가 발생하고 이후 stable bytes면 no-op이 되어 inotify churn과
-    # 불필요한 summary log를 막는다. 실제 TOCTOU/errno 정책은 `_noop_probe_target` 참조.
+    # No-op 3조건 계약의 authoritative 설명은 파일 docstring 의 "No-op suppression" 블록과
+    # `_noop_probe_target` docstring 에 둔다. 여기서는 caller-side 의도만 간단히 적는다.
     is_regular, is_mode_600, existing_bytes = _noop_probe_target(target_path)
     if is_regular and is_mode_600 and existing_bytes is not None and existing_bytes == new_bytes:
         return EXIT_OK

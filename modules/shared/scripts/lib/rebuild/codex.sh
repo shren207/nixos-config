@@ -9,8 +9,8 @@
 # 부수효과:
 #   - `nix shell "$FLAKE_PATH#pythonWithTomlkit" --command` 1회 평가 (~150ms 실측)
 #   - `python3 sync-codex-config.py sync <template> $HOME/.codex/config.toml` 실행
-#   - 실제 drift가 있을 때만 ~/.codex/config.toml 재작성. regular file/mode 0600/
-#     byte-identical 3조건 no-op 계약은 cmd_sync 가 담당한다.
+#   - 실제 drift가 있을 때만 ~/.codex/config.toml 재작성.
+#     no-op 계약(3조건)의 authoritative 서술은 sync-codex-config.py 의 docstring 참고.
 #   - 실패는 log_warn 으로 다운그레이드 (non-fatal) — NO_CHANGES 흐름을 막지 않는다.
 #
 # Offline contract:

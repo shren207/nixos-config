@@ -63,14 +63,10 @@ maybe_relink_or_restore() {
         #    seed+merge 기반 regular file로 전환. probe 대상에서 제외하여 이제 probe 2개
         #    (settings.json, mcp.json)로 축소.
         # v4 (#511 followup): NO_CHANGES 경로 ~/.codex/config.toml drift 자동 복구 도입.
-        #    lib/rebuild/codex.sh 의 repair_codex_config_drift_no_changes() 를
-        #    nrs.sh NO_CHANGES 분기에서 호출하여 legacy symlink/missing/mode drift/
-        #    content drift 를 cmd_sync 의 atomic write 가 직접 복구한다. 이 함수
-        #    (maybe_relink_or_restore) 는 symlink/relink 책임만 유지하고, 이전 v3
-        #    하단의 config.toml 경고 가드는 제거. cmd_sync 의 3조건 no-op
-        #    (regular file + mode 0600 + byte-identical) 덕에 post-rebuild activation 과
-        #    NO_CHANGES lightweight sync 가 같은 파일을 연속 호출해도 실제 write 는
-        #    한 번만 발생한다.
+        #    이 함수(maybe_relink_or_restore)는 symlink/relink 책임만 유지하고, 이전 v3
+        #    하단의 config.toml 경고 가드는 lib/rebuild/codex.sh 의
+        #    repair_codex_config_drift_no_changes() 가 대체한다. no-op 계약과 self-heal
+        #    범위의 authoritative 설명은 sync-codex-config.py docstring 참고.
         if _remove_worktree_symlinks "$MAIN_FLAKE_PATH/.claude/worktrees/" "stale worktree"; then
             # stale worktree 심링크가 제거되면 probe 파일(settings.json 등)도 사라져
             # Phase 2의 probe 탐지가 실패할 수 있음. NO_CHANGES 경로에서는 HM activation이

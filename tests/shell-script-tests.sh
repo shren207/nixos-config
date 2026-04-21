@@ -328,13 +328,11 @@ test_codex_config_sync_fixtures() {
 }
 
 # ─── no-op 3조건 검증 helpers ───
-# `cmd_sync` 는 아래 세 invariant가 모두 참일 때만 write/summary log를 생략한다:
-#   (a) target이 regular file (symlink 아님)
-#   (b) mode == 0o600
-#   (c) 기존 bytes == merge 결과 bytes
-# 세 시나리오 모두 동일 fixture `sync_noop_baseline/`을 공유하고, 테스트 함수 본문에서
-# (b) 또는 (a) 중 어느 조건이 풀리는지를 실제 FS 상태(`chmod 0644`, `ln -s`)로 바꿔
-# 검증한다 — fixture 데이터가 아니라 FS 셋업이 시나리오를 구분한다.
+# no-op invariant (regular file / mode 0o600 / byte-identical) 의 authoritative 서술은
+# modules/shared/programs/codex/files/sync-codex-config.py docstring 의 "No-op suppression"
+# 블록과 `_noop_probe_target` docstring 에 있다. 세 시나리오 모두 동일 fixture
+# `sync_noop_baseline/` 을 공유하고, 테스트 함수 본문의 FS 셋업(`chmod 0644`, `ln -s`)이
+# 어느 invariant 를 깨는지를 구분한다.
 
 # GNU `stat -c` / BSD `stat -f` 를 모두 지원하는 helper. "%a"/"%p" 3자리 octal을 반환.
 _codex_config_file_mode() {
@@ -547,6 +545,7 @@ test_rebuild_common_exports_public_api() {
       declare -F worktree_symlink_guard
       declare -F maybe_relink_or_restore
       declare -F cleanup_build_artifacts
+      declare -F repair_codex_config_drift_no_changes
     ' 2>&1
   )
 
