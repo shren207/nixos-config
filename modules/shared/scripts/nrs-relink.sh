@@ -151,6 +151,17 @@ cmd_relink() {
         exit 1
     fi
 
+    # 교차검증: git worktree list --porcelain에 등록된 경로인지 확인
+    # common-dir 일치만으로는 공격자가 `.git` 파일에 `gitdir: MAIN_REPO/.git`(또는
+    # `gitdir: MAIN_REPO/.git/worktrees/<name>`)를 써 넣으면 우회할 수 있다.
+    # worktree list는 메인 레포에 실제 등록된 worktree만 출력하므로 위조가 걸러진다.
+    if ! git -C "$MAIN_REPO" worktree list --porcelain 2>/dev/null \
+        | grep -qxF "worktree $git_toplevel"; then
+        echo -e "${RED}Worktree $git_toplevel is not registered in $MAIN_REPO (git worktree list).${NC}" >&2
+        echo -e "${RED}Refusing to relink from unregistered repository.${NC}" >&2
+        exit 1
+    fi
+
     local worktree="$git_toplevel"
 
     local hmf

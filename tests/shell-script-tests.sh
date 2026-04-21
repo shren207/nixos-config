@@ -1043,6 +1043,84 @@ test_nrs_relink_rejects_untrusted_repo() {
   assert_contains "$output" "Refusing to relink"
 }
 
+test_nrs_relink_rejects_fake_checkout() {
+  # `.git` 파일에 `gitdir: MAIN_REPO/.git`(또는 `.git/worktrees/<name>`)를 써 넣어
+  # common-dir 비교를 위조하더라도 `git worktree list`에 등록되지 않은 디렉토리는
+  # 거부되어야 한다.
+  local sandbox home_dir main_repo fake_common fake_worktree output rc
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  main_repo="$sandbox/main-repo"
+  fake_common="$sandbox/fake-common"
+  fake_worktree="$sandbox/fake-worktree"
+
+  create_git_fixture_repo "$main_repo"
+  main_repo="$(cd "$main_repo" && pwd -P)"
+
+  install_nrs_relink_for_tests "$sandbox" "$main_repo"
+
+  # Case A: .git 파일이 MAIN_REPO/.git를 가리킴 (main repo 위조)
+  mkdir -p "$fake_common"
+  printf 'gitdir: %s/.git\n' "$main_repo" > "$fake_common/.git"
+  rc=0
+  output=$(
+    HOME="$home_dir" \
+    bash -c '
+      cd "'"$fake_common"'"
+      "'"$home_dir/.local/bin/nrs-relink"'" relink
+    ' 2>&1
+  ) || rc=$?
+  [[ "$rc" == "1" ]] || fail "Case A: expected exit 1, got $rc. output: $output"
+  assert_contains "$output" "not registered"
+  assert_contains "$output" "Refusing to relink"
+
+  # Case B: .git 파일이 MAIN_REPO/.git/worktrees/feature_one를 가리킴 (등록 worktree 위조)
+  mkdir -p "$fake_worktree"
+  printf 'gitdir: %s/.git/worktrees/feature_one\n' "$main_repo" > "$fake_worktree/.git"
+  rc=0
+  output=$(
+    HOME="$home_dir" \
+    bash -c '
+      cd "'"$fake_worktree"'"
+      "'"$home_dir/.local/bin/nrs-relink"'" relink
+    ' 2>&1
+  ) || rc=$?
+  [[ "$rc" == "1" ]] || fail "Case B: expected exit 1, got $rc. output: $output"
+  assert_contains "$output" "not registered"
+  assert_contains "$output" "Refusing to relink"
+}
+
+test_nrs_relink_passes_gate_on_registered_worktree() {
+  # 정상 worktree에서 trust gate(common-dir + worktree list)가 모두 통과하는지 확인.
+  # 테스트 환경에는 home-manager-files가 없으므로 이후 HMF discovery 단계에서 exit 1,
+  # 단 차단 메시지는 없어야 한다.
+  local sandbox home_dir main_repo worktree_root output rc
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  main_repo="$sandbox/main-repo"
+
+  create_git_fixture_repo "$main_repo"
+  main_repo="$(cd "$main_repo" && pwd -P)"
+  worktree_root="$main_repo/.claude/worktrees/feature_one"
+
+  install_nrs_relink_for_tests "$sandbox" "$main_repo"
+
+  rc=0
+  output=$(
+    HOME="$home_dir" \
+    bash -c '
+      cd "'"$worktree_root"'"
+      "'"$home_dir/.local/bin/nrs-relink"'" relink
+    ' 2>&1
+  ) || rc=$?
+
+  assert_not_contains "$output" "not a worktree of the main repo"
+  assert_not_contains "$output" "not registered"
+  assert_not_contains "$output" "Refusing to relink"
+  [[ "$rc" == "1" ]] || fail "expected exit 1 (HMF absent in sandbox), got $rc. output: $output"
+  assert_contains "$output" "home-manager-files"
+}
+
 test_nixos_nrs_offline_force_smoke() {
   local sandbox home_dir repo_root stub_dir output result_target
   sandbox=$(new_sandbox)
@@ -1327,6 +1405,8 @@ run_test "wt cleanup auto skips merged branch reuse" test_wt_cleanup_auto_skips_
 run_test "missing managed helpers fail closed" test_missing_managed_helpers_fail_closed
 run_test "fixture git setup ignores host global hooks" test_fixture_git_is_hermetic_against_global_hooks
 run_test "nrs-relink rejects untrusted repo" test_nrs_relink_rejects_untrusted_repo
+run_test "nrs-relink rejects fake checkout" test_nrs_relink_rejects_fake_checkout
+run_test "nrs-relink passes gate on registered worktree" test_nrs_relink_passes_gate_on_registered_worktree
 run_test "nixos nrs offline force smoke" test_nixos_nrs_offline_force_smoke
 run_test "darwin nrs offline force smoke" test_darwin_nrs_offline_force_smoke
 run_test "darwin nrs no-change releases worktree lock" test_darwin_nrs_no_changes_releases_worktree_lock
