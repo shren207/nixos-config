@@ -46,8 +46,10 @@ Last Updated: YYYY-MM-DD
 - [ ] Static check 통과 (가용 시): [command]
 - [ ] 자동 test 추가/갱신 및 통과 (해당 시): [command/test path]
 - [ ] API/CLI/service-level workflow 검증 (충분한 경우): [surface]
-- [ ] Browser/UI check — DOM/client 상호작용이 risk 경로일 때만 수행: [tool/flow]
-- [ ] Mobile/app simulator 또는 screenshot check — 플랫폼 렌더/네이티브 동작이 risk일 때만: [tool/flow]
+- [ ] Browser/UI E2E — DOM/client 상호작용이 risk 경로일 때만 수행: [tool/flow]
+- [ ] Agent/dev browser check — browser-capable skill로 exploratory/scripted 검증: [tool/flow]
+- [ ] Mobile/app simulator — 플랫폼/네이티브 동작이 risk일 때만: [tool/flow]
+- [ ] Visual/screenshot check — 시각 산출물 변경 시: [tool/flow]
 - [ ] Observability/logging/audit 동작 확인 (관련 시): [surface]
 - [ ] Manual smoke check — 자동화가 불충분하거나 최종 sanity check가 필요할 때
 - [ ] 해당 시 error, empty, loading, permission, retry, rollback 상태 검증
