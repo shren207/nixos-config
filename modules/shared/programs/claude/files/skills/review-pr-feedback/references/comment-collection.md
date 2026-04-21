@@ -9,7 +9,7 @@ PR 일반 코멘트·리뷰 요약은 REST 보조로 수집한다.
 |-------------|--------------|-------------|----------|
 | Review thread 코멘트 (diff 위 코멘트) | GraphQL `reviewThreads` | 있음 (`isResolved`) | 답글 + resolve + 재확인 |
 | PR 일반 코멘트 (conversation 탭) | REST `/issues/{pr}/comments` | 없음 | 답글만 |
-| Review 요약 (`state` + `body`) | REST `/pulls/{pr}/reviews` | 없음 | **state에 따라 분기**: `CHANGES_REQUESTED`/`COMMENTED` + non-empty body → actionable, Step 6 follow-up. `APPROVED` → 맥락 파악용(답글 대상 아님). `DISMISSED`/`PENDING` → 대상 아님 |
+| Review 요약 (`state` + `body`) | REST `/pulls/{pr}/reviews` | 없음 | **approval-only 판정 + state 분기**: body가 있고 approval-only 판정을 통과하지 않은 경우 actionable → Step 6 follow-up (`APPROVED`여도 `LGTM, but nit...` 같은 body는 유효 피드백). `DISMISSED`/`PENDING`과 body empty는 대상 아님 |
 
 `isResolved` 필드는 REST `pulls/{pr}/comments` 응답에 없다. resolved 상태를 알려면 GraphQL이 필수다.
 REST도 각 엔드포인트 조합으로 같은 수집이 가능하지만, 이 스킬은 단순성 때문에 위 분담을 기본으로 둔다.
@@ -100,11 +100,17 @@ gh api --paginate "/repos/$OWNER/$REPO/pulls/$PR_NUMBER/reviews" \
 ```
 
 - Issue comment에는 `id`, `user.login`, `body`만 본다.
-- Review summary는 `state`와 `body`를 함께 본다. 분기 규칙:
-  - `state == CHANGES_REQUESTED` 또는 `COMMENTED` + `body != empty` → **actionable summary**. Step 6에서 PR top-level follow-up으로 응답. `html_url`(또는 `pull/<n>#pullrequestreview-<id>` 형태)을 원 review 링크로 보관.
-  - `state == APPROVED` → body 유무와 무관하게 **맥락 파악 용도**로만 본다. "LGTM" 같은 승인 메시지가 no-op gate를 빠져나가 불필요한 follow-up 코멘트를 만들지 않도록 이 규칙으로 걸러낸다.
+- Review summary는 `state`와 `body`를 함께 본다. body가 비어 있지 않으면 **approval-only 판정**을 먼저 적용한 뒤 state로 분기한다.
+
+  **approval-only 판정(drop 대상)**: 본문 trim + 소문자 정규화 기준 ①`lgtm` / `looks good` / `looks good to me` / `approved` / `approve` / `👍` / `👌` / `ok` / `fine` / `ship it` 등이 전부이거나, ②40자 이하이면서 `nit` / `minor` / `but` / `however` / `consider` / `suggest` / `follow-up` / 물음표(`?`) / 코드 펜스(\`\`\`)가 전혀 없는 경우. 둘 중 하나라도 해당하면 state와 무관하게 drop.
+
+  approval-only에 해당하지 않는 summary는 state로 분기한다:
+  - `state == CHANGES_REQUESTED` 또는 `COMMENTED` + `body != empty` → **actionable summary**. Step 6 PR top-level follow-up. `html_url`(또는 `pull/<n>#pullrequestreview-<id>` 형태)을 원 review 링크로 보관.
+  - `state == APPROVED` + `body != empty` → 동일하게 **actionable summary**. `LGTM, but consider X` / `approved — nit: ...` 같은 mixed 승인 body를 여기서 잃지 않는다.
   - `state == DISMISSED` 또는 `PENDING` → 답글 대상 아님.
+
   summary에 actionable 내용이 있어도 동일 지적이 review thread나 일반 코멘트로 남아 있다면 그쪽 경로를 우선 사용한다.
+  판정 경계 케이스(길이 40~100자, approval 문구+추가 문장 혼재)는 actionable로 분류한 뒤 Step 3에서 검증한다.
 
 ## 결과 정리 의무
 
@@ -129,5 +135,5 @@ gh api --paginate "/repos/$OWNER/$REPO/pulls/$PR_NUMBER/reviews" \
 - [ ] 각 thread의 `id`, `isResolved`, `isOutdated`, `path`, `line` 보관.
 - [ ] 각 thread의 **root comment (opening, `first: 1`)와 latest comment 세트 (`last: 20`) 모두** 보관. root는 원 리뷰 요청이므로 long thread에서도 요구사항 판별에 필수.
 - [ ] PR 일반 코멘트 본문 보관 (답글 대상).
-- [ ] Review summary는 `state`와 `body`를 함께 보관. 답글 대상은 `state ∈ {CHANGES_REQUESTED, COMMENTED}` + `body != empty`인 summary에 한정. `state == APPROVED`는 body 유무 무관하게 답글 대상 아님 (승인-only PR의 불필요 follow-up 방지).
+- [ ] Review summary는 `state`와 `body`를 함께 보관. body가 비어 있고 `DISMISSED`/`PENDING`인 경우, 또는 approval-only 판정(`LGTM`/`👍` 등 또는 40자 이하 + nit/follow-up 표시어 없음)에 해당하는 경우 답글 대상 제외. 그 외 non-empty body는 state가 `APPROVED`여도 actionable로 취급해 `LGTM, but nit ...` 같은 mixed 승인 body 유실을 막는다.
 - [ ] resolved thread 제외 (또는 별도 버킷으로 분리).

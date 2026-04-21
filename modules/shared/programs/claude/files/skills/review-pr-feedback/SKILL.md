@@ -43,11 +43,13 @@ gh pr view --json number -q .number
 - Review thread는 GraphQL `reviewThreads` 쿼리로 한 번에 수집한다.
   각 thread의 `id` / `isResolved` / `isOutdated` / `path` / `line` / 내부 comments를 받는다.
 - PR 일반 코멘트(대화 탭)는 REST `/issues/{pr}/comments`로 보조 수집한다.
-- Review 요약(`/pulls/{pr}/reviews`)은 `state`와 `body`를 함께 수집한다.
-  - `state == APPROVED`: 본문이 있어도 승인 메시지로 간주해 **답글 대상에서 제외**한다 (맥락 파악 용도).
-  - `state == CHANGES_REQUESTED` 또는 `COMMENTED` + `body != empty`: **actionable 후보**로 취급하며, Step 6에서 PR top-level follow-up 경로로 응답한다.
-  - 그 외 상태(`DISMISSED`, `PENDING`) 또는 body empty는 답글 대상 아님.
+- Review 요약(`/pulls/{pr}/reviews`)은 `state`와 `body`를 함께 수집한다. body가 비어 있지 않으면 다음 approval-only 판정을 적용해 answer pipeline에 올릴지 결정한다.
+  - **approval-only 판정(drop 대상)**: 본문이 짧은 승인 메시지에 한정될 때. 구체적으로 ①본문 trim 후 소문자로 정규화했을 때 `lgtm`, `looks good`, `looks good to me`, `approved`, `approve`, `👍`, `👌`, `ok`, `fine`, `ship it`, 같은 구절이 전부이거나, ②본문이 40자 이하이고 nit/follow-up 표시어(`nit`, `minor`, `but`, `however`, `consider`, `suggest`, `follow-up`, 물음표, 코드 펜스)가 전혀 없는 경우. 이 둘에 해당하면 `state`와 무관하게 답글 대상에서 제외한다.
+  - `state == CHANGES_REQUESTED` 또는 `COMMENTED` + `body != empty` + approval-only 아님: **actionable 후보**. Step 6에서 PR top-level follow-up 경로로 응답.
+  - `state == APPROVED` + `body != empty` + approval-only 아님 (예: "LGTM, but consider X" / "approved — nit: ..."): 동일하게 **actionable 후보**. approval이 걸려 있다는 이유로 nit/suggestion을 버리지 않는다.
+  - `state == DISMISSED` 또는 `PENDING`: 답글 대상 아님.
   같은 지적이 review thread나 일반 코멘트로도 남아 있으면 그쪽 경로가 우선이며, summary-only인 경우에만 follow-up을 남긴다.
+  판정 경계 케이스(길이 40~100자, approval 문구+추가 문장 혼재 등)는 actionable 쪽으로 분류한 뒤 Step 3에서 검증한다.
 - `isResolved == false`인 thread를 actionable로 간주한다. `isOutdated == true`는 수집하되 Step 2에서 `STALE_REVIEW` 후보로 분류한다.
 - `thread.id`는 Step 6 review thread mutation 입력에 반드시 필요하므로 보관한다.
   `comment.id`는 개별 코멘트 단위로 REST reply 엔드포인트를 쓰는 선택 경로에서만 쓴다.
@@ -61,13 +63,14 @@ Step 1 수집 결과가 **모두 비어 있을 때**만 no-op로 종료한다 (S
 
 - `unresolved review thread == 0`
 - PR 일반 코멘트 (`/issues/{pr}/comments`) 중 actionable == 0
-- **actionable review summary == 0** (= `state ∈ {CHANGES_REQUESTED, COMMENTED}` 이면서 `body != empty`인 summary 개수)
+- **actionable review summary == 0** (= Step 1의 approval-only 판정을 통과해 actionable 후보로 남은 summary 개수. `DISMISSED`/`PENDING`과 body empty는 제외)
 
 위 셋 중 하나라도 있으면 분류를 진행한다. 특히 리뷰어가 inline thread 없이
-summary body에만 reject/coment 사유를 남기는 패턴은 thread/issue-comment 카운트만으로는
-보이지 않으므로 summary `state` + `body`를 반드시 함께 본다.
-`state == APPROVED`인 summary(예: "LGTM")는 body 유무와 무관하게 actionable이 아니며,
-이 카운트에 포함하지 않는다 — 승인-only PR이 불필요한 follow-up 코멘트를 만들지 않도록.
+summary body에만 reject/nit/follow-up 사유를 남기는 패턴은 thread/issue-comment
+카운트만으로는 보이지 않으므로 summary `state` + `body`를 반드시 함께 본다.
+순수 승인 메시지("LGTM", "👍")는 Step 1의 approval-only 판정으로 이미 걸러지므로
+`state == APPROVED`라도 nit/follow-up이 포함된 body는 그대로 actionable로 유지된다
+— approval이 걸렸다는 이유로 유효한 피드백을 버리지 않는다.
 actionable summary-only 리뷰의 응답 경로는 Step 6의 PR top-level follow-up이다.
 
 비어 있지 않으면 각 코멘트/summary를 다음 3개 카테고리로 분류한다.
@@ -130,7 +133,7 @@ PR #399 반례는 [references/reply-and-resolve.md](references/reply-and-resolve
 |------|------|
 | Review thread | `addPullRequestReviewThreadReply` → `resolveReviewThread` |
 | PR 일반 코멘트 | `addComment` 또는 REST `/issues/{pr}/comments`로 **PR에 top-level follow-up 코멘트** 추가. resolve 없음. 원 코멘트 URL/`@<author>` 멘션으로 연결 |
-| Actionable review summary (state `CHANGES_REQUESTED`/`COMMENTED` + non-empty body, inline thread 없음) | `addComment` 또는 REST `/issues/{pr}/comments`로 **PR에 top-level follow-up 코멘트** 추가. 원 review URL(`pull/<n>#pullrequestreview-<id>`)과 `@<reviewer>` 멘션으로 연결. resolve 없음. `state=APPROVED` summary는 대상 아님 |
+| Actionable review summary (non-empty body + approval-only 판정 미해당, inline thread 없음) | `addComment` 또는 REST `/issues/{pr}/comments`로 **PR에 top-level follow-up 코멘트** 추가. 원 review URL(`pull/<n>#pullrequestreview-<id>`)과 `@<reviewer>` 멘션으로 연결. resolve 없음. state 무관하게 body에 nit/follow-up이 있으면 대상 (`APPROVED`여도 `LGTM, but ...` 같은 body는 actionable) |
 
 처리 결과별 답글 내용:
 
