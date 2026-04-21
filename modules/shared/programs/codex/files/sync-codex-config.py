@@ -24,10 +24,10 @@
 # Write is atomic (tempfile + os.replace) so a codex process reading the file
 # concurrently sees either the old or new content, never a partial merge.
 #
-# If the existing file can be read but is malformed TOML, we quarantine it to
-# <target>.bad-<ts> and regenerate from the template — a stray hand-edit must
-# not brick the whole home-manager generation. Read-level failures that are
-# NOT "file missing" (permission denied, I/O error, invalid UTF-8) DO abort,
+# If the existing file can be read but is malformed TOML or invalid UTF-8, we
+# quarantine it to <target>.bad-<ts> and regenerate from the template — a stray
+# hand-edit must not brick the whole home-manager generation. Read-level
+# failures that are NOT "file missing" (permission denied, I/O error) DO abort,
 # because silently replacing an unreadable file would destroy user trust and
 # MCP data.
 
