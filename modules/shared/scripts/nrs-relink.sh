@@ -130,31 +130,13 @@ cmd_relink() {
         return 0
     fi
 
-    # 메인 레포 worktree 신뢰 경계 검증 (lib/rebuild/common.sh detect_worktree 패턴 이식)
-    # detect_worktree는 비-worktree 시 silent return 0이지만, cmd_relink는 $HOME 심링크를
-    # 쓰는 보안 경계이므로 검증 실패 시 하드 실패한다.
-    # `pwd -P`가 아닌 `pwd`를 쓰는 이유: attacker/.git → MAIN_REPO/.git symlink spoof 시
-    # 논리 경로(pwd)는 attacker/.git로 남아 불일치 판정, 물리 경로(pwd -P)는 symlink를 따라
-    # MAIN_REPO/.git로 해석되어 우회 통과된다.
-    local git_common_dir abs_common_dir
-    git_common_dir=$(git rev-parse --git-common-dir 2>/dev/null) || {
-        echo -e "${RED}Cannot determine git-common-dir${NC}" >&2
-        exit 1
-    }
-    abs_common_dir=$(cd "$git_common_dir" 2>/dev/null && pwd) || {
-        echo -e "${RED}Cannot resolve git-common-dir path${NC}" >&2
-        exit 1
-    }
-    if [[ "$abs_common_dir" != "${MAIN_REPO}/.git" ]]; then
-        echo -e "${RED}This directory is not a worktree of the main repo (${MAIN_REPO}).${NC}" >&2
-        echo -e "${RED}Refusing to relink from untrusted repository.${NC}" >&2
-        exit 1
-    fi
-
-    # 교차검증: git worktree list --porcelain에 등록된 경로인지 확인
-    # common-dir 일치만으로는 공격자가 `.git` 파일에 `gitdir: MAIN_REPO/.git`(또는
-    # `gitdir: MAIN_REPO/.git/worktrees/<name>`)를 써 넣으면 우회할 수 있다.
-    # worktree list는 메인 레포에 실제 등록된 worktree만 출력하므로 위조가 걸러진다.
+    # 메인 레포 worktree 신뢰 경계 검증
+    # cmd_relink는 $HOME 심링크를 쓰는 보안 경계이므로, 임의 git 디렉토리가 자신을
+    # worktree로 가장하지 못하도록 거부해야 한다.
+    # `git worktree list --porcelain`은 메인 레포에 실제 등록된 worktree만 출력한다.
+    # 공격자가 `.git` 파일에 `gitdir: MAIN_REPO/.git[/worktrees/<name>]`을 써 넣어
+    # common-dir/git-dir을 위조해도 등록 목록에는 없으므로 차단된다.
+    # MAIN_REPO 자체가 git repo가 아니면 명령이 실패해 거부 경로로 떨어진다 (fail-closed).
     if ! git -C "$MAIN_REPO" worktree list --porcelain 2>/dev/null \
         | grep -qxF "worktree $git_toplevel"; then
         echo -e "${RED}Worktree $git_toplevel is not registered in $MAIN_REPO (git worktree list).${NC}" >&2

@@ -1039,7 +1039,7 @@ test_nrs_relink_rejects_untrusted_repo() {
   ) || rc=$?
 
   [[ "$rc" == "1" ]] || fail "expected exit 1, got $rc. output: $output"
-  assert_contains "$output" "not a worktree of the main repo"
+  assert_contains "$output" "not registered"
   assert_contains "$output" "Refusing to relink"
 }
 
@@ -1091,9 +1091,9 @@ test_nrs_relink_rejects_fake_checkout() {
 }
 
 test_nrs_relink_passes_gate_on_registered_worktree() {
-  # 정상 worktree에서 trust gate(common-dir + worktree list)가 모두 통과하는지 확인.
-  # 테스트 환경에는 home-manager-files가 없으므로 이후 HMF discovery 단계에서 exit 1,
-  # 단 차단 메시지는 없어야 한다.
+  # 정상 worktree에서 trust gate를 통과하고 정상 completion까지 가는지 확인.
+  # _discover_hmf의 probe 역추적 경로를 트리거하는 fake symlink 하나만 두면 충분
+  # (target dir 실재 불요; 패턴 매칭만 통과하면 _discover_oos_entries는 빈 출력).
   local sandbox home_dir main_repo worktree_root output rc
   sandbox=$(new_sandbox)
   home_dir="$sandbox/home"
@@ -1105,6 +1105,12 @@ test_nrs_relink_passes_gate_on_registered_worktree() {
 
   install_nrs_relink_for_tests "$sandbox" "$main_repo"
 
+  # Minimal HMF probe fixture: _discover_hmf의 두 번째 경로(probe 역추적) 트리거.
+  # /nix/store/*-home-manager-files/* 패턴만 매칭하면 되며 target dir 실재 불요.
+  mkdir -p "$home_dir/.claude"
+  ln -sfn "/nix/store/fake-home-manager-files/.claude/settings.json" \
+    "$home_dir/.claude/settings.json"
+
   rc=0
   output=$(
     HOME="$home_dir" \
@@ -1114,11 +1120,10 @@ test_nrs_relink_passes_gate_on_registered_worktree() {
     ' 2>&1
   ) || rc=$?
 
-  assert_not_contains "$output" "not a worktree of the main repo"
+  [[ "$rc" == "0" ]] || fail "expected exit 0 (gate passed + HMF probe), got $rc. output: $output"
+  assert_contains "$output" "Relinked"
   assert_not_contains "$output" "not registered"
   assert_not_contains "$output" "Refusing to relink"
-  [[ "$rc" == "1" ]] || fail "expected exit 1 (HMF absent in sandbox), got $rc. output: $output"
-  assert_contains "$output" "home-manager-files"
 }
 
 test_nixos_nrs_offline_force_smoke() {
