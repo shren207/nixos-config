@@ -93,6 +93,15 @@ EXIT_OK = 0
 EXIT_DRIFT = 1
 EXIT_ERROR = 2
 
+# read failure 정책의 단일 정의 지점.
+# - _SELF_HEAL_ERRNOS        : legacy 구조(symlink loop / plain directory /
+#                              symlink-to-directory) — quarantine 후 template 재생성.
+# - _UNREADABLE_REGULAR_ERRNOS: 일반 파일의 permission / I/O 장애 — abort 하여
+#                              데이터 보존. self-heal path 로 보내지 않는다.
+# 더 상세한 문서는 모듈 docstring 의 "No-op suppression" 블록 참고.
+_SELF_HEAL_ERRNOS = (errno.ELOOP, errno.EISDIR)
+_UNREADABLE_REGULAR_ERRNOS = (errno.EACCES, errno.EPERM, errno.EIO)
+
 
 def log(msg: str) -> None:
     print(f"{PREFIX}: {msg}", file=sys.stderr)
@@ -135,13 +144,13 @@ def load_required_toml(path: Path):
 
 
 def load_optional_toml(path: Path, *, quarantine: bool):
-    # 사용자 파일처럼 없거나 깨져 있을 수 있는 입력.
-    # - ENOENT                         -> empty document (첫 실행)
-    # - ELOOP / EISDIR                 -> regular file 로 읽을 수 없는 legacy 구조(symlink
-    #                                     loop, plain directory, symlink-to-directory 모두
-    #                                     포함). quarantine 후 template 재생성 (self-heal 확장)
-    # - 그 외 OSError (EACCES 등)       -> hard fail (데이터 보존)
-    # - UnicodeDecodeError / TOML 오류 -> quarantine 후 empty (self-heal)
+    # errno 정책 요약 (단일 정의: _SELF_HEAL_ERRNOS / _UNREADABLE_REGULAR_ERRNOS).
+    # - ENOENT                                     -> empty document (첫 실행)
+    # - _SELF_HEAL_ERRNOS or path.is_symlink()      -> quarantine 후 template 재생성
+    #                                                 (legacy symlink 계열은 referent 상태와
+    #                                                  무관하게 self-heal path 로 보낸다)
+    # - _UNREADABLE_REGULAR_ERRNOS                  -> hard fail (regular file 데이터 보존)
+    # - UnicodeDecodeError / TOML 오류              -> quarantine 후 empty (self-heal)
 
     def _quarantine(reason: str):
         # symlink loop 는 path.exists() 가 False 로 돌아오지만 symlink 엔트리 자체는 존재한다.
@@ -171,14 +180,16 @@ def load_optional_toml(path: Path, *, quarantine: bool):
     except FileNotFoundError:
         return tomlkit.document()
     except OSError as e:
-        if e.errno in (errno.ELOOP, errno.EISDIR):
-            # legacy symlink loop 또는 symlink-to-directory — self-heal 경로.
-            return _quarantine(
-                f"not readable as regular file (errno={e.errno}/{errno.errorcode.get(e.errno, '?')})"
-            )
-        if e.errno in (errno.EACCES, errno.EPERM, errno.EIO):
+        reason = f"errno={e.errno}/{errno.errorcode.get(e.errno, '?')}"
+        if e.errno in _SELF_HEAL_ERRNOS:
+            return _quarantine(f"not readable as regular file ({reason})")
+        # symlink 자체가 존재하면 referent의 상태(EACCES/EPERM/EIO 포함)와 무관하게 self-heal.
+        # legacy symlink는 원본 referent를 신뢰하지 않고 template으로 재생성하는 것이 안전.
+        if path.is_symlink():
+            return _quarantine(f"legacy symlink referent not readable ({reason})")
+        if e.errno in _UNREADABLE_REGULAR_ERRNOS:
             die(
-                f"cannot read existing {path} (errno={e.errno}): {e} — refusing to "
+                f"cannot read existing {path} ({reason}): {e} — refusing to "
                 f"overwrite to avoid data loss. Fix permissions then re-run."
             )
         die(f"cannot read existing {path}: {e}")
@@ -413,17 +424,16 @@ def _noop_probe_target(target_path: Path) -> tuple[bool, bool, Optional[bytes]]:
     fstat + read를 수행한다. 경로 재조회가 없으므로 ``lstat`` → ``read_bytes`` 사이의
     symlink/mode swap race가 없다.
 
-    OSError 정책:
-      - ``ENOENT``          → ``(False, False, None)`` (write 진입, 새로 생성)
-      - ``ELOOP`` (symlink) → ``(False, False, None)`` (write 진입, regular file로 치환)
-      - 그 외 (``EACCES``/``EPERM``/``EIO``/…) → ``load_optional_toml``과 같은 정책으로 ``die``
+    OSError 정책은 모듈 상단의 ``_SELF_HEAL_ERRNOS`` / ``_UNREADABLE_REGULAR_ERRNOS``
+    정의를 따른다. ``ENOENT`` 와 ``_SELF_HEAL_ERRNOS`` 는 ``(False, False, None)`` 으로
+    돌아가 caller 가 write_atomic 경로로 진입하고, 그 외 OSError 는 ``die`` 한다.
     """
     try:
         fd = os.open(str(target_path), os.O_RDONLY | os.O_NOFOLLOW)
     except FileNotFoundError:
         return False, False, None
     except OSError as e:
-        if e.errno == errno.ELOOP:
+        if e.errno in _SELF_HEAL_ERRNOS:
             return False, False, None
         die(
             f"cannot open target {target_path} (errno={e.errno}): {e} — refusing to "

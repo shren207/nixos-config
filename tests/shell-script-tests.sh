@@ -339,6 +339,18 @@ _codex_config_file_mode() {
   stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1" 2>/dev/null
 }
 
+# GNU coreutils `sha256sum` 이 없는 macOS 에서도 동일 결과를 내기 위해 `shasum -a 256` 으로
+# fallback. 둘 다 없는 환경은 shell-script-tests 전제를 만족하지 못하므로 여기서 fail.
+_codex_config_hash() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | cut -d' ' -f1
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | cut -d' ' -f1
+  else
+    fail "neither sha256sum nor shasum available for codex-config test hashing"
+  fi
+}
+
 test_codex_config_sync_noop_preserves_bytes() {
   # existing ==(첫 sync 후)== target stable state 이고 mode 0600 이면 두 번째 sync 는
   # stderr empty + bytes unchanged 여야 한다.
@@ -353,14 +365,14 @@ test_codex_config_sync_noop_preserves_bytes() {
   # 1차 sync: tomlkit round-trip 정규화를 반영해 stable bytes 를 만든다. stderr 는 관찰 안 함.
   python3 "$CODEX_CONFIG_SCRIPT" sync "$dir/template.toml" "$target" >/dev/null 2>&1 \
     || fail "sync_noop_preserves_bytes: first sync exited non-zero"
-  first_hash=$(sha256sum "$target" | cut -d' ' -f1)
+  first_hash=$(_codex_config_hash "$target")
 
   # 2차 sync: 3조건 모두 성립 → no-op. stderr 비어 있어야 한다.
   second_stderr=$(python3 "$CODEX_CONFIG_SCRIPT" sync "$dir/template.toml" "$target" 2>&1 >/dev/null)
   [[ -z "$second_stderr" ]] \
     || fail "sync_noop_preserves_bytes: expected empty stderr on second sync, got: $second_stderr"
 
-  second_hash=$(sha256sum "$target" | cut -d' ' -f1)
+  second_hash=$(_codex_config_hash "$target")
   [[ "$first_hash" == "$second_hash" ]] \
     || fail "sync_noop_preserves_bytes: bytes changed between first and second sync"
 
