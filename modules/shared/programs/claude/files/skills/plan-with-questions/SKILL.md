@@ -314,12 +314,15 @@ DA for_plan의 Arbiter 판정 결과를 처리한다:
 
 ## Post-Implementation (승인 후 자동 수행)
 
-for_action 모드에서 사용자가 계획을 승인하고 구현을 명시적으로 지시하면, 구현 완료 후 다음을 순차 수행한다:
+for_action 모드에서 사용자가 계획을 승인하고 구현을 명시적으로 지시하면, 구현 완료 후 다음을 순차 수행한다. 각 단계에서 reviewer/auditor/체크리스트 수행자는 read-only이며, tracked write·commit·push는 메인 에이전트 전용이다. 상세 권한 계약은 [`../run-da/SKILL.md`](../run-da/SKILL.md)의 `Codex 세션 하드닝 계약`을 따른다.
 
-1. 변경사항 커밋
-2. `/run-da for_pr` — 코드 DA 피드백 루프
-3. `/parallel-audit` — 전수조사
-4. `/create-pr` — main 브랜치 대상 PR 생성
+1. 변경 구현
+2. 구현 커밋 — `/run-da for_pr`의 DA 입력 checkpoint. 기계적 변경(flake.lock 등)이 포함되면 `git diff main...HEAD -- ':!flake.lock'`로 축약 diff 사용.
+3. `/run-da for_pr` — 코드 DA 피드백 루프.
+4. `/parallel-audit` — 전수조사.
+5. Final 10-pass Multi-Pass Review — [`../prd/references/multi-pass-review.md`](../prd/references/multi-pass-review.md) 체크리스트 수행. 메인 에이전트 직접 수행(fan-out 금지; `run-da` 4-bundle과 축 구분 — Cross-Phase Integration, Validation 선택, Documentation, PRD Closeout은 run-da가 커버하지 않는 영역). 작업 입력 또는 현재 diff에 `.claude/prds/` 파일이 포함된 경우에만 PRD Closeout 항목을 수행하고, 아니면 해당 항목 skip + 스킵 근거 기록.
+6. 10-pass 반영 커밋 (수정 발생 시) — 논리 단위로 분할 커밋 허용.
+7. `/create-pr` — main 브랜치 대상 PR 생성.
 
 사용자가 명시적으로 특정 단계를 생략하라고 지시한 경우에만 해당 단계를 건너뛴다.
 
