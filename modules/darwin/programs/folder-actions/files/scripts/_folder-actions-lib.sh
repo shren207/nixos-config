@@ -4,18 +4,21 @@
 # Pushover 알림 전용. upload-immich.sh의 send_notification과 wait_all_stable는
 # 별도 owner를 유지한다 (디렉토리 전체 snapshot 기반, 다른 입력 도메인).
 #
-# 사용 호출 측 컨트랙트 (source 시점에 정의되어 있어야 함):
-#   - log_info / log_warn / log_error
-#   - verify_path_security <path> <expected_mode> <label>
-#   - find_candidates  — 처리 대상 파일을 한 줄씩 stdout으로 출력
-#   - process_one <file>  — drain_queue가 호출하는 단일 파일 processor
-#   - WATCH_DIR, CURRENT_UID, CURRENT_PID
-#   - set -euo pipefail
+# 호출 라이프사이클:
+#   1) source 시점에 정의되어 있어야 함:
+#      - log_info / log_warn / log_error
+#      - verify_path_security <path> <expected_mode> <label>
+#      - WATCH_DIR, CURRENT_PID
+#      - set -euo pipefail
+#   2) drain_queue 호출 전에 정의되어 있어야 함:
+#      - find_candidates    — 처리 대상 파일을 한 줄씩 stdout으로 출력
+#      - process_one <file> — drain_queue가 호출하는 단일 파일 processor
 
 # Pushover credential 경로는 agenix 고정 path로 hard-code (override 금지).
 PUSHOVER_CREDENTIALS="$HOME/.config/pushover/folder-actions"
 
 # 실패 격리 sibling 경로 — watch root 밖이므로 launchd WatchPaths 추가 wakeup 없음.
+# 사용자 복구 절차는 .claude/skills/managing-macos/references/features.md 참조.
 _FA_LIB_FAILED_ROOT="$HOME/FolderActions/.failed"
 
 notify_failure() {
@@ -23,18 +26,30 @@ notify_failure() {
     local message="$2"
     local priority="${3:-0}"
 
+    # credential 부재는 silent skip (agenix 미배포 창 호환).
     [ -f "$PUSHOVER_CREDENTIALS" ] || return 0
-    # shellcheck disable=SC1090
-    source "$PUSHOVER_CREDENTIALS" 2>/dev/null || return 0
-    [ -n "${PUSHOVER_TOKEN:-}" ] && [ -n "${PUSHOVER_USER:-}" ] || return 0
 
-    /usr/bin/curl -sf --max-time 10 \
-        --form-string "token=${PUSHOVER_TOKEN}" \
-        --form-string "user=${PUSHOVER_USER}" \
-        --form-string "title=${title}" \
-        --form-string "message=${message}" \
-        --form-string "priority=${priority}" \
-        https://api.pushover.net/1/messages.json > /dev/null 2>&1 || true
+    # source 실패는 추적 가능하도록 경고만 남기고 알림 생략.
+    # shellcheck disable=SC1090
+    if ! source "$PUSHOVER_CREDENTIALS" 2>/dev/null; then
+        log_warn "notify_failure: PUSHOVER_CREDENTIALS source 실패: $PUSHOVER_CREDENTIALS"
+        return 0
+    fi
+    if [ -z "${PUSHOVER_TOKEN:-}" ] || [ -z "${PUSHOVER_USER:-}" ]; then
+        log_warn "notify_failure: PUSHOVER_TOKEN/USER 미설정"
+        return 0
+    fi
+
+    if ! /usr/bin/curl -sf --max-time 10 \
+            --form-string "token=${PUSHOVER_TOKEN}" \
+            --form-string "user=${PUSHOVER_USER}" \
+            --form-string "title=${title}" \
+            --form-string "message=${message}" \
+            --form-string "priority=${priority}" \
+            https://api.pushover.net/1/messages.json > /dev/null 2>&1; then
+        log_warn "notify_failure: Pushover API 호출 실패 (네트워크/credential 확인)"
+    fi
+    return 0
 }
 
 ensure_failed_dir() {
@@ -79,17 +94,23 @@ move_to_failed() {
     }
 
     basename_f=$(basename "$src")
-    # 타임스탬프(밀리초) + PID + RANDOM 으로 동일 초/동일 basename 충돌 회피.
+    # 충돌 회피: 초 단위 timestamp + PID + RANDOM
+    # (macOS BSD date는 GNU `%N`(나노초)을 지원하지 않아 초 단위로 둔다.)
     stamp=$(/bin/date +%Y%m%dT%H%M%S 2>/dev/null) || stamp="unknown"
     target="${failed_dir}/${stamp}_${CURRENT_PID}_${RANDOM}_${basename_f}"
 
     if /bin/mv -- "$src" "$target"; then
-        log_warn "실패 파일 격리: ${basename_f} -> .failed/$(basename "$failed_dir")/"
-        notify_failure "FolderActions 실패" "처리 실패 격리: ${basename_f}" 0
+        # 절대경로를 함께 남겨야 사용자가 .failed/ 위치를 즉시 찾을 수 있다.
+        log_warn "실패 파일 격리: ${basename_f} -> ${target}"
+        notify_failure "FolderActions 실패" \
+            "처리 실패 격리: ${basename_f}
+복구 경로: ${target}" 0
         return 0
     else
-        log_error "실패 파일 격리 mv 실패: ${basename_f}"
-        notify_failure "FolderActions 오류" "실패 파일 mv 실패: ${basename_f}" 1
+        log_error "실패 파일 격리 mv 실패: ${basename_f} -> ${target}"
+        notify_failure "FolderActions 오류" \
+            "실패 파일 mv 실패: ${basename_f}
+대상: ${target}" 1
         return 1
     fi
 }
@@ -123,30 +144,51 @@ wait_file_stable() {
 # - wait_file_stable로 복사 중 파일은 지연시켜 다음 launchd wakeup에 재시도
 # - process_one에서 quarantine 실패 시 exit 1로 무한 루프 차단 (호출부 책임)
 # - process substitution 사용으로 outer shell 변수(예: rename-asset의 i)가 유지됨
+# - unstable로 판정된 파일은 deferred set에 누적하여, 같은 run에서 재대기하지 않고
+#   대신 stable 잔여만 계속 처리한다 (모두 unstable일 때만 종료)
 drain_queue() {
     local processor="$1"
-    local has_unstable remaining
+    local -a deferred=()
+    local total_remaining stable_remaining
 
     while true; do
-        has_unstable=0
         while IFS= read -r f; do
             [ -f "$f" ] || continue
+            if _fa_lib_is_deferred "$f"; then
+                continue
+            fi
             if ! wait_file_stable "$f"; then
                 log_warn "unstable; deferred to next wakeup: $(basename "$f")"
-                has_unstable=1
+                deferred+=("$f")
                 continue
             fi
             "$processor" "$f"
         done < <(find_candidates)
 
-        remaining=$(find_candidates 2>/dev/null | /usr/bin/wc -l | /usr/bin/tr -d '[:space:]')
-        if [ "$remaining" -eq 0 ]; then
+        # 잔여 후보 중 deferred를 제외한 stable 후보 수
+        total_remaining=0
+        stable_remaining=0
+        while IFS= read -r f; do
+            total_remaining=$((total_remaining + 1))
+            _fa_lib_is_deferred "$f" || stable_remaining=$((stable_remaining + 1))
+        done < <(find_candidates 2>/dev/null)
+
+        if [ "$stable_remaining" -eq 0 ]; then
+            if [ "$total_remaining" -gt 0 ]; then
+                log_info "unstable 파일 ${total_remaining}개 잔존; run 종료 (다음 launchd wakeup 재시도)"
+            fi
             return 0
         fi
-        if [ "$has_unstable" -eq 1 ]; then
-            log_info "unstable 파일 잔존; run 종료 (다음 launchd wakeup 재시도)"
-            return 0
-        fi
-        log_info "재스캔: ${remaining}개 파일 남음"
+        log_info "재스캔: stable 후보 ${stable_remaining}개 / 총 잔여 ${total_remaining}개"
     done
+}
+
+# drain_queue 내부 헬퍼 — deferred 배열 멤버십 검사.
+_fa_lib_is_deferred() {
+    local target="$1"
+    local entry
+    for entry in "${deferred[@]:-}"; do
+        [ "$entry" = "$target" ] && return 0
+    done
+    return 1
 }
