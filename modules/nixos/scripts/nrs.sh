@@ -72,6 +72,7 @@ main() {
         echo ""
         log_info "✅ No changes to apply. Skipping rebuild."
         maybe_relink_or_restore
+        repair_codex_config_drift_no_changes
         return 0
     fi
     worktree_symlink_guard

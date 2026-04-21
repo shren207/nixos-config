@@ -63,6 +63,7 @@ REBUILD_HELPERS=(
     preflight
     relink
     preview
+    codex
 )
 
 case "$REBUILD_COMMON_DIR" in

@@ -1,0 +1,44 @@
+# shellcheck shell=bash
+#───────────────────────────────────────────────────────────────────────────────
+# codex.sh — NO_CHANGES 경로 전용 ~/.codex/config.toml drift 자동 복구
+#
+# 호출 위치: modules/{darwin,nixos}/scripts/nrs.sh 의 NO_CHANGES 분기에서만.
+#   post-rebuild 경로에서는 home.activation.syncCodexConfig 가 이미 같은
+#   sync-codex-config.py 를 돌리므로 여기서 중복 호출하지 않는다.
+#
+# 부수효과:
+#   - `nix shell "$FLAKE_PATH#pythonWithTomlkit" --command` 1회 평가 (~150ms 실측)
+#   - `python3 sync-codex-config.py sync <template> $HOME/.codex/config.toml` 실행
+#   - 실제 drift가 있을 때만 ~/.codex/config.toml 재작성. regular file/mode 0600/
+#     byte-identical 3조건 no-op 계약은 cmd_sync 가 담당한다.
+#   - 실패는 log_warn 으로 다운그레이드 (non-fatal) — NO_CHANGES 흐름을 막지 않는다.
+#
+# 장기 수렴 경로(참고):
+#   scripts/ai/lib/tomlkit-bootstrap.sh 가 `nix shell .#pythonWithTomlkit` self-wrap
+#   (exec) 패턴을 관리한다. 이 helper 는 exec 이 아닌 subprocess 호출이 필요해
+#   현재는 정책을 재기술한다. 향후 양쪽을 공용 bootstrap helper 로 통합할 여지가
+#   있으나 이번 범위에서는 YAGNI.
+#───────────────────────────────────────────────────────────────────────────────
+
+repair_codex_config_drift_no_changes() {
+    local template
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        template="$FLAKE_PATH/modules/shared/programs/codex/files/config.darwin.toml"
+    else
+        template="$FLAKE_PATH/modules/shared/programs/codex/files/config.toml"
+    fi
+    local script="$FLAKE_PATH/modules/shared/programs/codex/files/sync-codex-config.py"
+
+    if ! command -v nix >/dev/null 2>&1; then
+        log_warn "⚠️  nix 명령 미가용 — codex config drift 복구 스킵"
+        return 0
+    fi
+    if [[ ! -f "$template" || ! -f "$script" ]]; then
+        log_warn "⚠️  codex template/script 부재 — drift 복구 스킵 ($template, $script)"
+        return 0
+    fi
+
+    nix shell "$FLAKE_PATH#pythonWithTomlkit" --command \
+        python3 "$script" sync "$template" "$HOME/.codex/config.toml" \
+        || log_warn "⚠️  codex config drift 복구 실패 (non-fatal) — 'verify-ai-compat.sh'로 진단"
+}

@@ -149,6 +149,7 @@ main() {
         log_info "✅ No changes to apply. Skipping rebuild."
         log_info "  (Use 'nrs --force' to force full rebuild including activation scripts)"
         maybe_relink_or_restore
+        repair_codex_config_drift_no_changes
         release_nrs_lock_after_no_changes
         return 0
     fi

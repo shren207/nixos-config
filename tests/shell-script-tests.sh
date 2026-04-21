@@ -327,6 +327,103 @@ test_codex_config_sync_fixtures() {
   done
 }
 
+# ─── no-op 3조건 검증 helpers ───
+# `cmd_sync` 는 아래 세 invariant가 모두 참일 때만 write/summary log를 생략한다:
+#   (a) target이 regular file (symlink 아님)
+#   (b) mode == 0o600
+#   (c) 기존 bytes == merge 결과 bytes
+# 각 시나리오는 (a)~(c) 중 어느 조건이 풀리는지를 실제 FS 상태로 바꿔 검증한다.
+
+# GNU `stat -c` / BSD `stat -f` 를 모두 지원하는 helper. "%a"/"%p" 3자리 octal을 반환.
+_codex_config_file_mode() {
+  stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1" 2>/dev/null
+}
+
+test_codex_config_sync_noop_preserves_bytes() {
+  # existing ==(첫 sync 후)== target stable state 이고 mode 0600 이면 두 번째 sync 는
+  # stderr empty + bytes unchanged 여야 한다.
+  local dir="$CODEX_CONFIG_FIXTURE_DIR/sync_noop_preserves_bytes"
+  local sandbox target first_hash second_hash second_stderr mode_after
+  sandbox=$(new_sandbox)
+  target="$sandbox/target.toml"
+
+  cp "$dir/existing.toml" "$target"
+  chmod 0600 "$target"
+
+  # 1차 sync: tomlkit round-trip 정규화를 반영해 stable bytes 를 만든다. stderr 는 관찰 안 함.
+  python3 "$CODEX_CONFIG_SCRIPT" sync "$dir/template.toml" "$target" >/dev/null 2>&1 \
+    || fail "sync_noop_preserves_bytes: first sync exited non-zero"
+  first_hash=$(sha256sum "$target" | cut -d' ' -f1)
+
+  # 2차 sync: 3조건 모두 성립 → no-op. stderr 비어 있어야 한다.
+  second_stderr=$(python3 "$CODEX_CONFIG_SCRIPT" sync "$dir/template.toml" "$target" 2>&1 >/dev/null)
+  [[ -z "$second_stderr" ]] \
+    || fail "sync_noop_preserves_bytes: expected empty stderr on second sync, got: $second_stderr"
+
+  second_hash=$(sha256sum "$target" | cut -d' ' -f1)
+  [[ "$first_hash" == "$second_hash" ]] \
+    || fail "sync_noop_preserves_bytes: bytes changed between first and second sync"
+
+  mode_after=$(_codex_config_file_mode "$target")
+  [[ "$mode_after" == "600" ]] \
+    || fail "sync_noop_preserves_bytes: mode=$mode_after (expected 600)"
+}
+
+test_codex_config_sync_rejects_bad_mode() {
+  # 내용은 byte-identical 이지만 mode 가 0644 이면 no-op 이 아니라 write 가 발생해
+  # mode 0600 으로 복구되어야 한다.
+  local dir="$CODEX_CONFIG_FIXTURE_DIR/sync_noop_rejects_bad_mode"
+  local sandbox target second_stderr mode_after
+  sandbox=$(new_sandbox)
+  target="$sandbox/target.toml"
+
+  cp "$dir/existing.toml" "$target"
+  chmod 0600 "$target"
+  # 1차 sync: stable bytes 확보.
+  python3 "$CODEX_CONFIG_SCRIPT" sync "$dir/template.toml" "$target" >/dev/null 2>&1 \
+    || fail "sync_rejects_bad_mode: first sync exited non-zero"
+
+  chmod 0644 "$target"   # mode drift 유발. bytes 는 그대로.
+
+  second_stderr=$(python3 "$CODEX_CONFIG_SCRIPT" sync "$dir/template.toml" "$target" 2>&1 >/dev/null)
+  [[ -n "$second_stderr" ]] \
+    || fail "sync_rejects_bad_mode: expected summary log on write, stderr empty"
+
+  mode_after=$(_codex_config_file_mode "$target")
+  [[ "$mode_after" == "600" ]] \
+    || fail "sync_rejects_bad_mode: mode=$mode_after after sync (expected 600)"
+}
+
+test_codex_config_sync_rejects_symlink() {
+  # target 이 symlink 면 byte-identical 여부와 무관하게 write 가 발생해 regular file 로
+  # 교체되어야 한다. 내부적으로 os.replace 가 symlink 를 regular file 로 치환한다.
+  local dir="$CODEX_CONFIG_FIXTURE_DIR/sync_noop_rejects_symlink"
+  local sandbox target backing second_stderr mode_after
+  sandbox=$(new_sandbox)
+  target="$sandbox/target.toml"
+  backing="$sandbox/backing.toml"
+
+  cp "$dir/existing.toml" "$backing"
+  chmod 0600 "$backing"
+  # 1차 sync: stable bytes 확보 (backing 대상). symlink 로 인한 write 동작 자체를 본 테스트
+  # 에서 검증하므로 1차 sync 는 backing 에 직접 호출한다.
+  python3 "$CODEX_CONFIG_SCRIPT" sync "$dir/template.toml" "$backing" >/dev/null 2>&1 \
+    || fail "sync_rejects_symlink: backing first sync exited non-zero"
+
+  ln -s "$backing" "$target"
+  [[ -L "$target" ]] || fail "sync_rejects_symlink: symlink setup failed"
+
+  second_stderr=$(python3 "$CODEX_CONFIG_SCRIPT" sync "$dir/template.toml" "$target" 2>&1 >/dev/null)
+  [[ -n "$second_stderr" ]] \
+    || fail "sync_rejects_symlink: expected summary log on write, stderr empty"
+
+  [[ -L "$target" ]] && fail "sync_rejects_symlink: target is still a symlink after sync"
+  [[ -f "$target" ]] || fail "sync_rejects_symlink: target is not a regular file after sync"
+  mode_after=$(_codex_config_file_mode "$target")
+  [[ "$mode_after" == "600" ]] \
+    || fail "sync_rejects_symlink: mode=$mode_after after sync (expected 600)"
+}
+
 test_codex_config_bare_sync_compat() {
   # bare 2-arg 호출 결과가 explicit sync subcommand 호출과 동일해야 한다.
   local dir="$CODEX_CONFIG_FIXTURE_DIR/bare_sync_compat"
@@ -1261,6 +1358,9 @@ run_test "darwin nrs no-change releases worktree lock" test_darwin_nrs_no_change
 # codex-config 섹션만 skip + 안내 (기본 shell suite 진입은 유지).
 if codex_config_tomlkit_available; then
   run_test "codex-config sync fixtures" test_codex_config_sync_fixtures
+  run_test "codex-config sync no-op preserves bytes" test_codex_config_sync_noop_preserves_bytes
+  run_test "codex-config sync rewrites on bad mode" test_codex_config_sync_rejects_bad_mode
+  run_test "codex-config sync rewrites on symlink" test_codex_config_sync_rejects_symlink
   run_test "codex-config bare 2-arg compat" test_codex_config_bare_sync_compat
   run_test "codex-config check fixtures" test_codex_config_check_fixtures
 else

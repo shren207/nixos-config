@@ -59,6 +59,12 @@ quarantined to <target>.bad-<ts> and regenerated from the template — a stray
 hand-edit must not brick the whole home-manager generation. Read-level failures
 that are NOT "file missing" (permission denied, I/O error) DO abort, because
 silently replacing an unreadable file would destroy user trust and MCP data.
+
+No-op suppression: sync skips the atomic write (and the summary log) only when
+three invariants all hold — the target is a regular file (not a symlink), its
+mode is exactly 0o600, and its bytes already equal the serialized merge result.
+Any of them failing routes back through write_atomic so that legacy symlinks,
+mode drift, and content drift are all repaired in a single code path.
 """
 
 from __future__ import annotations
@@ -70,6 +76,7 @@ import errno
 import json
 import os
 import re
+import stat
 import sys
 import tempfile
 from pathlib import Path
@@ -418,7 +425,37 @@ def cmd_sync(template_path: Path, target_path: Path) -> int:
         del template_clone["projects"]
     merge_template_into(result, template_clone)
 
-    write_atomic(target_path, tomlkit.dumps(result))
+    new_text = tomlkit.dumps(result)
+
+    # Idempotent no-op: write + summary log를 생략하려면 세 invariant가 모두 참이어야 한다.
+    #   (a) target이 regular file (symlink 아님)  — legacy symlink를 자동으로 regular file로 교체
+    #   (b) mode == 0o600                          — 0644/0666 drift도 write_atomic이 normalize
+    #   (c) 기존 bytes == merge 결과 bytes          — 실제 내용 변경 없음
+    # 하나라도 거짓이면 write_atomic 경로로 진입해 symlink→regular file 치환, mode 교정,
+    # 재직렬화를 한 번에 수행한다.
+    # `load_optional_toml`는 parsed view(ownership/quarantine 판단)를 쓰고 이 블록은 raw
+    # bytes view(write suppression 판단)를 쓴다. 첫 호출은 tomlkit round-trip 정규화로 write가
+    # 발생하고, 이후 stable bytes라면 no-op이 되어 inotify churn/불필요한 summary log를 막는다.
+    try:
+        st = target_path.lstat()
+        is_regular = stat.S_ISREG(st.st_mode)
+        is_mode_600 = stat.S_IMODE(st.st_mode) == 0o600
+    except FileNotFoundError:
+        is_regular = False
+        is_mode_600 = False
+
+    existing_bytes: Optional[bytes] = None
+    if is_regular:
+        try:
+            existing_bytes = target_path.read_bytes()
+        except OSError:
+            existing_bytes = None
+
+    new_bytes = new_text.encode("utf-8")
+    if is_regular and is_mode_600 and existing_bytes is not None and existing_bytes == new_bytes:
+        return EXIT_OK
+
+    write_atomic(target_path, new_text)
 
     # Summary log.
     projects_tbl = as_table_or_warn(existing.get("projects"), where="existing.projects")
