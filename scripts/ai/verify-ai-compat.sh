@@ -14,7 +14,7 @@ pass() { echo "  [OK] $1"; }
 fail() { echo "  [FAIL] $1" >&2; errors=$((errors + 1)); }
 warn() { echo "  [WARN] $1" >&2; warnings=$((warnings + 1)); }
 
-# ─── Python 사전 체크 (CORR-PR-5) ───
+# ─── Python 사전 체크 ───
 # 이 스크립트는 python3 >= 3.11 (tomllib 내장)을 가정한다. 사전에 명확히 실패해서
 # "tomllib 미존재" → "TOML parse 실패" 같은 오검진을 방지한다.
 if ! command -v python3 >/dev/null 2>&1; then
@@ -220,7 +220,7 @@ echo "=== 글로벌 설정 확인 ==="
 # activation의 syncCodexConfig가 repo-managed 키와 사용자 소유 섹션을 merge한 regular file로
 # 유지한다. PASS 기준: (a) regular file, (b) mode 0600, (c) TOML 파싱 성공,
 #                     (d) template-managed key 존재 (model/approval_policy/sandbox_mode).
-# mode 불일치는 fail로 승격 (CORR-PR-4), activation 강제 실행 안내는 nrs --force (REGR-PR-4).
+# mode 불일치는 fail로 승격, legacy symlink 감지 시 nrs --force 안내.
 _codex_cfg="$HOME/.codex/config.toml"
 if [ ! -e "$_codex_cfg" ]; then
   fail "$_codex_cfg 없음"
@@ -249,7 +249,7 @@ else
   warn "$HOME/.codex/AGENTS.md 없음"
 fi
 
-# ─── template-managed 계약 검증 (DESIGN-PR-3) ───
+# ─── template-managed 계약 검증 ───
 # syncCodexConfig merge 정책은 "repo-managed 키는 template wins"를 보장한다.
 # 이 계약을 verify 수준에서 검증할 수 있도록, template이 반드시 가져야 하는 구조를 확인한다.
 echo ""
