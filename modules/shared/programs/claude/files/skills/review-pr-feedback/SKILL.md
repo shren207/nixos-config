@@ -43,7 +43,11 @@ gh pr view --json number -q .number
 - Review thread는 GraphQL `reviewThreads` 쿼리로 한 번에 수집한다.
   각 thread의 `id` / `isResolved` / `isOutdated` / `path` / `line` / 내부 comments를 받는다.
 - PR 일반 코멘트(대화 탭)는 REST `/issues/{pr}/comments`로 보조 수집한다.
-- Review 요약(approve/request-changes/comment 본문)은 REST `/pulls/{pr}/reviews`로 **맥락 파악 용도**로만 수집한다. 답글/resolve 대상이 아니며, 요약 본문에 actionable이 있으면 해당 지적이 review thread 또는 일반 코멘트로도 남아 있는지 확인 후 그쪽 경로로 처리한다.
+- Review 요약(`/pulls/{pr}/reviews`)은 `state`와 `body`를 함께 수집한다.
+  - `state == APPROVED`: 본문이 있어도 승인 메시지로 간주해 **답글 대상에서 제외**한다 (맥락 파악 용도).
+  - `state == CHANGES_REQUESTED` 또는 `COMMENTED` + `body != empty`: **actionable 후보**로 취급하며, Step 6에서 PR top-level follow-up 경로로 응답한다.
+  - 그 외 상태(`DISMISSED`, `PENDING`) 또는 body empty는 답글 대상 아님.
+  같은 지적이 review thread나 일반 코멘트로도 남아 있으면 그쪽 경로가 우선이며, summary-only인 경우에만 follow-up을 남긴다.
 - `isResolved == false`인 thread를 actionable로 간주한다. `isOutdated == true`는 수집하되 Step 2에서 `STALE_REVIEW` 후보로 분류한다.
 - `thread.id`는 Step 6 review thread mutation 입력에 반드시 필요하므로 보관한다.
   `comment.id`는 개별 코멘트 단위로 REST reply 엔드포인트를 쓰는 선택 경로에서만 쓴다.
@@ -57,12 +61,14 @@ Step 1 수집 결과가 **모두 비어 있을 때**만 no-op로 종료한다 (S
 
 - `unresolved review thread == 0`
 - PR 일반 코멘트 (`/issues/{pr}/comments`) 중 actionable == 0
-- **review summary body (`/pulls/{pr}/reviews[].body`) 중 non-empty == 0**
+- **actionable review summary == 0** (= `state ∈ {CHANGES_REQUESTED, COMMENTED}` 이면서 `body != empty`인 summary 개수)
 
 위 셋 중 하나라도 있으면 분류를 진행한다. 특히 리뷰어가 inline thread 없이
-summary body에만 의견을 남기는 패턴(전체 reject 사유를 summary에 기술하는 경우)은
-thread/issue-comment 카운트만으로는 보이지 않으므로 summary 본문을 반드시 함께 본다.
-summary-only 리뷰의 응답 경로는 Step 6의 PR top-level follow-up이다.
+summary body에만 reject/coment 사유를 남기는 패턴은 thread/issue-comment 카운트만으로는
+보이지 않으므로 summary `state` + `body`를 반드시 함께 본다.
+`state == APPROVED`인 summary(예: "LGTM")는 body 유무와 무관하게 actionable이 아니며,
+이 카운트에 포함하지 않는다 — 승인-only PR이 불필요한 follow-up 코멘트를 만들지 않도록.
+actionable summary-only 리뷰의 응답 경로는 Step 6의 PR top-level follow-up이다.
 
 비어 있지 않으면 각 코멘트/summary를 다음 3개 카테고리로 분류한다.
 
@@ -124,7 +130,7 @@ PR #399 반례는 [references/reply-and-resolve.md](references/reply-and-resolve
 |------|------|
 | Review thread | `addPullRequestReviewThreadReply` → `resolveReviewThread` |
 | PR 일반 코멘트 | `addComment` 또는 REST `/issues/{pr}/comments`로 **PR에 top-level follow-up 코멘트** 추가. resolve 없음. 원 코멘트 URL/`@<author>` 멘션으로 연결 |
-| Review summary body (inline thread 없음) | `addComment` 또는 REST `/issues/{pr}/comments`로 **PR에 top-level follow-up 코멘트** 추가. 원 review URL(`pull/<n>#pullrequestreview-<id>`)과 `@<reviewer>` 멘션으로 연결. resolve 없음 |
+| Actionable review summary (state `CHANGES_REQUESTED`/`COMMENTED` + non-empty body, inline thread 없음) | `addComment` 또는 REST `/issues/{pr}/comments`로 **PR에 top-level follow-up 코멘트** 추가. 원 review URL(`pull/<n>#pullrequestreview-<id>`)과 `@<reviewer>` 멘션으로 연결. resolve 없음. `state=APPROVED` summary는 대상 아님 |
 
 처리 결과별 답글 내용:
 
