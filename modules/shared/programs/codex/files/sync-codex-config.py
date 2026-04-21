@@ -69,6 +69,7 @@ import datetime as _dt
 import errno
 import json
 import os
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -247,7 +248,7 @@ def _set_at_path(doc, path_segments: tuple[str, ...], value) -> None:
     cur[path_segments[-1]] = copy.deepcopy(value)
 
 
-_BARE_KEY_RE = __import__("re").compile(r"^[A-Za-z0-9_-]+$")
+_BARE_KEY_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
 def _render_dotted_path(path_segments: tuple[str, ...]) -> str:
