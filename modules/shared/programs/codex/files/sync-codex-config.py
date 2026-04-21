@@ -230,6 +230,16 @@ def load_optional_toml(path: Path, *, quarantine: bool):
         tag = _errno_tag(e)
         if e.errno in _SELF_HEAL_ERRNOS:
             return _quarantine(f"not readable as regular file ({tag})")
+        # open 이 실패했지만 direct entry 가 non-regular / non-symlink 이면 self-heal
+        # 대상이다. 특히 Unix socket (S_IFSOCK) 은 Linux 에서 open 이 ENXIO 로 실패해
+        # _SELF_HEAL_ERRNOS/_UNREADABLE_REGULAR_ERRNOS 어느 분류에도 들어가지 않으므로,
+        # errno 대신 lstat 으로 file kind 를 확인해 S_ISREG/S_ISLNK 가 아니면 quarantine.
+        try:
+            _lst = path.lstat()
+        except OSError:
+            _lst = None
+        if _lst is not None and not (stat.S_ISREG(_lst.st_mode) or stat.S_ISLNK(_lst.st_mode)):
+            return _quarantine(f"not readable as regular file ({tag})")
         # symlink 자체가 존재하면 referent의 상태(EACCES/EPERM/EIO 포함)와 무관하게 self-heal.
         # legacy symlink는 원본 referent를 신뢰하지 않고 template으로 재생성하는 것이 안전.
         if path.is_symlink():
@@ -280,7 +290,18 @@ def load_target_for_check(path: Path):
     except FileNotFoundError:
         return None
     except OSError as e:
-        die(f"cannot read target {path} ({_errno_tag(e)}): {e}")
+        tag = _errno_tag(e)
+        # Unix socket 등 non-regular entry 는 open 이 ENXIO 로 실패할 수 있다. load_optional_toml
+        # 과 동일한 lstat 기반 non-regular 감지로 명시적 메시지를 낸다 (check 는 read-only
+        # 라 quarantine 없이 die).
+        try:
+            _lst = path.lstat()
+        except OSError:
+            _lst = None
+        if _lst is not None and not (stat.S_ISREG(_lst.st_mode) or stat.S_ISLNK(_lst.st_mode)):
+            kind = oct(stat.S_IFMT(_lst.st_mode))
+            die(f"target is not a regular file (st_ifmt={kind}): {path}")
+        die(f"cannot read target {path} ({tag}): {e}")
     finally:
         if fd is not None:
             try:
