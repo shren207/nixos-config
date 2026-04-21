@@ -31,13 +31,17 @@ then
   exit 1
 fi
 
-# ─── TOML helper (MAINT-PR-4) ───
+# ─── TOML helper ───
 # 여러 곳에서 쓰이는 python3 inline 블록을 단일 헬퍼로 통일.
 # 사용법:
-#   _toml_parse <file>                    : valid TOML이면 0, 아니면 1
-#   _toml_get_str <file> <dotted.path>    : 값을 stdout으로 (없으면 empty)
-#   _toml_has_path <file> <dotted.path>   : 존재하면 0, 없거나 table이어도 0
-#   _toml_has_table <file> <dotted.path>  : table로 존재하면 0
+#   _toml_parse        <file>                : valid TOML이면 0, 아니면 1
+#   _toml_get_scalar   <file> <dotted.path>  : 경로의 scalar(str/int/float/bool)을
+#                                              stdout으로. 없거나 table이면 empty.
+#                                              TOML parse 실패 시에도 empty + 0으로
+#                                              끝나므로 `set -euo pipefail` 환경에서
+#                                              command substitution으로 안전하게 호출 가능.
+#   _toml_has_table    <file> <dotted.path>  : table로 존재하면 0, 아니면 1
+#   _file_mode         <file>                : 8진수 mode 문자열 (예: "600"), 실패 시 "?"
 _toml_parse() {
   python3 - "$1" <<'PY' >/dev/null 2>&1
 import sys, tomllib
@@ -46,11 +50,14 @@ with open(sys.argv[1], 'rb') as f:
 PY
 }
 
-_toml_get_str() {
-  python3 - "$1" "$2" <<'PY'
+_toml_get_scalar() {
+  python3 - "$1" "$2" <<'PY' 2>/dev/null || true
 import sys, tomllib
-with open(sys.argv[1], 'rb') as f:
-    data = tomllib.load(f)
+try:
+    with open(sys.argv[1], 'rb') as f:
+        data = tomllib.load(f)
+except Exception:
+    sys.exit(0)
 cur = data
 for part in sys.argv[2].split('.'):
     if not isinstance(cur, dict) or part not in cur:
@@ -64,8 +71,11 @@ PY
 _toml_has_table() {
   python3 - "$1" "$2" <<'PY'
 import sys, tomllib
-with open(sys.argv[1], 'rb') as f:
-    data = tomllib.load(f)
+try:
+    with open(sys.argv[1], 'rb') as f:
+        data = tomllib.load(f)
+except Exception:
+    sys.exit(1)
 cur = data
 for part in sys.argv[2].split('.'):
     if not isinstance(cur, dict) or part not in cur:
@@ -83,14 +93,14 @@ echo "=== Codex 실행 정책 확인 ==="
 
 CODEX_CONFIG="$HOME/.codex/config.toml"
 if [ -f "$CODEX_CONFIG" ]; then
-  _ap="$(_toml_get_str "$CODEX_CONFIG" approval_policy)"
+  _ap="$(_toml_get_scalar "$CODEX_CONFIG" approval_policy)"
   if [ "$_ap" = "never" ]; then
     pass "approval_policy = \"never\""
   else
     fail "approval_policy = \"never\" 미설정 (actual: \"$_ap\")"
   fi
 
-  _sm="$(_toml_get_str "$CODEX_CONFIG" sandbox_mode)"
+  _sm="$(_toml_get_scalar "$CODEX_CONFIG" sandbox_mode)"
   if [ "$_sm" = "danger-full-access" ]; then
     pass "sandbox_mode = \"danger-full-access\""
   else
@@ -248,7 +258,7 @@ echo "=== template-managed 계약 확인 ==="
 if [ -f "$CODEX_CONFIG" ] && _toml_parse "$CODEX_CONFIG"; then
   # top-level 필수 키
   for _k in model approval_policy sandbox_mode service_tier personality; do
-    if [ -n "$(_toml_get_str "$CODEX_CONFIG" "$_k")" ]; then
+    if [ -n "$(_toml_get_scalar "$CODEX_CONFIG" "$_k")" ]; then
       pass "top-level 키 존재: $_k"
     else
       fail "top-level 키 누락: $_k (template-managed 계약 위반)"
