@@ -29,3 +29,7 @@ chrome-devtools MCP는 macOS 전용 (NixOS에서는 미구성).
 | 메모리 누수 탐지 | chrome-devtools MCP | 힙 스냅샷 전용 |
 
 **보안 주의**: remote debugging 활성 세션은 제어 표면이 증가한다. 금융/개인정보/관리자 콘솔 같은 민감 업무는 daily-use 프로필 대신 전용 브라우저 세션을 권장한다. 회사 보안 정책이 remote debugging 자체를 막을 수 있다.
+
+**최초 활성화 및 장애 대응** (chrome-devtools MCP autoConnect):
+- Chrome을 `--remote-debugging-port=9222`로 기동 (Hammerspoon launcher 또는 CLI). `chrome://inspect/#remote-debugging`에서 연결 확인.
+- `Could not find DevToolsActivePort file` 에러 시: 기존 Chrome 세션 종료 후 재기동. Chrome 프로필 경로가 잠겨 있으면 전용 프로필(`--user-data-dir=...`) 사용.
