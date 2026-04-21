@@ -13,11 +13,14 @@
 }:
 
 let
-  codexFilesPath = "${nixosConfigPath}/modules/shared/programs/codex/files";
-  codexConfigFile = if pkgs.stdenv.isDarwin then "config.darwin.toml" else "config.toml";
-  codexConfigSeedPath = "${codexFilesPath}/${codexConfigFile}";
+  # Codex config template. Nix 상대경로(./files/...)를 쓰면 현재 flake 소스 트리에서
+  # store로 복사되므로, worktree에서 `nrs --flake .` 로 빌드해도 그 worktree의 최신
+  # 파일이 seed로 반영된다. `nixosConfigPath`(=항상 메인 체크아웃 경로) 기반 문자열을
+  # 쓰면 worktree 변경이 누락된다.
+  codexConfigSeedPath =
+    if pkgs.stdenv.isDarwin then ./files/config.darwin.toml else ./files/config.toml;
   # activation에서 repo-managed 키와 사용자 소유 섹션을 merge하는 Python 스크립트.
-  # 순수 store path로 실행되므로 런타임에 repo 경로를 읽지 않는다.
+  # 동일하게 store path로 copy되므로 현 flake 기준으로 동작한다.
   codexSyncScript = ./files/sync-codex-config.py;
   # tomlkit: 주석/순서 보존 가능한 TOML read/write 라이브러리. nixpkgs 제공.
   pythonWithTomlkit = pkgs.python3.withPackages (ps: [ ps.tomlkit ]);
