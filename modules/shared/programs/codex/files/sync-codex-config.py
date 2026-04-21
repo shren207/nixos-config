@@ -479,6 +479,13 @@ def _sync_lock(target_path: Path) -> Iterator[None]:
     POSIX ``fcntl.flock`` 기반이라 추가 의존성이 없고, lockfile 은 target 디렉터리
     안의 ``.sync-codex.lock`` 으로 둔다 (원본 파일은 건드리지 않음).
 
+    Lockfile hardening: lockfile path 자체가 malformed (symlink, FIFO, socket,
+    directory 등) 면 ``os.open`` 이 hang 하거나 잘못된 entry 를 잠글 수 있다.
+    ``O_NOFOLLOW`` 로 symlink 를 ELOOP 로 차단하고, ``O_NONBLOCK`` 으로 FIFO/socket
+    이 영구 block 되지 않게 하며, ``fstat`` 직후 ``S_ISREG`` 로 최종 확인한다. 이 중
+    하나라도 어긋나면 lockfile 은 self-heal 대상이 아니므로 ``die`` (cmd_sync 가
+    ``~/.codex/config.toml`` 본체에 대해 하는 quarantine 정책과 별개).
+
     Scope 한정: same-host, advisory, file-descriptor based. 같은 lockfile 을 acquire
     하지 않는 외부 writer (codex CLI 의 trust append, ``sync.sh --user-mcp`` 등) 와의
     race 는 별개 follow-up (#511 코멘트 #4) 영역이다.
@@ -486,9 +493,25 @@ def _sync_lock(target_path: Path) -> Iterator[None]:
     lock_path = target_path.parent / ".sync-codex.lock"
     target_path.parent.mkdir(parents=True, exist_ok=True)
     # umask 에 의존하지 않고 0o600 으로 lockfile 권한 명시.
-    fd = os.open(str(lock_path), os.O_WRONLY | os.O_CREAT, 0o600)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK
     try:
-        fcntl.flock(fd, fcntl.LOCK_EX)
+        fd = os.open(str(lock_path), flags, 0o600)
+    except OSError as e:
+        die(f"cannot open lockfile {lock_path} ({_errno_tag(e)}): {e}")
+    try:
+        try:
+            st = os.fstat(fd)
+        except OSError as e:
+            die(f"cannot fstat lockfile {lock_path} ({_errno_tag(e)}): {e}")
+        if not stat.S_ISREG(st.st_mode):
+            die(
+                f"lockfile {lock_path} is not a regular file "
+                f"(st_ifmt={oct(stat.S_IFMT(st.st_mode))}) — refusing to lock"
+            )
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+        except OSError as e:
+            die(f"cannot acquire lock on {lock_path} ({_errno_tag(e)}): {e}")
         yield
     finally:
         try:
