@@ -206,15 +206,20 @@ def _values_equal(a, b) -> bool:
         return False
 
 
-def _walk_template_leaves(tmpl, *, path: str = "") -> Iterator[tuple[str, Any]]:
-    """Yield (dotted_path, value) for every template-declared leaf.
+def _walk_template_leaves(tmpl, *, path: tuple[str, ...] = ()) -> Iterator[tuple[tuple[str, ...], Any]]:
+    """Yield (path_segments, value) for every template-declared leaf.
 
     Writer(`merge_template_into`)와 checker(`collect_drift`)가 동일 ownership
     view를 공유하도록 이 helper를 유일 진입점으로 사용한다. 테이블은 yield하지
     않고, scalar / array / inline table 등 non-table 값만 yield한다.
+
+    Path는 `tuple[str, ...]`로 유지한다 — TOML key는 `"gpt-5.2"`처럼 literal `.`를
+    포함할 수 있으므로, 내부 canonical contract를 문자열로 평탄화하면 key-space가
+    깨진다 (writer/checker가 같은 key를 nested path로 오해). JSON 출력 시점에만
+    `_render_dotted_path`로 TOML-quoted key 문법으로 렌더링한다.
     """
     for key in list(tmpl.keys()):
-        full_path = f"{path}.{key}" if path else key
+        full_path = path + (key,)
         value = tmpl[key]
         if _is_table(value):
             yield from _walk_template_leaves(value, path=full_path)
@@ -222,25 +227,40 @@ def _walk_template_leaves(tmpl, *, path: str = "") -> Iterator[tuple[str, Any]]:
             yield full_path, value
 
 
-def _get_at_path(doc, dotted_path: str):
-    """dotted_path를 따라 scalar leaf를 조회. 없으면 (False, None), 있으면 (True, value)."""
+def _get_at_path(doc, path_segments: tuple[str, ...]):
+    """path segments를 따라 leaf를 조회. 없으면 (False, None), 있으면 (True, value)."""
     cur = doc
-    for part in dotted_path.split("."):
+    for part in path_segments:
         if not _is_table(cur) or part not in cur:
             return False, None
         cur = cur[part]
     return True, cur
 
 
-def _set_at_path(doc, dotted_path: str, value) -> None:
-    """dotted_path에 value 설정. 중간 table이 없으면 생성."""
-    parts = dotted_path.split(".")
+def _set_at_path(doc, path_segments: tuple[str, ...], value) -> None:
+    """path segments에 value 설정. 중간 table이 없으면 생성."""
     cur = doc
-    for part in parts[:-1]:
+    for part in path_segments[:-1]:
         if part not in cur or not _is_table(cur[part]):
             cur[part] = tomlkit.table()
         cur = cur[part]
-    cur[parts[-1]] = copy.deepcopy(value)
+    cur[path_segments[-1]] = copy.deepcopy(value)
+
+
+_BARE_KEY_RE = __import__("re").compile(r"^[A-Za-z0-9_-]+$")
+
+
+def _render_dotted_path(path_segments: tuple[str, ...]) -> str:
+    """TOML dotted-key 문법으로 segments를 렌더링. bare-key는 그대로, 그 외는 "quoted"."""
+    parts = []
+    for seg in path_segments:
+        if _BARE_KEY_RE.match(seg):
+            parts.append(seg)
+        else:
+            # basic string escape: \" and \\.
+            escaped = seg.replace("\\", "\\\\").replace("\"", "\\\"")
+            parts.append(f"\"{escaped}\"")
+    return ".".join(parts)
 
 
 def merge_template_into(dest, tmpl) -> int:
@@ -249,13 +269,13 @@ def merge_template_into(dest, tmpl) -> int:
     반환: 실제 교체된 leaf 개수.
     """
     changed = 0
-    for dotted_path, tmpl_val in _walk_template_leaves(tmpl):
-        present, existing_val = _get_at_path(dest, dotted_path)
+    for path_segments, tmpl_val in _walk_template_leaves(tmpl):
+        present, existing_val = _get_at_path(dest, path_segments)
         if present and _values_equal(existing_val, tmpl_val):
             continue
         if present:
-            log(f"{dotted_path}: template-managed value overriding user edit (template wins)")
-        _set_at_path(dest, dotted_path, tmpl_val)
+            log(f"{_render_dotted_path(path_segments)}: template-managed value overriding user edit (template wins)")
+        _set_at_path(dest, path_segments, tmpl_val)
         changed += 1
     return changed
 
@@ -267,11 +287,12 @@ def collect_drift(tmpl, target) -> list[dict]:
     target이 None이어도 이 함수는 호출되지 않는다 (target_state 처리는 cmd_check에서).
     """
     drift: list[dict] = []
-    for dotted_path, tmpl_val in _walk_template_leaves(tmpl):
-        present, actual_val = _get_at_path(target, dotted_path)
+    for path_segments, tmpl_val in _walk_template_leaves(tmpl):
+        rendered = _render_dotted_path(path_segments)
+        present, actual_val = _get_at_path(target, path_segments)
         if not present:
             drift.append({
-                "path": dotted_path,
+                "path": rendered,
                 "reason": "missing_leaf",
                 "expected": _jsonify(tmpl_val),
                 "actual": None,
@@ -279,7 +300,7 @@ def collect_drift(tmpl, target) -> list[dict]:
             continue
         if type(tmpl_val) is not type(actual_val) and not _types_compatible(tmpl_val, actual_val):
             drift.append({
-                "path": dotted_path,
+                "path": rendered,
                 "reason": "type_mismatch",
                 "expected": _jsonify(tmpl_val),
                 "actual": _jsonify(actual_val),
@@ -287,7 +308,7 @@ def collect_drift(tmpl, target) -> list[dict]:
             continue
         if not _values_equal(tmpl_val, actual_val):
             drift.append({
-                "path": dotted_path,
+                "path": rendered,
                 "reason": "value_mismatch",
                 "expected": _jsonify(tmpl_val),
                 "actual": _jsonify(actual_val),

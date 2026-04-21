@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # verify-ai-compat.sh — Claude Code + Codex CLI 호환 구조 검증
-# 사용: ./scripts/ai/verify-ai-compat.sh 또는 devShell에서 verify-ai-compat
+# 사용: `./scripts/ai/verify-ai-compat.sh` 또는 devShell에서 `verify-ai-compat`
+# tomlkit 미가용 환경에서는 자동으로 `nix shell .#pythonWithTomlkit --command bash "$0"`로
+# 재실행된다 (아래 tomlkit self-wrap 섹션 참조).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -29,6 +31,26 @@ PY
 then
   echo "  [FAIL] python3 >= 3.11 with tomllib is required" >&2
   exit 1
+fi
+
+# ─── tomlkit self-wrap ───
+# sync-codex-config.py의 `check` subcommand가 tomlkit에 의존한다(import 필수).
+# direct 실행(`bash scripts/ai/verify-ai-compat.sh`) 경로에서는 devShell에 tomlkit이 없어
+# 호출이 EXIT_ERROR로 실패한다. tomlkit 미가용 시 repo-pinned flake output으로
+# 스크립트 자체를 re-exec하여 이후 python3 호출이 항상 tomlkit-enabled가 되도록 한다.
+# lefthook pre-push는 이미 `nix shell .#pythonWithTomlkit --command`로 wrap하므로
+# 그 경로에서는 _VERIFY_AI_COMPAT_TOMLKIT_READY=1로 방어되어 재진입 루프가 발생하지 않는다.
+if [ -z "${_VERIFY_AI_COMPAT_TOMLKIT_READY:-}" ]; then
+  if ! python3 -c 'import tomlkit' 2>/dev/null; then
+    if ! command -v nix >/dev/null 2>&1; then
+      echo "  [FAIL] python3 tomlkit 미가용 + nix 명령도 없음 — 'nix shell .#pythonWithTomlkit' 환경이 필요합니다" >&2
+      exit 1
+    fi
+    _VERIFY_AI_COMPAT_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+    echo "  tomlkit 미가용 감지: nix shell ${_VERIFY_AI_COMPAT_REPO_ROOT}#pythonWithTomlkit로 재실행" >&2
+    export _VERIFY_AI_COMPAT_TOMLKIT_READY=1
+    exec nix shell "${_VERIFY_AI_COMPAT_REPO_ROOT}#pythonWithTomlkit" --command bash "${BASH_SOURCE[0]}" "$@"
+  fi
 fi
 
 # ─── TOML helper ───

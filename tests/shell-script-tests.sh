@@ -301,7 +301,7 @@ PY
 
 test_codex_config_sync_fixtures() {
   local scenario sandbox template existing expected actual rc
-  for scenario in sync_basic_merge sync_malformed_root sync_malformed_toml_quarantine; do
+  for scenario in sync_basic_merge sync_malformed_root sync_malformed_toml_quarantine sync_quoted_dotted_key; do
     local dir="$CODEX_CONFIG_FIXTURE_DIR/$scenario"
     [[ -d "$dir" ]] || fail "sync fixture missing: $dir"
     sandbox=$(new_sandbox)
@@ -352,7 +352,8 @@ test_codex_config_bare_sync_compat() {
 test_codex_config_check_fixtures() {
   local scenario dir sandbox template target_path actual_stdout actual_stderr rc expected_exit
   for scenario in check_match check_value_mismatch check_missing_leaf check_type_mismatch \
-                  check_target_missing check_template_missing check_template_parse_error; do
+                  check_target_missing check_template_missing check_template_parse_error \
+                  check_quoted_dotted_key_match; do
     dir="$CODEX_CONFIG_FIXTURE_DIR/$scenario"
     [[ -d "$dir" ]] || fail "check fixture missing: $dir"
     sandbox=$(new_sandbox)
