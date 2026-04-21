@@ -39,7 +39,8 @@ gh pr view --json number -q .number
 
 - Review thread는 GraphQL `reviewThreads` 쿼리로 한 번에 수집한다.
   각 thread의 `id` / `isResolved` / `isOutdated` / `path` / `line` / 내부 comments를 받는다.
-- PR 일반 코멘트(대화 탭)는 REST `/issues/{pr}/comments`, review 요약은 REST `/pulls/{pr}/reviews`로 보조 수집한다.
+- PR 일반 코멘트(대화 탭)는 REST `/issues/{pr}/comments`로 보조 수집한다.
+- Review 요약(approve/request-changes/comment 본문)은 REST `/pulls/{pr}/reviews`로 **맥락 파악 용도**로만 수집한다. 답글/resolve 대상이 아니며, 요약 본문에 actionable이 있으면 해당 지적이 review thread 또는 일반 코멘트로도 남아 있는지 확인 후 그쪽 경로로 처리한다.
 - `isResolved == false`인 thread를 actionable로 간주한다. `isOutdated == true`는 수집하되 Step 2에서 `STALE_REVIEW` 후보로 분류한다.
 - `thread.id`는 Step 6 review thread mutation 입력에 반드시 필요하므로 보관한다.
   `comment.id`는 개별 코멘트 단위로 REST reply 엔드포인트를 쓰는 선택 경로에서만 쓴다.
@@ -137,5 +138,5 @@ PR 일반 코멘트는 resolve가 없으므로 이 단계를 건너뛴다.
   특히 플랫폼 간(macOS/NixOS) 호환성에 주의.
 - **기각 사유는 구체적으로**: "불필요합니다"가 아니라 왜 불필요한지 근거 제시.
   [references/rejection-taxonomy.md](references/rejection-taxonomy.md)의 4필드 포맷을 지킨다.
-- **multiline body는 stdin/GraphQL variables 경유**: `gh api -f body="..."` 직접 전달은 쉘/터미널 문맥에 따라 의도와 다르게 escaping된다.
-  [references/reply-and-resolve.md](references/reply-and-resolve.md)의 권장 패턴(`gh api --input -` + `jq -n --arg body`, 또는 GraphQL variables)을 사용한다.
+- **multiline body는 파일/stdin 경유**: 본문을 shell 확장으로 argv에 싣지 않는다 (같은 사용자 `ps`/로깅 노출 방지).
+  [references/reply-and-resolve.md](references/reply-and-resolve.md)의 권장 패턴(`gh api graphql -F body=@"$BODY_FILE"`, 또는 `jq -Rs '{body:.}' < "$BODY_FILE" | gh api --input -`)을 사용한다.
