@@ -106,12 +106,30 @@ gh api --paginate "/repos/$OWNER/$REPO/pulls/$PR_NUMBER/reviews" \
   - **`state == APPROVED`** + `body != empty`: 아래 approval-only 판정을 적용해 drop 여부를 결정한다. 판정 미해당 body(예: `LGTM, but consider X` / `approved — nit: ...`)는 **actionable summary**로 유지.
   - `state == DISMISSED` 또는 `PENDING` → 답글 대상 아님.
 
-  **approval-only 판정(`APPROVED` 전용 drop 규칙)**: `CHANGES_REQUESTED`/`COMMENTED`에는 적용하지 않는다. 아래 중 하나라도 해당하면 drop.
-  1. 본문 trim + 소문자 정규화 기준 `lgtm` / `looks good` / `looks good to me` / `approved` / `approve` / `👍` / `👌` / `ok` / `fine` / `ship it` 등이 전부.
-  2. 본문이 40자 이하이고 `nit` / `minor` / `but` / `however` / `consider` / `suggest` / `follow-up` / 물음표(`?`) / 코드 펜스(\`\`\`)가 전혀 없음.
+  **approval-only 판정(`APPROVED` 전용 drop 규칙, exact-match only)**: `CHANGES_REQUESTED`/`COMMENTED`에는 적용하지 않는다. body를 다음 순서로 정규화한다.
+  1. `trim()`으로 양끝 공백 제거.
+  2. 소문자 변환.
+  3. 양끝의 `.`, `!`, `?`, `~`, 공백을 반복 제거.
 
+  정규화 결과가 아래 승인 구절 목록과 **정확히 일치**할 때만 drop한다. 목록 밖의 non-empty body는 길이에 관계없이 actionable로 유지한다.
+
+  ```
+  lgtm
+  looks good
+  looks good to me
+  approved
+  approve
+  ok
+  okay
+  fine
+  ship it
+  👍
+  👌
+  ```
+
+  length heuristic은 사용하지 않는다. `"fix the typo"`, `"rename foo()"` 같은 짧은 actionable `APPROVED` body가 false-positive로 drop되지 않도록 한다.
   summary에 actionable 내용이 있어도 동일 지적이 review thread나 일반 코멘트로 남아 있다면 그쪽 경로를 우선 사용한다.
-  판정 경계 케이스(`APPROVED` + 40~100자, approval 문구+추가 문장 혼재)는 actionable로 분류한 뒤 Step 3에서 검증한다.
+  경계 케이스(`LGTM!` 뒤 추가 문장이 붙은 mixed body 등)는 정규화 결과가 승인 구절과 정확히 일치하지 않으므로 자동으로 actionable로 분류된다.
 
 ## 결과 정리 의무
 
@@ -138,6 +156,6 @@ gh api --paginate "/repos/$OWNER/$REPO/pulls/$PR_NUMBER/reviews" \
 - [ ] PR 일반 코멘트 본문 보관 (답글 대상).
 - [ ] Review summary는 `state`와 `body`를 함께 보관. 답글 대상 결정은 state가 primary:
   - `CHANGES_REQUESTED`/`COMMENTED` + non-empty body → actionable (길이 무관, 짧은 reject 사유도 보존).
-  - `APPROVED` + non-empty body → approval-only 판정(`LGTM`/`👍` 단독, 또는 40자 이하 + nit 표시어 부재) 미해당 시에만 actionable.
+  - `APPROVED` + non-empty body → 정규화 후 승인 구절 목록과 exact-match일 때만 drop, 그 외(길이 무관)는 actionable.
   - `DISMISSED`/`PENDING` 또는 body empty → 답글 대상 아님.
 - [ ] resolved thread 제외 (또는 별도 버킷으로 분리).
