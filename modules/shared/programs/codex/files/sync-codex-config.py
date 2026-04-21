@@ -56,9 +56,14 @@ concurrently sees either the old or new content, never a partial merge.
 
 If the existing target can be read but is malformed TOML / invalid UTF-8, it is
 quarantined to <target>.bad-<ts> and regenerated from the template — a stray
-hand-edit must not brick the whole home-manager generation. Read-level failures
-that are NOT "file missing" (permission denied, I/O error) DO abort, because
-silently replacing an unreadable file would destroy user trust and MCP data.
+hand-edit must not brick the whole home-manager generation. The same quarantine
+path also handles legacy structural states that cannot be read as a regular
+file (``ELOOP`` for symlink loops, ``EISDIR`` for directories or
+symlinks-to-directories) so the generation does not abort just because the
+target has drifted from its regular-file invariant. Hard read failures that
+indicate permission/I/O problems on a real file (``EACCES``/``EPERM``/``EIO``)
+still abort, because silently replacing an unreadable regular file would
+destroy user trust and MCP data.
 
 No-op suppression: sync skips the atomic write (and the summary log) only when
 three invariants all hold — the target is a regular file (not a symlink), its
@@ -132,8 +137,9 @@ def load_required_toml(path: Path):
 def load_optional_toml(path: Path, *, quarantine: bool):
     # 사용자 파일처럼 없거나 깨져 있을 수 있는 입력.
     # - ENOENT                         -> empty document (첫 실행)
-    # - ELOOP / EISDIR                 -> legacy symlink loop / symlink-to-directory;
-    #                                     quarantine 후 template 재생성 (self-heal 확장)
+    # - ELOOP / EISDIR                 -> regular file 로 읽을 수 없는 legacy 구조(symlink
+    #                                     loop, plain directory, symlink-to-directory 모두
+    #                                     포함). quarantine 후 template 재생성 (self-heal 확장)
     # - 그 외 OSError (EACCES 등)       -> hard fail (데이터 보존)
     # - UnicodeDecodeError / TOML 오류 -> quarantine 후 empty (self-heal)
 
