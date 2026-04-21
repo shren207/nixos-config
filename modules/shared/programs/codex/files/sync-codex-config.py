@@ -211,8 +211,14 @@ def _walk_template_leaves(tmpl, *, path: tuple[str, ...] = ()) -> Iterator[tuple
     """Yield (path_segments, value) for every template-declared leaf.
 
     Writer(`merge_template_into`)와 checker(`collect_drift`)가 동일 ownership
-    view를 공유하도록 이 helper를 유일 진입점으로 사용한다. 테이블은 yield하지
-    않고, scalar / array / inline table 등 non-table 값만 yield한다.
+    view를 공유하도록 이 helper를 유일 진입점으로 사용한다.
+
+    Leaf 판정은 `_is_table()`로 한다 — 일반 table과 inline table(`{ key = value }`)
+    모두 `_is_table` True로 취급되어 재귀 대상이 된다. 따라서 yield되는 값은
+    scalar(str/int/float/bool/datetime), array(`[...]`), 그리고 기타 non-mapping TOML
+    값이다. 예: `[features] voice_transcription = true`의 `voice_transcription`은
+    yield되고, `[plugins.\"github@openai-curated\"] enabled = true`는 `plugins`/`github@...`
+    테이블을 재귀한 뒤 `enabled`가 yield된다.
 
     Path는 `tuple[str, ...]`로 유지한다 — TOML key는 `"gpt-5.2"`처럼 literal `.`를
     포함할 수 있으므로, 내부 canonical contract를 문자열로 평탄화하면 key-space가

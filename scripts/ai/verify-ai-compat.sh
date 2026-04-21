@@ -33,25 +33,14 @@ then
   exit 1
 fi
 
-# ─── tomlkit self-wrap ───
-# sync-codex-config.py의 `check` subcommand가 tomlkit에 의존한다(import 필수).
-# direct 실행(`bash scripts/ai/verify-ai-compat.sh`) 경로에서는 devShell에 tomlkit이 없어
-# 호출이 EXIT_ERROR로 실패한다. tomlkit 미가용 시 repo-pinned flake output으로
-# 스크립트 자체를 re-exec하여 이후 python3 호출이 항상 tomlkit-enabled가 되도록 한다.
-# lefthook pre-push는 이미 `nix shell .#pythonWithTomlkit --command`로 wrap하므로
-# 그 경로에서는 _VERIFY_AI_COMPAT_TOMLKIT_READY=1로 방어되어 재진입 루프가 발생하지 않는다.
-if [ -z "${_VERIFY_AI_COMPAT_TOMLKIT_READY:-}" ]; then
-  if ! python3 -c 'import tomlkit' 2>/dev/null; then
-    if ! command -v nix >/dev/null 2>&1; then
-      echo "  [FAIL] python3 tomlkit 미가용 + nix 명령도 없음 — 'nix shell .#pythonWithTomlkit' 환경이 필요합니다" >&2
-      exit 1
-    fi
-    _VERIFY_AI_COMPAT_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-    echo "  tomlkit 미가용 감지: nix shell ${_VERIFY_AI_COMPAT_REPO_ROOT}#pythonWithTomlkit로 재실행" >&2
-    export _VERIFY_AI_COMPAT_TOMLKIT_READY=1
-    exec nix shell "${_VERIFY_AI_COMPAT_REPO_ROOT}#pythonWithTomlkit" --command bash "${BASH_SOURCE[0]}" "$@"
-  fi
-fi
+
+# ─── tomlkit bootstrap ───
+# sync-codex-config.py의 `check` subcommand가 tomlkit에 의존한다. 정책과 재실행 guard는
+# scripts/ai/lib/tomlkit-bootstrap.sh 단일 소스에서 관리한다 (M-001 공용화).
+_VERIFY_AI_COMPAT_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck disable=SC1091  # source file은 repo 내부 고정 경로
+. "$_VERIFY_AI_COMPAT_REPO_ROOT/scripts/ai/lib/tomlkit-bootstrap.sh"
+tomlkit_bootstrap_require "$_VERIFY_AI_COMPAT_REPO_ROOT" "${BASH_SOURCE[0]}" "$@"
 
 # ─── TOML helper ───
 # 통합 helper. 모든 TOML inspection을 단일 `_toml_inspect --what=<mode>`로 수행한다.
@@ -323,68 +312,19 @@ else
 
   case "$_check_rc" in
     0|1)
-      # JSON 파싱 후 target_state + drift 분기. malformed shape는 한 건 fail로 처리하고 이후 섹션 계속.
-      _verdict="$(
-        python3 - <<'PY' "$_check_stdout"
-import json, sys
-try:
-    payload = json.loads(sys.argv[1])
-except Exception as e:
-    print(f"PARSE_ERROR {e}")
-    sys.exit(0)
-if not isinstance(payload, dict):
-    print("PARSE_ERROR not a JSON object")
-    sys.exit(0)
-state = payload.get("target_state")
-drift = payload.get("drift")
-if state not in ("present", "missing"):
-    print(f"PARSE_ERROR unexpected target_state={state!r}")
-    sys.exit(0)
-if not isinstance(drift, list):
-    print(f"PARSE_ERROR drift not a list")
-    sys.exit(0)
-if state == "missing":
-    print("MISSING")
-elif not drift:
-    print("OK")
-else:
-    print(f"DRIFT {len(drift)}")
-    for item in drift:
-        if not isinstance(item, dict):
-            print(f"  malformed item: {item!r}")
-            continue
-        print(f"  {item.get('path','?')}: {item.get('reason','?')} expected={item.get('expected')!r} actual={item.get('actual')!r}")
-PY
-      )"
-      case "$_verdict" in
-        OK)
-          pass "template이 선언한 모든 leaf가 live와 일치"
-          ;;
-        MISSING)
-          fail "$CODEX_CONFIG 없음 (target_state=missing) — activation이 실행되지 않은 상태일 수 있음 (nrs --force 권장)"
-          ;;
-        DRIFT*)
-          # 첫 줄 "DRIFT <N>" 헤드는 정보성 출력, 이후 각 항목을 fail()로 누적해 errors에 1건씩 반영.
-          # 주의: `| while ...`는 pipe 우측이 subshell이라 `fail()`의 errors 증가가 부모로 전파되지 않는다.
-          # process substitution `< <(...)`으로 while을 현재 shell에서 실행해야 한다.
-          while IFS= read -r _line; do
-            case "$_line" in
-              "DRIFT "*)
-                echo "  → template ↔ live drift: ${_line#DRIFT }건 감지" >&2
-                ;;
-              *)
-                fail "drift: $_line"
-                ;;
-            esac
-          done < <(echo "$_verdict" | awk 'NR==1 {print; next} {sub(/^  /,""); print}')
-          ;;
-        PARSE_ERROR*)
-          fail "check.py 출력 파싱 실패: ${_verdict#PARSE_ERROR }"
-          ;;
-        *)
-          fail "check.py 출력 예상치 못한 상태: $_verdict"
-          ;;
-      esac
+      # check.py JSON 소비는 scripts/ai/lib/render-check-report.py 단일 helper에 위임한다.
+      # helper가 `OK_LINE/FAIL_LINE/INFO_LINE <message>` 형식의 directive를 stdout에 쓰고,
+      # verifier는 그 라인을 case 분기로 pass/fail/info에 매핑만 한다. (M-002 해소: Bash +
+      # inline Python + awk 3언어 혼재를 Python 1회 + Bash orchestration 2계층으로 축소.)
+      # subshell pipe 대신 process substitution을 써서 fail()의 errors 증가가 부모 shell로 반영되도록 한다.
+      while IFS= read -r _line; do
+        case "$_line" in
+          "OK_LINE "*)   pass "${_line#OK_LINE }" ;;
+          "FAIL_LINE "*) fail "${_line#FAIL_LINE }" ;;
+          "INFO_LINE "*) echo "  → ${_line#INFO_LINE }" >&2 ;;
+          *)             fail "render-check-report.py 알 수 없는 directive: $_line" ;;
+        esac
+      done < <(printf '%s' "$_check_stdout" | python3 "$REPO_ROOT/scripts/ai/lib/render-check-report.py")
       ;;
     2)
       # EXIT_ERROR는 template read/parse, target read/parse 모두를 포함한 hard error 공용 신호다.
