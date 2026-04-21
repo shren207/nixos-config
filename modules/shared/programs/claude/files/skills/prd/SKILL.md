@@ -5,6 +5,7 @@ description: |
   Create or update evidence-backed living PRD/phase execution files under .claude/prds/.
   Trigger: 'PRD', 'PRD 작성', 'PRD 업데이트', 'phase 계획', '기능 스펙', 'PRD 생성'.
   NOT for quick one-off plans (use plan-with-questions). NOT for DA (use run-da).
+  NOT for 구현 검토 (use review-implementation).
 ---
 
 # Evidence-Backed Living PRD
