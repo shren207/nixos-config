@@ -1,28 +1,38 @@
 #!/usr/bin/env python3
 # Merge repo template into ~/.codex/config.toml.
 #
-# Repo-managed keys are re-applied from the template on every activation.
-# User-owned sections are preserved across activations:
-#   - [projects.*]                        (runtime trust entries)
-#   - [mcp_servers.<name>] where <name>   is NOT present in the template
+# Ownership policy:
+#   * Template-owned keys   = every top-level key that appears in the template
+#                             PLUS every [mcp_servers.<name>] where <name> is
+#                             declared in the template.
+#     These are (re-)applied from the template on each activation.
+#   * User-owned sections   = everything else in the existing file — any
+#                             top-level key NOT in the template, `[projects.*]`,
+#                             and every [mcp_servers.<name>] where <name> is
+#                             NOT declared in the template.
+#     These are preserved verbatim, including unknown tables introduced by
+#     future Codex CLI features.
 #
-# Merge policy for keys that exist in BOTH the template and the existing file:
-#   * template-managed keys (all top-level scalars, [notice], [features],
-#     [plugins.*], [mcp_servers.<name in template>])  -> template WINS.
-#     User edits to those are overwritten and a warning is logged to stderr.
-#   * [projects.*] and [mcp_servers.<name NOT in template>] -> user WINS.
+# On a same-key conflict template ALWAYS wins for template-owned keys; user
+# always wins for user-owned keys. This makes the merge "repo overwrite on its
+# own keys, leave everything else alone" — the script does not need to learn
+# about new Codex sections just to avoid deleting them.
 #
 # Write is atomic (tempfile + os.replace) so a codex process reading the file
 # concurrently sees either the old or new content, never a partial merge.
 #
-# If the existing file is malformed TOML, we DO NOT abort activation. Instead
-# we quarantine it to <target>.bad-<ts> and regenerate from the template, so a
-# stray hand-edit never bricks the whole home-manager generation.
+# If the existing file can be read but is malformed TOML, we quarantine it to
+# <target>.bad-<ts> and regenerate from the template — a stray hand-edit must
+# not brick the whole home-manager generation. Read-level failures that are
+# NOT "file missing" (permission denied, I/O error, invalid UTF-8) DO abort,
+# because silently replacing an unreadable file would destroy user trust and
+# MCP data.
 
 from __future__ import annotations
 
 import copy
 import datetime as _dt
+import errno
 import os
 import sys
 import tempfile
@@ -52,13 +62,17 @@ except ImportError:
 
 
 def load_required_toml(path: Path):
-    # Template 등 반드시 존재하고 유효해야 하는 입력.
+    # Template이나 필수 입력: 모든 실패는 hard fail이다.
     try:
-        text = path.read_text(encoding="utf-8")
+        data = path.read_bytes()
     except FileNotFoundError:
         die(f"template not found: {path}", code=1)
     except OSError as e:
         die(f"cannot read template {path}: {e}", code=2)
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as e:
+        die(f"template not valid UTF-8 ({path}): {e}", code=1)
     try:
         return tomlkit.parse(text)
     except Exception as e:
@@ -66,42 +80,58 @@ def load_required_toml(path: Path):
 
 
 def load_optional_toml(path: Path, *, quarantine: bool):
-    # 사용자 파일처럼 없거나 깨져 있어도 activation을 죽이지 않는 입력.
+    # 사용자 파일처럼 없거나 깨져 있을 수 있는 입력.
+    # - ENOENT (파일 없음)            → empty document (첫 실행)
+    # - 기타 OSError (EACCES 등)      → hard fail (데이터 보존)
+    # - UnicodeDecodeError / TOML 오류 → quarantine 후 empty document (self-heal)
     try:
-        text = path.read_text(encoding="utf-8")
+        raw = path.read_bytes()
     except FileNotFoundError:
         return tomlkit.document()
     except OSError as e:
-        log(f"cannot read existing {path}: {e} — treating as empty")
-        return tomlkit.document()
-    try:
-        return tomlkit.parse(text)
-    except Exception as e:
+        # ENOENT 이외의 읽기 실패는 원본 보존이 우선이라 hard fail.
+        if e.errno in (errno.EACCES, errno.EPERM, errno.EIO, errno.EISDIR):
+            die(
+                f"cannot read existing {path} (errno={e.errno}): {e} — refusing to "
+                f"overwrite to avoid data loss. Fix permissions then re-run.",
+                code=2,
+            )
+        die(f"cannot read existing {path}: {e}", code=2)
+
+    def _quarantine(reason: str) -> "tomlkit.TOMLDocument":
         if quarantine and path.exists():
             stamp = _dt.datetime.now().strftime("%Y%m%dT%H%M%S")
             bad = path.with_name(f"{path.name}.bad-{stamp}")
             try:
                 path.rename(bad)
                 log(
-                    f"existing {path} parse failed ({e}); quarantined to {bad}, "
+                    f"existing {path} {reason}; quarantined to {bad}, "
                     f"regenerating from template"
                 )
             except OSError as mv_err:
                 log(
-                    f"existing {path} parse failed ({e}); quarantine to {bad} "
+                    f"existing {path} {reason}; quarantine to {bad} "
                     f"also failed ({mv_err}); regenerating in place"
                 )
         else:
-            log(f"existing {path} parse failed ({e}); regenerating from template")
+            log(f"existing {path} {reason}; regenerating from template")
         return tomlkit.document()
+
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as e:
+        return _quarantine(f"not valid UTF-8 ({e})")
+    try:
+        return tomlkit.parse(text)
+    except Exception as e:
+        return _quarantine(f"TOML parse failed ({e})")
 
 
 def as_table_or_warn(value, *, where: str) -> Optional[dict]:
-    # TOML spec 위반(예: projects = 1)인 경우 방어. None 반환이면 호출부에서 무시.
+    # TOML spec 위반(예: projects = 1)인 경우 방어. None이면 호출부에서 무시.
     if value is None:
         return None
     try:
-        # tomlkit Table / inline Table 모두 Mapping 프로토콜을 따른다.
         iter(value.keys())  # type: ignore[attr-defined]
         return value  # type: ignore[return-value]
     except Exception:
@@ -119,41 +149,48 @@ def main() -> int:
     template = load_required_toml(template_path)
     existing = load_optional_toml(target_path, quarantine=True)
 
-    template_projects = as_table_or_warn(template.get("projects"), where="template.projects")
+    # template-owned keys = template에 정의된 top-level 키 전부.
+    # mcp_servers의 subkey 중 template에 있는 이름만 template-owned로 취급한다.
     template_mcps = as_table_or_warn(template.get("mcp_servers"), where="template.mcp_servers") or {}
-    user_projects = as_table_or_warn(existing.get("projects"), where="existing.projects")
-    user_mcps = as_table_or_warn(existing.get("mcp_servers"), where="existing.mcp_servers") or {}
+    if template.get("projects") is not None:
+        # template이 projects를 선언하면 정책 위반이므로 경고만 남기고 무시.
+        # user trust는 오직 runtime mutation이 소유한다.
+        log("template.projects present — ignored; [projects.*] is user-owned only")
 
-    # user-owned mcp = template에 없는 이름만. template에 있는 이름은 template wins.
-    user_mcp_keys = [k for k in user_mcps.keys() if k not in template_mcps]
+    # result는 existing의 deep copy에서 시작한다. 즉 "user 소유 섹션은 기본적으로 보존".
+    result = copy.deepcopy(existing)
 
-    # conflict observation: template MCP 키를 사용자가 수정했는지 감지.
-    # 수정 여부는 TOML 텍스트 기준으로 정확히 비교하기 어렵지만, 동일 키가 양쪽에
-    # 존재한다는 사실만 로그로 남겨 "template wins" 정책을 투명하게 한다.
-    for k in template_mcps.keys():
-        if k in user_mcps:
-            log(f"mcp_servers.{k}: template-managed key present in user file — template value wins")
-
-    # projects는 template에도 존재하지 않는 것이 정상. template이 projects를 선언하면 경고.
-    if template_projects is not None:
-        log("template.projects present — unusual; template wins for these keys")
-
-    # template 기반 결과 생성.
-    result = copy.deepcopy(template)
-
-    # user projects 복원 (template이 projects를 선언한 드문 경우에도 user wins — trust는 runtime이 소유).
-    if user_projects is not None and len(user_projects) > 0:
-        result["projects"] = user_projects
-    elif template_projects is None and "projects" in result:
-        # deepcopy는 template에 없는 키를 만들지 않지만, 방어적으로 정리.
-        del result["projects"]
-
-    # user-owned mcp 복원.
-    if user_mcp_keys:
-        if "mcp_servers" not in result:
-            result["mcp_servers"] = tomlkit.table()
-        for k in user_mcp_keys:
-            result["mcp_servers"][k] = user_mcps[k]
+    # template top-level 키를 덮어쓴다. projects는 user-owned이므로 skip.
+    template_top_keys: list[str] = []
+    for key in list(template.keys()):
+        if key == "projects":
+            continue
+        template_top_keys.append(key)
+        if key == "mcp_servers":
+            # subkey 단위 merge: template에 있는 이름만 덮어쓰고, 사용자가 추가한
+            # 이름은 그대로 둔다.
+            existing_mcps = as_table_or_warn(
+                result.get("mcp_servers"), where="existing.mcp_servers"
+            )
+            if existing_mcps is None:
+                result["mcp_servers"] = copy.deepcopy(template_mcps)
+                continue
+            for name in list(template_mcps.keys()):
+                if name in existing_mcps:
+                    # 사용자가 template-managed MCP 키를 수정했어도 template이 이긴다.
+                    # stderr 로그로 투명하게 알린다.
+                    log(
+                        f"mcp_servers.{name}: template-managed key — overwriting "
+                        f"existing user edit (template wins)"
+                    )
+                result["mcp_servers"][name] = copy.deepcopy(template_mcps[name])
+        else:
+            if key in result:
+                log(
+                    f"top-level key '{key}': template-managed — overwriting "
+                    f"existing user edit (template wins)"
+                )
+            result[key] = copy.deepcopy(template[key])
 
     serialized = tomlkit.dumps(result)
 
@@ -176,11 +213,19 @@ def main() -> int:
             pass
         die(f"atomic write failed ({target_path}): {e}", code=2)
 
-    n_projects = len(user_projects) if user_projects is not None else 0
+    # Summary.
+    projects_tbl = as_table_or_warn(existing.get("projects"), where="existing.projects")
+    existing_mcps = as_table_or_warn(existing.get("mcp_servers"), where="existing.mcp_servers") or {}
+    user_mcp_count = sum(1 for k in existing_mcps.keys() if k not in template_mcps)
+    user_top_keys = [
+        k for k in existing.keys()
+        if k not in template_top_keys and k != "projects" and k != "mcp_servers"
+    ]
     log(
-        f"preserved {n_projects} projects entries, "
-        f"{len(user_mcp_keys)} user-owned mcp_servers "
-        f"(template-managed mcp_servers: {len(template_mcps)})"
+        f"preserved {len(projects_tbl) if projects_tbl else 0} projects entries, "
+        f"{user_mcp_count} user-owned mcp_servers, "
+        f"{len(user_top_keys)} unknown top-level keys "
+        f"(template-managed top-level: {len(template_top_keys)})"
     )
     return 0
 
