@@ -153,12 +153,15 @@ def load_required_toml(path: Path):
 
 def load_optional_toml(path: Path, *, quarantine: bool):
     # errno 정책 요약 (단일 정의: _SELF_HEAL_ERRNOS / _UNREADABLE_REGULAR_ERRNOS).
-    # - ENOENT                                     -> empty document (첫 실행)
-    # - _SELF_HEAL_ERRNOS or path.is_symlink()      -> quarantine 후 template 재생성
-    #                                                 (legacy symlink 계열은 referent 상태와
-    #                                                  무관하게 self-heal path 로 보낸다)
-    # - _UNREADABLE_REGULAR_ERRNOS                  -> hard fail (regular file 데이터 보존)
-    # - UnicodeDecodeError / TOML 오류              -> quarantine 후 empty (self-heal)
+    # 아래 분류는 path.read_bytes() 가 실패한 경우에만 적용된다. 읽기 가능한 symlink/regular
+    # 파일은 정상 read 흐름을 타고, 읽기 가능한 symlink 의 regular file 치환은 이후
+    # _noop_probe_target 의 ELOOP/symlink detection 경유 write_atomic 에서 수행된다.
+    # - ENOENT                                       -> empty document (첫 실행)
+    # - _SELF_HEAL_ERRNOS                            -> quarantine 후 template 재생성
+    # - 그 외 read 실패 + path.is_symlink()           -> quarantine 후 template 재생성
+    #                                                   (legacy symlink referent 상태와 무관)
+    # - 그 외 read 실패 (_UNREADABLE_REGULAR_ERRNOS) -> hard fail (regular file 데이터 보존)
+    # - UnicodeDecodeError / TOML 오류                -> quarantine 후 empty (self-heal)
 
     def _quarantine(reason: str):
         # symlink loop 는 path.exists() 가 False 로 돌아오지만 symlink 엔트리 자체는 존재한다.
@@ -182,6 +185,21 @@ def load_optional_toml(path: Path, *, quarantine: bool):
         else:
             log(f"existing {path} {reason}; regenerating from template")
         return tomlkit.document()
+
+    # Pre-check: special file (FIFO/socket/block/char device) 은 path.read_bytes() 가
+    # 영구 block 될 수 있으므로 read 전에 quarantine 경로로 보낸다. lstat 은 symlink 를
+    # follow 하지 않으므로, symlink 자체는 S_ISLNK 로 통과시켜 read_bytes 가 referent 를
+    # 정상적으로 처리하게 한다 (referent 가 special 이면 위 ELOOP/EISDIR/EACCES handler 가
+    # 다시 잡는다). lstat-read 사이의 race 는 active swap 시나리오 한정으로 남는다.
+    try:
+        pre_st = path.lstat()
+    except FileNotFoundError:
+        return tomlkit.document()
+    except OSError:
+        pre_st = None
+    if pre_st is not None and not (stat.S_ISREG(pre_st.st_mode) or stat.S_ISLNK(pre_st.st_mode)):
+        kind = oct(stat.S_IFMT(pre_st.st_mode))
+        return _quarantine(f"not a regular file or symlink (st_ifmt={kind})")
 
     try:
         raw = path.read_bytes()
@@ -220,7 +238,7 @@ def load_target_for_check(path: Path):
     except FileNotFoundError:
         return None
     except OSError as e:
-        die(f"cannot read target {path} (errno={e.errno}): {e}")
+        die(f"cannot read target {path} ({_errno_tag(e)}): {e}")
     try:
         text = data.decode("utf-8")
     except UnicodeDecodeError as e:
@@ -437,7 +455,10 @@ def _noop_probe_target(target_path: Path) -> tuple[bool, bool, Optional[bytes]]:
     돌아가 caller 가 write_atomic 경로로 진입하고, 그 외 OSError 는 ``die`` 한다.
     """
     try:
-        fd = os.open(str(target_path), os.O_RDONLY | os.O_NOFOLLOW)
+        # O_NONBLOCK 으로 FIFO/socket 등 special file 에 대한 open 이 영구 block 되지 않게
+        # 한다. fstat 의 S_ISREG 체크가 그 뒤에서 special file 을 (False, False, None) 으로
+        # 분류해 caller 가 write_atomic 으로 regular file 치환 경로를 타도록 한다.
+        fd = os.open(str(target_path), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     except FileNotFoundError:
         return False, False, None
     except OSError as e:
