@@ -209,11 +209,12 @@ EOF
 
 구현 완료 후 다음 순서로 검증한다:
 
-1. **skill-reviewer**: 에이전트를 활용하여 SKILL.md의 품질 기준 준수 확인
+1. **`/run-da for_pr`** — 변경 diff에 대해 독립 DA 에이전트 리뷰. SKILL.md 품질 기준 준수 확인:
    - frontmatter 유효성 (name, description, Triggers)
    - 본문 구조 (Purpose → 빠른참조 → 핵심절차 → 참조)
-   - references/ 링크 유효성
-2. **skill-creator**: 에이전트를 활용하여 evals/queries.json 검증
+   - `references/` 링크 유효성
+2. **`/parallel-audit`** — 전수조사로 변경이 다른 스킬/모듈에 미치는 사이드이펙트 확인.
+3. **skill-creator 플러그인**: `evals/queries.json` 검증
    - positive 10개 + negative 10개 충족
    - negative에 인접 스킬 트리거 포함
 ```
