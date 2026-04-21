@@ -16,11 +16,22 @@ pass() { echo "  [OK] $1"; }
 fail() { echo "  [FAIL] $1" >&2; errors=$((errors + 1)); }
 warn() { echo "  [WARN] $1" >&2; warnings=$((warnings + 1)); }
 
+# ─── tomlkit bootstrap ───
+# sync-codex-config.py의 `check` subcommand가 tomlkit에 의존한다. 정책과 재실행 guard는
+# scripts/ai/lib/tomlkit-bootstrap.sh 단일 소스에서 관리한다.
+# COR-002 반영: Python 사전 체크보다 먼저 실행한다. host python3가 없거나 3.11 미만이어도
+# nix shell .#pythonWithTomlkit으로 self-wrap된 뒤 그 안의 python3로 다시 사전 체크를 수행한다.
+# 그래야 파일 상단의 "tomlkit 미가용 시 자동 재실행" 계약이 실제로 성립한다.
+_VERIFY_AI_COMPAT_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck disable=SC1091  # source file은 repo 내부 고정 경로
+. "$_VERIFY_AI_COMPAT_REPO_ROOT/scripts/ai/lib/tomlkit-bootstrap.sh"
+tomlkit_bootstrap_require "$_VERIFY_AI_COMPAT_REPO_ROOT" "${BASH_SOURCE[0]}" "$@"
+
 # ─── Python 사전 체크 ───
-# 이 스크립트는 python3 >= 3.11 (tomllib 내장)을 가정한다. 사전에 명확히 실패해서
-# "tomllib 미존재" → "TOML parse 실패" 같은 오검진을 방지한다.
+# bootstrap 이후에도 ambient python3가 어떤 이유로 여전히 3.11 미만이면 명시적 실패.
+# 일반적으로 이 분기에 도달하지 않는다 (nix shell이 Python 3.13+를 보장).
 if ! command -v python3 >/dev/null 2>&1; then
-  echo "  [FAIL] python3 not found in PATH" >&2
+  echo "  [FAIL] python3 not found in PATH (bootstrap 이후에도 부재)" >&2
   exit 1
 fi
 if ! python3 - <<'PY' 2>/dev/null
@@ -29,18 +40,9 @@ if sys.version_info < (3, 11):
     raise SystemExit(1)
 PY
 then
-  echo "  [FAIL] python3 >= 3.11 with tomllib is required" >&2
+  echo "  [FAIL] python3 >= 3.11 with tomllib is required (bootstrap 이후에도 버전 부족)" >&2
   exit 1
 fi
-
-
-# ─── tomlkit bootstrap ───
-# sync-codex-config.py의 `check` subcommand가 tomlkit에 의존한다. 정책과 재실행 guard는
-# scripts/ai/lib/tomlkit-bootstrap.sh 단일 소스에서 관리한다 (M-001 공용화).
-_VERIFY_AI_COMPAT_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-# shellcheck disable=SC1091  # source file은 repo 내부 고정 경로
-. "$_VERIFY_AI_COMPAT_REPO_ROOT/scripts/ai/lib/tomlkit-bootstrap.sh"
-tomlkit_bootstrap_require "$_VERIFY_AI_COMPAT_REPO_ROOT" "${BASH_SOURCE[0]}" "$@"
 
 # ─── TOML helper ───
 # 통합 helper. 모든 TOML inspection을 단일 `_toml_inspect --what=<mode>`로 수행한다.

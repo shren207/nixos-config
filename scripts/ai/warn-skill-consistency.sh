@@ -39,6 +39,7 @@ if git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
       modules/shared/programs/codex/* | \
       scripts/ai/verify-ai-compat.sh | \
       scripts/ai/warn-skill-consistency.sh | \
+      scripts/ai/lib/* | \
       libraries/python-runtimes.nix | \
       flake.nix | \
       lefthook.yml | \
