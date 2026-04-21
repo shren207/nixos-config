@@ -151,14 +151,31 @@ fi
 echo ""
 echo "=== 글로벌 설정 확인 ==="
 
-# ~/.codex/config.toml 심링크
-if [ -L "$HOME/.codex/config.toml" ]; then
-  pass "$HOME/.codex/config.toml 심링크"
+# ~/.codex/config.toml 관리 상태
+# activation의 syncCodexConfig가 repo-managed 키와 사용자 소유 섹션을 merge한 regular file로
+# 유지한다. 따라서 symlink가 아니라 (a) regular file 존재, (b) mode 0600, (c) TOML 파싱 성공을
+# PASS 기준으로 삼는다. (필수 키 검증은 위 "Codex 실행 정책 확인" 섹션에서 수행.)
+_codex_cfg="$HOME/.codex/config.toml"
+if [ ! -e "$_codex_cfg" ]; then
+  fail "$_codex_cfg 없음"
+elif [ -L "$_codex_cfg" ]; then
+  fail "$_codex_cfg 심링크 — syncCodexConfig가 regular file로 migrate하지 않음 (nrs 재실행 필요)"
+elif [ ! -f "$_codex_cfg" ]; then
+  fail "$_codex_cfg regular file 아님"
 else
-  if [ -f "$HOME/.codex/config.toml" ]; then
-    warn "$HOME/.codex/config.toml 일반 파일 (심링크 아님)"
+  _mode="$(stat -f '%Lp' "$_codex_cfg" 2>/dev/null || stat -c '%a' "$_codex_cfg" 2>/dev/null || echo "?")"
+  if [ "$_mode" = "600" ]; then
+    pass "$_codex_cfg regular file, mode=0600"
   else
-    fail "$HOME/.codex/config.toml 없음"
+    warn "$_codex_cfg regular file이지만 mode=$_mode (기대: 0600)"
+  fi
+  if ! python3 - "$_codex_cfg" <<'PY' >/dev/null 2>&1
+import sys, tomllib
+with open(sys.argv[1], 'rb') as f:
+    tomllib.load(f)
+PY
+  then
+    fail "$_codex_cfg TOML 파싱 실패"
   fi
 fi
 
