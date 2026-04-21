@@ -130,6 +130,27 @@ cmd_relink() {
         return 0
     fi
 
+    # 메인 레포 worktree 신뢰 경계 검증 (lib/rebuild/common.sh detect_worktree 패턴 이식)
+    # detect_worktree는 비-worktree 시 silent return 0이지만, cmd_relink는 $HOME 심링크를
+    # 쓰는 보안 경계이므로 검증 실패 시 하드 실패한다.
+    # `pwd -P`가 아닌 `pwd`를 쓰는 이유: attacker/.git → MAIN_REPO/.git symlink spoof 시
+    # 논리 경로(pwd)는 attacker/.git로 남아 불일치 판정, 물리 경로(pwd -P)는 symlink를 따라
+    # MAIN_REPO/.git로 해석되어 우회 통과된다.
+    local git_common_dir abs_common_dir
+    git_common_dir=$(git rev-parse --git-common-dir 2>/dev/null) || {
+        echo -e "${RED}Cannot determine git-common-dir${NC}" >&2
+        exit 1
+    }
+    abs_common_dir=$(cd "$git_common_dir" 2>/dev/null && pwd) || {
+        echo -e "${RED}Cannot resolve git-common-dir path${NC}" >&2
+        exit 1
+    }
+    if [[ "$abs_common_dir" != "${MAIN_REPO}/.git" ]]; then
+        echo -e "${RED}This directory is not a worktree of the main repo (${MAIN_REPO}).${NC}" >&2
+        echo -e "${RED}Refusing to relink from untrusted repository.${NC}" >&2
+        exit 1
+    fi
+
     local worktree="$git_toplevel"
 
     local hmf

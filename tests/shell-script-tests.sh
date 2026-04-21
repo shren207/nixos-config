@@ -209,6 +209,27 @@ install_platform_nrs_entrypoint() {
   esac
 }
 
+install_nrs_relink_for_tests() {
+  local sandbox="$1" main_repo="$2"
+  local home_dir="$sandbox/home"
+  local generated_dir="$sandbox/generated"
+  local shell_nix="$REPO_ROOT/modules/shared/programs/shell/default.nix"
+
+  # Nix 배포 정의 검증: replaceVars 패턴 + executable = true
+  # shellcheck disable=SC2016  # Literal Nix source strings.
+  assert_nix_has_attr "$shell_nix" ".local/bin/nrs-relink" \
+    '    source = pkgs.replaceVars "${sharedScriptsDir}/nrs-relink.sh" {' \
+    '      flakePath = nixosConfigDefaultPath;' \
+    '    };' \
+    '    executable = true;'
+
+  mkdir -p "$home_dir/.local/bin" "$generated_dir"
+  sed "s|@flakePath@|$main_repo|g" \
+    "$REPO_ROOT/modules/shared/scripts/nrs-relink.sh" > "$generated_dir/nrs-relink"
+  chmod +x "$generated_dir/nrs-relink"
+  ln -sf "$generated_dir/nrs-relink" "$home_dir/.local/bin/nrs-relink"
+}
+
 create_git_fixture_repo() {
   local repo_root="$1"
   local sandbox_root home_dir
@@ -969,6 +990,59 @@ EOF
   [[ ! -e "$hook_marker" ]] || fail "expected fixture git setup to ignore host global hooks"
 }
 
+test_nrs_relink_rejects_untrusted_repo() {
+  local sandbox home_dir main_repo untrusted_repo output rc
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  main_repo="$sandbox/main-repo"
+  untrusted_repo="$sandbox/untrusted-repo"
+
+  # fixture 메인 repo (worktree 하나 자동 생성되지만 사용하지 않음)
+  create_git_fixture_repo "$main_repo"
+  main_repo="$(cd "$main_repo" && pwd -P)"
+
+  # 별도 임의 git repo (공격자 통제를 모사)
+  mkdir -p "$untrusted_repo" "$home_dir/.config"
+  (
+    cd "$untrusted_repo"
+    HOME="$home_dir" \
+      XDG_CONFIG_HOME="$home_dir/.config" \
+      GIT_CONFIG_GLOBAL=/dev/null \
+      GIT_CONFIG_NOSYSTEM=1 \
+      git \
+      -c core.hooksPath=/dev/null \
+      -c commit.gpgSign=false \
+      -c init.templateDir= \
+      init >/dev/null 2>&1
+    HOME="$home_dir" \
+      XDG_CONFIG_HOME="$home_dir/.config" \
+      GIT_CONFIG_GLOBAL=/dev/null \
+      GIT_CONFIG_NOSYSTEM=1 \
+      git \
+      -c core.hooksPath=/dev/null \
+      -c commit.gpgSign=false \
+      -c init.templateDir= \
+      -c user.email=test@example.com \
+      -c user.name="Test User" \
+      commit --allow-empty -m init >/dev/null 2>&1
+  )
+
+  install_nrs_relink_for_tests "$sandbox" "$main_repo"
+
+  rc=0
+  output=$(
+    HOME="$home_dir" \
+    bash -c '
+      cd "'"$untrusted_repo"'"
+      "'"$home_dir/.local/bin/nrs-relink"'" relink
+    ' 2>&1
+  ) || rc=$?
+
+  [[ "$rc" == "1" ]] || fail "expected exit 1, got $rc. output: $output"
+  assert_contains "$output" "not a worktree of the main repo"
+  assert_contains "$output" "Refusing to relink"
+}
+
 test_nixos_nrs_offline_force_smoke() {
   local sandbox home_dir repo_root stub_dir output result_target
   sandbox=$(new_sandbox)
@@ -1252,6 +1326,7 @@ run_test "wt cleanup auto skips unpushed merged worktree" test_wt_cleanup_auto_s
 run_test "wt cleanup auto skips merged branch reuse" test_wt_cleanup_auto_skips_merged_branch_reuse
 run_test "missing managed helpers fail closed" test_missing_managed_helpers_fail_closed
 run_test "fixture git setup ignores host global hooks" test_fixture_git_is_hermetic_against_global_hooks
+run_test "nrs-relink rejects untrusted repo" test_nrs_relink_rejects_untrusted_repo
 run_test "nixos nrs offline force smoke" test_nixos_nrs_offline_force_smoke
 run_test "darwin nrs offline force smoke" test_darwin_nrs_offline_force_smoke
 run_test "darwin nrs no-change releases worktree lock" test_darwin_nrs_no_changes_releases_worktree_lock
