@@ -163,7 +163,8 @@ elif [ -L "$_codex_cfg" ]; then
 elif [ ! -f "$_codex_cfg" ]; then
   fail "$_codex_cfg regular file 아님"
 else
-  _mode="$(stat -f '%Lp' "$_codex_cfg" 2>/dev/null || stat -c '%a' "$_codex_cfg" 2>/dev/null || echo "?")"
+  # stat의 BSD/GNU 포맷 플래그 차이를 회피하기 위해 Python으로 일원화.
+  _mode="$(python3 -c 'import os, stat, sys; print(f"{stat.S_IMODE(os.stat(sys.argv[1]).st_mode):o}")' "$_codex_cfg" 2>/dev/null || echo "?")"
   if [ "$_mode" = "600" ]; then
     pass "$_codex_cfg regular file, mode=0600"
   else
