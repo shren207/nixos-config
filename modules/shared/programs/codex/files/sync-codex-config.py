@@ -203,6 +203,19 @@ def main() -> int:
     # result는 existing의 deep copy에서 시작한다. 즉 "user 소유 섹션은 기본적으로 보존".
     result = copy.deepcopy(existing)
 
+    # Repair non-table roots. TOML은 `projects = 1` 처럼 top-level scalar 선언이
+    # 합법이지만, 이후 codex CLI가 `[projects."..."]`를 append하면 "cannot overwrite
+    # a value" 로 parse 실패한다. 같은 이유로 `mcp_servers = 1` 도 append가 깨진다.
+    # 여기서 table이 아닌 값이 발견되면 stderr 로그 후 제거해서 다음 merge/append가
+    # 정상 table을 볼 수 있게 한다.
+    for _top_key in ("projects", "mcp_servers"):
+        if _top_key in result and not _is_table(result[_top_key]):
+            log(
+                f"existing {_top_key} is not a table "
+                f"({type(result[_top_key]).__name__}); removing to allow append"
+            )
+            del result[_top_key]
+
     # template의 top-level 키를 재귀 merge. projects는 user-owned이므로 skip.
     template_top_keys: list[str] = [k for k in template.keys() if k != "projects"]
     # projects 키는 얕은 사본 내에서만 임시 제거하고 원본 template은 건드리지 않는다.
