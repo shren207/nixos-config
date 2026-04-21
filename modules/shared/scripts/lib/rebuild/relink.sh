@@ -91,5 +91,13 @@ maybe_relink_or_restore() {
                 "$HOME/.local/bin/nrs-relink" restore || log_warn "⚠️  nrs-relink restore failed (non-fatal)"
             fi
         fi
+
+        # Migration window guard: ~/.codex/config.toml은 이제 activation이 regular
+        # file로 관리한다. 이전 symlink 세대에서 업그레이드하는 환경에서는 NO_CHANGES
+        # 경로가 activation을 건너뛰어 자동 self-heal이 안 될 수 있으므로 명시 경고.
+        if [[ -L "$HOME/.codex/config.toml" ]]; then
+            log_warn "⚠️  ~/.codex/config.toml is still a symlink (legacy)."
+            log_warn "    Run \`nrs --force\` once to let syncCodexConfig rewrite it as a regular file."
+        fi
     fi
 }
