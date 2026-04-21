@@ -495,6 +495,43 @@ test_rebuild_common_exports_public_api() {
   assert_contains "$output" "maybe_relink_or_restore"
 }
 
+test_detect_worktree_rejects_fake_checkout() {
+  # fake `.git` 파일로 common-dir/git-dir을 위조해도 메인 레포에 등록된 worktree가
+  # 아니면 FLAKE_PATH가 승격되지 않아야 한다 (nrs build/activation 우회 차단).
+  local sandbox home_dir repo_root fake_dir output
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  repo_root="$sandbox/repo"
+  fake_dir="$sandbox/fake"
+
+  create_git_fixture_repo "$repo_root"
+  repo_root="$(cd "$repo_root" && pwd -P)"
+  install_deployed_layout "$sandbox" "$repo_root"
+
+  # fake `.git` 파일로 common-dir 위조 (등록은 안 됨)
+  mkdir -p "$fake_dir"
+  printf 'gitdir: %s/.git\n' "$repo_root" > "$fake_dir/.git"
+
+  output=$(
+    HOME="$home_dir" \
+    PATH="$FIXTURE_DIR/bin:$PATH" \
+    bash -c '
+      set -euo pipefail
+      cd "'"$fake_dir"'"
+      REBUILD_CMD="nixos-rebuild"
+      source "'"$home_dir/.local/lib/rebuild-common.sh"'"
+      printf "flake=%s\nis_main=%s\n" \
+        "$FLAKE_PATH" \
+        "$(rebuild_is_main_flake && echo true || echo false)"
+    ' 2>&1
+  )
+
+  # FLAKE_PATH는 main(repo_root)으로 유지되어야 하며 fake_dir로 승격되면 안 됨
+  assert_contains "$output" "flake=$repo_root"
+  assert_contains "$output" "is_main=true"
+  assert_not_contains "$output" "flake=$fake_dir"
+}
+
 test_detect_worktree_uses_current_worktree_path() {
   local sandbox home_dir repo_root worktree_root output
   sandbox=$(new_sandbox)
@@ -1396,6 +1433,7 @@ EOF
 run_test "wt help uses deployed helper layout" test_wt_help_from_deployed_layout
 run_test "rebuild-common exports public API" test_rebuild_common_exports_public_api
 run_test "detect_worktree switches to active worktree" test_detect_worktree_uses_current_worktree_path
+run_test "detect_worktree rejects fake checkout" test_detect_worktree_rejects_fake_checkout
 run_test "wt cd returns target path by name" test_wt_cd_by_name_returns_target_path
 run_test "wt ls lists deployed worktrees" test_wt_ls_from_deployed_layout_lists_worktrees
 run_test "shadow paths do not override managed helpers" test_shadow_paths_do_not_override_managed_helpers

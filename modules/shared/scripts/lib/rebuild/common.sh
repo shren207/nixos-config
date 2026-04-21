@@ -20,6 +20,13 @@ detect_worktree() {
     abs_common_dir=$(cd "$git_common_dir" 2>/dev/null && pwd) || return 0
     [[ "$abs_common_dir" != "${FLAKE_PATH}/.git" ]] && return 0
 
+    # 등록된 worktree인지 교차검증 (fake `.git` 파일로 common-dir/git-dir을 위조하는
+    # 우회 차단 — nrs-relink cmd_relink와 동일 패턴). worktree list는 메인 레포에
+    # 실제 등록된 worktree만 출력하므로, 미등록 fake checkout은 FLAKE_PATH로 승격되지
+    # 못한다. 비-worktree 케이스와 동일하게 silent skip하여 main 빌드로 fallback.
+    git -C "$FLAKE_PATH" worktree list --porcelain 2>/dev/null \
+        | grep -qxF "worktree $git_toplevel" || return 0
+
     log_warn "⚠️  Worktree detected: $git_toplevel"
     FLAKE_PATH="$git_toplevel"
 }
