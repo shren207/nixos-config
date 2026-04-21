@@ -12,6 +12,12 @@ description: |
 
 Codex CLI 호환 레이어와 프로젝트 스킬 발견 문제를 다룹니다.
 
+## 작성 기준
+
+- 확인 날짜: **2026-04-21**
+- 확인 버전: **codex-cli 0.122.0**
+- 재검증: `codex --version && ./scripts/ai/verify-ai-compat.sh`
+
 ## 목적과 범위
 
 - `~/.codex/config.toml` 실행 정책(`approval_policy`, `sandbox_mode`) 및 모델 설정
