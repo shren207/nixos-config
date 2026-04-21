@@ -39,6 +39,6 @@ chrome-devtools MCP는 macOS 전용 (NixOS에서는 미구성).
 | 웹 탐색/폼 자동화/스크린샷 | playwright-cli | 토큰 효율 + 크로스 브라우저 + 코드 생성 |
 | 디버깅/성능 분석/Lighthouse | chrome-devtools MCP | Core Web Vitals/Lighthouse/힙 스냅샷 대체 불가 |
 | 기존 Chrome 세션 디버깅 | chrome-devtools MCP | autoConnect로 기존 탭/세션 즉시 접근 |
-| 원격 디버깅 활성 Chrome/Edge 세션 자동화+코드 생성 | playwright-cli | 실행 중인 브라우저에 attach하여 자동화 + TS 코드 생성 (playwright-cli 설치 host 한정, 선행: remote debugging 승인) |
+| 원격 디버깅 활성 Chrome/Edge 세션 자동화+코드 생성 | playwright-cli | 실행 중인 브라우저에 attach하여 자동화 + TS 코드 생성 (playwright-cli 설치 host 한정, 선행: remote debugging 승인, CDP loopback-only, daily-use 프로필에 attach한 상태로 cookie/state export 금지) |
 | 네트워크 인터셉트 | playwright-cli | route/unroute 명령 |
 | 메모리 누수 탐지 | chrome-devtools MCP | 힙 스냅샷 전용 |
