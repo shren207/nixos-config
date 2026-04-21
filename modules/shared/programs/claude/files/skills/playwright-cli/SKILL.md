@@ -289,11 +289,7 @@ If global `playwright-cli` command is not available, try a local version via `np
 npx --no-install playwright-cli --version
 ```
 
-When local version is available, use `npx playwright-cli` in all commands. Otherwise, install `playwright-cli` as a global command:
-
-```bash
-npm install -g @playwright/cli@latest
-```
+When local version is available, use `npx playwright-cli` in all commands. Global installation in this repo is declaration-managed (nix-darwin Homebrew: `brews = [ "playwright-cli" ]` in `modules/darwin/programs/homebrew.nix`).
 
 ## Example: Form submission
 
