@@ -52,9 +52,8 @@ gh pr view --json number -q .number
   1. `trim()` — 양끝 공백 제거.
   2. 소문자 변환.
   3. 양끝의 `.`, `!`, `?`, `~`, 공백을 반복 제거.
-  4. markdown 이미지·링크·span 등 사소한 장식 제거 후에도 단일 토큰만 남는지 확인.
 
-  정규화 결과가 다음 승인 구절 목록과 **정확히 일치**하면 drop. 이 목록 밖의 body는 길이와 무관하게 actionable로 유지한다.
+  정규화 결과가 다음 승인 구절 목록과 **정확히 일치**하면 drop. 이 목록 밖의 body는 길이와 무관하게 actionable로 유지한다. 목록에는 `looks good`, `looks good to me`, `ship it`처럼 공백 포함 multi-word 구절도 들어 있으므로 정규화 단계에서 공백이나 multi-word를 걸러내지 않는다.
 
   ```
   lgtm
