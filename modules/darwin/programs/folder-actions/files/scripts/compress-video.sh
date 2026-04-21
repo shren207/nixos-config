@@ -586,27 +586,45 @@ trap 'on_signal TERM' TERM
 acquire_lock
 preflight_stderr_path "$EXPECTED_STDERR_PATH"
 
-# 감시 폴더 내 비디오 파일 처리
-find "$WATCH_DIR" -type f -maxdepth 1 \( -iname "*.mp4" -o -iname "*.mov" -o -iname "*.avi" -o -iname "*.mkv" -o -iname "*.wmv" \) | while read -r f; do
-    [ -f "$f" ] || continue
+# shellcheck source=/dev/null
+. "$(/usr/bin/dirname "$0")/_folder-actions-lib.sh"
 
-    filename=$(basename "$f")
-    timestamp=$(/bin/date +"%Y%m%dT%H%M%S")
-    output_filename="${timestamp}_${CURRENT_PID}_$RANDOM.mp4"
-    output_path="${DEST_DIR}/${output_filename}"
+# 처리 대상 후보 (필터를 한 곳에만 정의)
+find_candidates() {
+    find "$WATCH_DIR" -maxdepth 1 -type f \
+        \( -iname "*.mp4" -o -iname "*.mov" -o -iname "*.avi" \
+           -o -iname "*.mkv" -o -iname "*.wmv" \)
+}
 
-    log_info "압축 시작: $filename"
+# 처리 후 큐 재스캔: 처리 중 도착한 파일이 다음 외부 이벤트까지
+# 방치되지 않도록 락 보유 상태에서 큐가 빌 때까지 반복.
+while true; do
+    find_candidates | while read -r f; do
+        [ -f "$f" ] || continue
 
-    # H.265 압축 (VideoToolbox 하드웨어 가속, hvc1 태그로 Apple 호환성 확보)
-    if ffmpeg -nostdin -hide_banner -loglevel error -i "$f" \
-        -c:v hevc_videotoolbox -q:v "$VT_QUALITY" -tag:v hvc1 \
-        -c:a eac3 -b:a 224k \
-        -y "$output_path"; then
+        filename=$(basename "$f")
+        timestamp=$(/bin/date +"%Y%m%dT%H%M%S")
+        output_filename="${timestamp}_${CURRENT_PID}_$RANDOM.mp4"
+        output_path="${DEST_DIR}/${output_filename}"
 
-        # 원본 삭제
-        /bin/rm -f "$f"
-        log_info "압축 완료: $filename -> ${output_filename}"
-    else
-        log_error "압축 실패: $filename"
-    fi
+        log_info "압축 시작: $filename"
+
+        # H.265 압축 (VideoToolbox 하드웨어 가속, hvc1 태그로 Apple 호환성 확보)
+        if ffmpeg -nostdin -hide_banner -loglevel error -i "$f" \
+            -c:v hevc_videotoolbox -q:v "$VT_QUALITY" -tag:v hvc1 \
+            -c:a eac3 -b:a 224k \
+            -y "$output_path"; then
+
+            # 원본 삭제
+            /bin/rm -f "$f"
+            log_info "압축 완료: $filename -> ${output_filename}"
+        else
+            log_error "압축 실패: $filename"
+            move_to_failed "$f" || true
+        fi
+    done
+    # find | while 는 subshell이라 변수 전달 불가 → find로 잔여 재확인
+    _remaining=$(find_candidates 2>/dev/null | /usr/bin/wc -l | /usr/bin/tr -d '[:space:]')
+    [ "$_remaining" -eq 0 ] && break
+    log_info "재스캔: ${_remaining}개 파일 남음"
 done

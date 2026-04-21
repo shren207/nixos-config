@@ -28,6 +28,10 @@ in
   "immich-api-key.age".publicKeys = allHosts;
   "pushover-immich.age".publicKeys = allHosts;
 
+  # FolderActions 실패 알림 (compress-video, convert-video-to-gif,
+  # rename-asset, compress-rar 공유)
+  "pushover-folder-actions.age".publicKeys = allHosts;
+
   # Shottr 라이센스 키 (kc-license + kc-vault pre-fill)
   "shottr-license.age".publicKeys = allHosts;
 

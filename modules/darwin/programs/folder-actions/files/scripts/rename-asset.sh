@@ -528,27 +528,43 @@ trap 'on_signal TERM' TERM
 
 acquire_lock
 
-# 카운터 (동시에 여러 파일 처리 시)
+# shellcheck source=/dev/null
+. "$(/usr/bin/dirname "$0")/_folder-actions-lib.sh"
+
+# 처리 대상 후보 (필터를 한 곳에만 정의)
+find_candidates() {
+    find "$WATCH_DIR" -maxdepth 1 -type f ! -name ".*"
+}
+
+# 카운터 (동시에 여러 파일 처리 시; 재스캔 라운드를 가로질러 단조 증가)
 i=1
 
-# 감시 폴더 내 파일 처리
-find "$WATCH_DIR" -type f -maxdepth 1 ! -name ".*" | while read -r f; do
-    [ -f "$f" ] || continue
+# 처리 후 큐 재스캔: 처리 중 도착한 파일이 다음 외부 이벤트까지
+# 방치되지 않도록 락 보유 상태에서 큐가 빌 때까지 반복.
+while true; do
+    find_candidates | while read -r f; do
+        [ -f "$f" ] || continue
 
-    filename=$(basename "$f")
-    ext="${filename##*.}"
-    timestamp=$(/bin/date +"%Y%m%dT%H%M%S%3N")
+        filename=$(basename "$f")
+        ext="${filename##*.}"
+        timestamp=$(/bin/date +"%Y%m%dT%H%M%S%3N")
 
-    # 새 파일명 생성
-    new_filename="${timestamp}_${i}.${ext}"
-    output_path="${DEST_DIR}/${new_filename}"
+        # 새 파일명 생성
+        new_filename="${timestamp}_${i}.${ext}"
+        output_path="${DEST_DIR}/${new_filename}"
 
-    # 파일 이동
-    if /bin/mv -- "$f" "$output_path"; then
-        log_info "이동 완료: $filename -> $new_filename"
-    else
-        log_error "이동 실패: $filename"
-    fi
+        # 파일 이동
+        if /bin/mv -- "$f" "$output_path"; then
+            log_info "이동 완료: $filename -> $new_filename"
+        else
+            log_error "이동 실패: $filename"
+            move_to_failed "$f" || true
+        fi
 
-    ((i++))
+        ((i++))
+    done
+    # find | while 는 subshell이라 변수 전달 불가 → find로 잔여 재확인
+    _remaining=$(find_candidates 2>/dev/null | /usr/bin/wc -l | /usr/bin/tr -d '[:space:]')
+    [ "$_remaining" -eq 0 ] && break
+    log_info "재스캔: ${_remaining}개 파일 남음"
 done
