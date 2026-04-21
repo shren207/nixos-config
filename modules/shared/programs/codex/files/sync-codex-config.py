@@ -186,20 +186,21 @@ def load_optional_toml(path: Path, *, quarantine: bool):
             log(f"existing {path} {reason}; regenerating from template")
         return tomlkit.document()
 
-    # Pre-check: special file (FIFO/socket/block/char device) 은 path.read_bytes() 가
-    # 영구 block 될 수 있으므로 read 전에 quarantine 경로로 보낸다. lstat 은 symlink 를
-    # follow 하지 않으므로, symlink 자체는 S_ISLNK 로 통과시켜 read_bytes 가 referent 를
-    # 정상적으로 처리하게 한다 (referent 가 special 이면 위 ELOOP/EISDIR/EACCES handler 가
-    # 다시 잡는다). lstat-read 사이의 race 는 active swap 시나리오 한정으로 남는다.
+    # Pre-check: symlink 를 follow 한 referent 까지 regular file 인지 확인한다. special
+    # file (FIFO/socket/block/char device) 또는 symlink → special referent 는
+    # path.read_bytes() 가 영구 block 될 수 있으므로 read 전에 quarantine 경로로 보낸다.
+    # path.stat() (= os.stat) 은 symlink 를 따라 referent 의 type 을 본다. follow 가
+    # 실패(ELOOP/EACCES/...) 하면 read_bytes 단계의 OSError handler 에서 다시 처리한다.
+    # lstat 만 쓰면 symlink → FIFO 같은 케이스를 detect 하지 못하므로 stat 을 쓴다.
     try:
-        pre_st = path.lstat()
+        pre_st = path.stat()
     except FileNotFoundError:
         return tomlkit.document()
     except OSError:
         pre_st = None
-    if pre_st is not None and not (stat.S_ISREG(pre_st.st_mode) or stat.S_ISLNK(pre_st.st_mode)):
+    if pre_st is not None and not stat.S_ISREG(pre_st.st_mode):
         kind = oct(stat.S_IFMT(pre_st.st_mode))
-        return _quarantine(f"not a regular file or symlink (st_ifmt={kind})")
+        return _quarantine(f"target is not a regular file (st_ifmt={kind})")
 
     try:
         raw = path.read_bytes()
