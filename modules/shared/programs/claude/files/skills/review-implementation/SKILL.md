@@ -94,7 +94,7 @@ description: |
 
 ### Evidence 라벨
 
-각 finding에는 evidence 수준을 라벨로 표시한다. 라벨 정의 상세는 [체크리스트 라벨 체계](../write-handoff/references/llm-friendly-checklist.md#라벨-체계-anti-hallucination) 참조.
+각 finding에는 evidence 수준을 라벨로 표시한다. 직접 확인된 사실은 라벨 없음. 그 외 라벨 정의(`[UNVERIFIED]`/`[INFERRED]`/`[CONFLICTING]`)는 [체크리스트 라벨 체계](../write-handoff/references/llm-friendly-checklist.md#라벨-체계-anti-hallucination) 참조.
 
 6분류(requirement status 축)와 evidence 라벨은 별개 축이므로 함께 사용한다 — 예: `partial [INFERRED]`.
 
