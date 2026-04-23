@@ -14,7 +14,7 @@
 #
 # 사용법:
 #   ./scripts/fix-fod-hashes.sh          # 독립 실행
-#   nfu가 자동 호출하거나, nix flake update 후 수동 실행
+#   nix flake update 후 수동 실행
 set -euo pipefail
 
 NO_CACHE_CHECK=false

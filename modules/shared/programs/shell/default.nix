@@ -31,12 +31,6 @@ in
     source = "${sharedScriptsDir}/codex-sync.sh";
     executable = true;
   };
-  home.file.".local/bin/nfu" = {
-    source = pkgs.replaceVars "${sharedScriptsDir}/nfu.sh" {
-      flakePath = nixosConfigDefaultPath;
-    };
-    executable = true;
-  };
   home.file.".local/bin/nrs-relink" = {
     source = pkgs.replaceVars "${sharedScriptsDir}/nrs-relink.sh" {
       flakePath = nixosConfigDefaultPath;

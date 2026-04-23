@@ -17,7 +17,7 @@
 #    전환 이유 1: gum의 wide character truncation 버그 — 한글 커밋 메시지가 바이트 경계에서
 #               잘려서 인코딩이 깨짐 (CJK 2-column width 미고려)
 #    전환 이유 2: fzf의 --preview 지원 — 선택 전 worktree 상태(커밋 로그, dirty) 미리보기 가능
-#    전환 이유 3: 사용자가 fzf에 더 익숙하고, 프로젝트 전체가 이미 fzf 기반 (cheat, tmux, nfu)
+#    전환 이유 3: 사용자가 fzf에 더 익숙하고, 프로젝트 전체가 이미 fzf 기반 (cheat, tmux)
 #    trade-off: gum의 대화형 컴포넌트(choose/filter/confirm)를 잃지만,
 #              fzf의 preview + 정확한 유니코드 처리가 실용적으로 더 우수.
 #    보존: gum table/style은 표시 전용(wide char 무관)이므로 wt ls에서 유지.
