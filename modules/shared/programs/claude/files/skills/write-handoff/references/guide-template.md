@@ -230,7 +230,7 @@ EOF
   ```bash
   # 작성자 LLM: 아래 두 placeholder를 write-handoff/SKILL.md Step 1-B helper 출력 (REPO, ISSUE_NUM 순)으로 치환
   # single-quoted literal로 emit하여 $(...), 백틱, $var 해석을 차단한다.
-  # REPO 값에 '(single quote) 또는 \가 포함되면 Step 9(게시)를 중단하고 사용자에게 확답받는다 (Step 1-C).
+  # Shell-안전성/escape 규칙은 write-handoff/SKILL.md Step 1-C(SoT) 참조 — REPO 값의 single quote가 해당.
   # issue/{N} 규약 상세는 write-handoff/SKILL.md의 "Handoff branch convention" 섹션 참조.
   REPO='<REPO_SLUG>'      # 예: acme/project (owner/name)
   ISSUE_NUM='<ISSUE_NUM>' # 예: 123 (이슈 번호; write-handoff의 $ARGUMENTS에서 helper가 파싱)
@@ -249,9 +249,15 @@ EOF
       cd "${REPO##*/}"
     fi
 
-    # issue/{N} graceful fallback. fetch 먼저 실행하여 stale remote-tracking ref 의존 회피.
-    # branch namespace(refs/heads/, refs/remotes/origin/)만 검사하여 tag/기타 ref 오동작 차단.
-    git fetch origin "$TARGET" 2>/dev/null || true
+    # issue/{N} graceful fallback. fetch 성공을 자동 복구의 전제로 강제 (stale remote-tracking/local ref 신뢰 차단).
+    # fetch 실패 시 fail-closed, 성공 시 branch namespace(refs/heads/, refs/remotes/origin/)만 검사하여
+    # tag/기타 ref 오동작 차단.
+    if ! git fetch origin "$TARGET" 2>/dev/null; then
+      echo "→ 'origin/$TARGET' fetch 실패 — 네트워크/인증/repo URL 확인 필요."
+      echo "→ stale remote-tracking/local ref 신뢰를 차단합니다 (silent wrong-branch 방지)."
+      echo "→ 수동으로 네트워크 복구 후 재시도하세요."
+      exit 1
+    fi
     if git show-ref --verify --quiet "refs/remotes/origin/$TARGET"; then
       git checkout "$TARGET"
     elif git show-ref --verify --quiet "refs/heads/$TARGET"; then
@@ -278,8 +284,8 @@ EOF
     해당 시 SKILL.md Step 1-C "값 확보 실패 처리" 순서(helper 재실행 → 런타임 질문 도구)로 실제 값 확보 후 치환.
   - `git rev-parse --show-toplevel`은 repo 밖에서 `fatal: not a git repository`를 반환하므로 `2>/dev/null` + `|| true`로 우회하고 `CURRENT_REPO` 빈 변수 검사로 분기한다.
   - **"어떤 git repo든 toplevel로 이동" 방지**: 사용자가 다른 repo 체크아웃 안에서 이 명령을 실행해도 `CURRENT_REPO ≠ REPO`일 때 clone 경로로 분기하므로 엉뚱한 repo를 재사용하지 않는다.
-  - **실패 경로 격리 (서브쉘 + `set -e`)**: `gh repo clone` 실패, `cd` 실패, `git checkout` 실패, `issue/{N}` ref 부재의 명시적 `exit 1` 모두 서브쉘이 즉시 종료한다. 따라서 `git status`/`git log`가 **엉뚱한 cwd 또는 wrong-branch 상태**에서 실행되는 경로가 원천 차단. 서브쉘 종료 후 `||` 에러 메시지로 사용자에게 명시적 복구 안내.
-  - **stale remote-ref 회피**: `git fetch origin "$TARGET"`를 ref 판정 전에 실행하므로, 기존 clone 재사용 경로에서 `origin/issue/{N}` remote-tracking ref가 stale하더라도 원격 실제 상태를 반영한다 (fetch 실패는 `|| true`로 흡수하여 서술형 branch 케이스로 graceful fallthrough).
+  - **실패 경로 격리 (서브쉘 + `set -e`)**: `gh repo clone` 실패, `cd` 실패, `git fetch` 실패, `git checkout` 실패, `issue/{N}` ref 부재의 명시적 `exit 1` 모두 서브쉘이 즉시 종료한다. 따라서 `git status`/`git log`가 **엉뚱한 cwd 또는 wrong-branch 상태**에서 실행되는 경로가 원천 차단. 서브쉘 종료 후 `||` 에러 메시지로 사용자에게 명시적 복구 안내.
+  - **stale remote-ref 회피 (fail-closed)**: `git fetch origin "$TARGET"`이 **성공해야 자동 복구 진행**한다. fetch 실패(네트워크/인증/repo URL 오류) 시 stale remote-tracking ref와 stale local branch 모두 신뢰하지 않고 exit 1로 종료 (silent wrong-branch resume 방지).
 - **이전 세션 산출물 위치**: <파일 경로 또는 PR/이슈 URL>
 - **재개 지점**: Phase N-M부터
 - **남은 Blockers**: <있으면 명시, 없으면 "없음">
