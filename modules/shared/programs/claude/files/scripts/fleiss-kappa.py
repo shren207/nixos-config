@@ -71,7 +71,7 @@ def parse_verdict_json_blocks(markdown_path: Path) -> dict:
 
 
 def classify_vote_shape(verdicts):
-    """Classify verdicts into vote-shape and stability_status.
+    """Classify verdicts into vote-shape and stability_status (N=3 정책).
 
     Args:
         verdicts: list of verdict strings (each in VERDICT_CATEGORIES)
@@ -81,7 +81,9 @@ def classify_vote_shape(verdicts):
         - 3:0 → stable (majority_verdict is the unanimous verdict)
         - 2:1 → split (majority_verdict is the majority)
         - 1:1:1 → fragmented (majority_verdict is None)
-        Non-N=3 inputs fall through to "unknown".
+        Non-N=3 inputs: `stability_status="unknown"`, `vote_shape`는 관측된 카운트
+        문자열 그대로 반환(예: N=2에서 `"2"` 또는 `"1:1"`, N=4에서 `"4"` 등). v1 정책
+        범위 밖이므로 caller는 `stability_status=="unknown"`으로 판정하면 된다.
     """
     counts = Counter(verdicts)
     sorted_counts = sorted(counts.values(), reverse=True)
@@ -94,6 +96,26 @@ def classify_vote_shape(verdicts):
         return "1:1:1", None, "fragmented"
     # N ≠ 3 이거나 unexpected shape (e.g., N=2, N=4). 정책 범위 밖.
     return ":".join(str(c) for c in sorted_counts), None, "unknown"
+
+
+# Confidence 순서 (HIGH > MEDIUM > LOW > N/A). selective consistency에서 stable unanimous이더라도
+# 어떤 Arbiter 하나라도 LOW를 보고했으면 fail-closed 경로를 유지하기 위해 min_confidence를 전파한다.
+_CONFIDENCE_RANK = {"HIGH": 3, "MEDIUM": 2, "LOW": 1, "N/A": 0}
+
+
+def min_confidence(confidences):
+    """Return the lowest confidence level among entries, or 'N/A' if empty.
+
+    HIGH > MEDIUM > LOW > N/A. 'N/A'는 판정 불가이므로 실질 최하로 간주하지 않고 별도 표시.
+    """
+    ranked = [c for c in confidences if c in _CONFIDENCE_RANK]
+    if not ranked:
+        return "N/A"
+    # N/A를 제외한 실제 confidence 값 중 최소. 모두 N/A이면 N/A.
+    real = [c for c in ranked if c != "N/A"]
+    if not real:
+        return "N/A"
+    return min(real, key=lambda c: _CONFIDENCE_RANK[c])
 
 
 def fleiss_kappa(findings):
@@ -200,12 +222,16 @@ def main():
     missing = {}
     for fid in sorted(all_finding_ids):
         verdicts = []
+        confidences = []
+        entries_for_finding = []
         missing_indices = []
         for i, entries in enumerate(arbiter_entries):
             entry = entries.get(fid)
             v = entry.get("verdict") if entry else None
             if v in VERDICT_CATEGORIES:
                 verdicts.append(v)
+                confidences.append(entry.get("confidence", "N/A"))
+                entries_for_finding.append(entry)
             else:
                 missing_indices.append(i)
         if missing_indices:
@@ -218,12 +244,25 @@ def main():
             }
             continue
         shape, majority, status = classify_vote_shape(verdicts)
+        lowest_confidence = min_confidence(confidences)
+        # stable + unanimous verdict이라도 Arbiter 중 하나가 LOW confidence면 fail-closed 승격 필요.
+        # protocol.md "Arbiter 출력 요건"에 따라 caller는 low_confidence_warning=true를
+        # stable 상태에서도 NEEDS_MORE_INFO 경로로 취급한다.
+        low_confidence_warning = lowest_confidence == "LOW"
         per_finding.append(
             {
                 "finding_id": fid,
+                # Aggregate envelope: 원본 VERDICT_JSON entries를 그대로 보존하여
+                # caller가 axes/schema_version 등을 재접근할 수 있도록 한다.
+                "entries": entries_for_finding,
+                # 편의 필드 (entries에서 파생):
                 "verdicts": verdicts,
+                "confidences": confidences,
+                # 집계 결과:
                 "vote_shape": shape,
                 "majority_verdict": majority,
+                "min_confidence": lowest_confidence,
+                "low_confidence_warning": low_confidence_warning,
                 "stability_status": status,
             }
         )

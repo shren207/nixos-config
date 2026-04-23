@@ -51,11 +51,12 @@ first-pass Arbiter 결과가 trigger 조건에 매치되면 동일 입력으로 
 
 상태 전이:
 
-| stability_status | majority verdict | 메인 에이전트 행동 |
-|------------------|------------------|-------------------|
-| `stable` (3:0) | unanimous verdict | 기존 경로 (CONFIRMED→수정, NOT_AN_ISSUE→무해, NEEDS_MORE_INFO→AskUser) |
-| `split` (2:1) | majority verdict (정보 표시) | NEEDS_MORE_INFO 경로로 사용자 판단 요청. vote-shape와 minority verdict도 함께 보고. |
-| `fragmented` (1:1:1) | — | **BLOCKED**. AskUser 지원 런타임: 사용자에게 판단 요청 (비유법 설명 포함). AskUser 미지원 런타임: 자동 승격 금지, 중단 보고 후 명시적 rerun 전에는 재개하지 않음. |
+| stability_status | majority verdict | low_confidence_warning | 메인 에이전트 행동 |
+|------------------|------------------|------------------------|-------------------|
+| `stable` (3:0) | unanimous verdict | `false` | 기존 경로 (CONFIRMED→수정, NOT_AN_ISSUE→무해, NEEDS_MORE_INFO→AskUser) |
+| `stable` (3:0) | unanimous verdict | `true` | **fail-closed 승격**: NEEDS_MORE_INFO 경로로 사용자 판단 요청. unanimous이어도 어떤 Arbiter가 LOW confidence를 보고했으면 기존 "LOW confidence NOT_AN_ISSUE 자동 NEEDS_MORE_INFO 승격" 계약을 유지한다. fleiss-kappa.py 출력의 `low_confidence_warning`/`min_confidence` 필드로 전달된다. |
+| `split` (2:1) | majority verdict (정보 표시) | any | NEEDS_MORE_INFO 경로로 사용자 판단 요청. vote-shape와 minority verdict도 함께 보고. |
+| `fragmented` (1:1:1) | — | any | **BLOCKED**. AskUser 지원 런타임: 사용자에게 판단 요청 (비유법 설명 포함). AskUser 미지원 런타임: 자동 승격 금지, 중단 보고 후 명시적 rerun 전에는 재개하지 않음. |
 
 **AskUser 미지원 런타임 주의**: 기존 "NEEDS_MORE_INFO 자동 CONFIRMED_ISSUE 승격" 규칙은 first-pass single Arbiter 판정에만 적용된다. selective consistency에서 나온 `split`/`fragmented`는 이 자동 승격 경로를 **따르지 않는다** — fragmented는 BLOCKED, split는 명시적 rerun 대기. 상세는 [`arbiter-scaling.md`](arbiter-scaling.md)의 "AskUserQuestion 미지원 대응" 섹션 참조.
 

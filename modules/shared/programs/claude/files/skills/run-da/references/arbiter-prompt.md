@@ -243,7 +243,9 @@ for_plan(계획 리뷰)에서는 다음과 같이 해석한다:
 
 사람 읽기용 블록 바로 아래에 fenced JSON을 추가한다. 파서는 **이 블록만** 참조하므로 사람용 wording 변경에 영향받지 않는다. `<!-- verdict-json:start -->`와 `<!-- verdict-json:end -->` delimiter로 감싼다.
 
-```text
+예시 블록은 outer fence 4 backticks로 감싸고 inner JSON fence는 3 backticks로 내부에 둔다 (CommonMark/GitHub fenced-code 중첩 호환):
+
+````text
 <!-- verdict-json:start -->
 ```json
 {
@@ -258,14 +260,16 @@ for_plan(계획 리뷰)에서는 다음과 같이 해석한다:
 }
 ```
 <!-- verdict-json:end -->
-```
+````
+
+실제 Arbiter 출력 시에는 inner JSON 블록 하나만 3-backtick fence로 내보내면 된다 (outer text fence는 이 문서의 예시용 wrapping이다).
 
 필드 의미:
 - `schema_version`: VERDICT_JSON 스키마 버전. additive 필드 추가는 기존 버전 내 호환, breaking 변경 시 major 증가. 현재 `1.0`.
 - `finding_id`: DA reviewer finding의 원본 ID (예: `Correctness-1`, `SECURITY-2`).
 - `verdict`: core verdict enum. 5번째 축 Portability로 verdict를 뒤집지 않는다.
-- `confidence`: NOT_AN_ISSUE/CONFIRMED_ISSUE 시 Arbiter의 판정 신뢰도.
-- `stability_status`: first-pass Arbiter는 기본 `N/A`. selective consistency N=3 재판정 후 fleiss-kappa.py가 vote-shape 집계 결과를 여기에 기록한다. 자세한 상태 전이는 [references/stability-measurement.md](stability-measurement.md)와 [references/protocol.md](protocol.md) 참조.
+- `confidence`: NOT_AN_ISSUE/CONFIRMED_ISSUE 시 Arbiter의 판정 신뢰도. `fleiss-kappa.py`는 이 필드를 selective consistency 결과에 보존하여 low-confidence unanimous verdict의 fail-closed 승격을 유지한다.
+- `stability_status`: **개별 Arbiter 자체는 항상 `N/A`로 내보낸다.** first-pass/단일 판정은 agreement 정보 없이 독립 판단이므로 이 필드를 채울 수 없다. selective consistency N=3 재판정 이후, `fleiss-kappa.py`가 3개 entry를 집계하여 **별도 aggregate envelope**의 `stability_status` 필드(`stable`/`split`/`fragmented`)로 산출한다. 즉 이 필드는 개별 VERDICT_JSON에는 `N/A`로 두고, 실제 값은 aggregate 출력에서 확인한다. 자세한 상태 전이는 [references/stability-measurement.md](stability-measurement.md)와 [references/protocol.md](protocol.md) 참조.
 - `axes`: Portability 같은 guardrail 축의 tri-state 평가 결과를 담는 맵. 현재는 `portability` 하나. 축 추가 시 이 맵에 새 키가 더해진다. 값은 사람용 블록의 "기준 평가" 줄과 일치해야 한다.
 
 ## 프롬프트 조립

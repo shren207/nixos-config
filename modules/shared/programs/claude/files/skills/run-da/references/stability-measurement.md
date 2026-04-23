@@ -69,14 +69,14 @@ Fleiss 1971의 chance-corrected agreement 지표. N명의 판정자가 범주형
   - `0.2 ≤ κ < 0.4` fair
   - `κ < 0.2` slight/poor
 
-### Offline threshold 참고값 (단일 진실 원천)
+### Offline threshold 참고값 (문서-코드 수동 동기화 계약)
 
 배포 후 관찰 목적으로 참고할 threshold. 실시간 분기에는 사용하지 않는다. 다른 문서가 숫자를 재서술하지 말고 여기를 링크한다.
 
 - `STABLE_MIN = 0.6`: substantial 이상 agreement. 이 이상이면 Arbiter 판정이 안정적이라고 간주.
 - `ESCALATE_MIN = 0.4`: moderate 이하 agreement. 이 미만이면 Arbiter rubric/프롬프트 재검토가 필요하다는 신호.
 
-`fleiss-kappa.py` 상수와 동기화된다. 값 조정 시 이 문서와 스크립트 상수를 함께 수정한다.
+**중요**: 이 문서는 다른 **문서**에 대해서는 single source이지만, 런타임은 `fleiss-kappa.py` 상단 상수(`STABLE_MIN`, `ESCALATE_MIN`)를 실제로 사용한다. 따라서 문서와 스크립트 사이에는 **기계적 동기화 장치 없는 manual sync contract**다. 값 조정 시 이 문서와 `modules/shared/programs/claude/files/scripts/fleiss-kappa.py`의 상수를 반드시 함께 수정한다. 향후 attrset/JSON에서 생성하는 기계 SSOT는 Phase 2 확장으로 검토.
 
 ## 독립 판정 설계 원칙
 
