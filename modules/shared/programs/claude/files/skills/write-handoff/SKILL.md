@@ -39,8 +39,9 @@ helper 스크립트는 양 런타임에서 동일 source를 공유한다 (Home M
 NSS 블록이 재개 시 자동 `git switch`할 작업 branch 규약. 이 섹션이 **단일 진실 원천**이며 `references/guide-template.md`와 `references/llm-friendly-checklist.md`는 이 섹션을 참조한다.
 
 - **규약**: `issue/{N}`. N은 GitHub 이슈 번호.
-- **근거**: nixos-config 최근 merged PR의 dominant convention.
+- **근거**: 이 스킬이 프로비저닝되는 환경(nixos-config)의 dominant convention.
 - **기본값이며 강제 규약이 아니다**. 서술형 branch(`feat/*`, `fix/*`, `refactor/*` 등)도 여전히 유효한 선택.
+- **Shared skill에 repo convention을 박은 이유 (수용된 trade-off)**: `write-handoff`는 `modules/shared/` 경로로 프로비저닝되지만 실질적 소비자는 이 프로젝트 단일 repo이고, `issue/{N}`이 merged PR의 지배적 convention이다. convention을 별도 override 레이어로 분리하면 caller가 항상 값을 전달해야 하는 간접층이 생기고, 단일 repo 환경에서는 그 추상화가 소비 없이 비용만 발생한다. 다른 규약을 쓰는 repo에서 이 스킬을 소비할 필요가 생기면 그 시점에 configuration 인터페이스를 도입한다 (NGMI 지적은 기각 — YAGNI 우선).
 - **NSS 동작**:
   1. `git ls-remote --exit-code --heads origin "issue/{N}"`로 remote 존재 판정 (exit 0=present, 2=absent, 기타=transport error → fail-closed).
   2. present 이면 `git fetch origin "refs/heads/issue/{N}:refs/remotes/origin/issue/{N}"`로 explicit refspec fetch하여 remote-tracking ref를 materialize한다 (`git fetch origin "issue/{N}"` 성공만으로 존재 증거로 취급하지 않는다).
