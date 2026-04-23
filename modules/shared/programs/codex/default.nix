@@ -84,7 +84,7 @@ in
     ".codex/scripts/write-handoff-repo-slug.sh".source =
       config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/scripts/write-handoff-repo-slug.sh";
 
-    # run-da Arbiter selective consistency harness (#522). run-da 스킬이 Codex에도 노출되므로
+    # run-da Arbiter selective consistency harness. run-da 스킬이 Codex에도 노출되므로
     # Claude와 동일 source를 Codex scope에도 미러링하여 `~/.codex/scripts/fleiss-kappa.py`를
     # 런타임에서 사용 가능하게 한다.
     ".codex/scripts/fleiss-kappa.py".source =

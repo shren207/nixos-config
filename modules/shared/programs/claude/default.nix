@@ -251,7 +251,7 @@ in
     ".claude/scripts/generate-report.py".source =
       config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/scripts/generate-report.py";
 
-    # run-da Arbiter selective consistency harness (#522). stability-measurement.md 정책을 따라
+    # run-da Arbiter selective consistency harness. stability-measurement.md 정책을 따라
     # N개 Arbiter VERDICT_JSON 블록으로부터 vote-shape와 (옵션) offline Fleiss kappa를 계산.
     ".claude/scripts/fleiss-kappa.py".source =
       config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/scripts/fleiss-kappa.py";
