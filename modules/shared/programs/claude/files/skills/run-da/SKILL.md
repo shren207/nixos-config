@@ -260,7 +260,10 @@ Round N 요약 (LITE: 선택 M개/전체 4개 reviewer bundles): DA 발견 X건
 → Arbiter: CONFIRMED Y건, NOT_AN_ISSUE Z건, NEEDS_MORE_INFO W건
 bundle별: Correctness CLEAR, Regression 2건(CONFIRMED 1, NOT_AN_ISSUE 1), ...
 미실행: Design(NOT_RUN), ...
+selective: trigger P건 → stable Q건, split R건, fragmented S건, partial_failure T건  ← selective consistency 발동 라운드에만 추가
 ```
+
+selective consistency가 발동하지 않은 라운드는 마지막 줄을 생략한다. stability_status 집계 규칙은 [references/protocol.md](references/protocol.md)의 "라운드 요약 기록" 참조.
 
 ## 절차
 
@@ -299,9 +302,9 @@ bundle별: Correctness CLEAR, Regression 2건(CONFIRMED 1, NOT_AN_ISSUE 1), ...
      상세 조립 형식은 arbiter-prompt.md의 "프롬프트 조립 > for_plan 모드" 참조.
      - Codex 세션 경로: fresh Arbiter subagent 1개를 실행하고 `wait_agent`로 결과를 수신한 뒤, 다음 round/retry 전에 completed Arbiter thread를 `close_agent`로 닫는다.
      - codex exec 경로: **foreground** Bash tool 호출로 `codex exec`를 실행한다 ([arbiter-scaling.md](references/arbiter-scaling.md) 실행 계약 참조). 단일 exec이므로 `run_in_background` 사용 안 함.
-   - 5b. **Selective consistency trigger 검사**: first-pass 결과의 VERDICT_JSON 블록을 읽어 [stability-measurement.md](references/stability-measurement.md)의 OR 3조건(LOW confidence / NEEDS_MORE_INFO / 이전 outer round 반복)에 매치되는 finding을 식별한다.
+   - 5b. **Selective consistency trigger 검사**: first-pass 결과의 VERDICT_JSON 블록을 읽어 [stability-measurement.md](references/stability-measurement.md)의 trigger 조건에 매치되는 finding을 식별한다 (조건 정의는 해당 문서가 SSOT).
    - 5c. **N=3 재판정** (trigger 매치 finding에 한해): 동일 Arbiter 프롬프트로 독립 N=3을 실행한다. 실행 계약과 환경 격리는 [arbiter-scaling.md](references/arbiter-scaling.md)의 "N=3 실행 계약" 섹션 참조. selective consistency 서브런은 outer round 카운트에 포함되지 않는다.
-   - 5d. **vote-shape 집계**: `~/.claude/scripts/fleiss-kappa.py`로 3개 결과 markdown의 VERDICT_JSON 블록을 파싱하여 finding별 stability_status(stable/split/fragmented)를 얻는다.
+   - 5d. **vote-shape 집계**: 세션 scope에 맞는 harness(`~/.claude/scripts/fleiss-kappa.py` 또는 `~/.codex/scripts/fleiss-kappa.py` — 양쪽에 동일 소스가 프로비저닝된다)로 3개 결과 markdown의 VERDICT_JSON 블록을 파싱하여 finding별 stability_status(stable/split/fragmented)를 얻는다.
    - 5e. **상태 전이 적용** — 상세 전이표는 [protocol.md](references/protocol.md)의 "Selective consistency 상태 전이" 참조. trigger되지 않은 finding은 stability_status=`N/A`로 first-pass 결과 그대로 사용.
    - 결과를 수집하여 사용자에게 전건 보고한다 (vote-shape가 있으면 함께 보고):
      - CONFIRMED_ISSUE + CRITICAL + (N/A 또는 stable): **진행 차단** (현재 라운드 중단 → 즉시 수정 → 수정 확인 후 다음 라운드 진행).
@@ -349,9 +352,9 @@ bundle별: Correctness CLEAR, Regression 2건(CONFIRMED 1, NOT_AN_ISSUE 1), ...
    - 5a. **first-pass Arbiter**: Arbiter 프롬프트를 조립한다 ([arbiter-prompt.md](references/arbiter-prompt.md) 참조).
      - Codex 세션 경로: fresh Arbiter subagent 1개를 실행하고 `wait_agent`로 결과를 수신한 뒤, 다음 round/retry 전에 completed Arbiter thread를 `close_agent`로 닫는다.
      - codex exec 경로: **foreground** Bash tool 호출로 `codex exec`를 실행한다 ([arbiter-scaling.md](references/arbiter-scaling.md) 실행 계약 참조). 단일 exec이므로 `run_in_background` 사용 안 함.
-   - 5b. **Selective consistency trigger 검사**: first-pass 결과의 VERDICT_JSON 블록을 읽어 [stability-measurement.md](references/stability-measurement.md)의 OR 3조건(LOW confidence / NEEDS_MORE_INFO / 이전 outer round 반복)에 매치되는 finding을 식별한다.
+   - 5b. **Selective consistency trigger 검사**: first-pass 결과의 VERDICT_JSON 블록을 읽어 [stability-measurement.md](references/stability-measurement.md)의 trigger 조건에 매치되는 finding을 식별한다 (조건 정의는 해당 문서가 SSOT).
    - 5c. **N=3 재판정** (trigger 매치 finding에 한해): 동일 Arbiter 프롬프트로 독립 N=3을 실행한다. 실행 계약과 환경 격리는 [arbiter-scaling.md](references/arbiter-scaling.md)의 "N=3 실행 계약" 섹션 참조. selective consistency 서브런은 outer round 카운트에 포함되지 않는다.
-   - 5d. **vote-shape 집계**: `~/.claude/scripts/fleiss-kappa.py`로 3개 결과 markdown의 VERDICT_JSON 블록을 파싱하여 finding별 stability_status(stable/split/fragmented)를 얻는다.
+   - 5d. **vote-shape 집계**: 세션 scope에 맞는 harness(`~/.claude/scripts/fleiss-kappa.py` 또는 `~/.codex/scripts/fleiss-kappa.py` — 양쪽에 동일 소스가 프로비저닝된다)로 3개 결과 markdown의 VERDICT_JSON 블록을 파싱하여 finding별 stability_status(stable/split/fragmented)를 얻는다.
    - 5e. **상태 전이 적용** — 상세 전이표는 [protocol.md](references/protocol.md)의 "Selective consistency 상태 전이" 참조. trigger되지 않은 finding은 stability_status=`N/A`로 first-pass 결과 그대로 사용.
    - 결과를 수집하여 사용자에게 전건 보고한다 (vote-shape가 있으면 함께 보고):
      - CONFIRMED_ISSUE + CRITICAL + (N/A 또는 stable): **진행 차단** (현재 라운드 중단 → 즉시 수정 → 수정 확인 후 다음 라운드 진행).
@@ -408,9 +411,9 @@ bundle별: Correctness CLEAR, Regression 2건(CONFIRMED 1, NOT_AN_ISSUE 1), ...
   high-severity findings, user decision required findings만 전달한다.
   raw transcript 전체, CLEAR 결과, 중복 low-signal finding의 all-to-all broadcast는 금지한다.
   `full` modifier는 propagation이 아니라 fan-out만 확장한다.
-- **Selective consistency on ambiguous findings**: first-pass Arbiter 결과가 애매한 경우
-  (LOW confidence / NEEDS_MORE_INFO / 이전 outer round 반복)에만 N=3 재판정을 실행한다.
-  명확한 finding은 first-pass single Arbiter로 종료한다. 정책은 [references/stability-measurement.md](references/stability-measurement.md),
+- **Selective consistency on ambiguous findings**: first-pass Arbiter 결과가 애매한 경우에만
+  N=3 재판정을 실행한다. 명확한 finding은 first-pass single Arbiter로 종료한다. 정책(trigger/vote-shape/threshold)은
+  [references/stability-measurement.md](references/stability-measurement.md)가 SSOT,
   상태 전이는 [references/protocol.md](references/protocol.md), 실행 계약은 [references/arbiter-scaling.md](references/arbiter-scaling.md) 참조.
 - **프롬프트 조향 금지**: 후속 라운드 DA/Arbiter 프롬프트에 이전 라운드의 판정 결과를 포함하지 않는다.
   이전 라운드 결과를 "이미 해결된 사안"으로 프레이밍하는 것도 금지한다.

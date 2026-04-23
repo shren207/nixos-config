@@ -32,10 +32,12 @@ v1은 selective propagation으로 추린 escalated findings를 단일 Arbiter에
 
 위 "예외적 확장 조건"이 정성적/사후적 근거 기반 확장이라면, **selective consistency는 first-pass Arbiter 결과에서 애매성이 감지되자마자 구조화된 방식으로 N=3 재판정을 발동**하는 경로다. 이 경로와 예외적 확장은 상호 보완이며, 대부분의 실무 케이스는 selective consistency가 처리한다.
 
-- 트리거 조건 (OR 3조건): first-pass Arbiter 결과가 (a) confidence=LOW, (b) verdict=NEEDS_MORE_INFO, (c) 이전 outer round에서 동일 finding 반복 중 하나에 해당.
+정책 정의(트리거 조건, vote-shape, threshold 상수)는 [`stability-measurement.md`](stability-measurement.md)가 단일 진실 원천이다. 이 문서는 실행 계약만 다루며 정책 원자를 재서술하지 않는다.
+
 - 실행 단위: N=3 독립 Arbiter (fresh subagent 또는 fresh `codex exec` 프로세스).
-- 집계: `~/.claude/scripts/fleiss-kappa.py`로 VERDICT_JSON 블록을 파싱하여 vote-shape(3:0/2:1/1:1:1)와 stability_status(stable/split/fragmented) 결정.
-- 단일 소스: 정책(트리거, vote-shape, threshold 상수) 정의는 [`stability-measurement.md`](stability-measurement.md), 상태 전이는 [`protocol.md`](protocol.md), 실행 계약은 아래 "Selective consistency N=3 실행 계약" 섹션.
+- 집계: 세션 scope에 맞는 `fleiss-kappa.py` helper(Claude: `~/.claude/scripts/fleiss-kappa.py`, Codex: `~/.codex/scripts/fleiss-kappa.py` — 양쪽에 동일 소스가 프로비저닝된다)로 VERDICT_JSON 블록을 파싱.
+- 상태 전이는 [`protocol.md`](protocol.md)의 "Selective consistency 상태 전이" 섹션.
+- N=3 실행 세부는 아래 "Selective consistency N=3 실행 계약" 섹션.
 
 ## 실행 계약 (런타임 분기)
 
@@ -125,24 +127,35 @@ fi
 
 ## Selective consistency N=3 실행 계약
 
-selective consistency trigger([stability-measurement.md](stability-measurement.md) OR 3조건)에 매치된 finding에 대해 N=3 독립 Arbiter를 실행한다. 각 런타임별 실행 규약은 다음과 같다.
+selective consistency trigger([stability-measurement.md](stability-measurement.md)의 trigger 조건)에 매치된 finding에 대해 N=3 독립 Arbiter를 실행한다. 각 런타임별 실행 규약은 다음과 같다.
 
 ### Codex 세션 경로 (N=3)
 
 1. 동일 Arbiter 프롬프트로 **3개의 fresh subagent**를 strong review profile로 `spawn_agent` 실행한다. 프롬프트는 first-pass와 동일하다(독립 판정 원칙; 이전 판정 transcript 공유 금지).
 2. 현재 session의 open-thread slot이 `agents.max_threads`(unset 기본 6)을 넘으면 batch한다. 3개 발사 전에 first-pass Arbiter의 completed thread를 `close_agent`로 닫아 슬롯을 확보한다.
 3. `wait_agent`로 3개 결과를 모두 수신한 뒤 `close_agent`로 닫는다. timeout만으로 failure 처리하거나 self-auditing으로 대체하지 않는다(conservative wait).
-4. 3개 결과 markdown을 각각 파일로 저장(`/tmp/da-${_DA_SID}-arbiter-selective-*/arbiter-{1,2,3}.md`) 후 `~/.claude/scripts/fleiss-kappa.py`로 집계한다.
+4. 3개 결과 markdown을 각각 파일로 저장(`/tmp/da-${_DA_SID}-arbiter-selective-*/arbiter-{1,2,3}.md`) 후 세션 scope의 `fleiss-kappa.py`(Claude: `~/.claude/scripts/`, Codex: `~/.codex/scripts/`)로 집계한다.
 
 ### codex exec 경로 (Claude Code 세션 · headless 세션, N=3)
 
 1. 동일 Arbiter 프롬프트 파일을 3번 실행하기 위해 **3개의 background `codex exec` 프로세스**를 띄운다. reviewer fan-out과 달리 Arbiter N=3 자체는 **모두 같은 프롬프트**다(프롬프트 조향 금지, 독립 판정 원칙).
-2. **환경 격리** — first-pass Arbiter는 기존 규칙(xhigh, `~/.codex/config.toml` 기본값)을 따르지만, **selective consistency N=3**은 추가 격리를 수행한다:
-   - `CODEX_HOME=$(mktemp -d /tmp/codex-home-${_DA_SID}-selective-XXXXXX)`로 사용자 홈과 격리된 scratch 설정 디렉토리 생성 → `~/.codex/sessions` 권한 문제 회피.
-   - 최소 `$CODEX_HOME/config.toml`을 작성한다. 가능하면 기본 설정을 복사하되 `[[mcp_servers]]` 섹션을 제거하거나 `--ignore-user-config`(지원되는 codex-cli 버전) 플래그를 사용해 MCP auto-connect로 인한 외부 네트워크 표면 확대를 차단한다.
+2. **환경 격리** — first-pass Arbiter는 기존 규칙(xhigh, `~/.codex/config.toml` 기본값)을 따르지만, **selective consistency N=3**은 외부 표면과 충돌을 줄이기 위해 다음 두 방식 중 하나를 선택한다:
+
+   **(a) 기본 경로 + config 차단** (권장, 간단):
+   - `CODEX_HOME`을 그대로 두어 기본 auth chain(`auth.json` 등)을 유지한다.
+   - codex exec 호출에 `--ignore-user-config`를 추가하여 사용자 `config.toml`(MCP 서버 포함) 로딩을 차단한다. `using-codex-exec/SKILL.md:113`에 기록된 대로 이 플래그는 **config만 차단하고 auth는 유지**한다.
+   - 부작용: `~/.codex/sessions` 기반 세션이 생성되므로 동시 N=3 실행 시 세션 파일 경합이 발생할 수 있다. `--ephemeral`로 session 저장 자체를 회피한다.
+
+   **(b) scratch CODEX_HOME + auth 복사** (세션 충돌 완전 분리가 필요할 때):
+   - `CODEX_HOME=$(mktemp -d /tmp/codex-home-${_DA_SID}-selective-XXXXXX)`로 사용자 홈과 격리된 scratch 설정 디렉토리 생성.
+   - **auth 자격을 함께 전달한다**. 세 가지 방식 중 하나:
+     - 환경변수 `CODEX_API_KEY`가 이미 설정되어 있으면 그것이 사용됨 (auth chain 우선순위 `CODEX_API_KEY > ephemeral tokens > auth.json`, `using-codex-exec/SKILL.md:214` 참조). 이 경우 추가 조치 불필요.
+     - 그렇지 않으면 `cp ~/.codex/auth.json "$CODEX_HOME/"`로 기존 auth.json을 scratch로 복사.
+     - 둘 다 불가능하면 scratch CODEX_HOME에서 `codex login status`가 `Not logged in`으로 실패하므로 방식 (a)로 돌아간다.
+   - 최소 `$CODEX_HOME/config.toml`을 작성하되 `[mcp_servers.<name>]` 테이블(실제 Codex TOML 스키마, `modules/shared/programs/codex/files/config.darwin.toml:34` 참조)을 **포함하지 않는다**. 또는 TOML 파서로 기존 config를 복사한 뒤 `mcp_servers` 테이블 전체를 삭제한다. (참고: `[[mcp_servers]]` array-of-table 문법은 현재 Codex가 사용하지 않으므로 혼동 방지를 위해 `[mcp_servers.*]` 정확 표기를 사용한다.)
    - 모델/효과 옵션은 명시적으로 지정한다(`-c model_reasoning_effort="xhigh"` 또는 호출 시점 기본값).
 3. `run_in_background: true`로 3개를 병렬 발사 후 완료 알림을 기다린다. sleep/poll 금지. 결과 파일 경로는 `/tmp/da-${_DA_SID}-arbiter-selective-<round>/arbiter-{1,2,3}-result.md`로 라운드별 분리.
-4. 수집 후 `~/.claude/scripts/fleiss-kappa.py arbiter-1-result.md arbiter-2-result.md arbiter-3-result.md`로 vote-shape를 얻는다. `--offline` 플래그는 배포 후 kappa 관찰 목적일 때만 부가한다.
+4. 수집 후 세션 scope의 `fleiss-kappa.py`(Claude: `~/.claude/scripts/fleiss-kappa.py`, Codex: `~/.codex/scripts/fleiss-kappa.py`)에 `arbiter-1-result.md arbiter-2-result.md arbiter-3-result.md`를 인자로 전달하여 vote-shape를 얻는다. `--offline` 플래그는 배포 후 kappa 관찰 목적일 때만 부가한다.
 
 ## 실패 처리
 

@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
-"""Run-DA Arbiter selective consistency harness.
+"""Run-DA Arbiter selective consistency harness (N=3 policy + optional offline Fleiss kappa).
 
-v1: Compute vote-shape (3:0/2:1/1:1:1) and stability_status from N Arbiter result
-markdown files. Each file must contain VERDICT_JSON blocks with per-finding verdicts
+v1 정책: selective consistency가 발동한 finding에 대해 **N=3 독립 Arbiter** 결과를 받아
+vote-shape(3:0 / 2:1 / 1:1:1)와 stability_status(stable / split / fragmented)를 계산한다.
+입력 파일이 정확히 3개가 아니면 vote-shape는 "unknown"으로 분류되어 v1 정책 범위 밖이다.
+
+Each file must contain VERDICT_JSON blocks (schema_version=1.0) with per-finding verdicts
 as defined in arbiter-prompt.md "출력 형식" section.
 
 With --offline flag, also compute corpus-level Fleiss' kappa across findings
 (Fleiss 1971, chance-corrected agreement among N raters on categorical verdicts).
+Kappa는 **배포 후 장기 관찰 지표**이며 v1 실시간 분기에는 사용하지 않는다.
+corpus 전용이므로 2개 이상의 finding이 있어야 정의된다.
 
-Threshold policy single source: stability-measurement.md.
+Threshold policy SSOT: stability-measurement.md (STABLE_MIN / ESCALATE_MIN).
 
 Usage:
     fleiss-kappa.py <arbiter1.md> <arbiter2.md> <arbiter3.md> [--offline]
@@ -164,16 +169,17 @@ def interpret_kappa(kappa):
 def main():
     parser = argparse.ArgumentParser(
         description=(
-            "Run-DA Arbiter selective consistency harness. "
-            "Aggregates vote-shape across N Arbiter result markdown files; "
-            "optionally computes offline Fleiss kappa for corpus-level observation."
+            "Run-DA Arbiter selective consistency harness (N=3 vote-shape policy). "
+            "v1에서는 정확히 3개 Arbiter 결과 markdown에서 vote-shape를 계산한다 "
+            "(3 아닌 입력은 'unknown'으로 분류). "
+            "--offline 플래그로 corpus-level Fleiss kappa를 장기 관찰 목적으로 추가 계산."
         ),
     )
     parser.add_argument(
         "arbiter_files",
         nargs="+",
         type=Path,
-        help="N Arbiter result markdown files containing VERDICT_JSON blocks",
+        help="Arbiter result markdown files containing VERDICT_JSON blocks (v1 vote-shape는 N=3 정책)",
     )
     parser.add_argument(
         "--offline",
