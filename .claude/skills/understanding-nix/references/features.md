@@ -357,6 +357,7 @@ NixOS는 alias 기반이라 `nrh`/`nrh-all` 두 명령으로 구분합니다.
 ```bash
 # 1. 집에서 flake update 후 push
 nix flake update
+./scripts/fix-fod-hashes.sh  # FOD hash mismatch 자동 보정 (현재 호스트 한정)
 nrs
 git add flake.lock && git commit -m "update flake.lock" && git push
 

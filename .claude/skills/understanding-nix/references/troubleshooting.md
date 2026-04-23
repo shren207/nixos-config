@@ -188,6 +188,7 @@ echo 'access-tokens = github.com=ghp_YOUR_TOKEN' >> ~/.config/nix/nix.conf
 ```bash
 # 1. 한 호스트에서 flake update 후 push
 nix flake update
+./scripts/fix-fod-hashes.sh  # FOD hash mismatch 자동 보정 (현재 호스트 한정)
 nrs  # 또는 sudo darwin-rebuild switch --flake .
 git add flake.lock && git commit -m "update" && git push
 
