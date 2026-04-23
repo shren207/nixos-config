@@ -32,6 +32,8 @@ Phase 기반 이행 가이드를 작성하고, 이슈 코멘트로 게시한다.
 본문의 "질문 도구"는 위 표의 런타임별 질문 도구를 가리킨다.
 helper 스크립트는 양 런타임에서 동일 source를 공유한다 (Home Manager로 각 경로에 프로비저닝).
 
+**프로비저닝 전제**: 위 helper 경로는 `nrs` (`nixos-rebuild`/`darwin-rebuild` 래퍼)로 Home Manager symlink가 생성된 후에만 유효하다. repo 코드를 `git pull`했지만 `nrs`를 아직 실행하지 않은 환경에서는 새 helper 경로가 존재하지 않을 수 있다. 그 경우 (1) `nrs` 실행 후 재시도하거나, (2) legacy 경로 `~/.{claude,codex}/scripts/write-handoff-repo-slug.sh`(이미 프로비저닝된 shim이 자기완결 fallback 포함)를 임시 호출한다. legacy 경로는 slug 1-line만 반환하므로 ISSUE_NUM은 별도 파싱 필요.
+
 ## Next Session Starter Contract
 
 NSS 블록이 재개 시 복구할 실제 작업 target 계약. 이 섹션이 **단일 진실 원천**이며 `references/guide-template.md`와 `references/llm-friendly-checklist.md`는 이 섹션을 참조한다.

@@ -272,7 +272,11 @@ EOF
     fi
 
     if [ "$REMOTE_STATE" = "present" ] && [ "$LOCAL_EXISTS" -eq 0 ]; then
-      git switch --track "origin/$TARGET_BRANCH"
+      # single-branch clone(fetch config가 main만 tracking)에서는 `git switch
+      # --track origin/$TARGET_BRANCH`가 "not a branch" 로 실패한다. explicit refs/
+      # 경로를 기반점으로 하여 local branch를 생성하면 tracking 없이도 checkout
+      # 가능. set-upstream-to는 아래 clean+behind 분기에서 best-effort로 시도한다.
+      git switch -c "$TARGET_BRANCH" "refs/remotes/origin/$TARGET_BRANCH"
     elif [ "$LOCAL_EXISTS" -eq 1 ]; then
       git switch "$TARGET_BRANCH"
 
@@ -289,8 +293,11 @@ EOF
           echo "→ local/origin divergence 계산 실패. 수동으로 확인하세요."
           exit 1
         }
-        AHEAD="${COUNTS%% *}"
-        BEHIND="${COUNTS##* }"
+        # git rev-list --left-right --count 출력은 tab-separated이므로
+        # ${COUNTS%% *}(공백 기준) 대신 IFS default(space/tab/newline)로 field split한다.
+        read -r AHEAD BEHIND <<<"$COUNTS"
+        case "$AHEAD" in *[!0-9]*|'') echo "→ AHEAD parse 실패: [$COUNTS]"; exit 1 ;; esac
+        case "$BEHIND" in *[!0-9]*|'') echo "→ BEHIND parse 실패: [$COUNTS]"; exit 1 ;; esac
 
         if [ "$AHEAD" -gt 0 ] && [ "$BEHIND" -gt 0 ]; then
           echo "→ local '$TARGET_BRANCH'와 origin/$TARGET_BRANCH 가 diverged 상태입니다."
