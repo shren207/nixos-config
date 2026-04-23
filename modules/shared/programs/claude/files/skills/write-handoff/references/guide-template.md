@@ -325,7 +325,7 @@ EOF
 
     git status
     git log --oneline -3
-  ) || { echo "ERROR: handoff restore failed. REPO=$REPO ISSUE_NUM=$ISSUE_NUM TARGET_BRANCH=$TARGET_BRANCH"; echo "수동으로 repo/branch 상태를 확인한 뒤 재시도하세요."; }
+  ) || { echo "ERROR: handoff restore failed. REPO=$REPO ISSUE_NUM=$ISSUE_NUM TARGET_BRANCH=$TARGET_BRANCH"; echo "수동으로 repo/branch 상태를 확인한 뒤 재시도하세요."; false; }
   ```
   - **REPO/ISSUE_NUM은 `write-handoff/SKILL.md` Step 1-B helper 출력, TARGET_BRANCH는 Step 1-C에서 확정한 실제 branch로 치환**한다. helper 경로는 `~/.claude/scripts/write-handoff-repo-and-issue.sh` 또는 `~/.codex/scripts/write-handoff-repo-and-issue.sh`다. 작성자 LLM은 placeholder(`<REPO_SLUG>`, `<ISSUE_NUM>`, `<TARGET_BRANCH>`)를 그대로 두지 않는다.
   - **복구 계약은 SoT를 그대로 따른다**: `TARGET_BRANCH`를 `ISSUE_NUM`에서 재구성하지 않고, remote 존재는 `ls-remote` + explicit refspec fetch로 검증하며, 기존 local branch는 fast-forward 가능할 때만 동기화한다. `git fetch origin "$TARGET_BRANCH"`나 `git switch -C`로 대체하지 않는다.
