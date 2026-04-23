@@ -366,6 +366,8 @@ git pull
 nrs --offline  # 네트워크 요청 없이 빠르게 빌드
 ```
 
+> **주의**: macOS/NixOS를 모두 쓰는 경우, 1번 단계의 `git push` 전에 **다른 플랫폼 머신에서도 `./scripts/fix-fod-hashes.sh`를 실행**해 FOD hash를 전부 보정해야 한다. 한쪽 플랫폼만 보정된 lock을 push하면 2번 단계의 rebuild가 실패한다.
+
 ## 병렬 다운로드 최적화
 
 패키지 다운로드 속도를 높이기 위한 설정입니다.

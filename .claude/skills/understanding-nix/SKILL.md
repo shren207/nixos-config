@@ -67,6 +67,8 @@ nix derivation show .#darwinConfigurations.<host>.system  # derivation 확인
 3. `./scripts/fix-fod-hashes.sh` — input 갱신으로 FOD hash가 변한 경우 자동 보정. 현재 호스트만 검증하므로 다른 플랫폼은 해당 머신에서 재실행.
 4. `nrs` 또는 `nrs --offline`으로 빌드.
 
+> **주의**: macOS/NixOS를 모두 쓰는 경우 **push 전에 각 플랫폼에서 `./scripts/fix-fod-hashes.sh`를 실행**해야 한다. 한쪽만 보정된 `flake.lock`을 push하면 다른 머신의 rebuild가 실패한다.
+
 ### 빌드 실패 진단
 
 1. `--show-trace`로 에러 원인 모듈을 좁힌다.

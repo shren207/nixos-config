@@ -197,6 +197,8 @@ git pull
 nrs --offline  # ~10초 완료!
 ```
 
+> **주의**: macOS/NixOS를 모두 쓰는 경우, 1번 단계의 `git push` 전에 **다른 플랫폼 머신에서도 `./scripts/fix-fod-hashes.sh`를 실행**해 FOD hash를 전부 보정해야 한다. 한쪽 플랫폼만 보정된 lock을 push하면 2번 단계의 `nrs --offline`이 실패한다.
+
 > **참고**: `nrs`, `nrp` 명령은 `~/.local/bin/`에 설치되며, `--offline` 플래그로 오프라인 모드를 사용합니다.
 
 ---
