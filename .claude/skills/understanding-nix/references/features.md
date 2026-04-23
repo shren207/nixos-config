@@ -359,14 +359,14 @@ NixOS는 alias 기반이라 `nrh`/`nrh-all` 두 명령으로 구분합니다.
 nix flake update
 ./scripts/fix-fod-hashes.sh  # FOD hash mismatch 자동 보정 (현재 호스트 한정)
 nrs
-git add flake.lock && git commit -m "update flake.lock" && git push
+git add -u && git commit -m "update flake inputs" && git push
 
 # 2. 회사에서 pull 후 빠른 rebuild
 git pull
 nrs --offline  # 네트워크 요청 없이 빠르게 빌드
 ```
 
-> **주의**: macOS/NixOS를 모두 쓰는 경우, 1번 단계의 `git push` 전에 **다른 플랫폼 머신에서도 `./scripts/fix-fod-hashes.sh`를 실행**해 FOD hash를 전부 보정해야 한다. 한쪽 플랫폼만 보정된 lock을 push하면 2번 단계의 rebuild가 실패한다.
+> **주의**: `./scripts/fix-fod-hashes.sh`는 **현재 호스트의 단일 flake attr**만 검증하고 `.nix` 파일의 hash를 직접 수정한다. hostname이 다른 머신(macOS/NixOS 포함)에서도 각각 실행한 뒤 `git add -u`로 함께 커밋해 push하라. 누락 시 해당 머신의 rebuild가 실패한다.
 
 ## 병렬 다운로드 최적화
 

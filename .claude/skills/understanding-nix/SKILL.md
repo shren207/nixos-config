@@ -64,10 +64,10 @@ nix derivation show .#darwinConfigurations.<host>.system  # derivation 확인
 
 1. `git add .` — Nix flakes는 git-tracked 파일만 인식한다.
 2. `nix flake update <input-name>` — 외부 input 갱신이 필요한 경우.
-3. `./scripts/fix-fod-hashes.sh` — input 갱신으로 FOD hash가 변한 경우 자동 보정. 현재 호스트만 검증하므로 다른 플랫폼은 해당 머신에서 재실행.
+3. `./scripts/fix-fod-hashes.sh` — FOD hash가 변한 경우 자동 보정 (현재 호스트 한정).
 4. `nrs` 또는 `nrs --offline`으로 빌드.
 
-> **주의**: macOS/NixOS를 모두 쓰는 경우 **push 전에 각 플랫폼에서 `./scripts/fix-fod-hashes.sh`를 실행**해야 한다. 한쪽만 보정된 `flake.lock`을 push하면 다른 머신의 rebuild가 실패한다.
+> **주의**: `./scripts/fix-fod-hashes.sh`는 **현재 호스트의 단일 flake attr**만 검증하고 `.nix` 파일의 hash를 직접 수정한다. hostname이 다른 머신(macOS/NixOS 포함)에서도 각각 실행한 뒤 `git add -u`로 함께 커밋해 push하라. 누락 시 해당 머신의 rebuild가 실패한다.
 
 ### 빌드 실패 진단
 
