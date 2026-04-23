@@ -35,7 +35,7 @@
 
   ❌ **BAD**: `cd /Users/alice/projects/myrepo && git fetch origin feat/foo` _(why: 작성자의 로컬 사용자 경로가 공개 이슈 코멘트에 노출 — 다른 세션/머신에서 재사용 불가, NSS 재개 지점 목적 저해)_
 
-  ✅ **GOOD**: `REPO='acme/project'` — Step 8 Self-verification으로 `<REPO_SLUG>` placeholder 치환 완료 검증 후 `guide-template.md`의 NSS 패턴(서브쉘 + `set -e` + clone-or-reuse 분기) 사용. `REPO=`는 single-quoted literal로 emit하여 shell injection을 차단한다. 작업 branch는 NSS 상단 `<WORKING_BRANCH>` 후보 주석(선택)으로만 표시하고 실행 시점에 사용자가 결정.
+  ✅ **GOOD**: `REPO='acme/project'` — Step 8 Self-verification으로 `<REPO_SLUG>` placeholder 치환 완료 검증 후 `guide-template.md`의 NSS 패턴(서브쉘 + `set -e` + clone-or-reuse 분기) 사용. `REPO=`는 single-quoted literal로 emit하여 shell injection을 차단한다. 작업 branch는 NSS 상단 `<WORKING_BRANCH>` 후보 bullet(선택, 코드블록 밖 메타데이터)으로만 표시하고 실행 시점에 사용자가 결정.
 
 ### E. Anti-hallucination (Evidence-gated)
 

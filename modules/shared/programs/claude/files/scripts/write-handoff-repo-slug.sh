@@ -10,7 +10,7 @@
 #   1. 이슈 인자($1)가 있으면 `gh issue view --json url`로 owner/name 파싱
 #      → 실패 시 빈 줄 반환 (cwd fallback 하지 않음 — wrong-repo slug 방지, #486 H2)
 #   2. 이슈 인자가 없으면 cwd repo 의 `gh repo view --json nameWithOwner` 사용
-#   3. 최종 실패 시 빈 줄 반환 (SKILL.md Step 1-D 실패 처리가 사용자 확답 요구)
+#   3. 최종 실패 시 빈 줄 반환 (SKILL.md Step 1-C 실패 처리가 사용자 확답 요구)
 #
 # exit code 는 언제나 0 이다 — 호출 LLM이 결과 문자열로 성공/실패를 판단한다.
 

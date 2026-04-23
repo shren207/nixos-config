@@ -226,13 +226,12 @@ EOF
 ````markdown
 ## Next Session Starter
 
-- **이 가이드 읽고 바로 시작할 명령어** (복붙 즉시 실행 가능. 임의 cwd에서 실행해도 대상 repo로 복귀 + 실패 시 즉시 중단. 작업 branch는 후보 주석을 참고하여 사용자가 실행 시점에 checkout):
+- **최근 작업 branch 후보 (참고용)**: `<WORKING_BRANCH>` — 실행 경로에 영향을 주지 않는 메타데이터. 실행자는 이 후보를 참고만 하고 실제 checkout은 실행 시점에 사용자 지시로 결정한다. 작성자 LLM이 확보 불가하면 이 bullet 자체를 삭제한다 (bash 코드블록 밖에 있으므로 여기에 개행/escape가 들어가도 실행 경로에 영향이 없지만, 문서 가독성을 위해 유효한 git ref 형태만 넣는다).
+- **이 가이드 읽고 바로 시작할 명령어** (복붙 즉시 실행 가능. 임의 cwd에서 실행해도 대상 repo로 복귀 + 실패 시 즉시 중단):
   ```bash
   # 작성자 LLM: <REPO_SLUG>을 write-handoff/SKILL.md Step 1-B(helper)에서 확보한 값으로 치환
   # single-quoted literal로 emit하여 $(...), 백틱, $var 해석을 차단한다.
   # 값에 '(single quote)가 포함되면 Step 9(게시)를 중단하고 사용자에게 확답받는다 (Step 1-C).
-  # 최근 작업 branch 후보 (참고용, 비실행형): <WORKING_BRANCH>
-  # 실행자는 이 후보를 참고만 하고, 실제 checkout은 실행 시점에 사용자 지시로 결정한다.
   REPO='<REPO_SLUG>'      # 예: acme/project (owner/name)
 
   # 서브쉘 + set -e: 중간 명령 실패 시 즉시 중단하여 엉뚱한 cwd의 follow-up 명령 실행 방지
@@ -252,9 +251,9 @@ EOF
   ) || { echo "ERROR: handoff restore failed. REPO=$REPO"; echo "수동으로 repo 확보 후 재시도하세요."; }
   ```
   - **REPO는 `write-handoff/SKILL.md` Step 1-B에서 확보한 값으로 치환**한다. 확보 경로: repo slug는 `~/.claude/scripts/write-handoff-repo-slug.sh` 또는 `~/.codex/scripts/write-handoff-repo-slug.sh` 헬퍼를 LLM이 직접 호출(이슈 인자가 있으면 URL 파싱, 실패 시 빈 줄 반환 = fail-closed. 이슈 인자가 없을 때만 cwd `gh repo view --json nameWithOwner` fallback). 작성자 LLM은 placeholder(`<REPO_SLUG>`)를 그대로 두지 않고 확보된 값으로 치환한다. 특정 repo slug(`greenheadHQ/nixos-config` 등)을 예시로 하드코딩하지 않는다 — 다른 repo handoff에서 엉뚱한 clone을 유발한다.
-  - **`<WORKING_BRANCH>` 후보 주석은 선택적**이다. 작성자 LLM이 이슈 컨텍스트 또는 대화 컨텍스트에서 확인 가능한 branch(기존 handoff 코멘트, 사용자 명시)를 리터럴로 치환한다. 확보 불가 시 해당 두 주석 라인 자체를 삭제하고 placeholder를 남기지 않는다. 실행자는 이 후보를 참고만 하고 실제 checkout은 실행 시점에 사용자 지시로 결정하므로, 추정 실패가 실행 경로를 깨뜨리지 않는다.
+  - **`<WORKING_BRANCH>` 후보 bullet은 선택적**이다. 작성자 LLM이 이슈 컨텍스트 또는 대화 컨텍스트에서 확인 가능한 branch(기존 handoff 코멘트, 사용자 명시)를 리터럴로 치환한다. 확보 불가 시 해당 bullet 자체를 삭제하고 placeholder를 남기지 않는다. 이 bullet은 bash 코드블록 밖에 있어 실행 경로에 영향을 주지 않으며, 실행자는 후보를 참고만 하고 실제 checkout은 실행 시점에 사용자 지시로 결정한다.
   - **게시 전 placeholder 검증 필수**: Step 8 Self-verification 5번 항목에서 다음 중 하나라도 남아 있으면 게시 금지.
-    - `<...>` 형태 placeholder (`<REPO_SLUG>`, `<unknown-*>` 등). `<WORKING_BRANCH>`는 미확보 시 주석 라인 자체를 삭제한다.
+    - `<...>` 형태 placeholder (`<REPO_SLUG>`, `<unknown-*>` 등). `<WORKING_BRANCH>`는 미확보 시 bullet 자체를 삭제한다.
     - 빈 문자열
     - 이 template의 예시 repo slug(`greenheadHQ/nixos-config` 등) 리터럴이 실제 handoff 대상 repo와 다름에도 남아 있는 경우
     해당 시 SKILL.md Step 1-C "값 확보 실패 처리" 순서(helper 재실행 → 런타임 질문 도구)로 실제 값 확보 후 치환.
