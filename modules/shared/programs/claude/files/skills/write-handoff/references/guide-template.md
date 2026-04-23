@@ -247,9 +247,10 @@ EOF
       cd "${REPO##*/}"
     fi
     git status
-    git log --oneline -3
     echo "→ 현재 branch: $(git branch --show-current)"
-    echo "→ 실행자 규약: NSS 상단에 '최근 작업 branch 후보' bullet이 있으면 대조하여 필요 시 'git checkout <branch>'로 이동. bullet이 없으면 이슈 본문/기존 코멘트나 사용자 지시에서 의도된 branch를 확인한 뒤 checkout. 현재 branch에서 이어갈 경우 의도된 branch인지 스스로 확인."
+    echo "→ (현재 branch 기준 최근 커밋 3개)"
+    git log --oneline -3
+    echo "→ 실행자 규약: NSS 상단에 '최근 작업 branch 후보' bullet이 있으면 대조하여 필요 시 'git checkout <branch>'로 이동. bullet이 없으면 사용자 지시로 작업 branch를 결정한다 (이슈 본문/기존 handoff 코멘트는 stale 위험이 구조적이므로 branch 결정 근거로 사용하지 않는다). checkout 후 'git log --oneline -3'를 다시 확인하여 의도된 맥락인지 검증."
   ) || { echo "ERROR: handoff restore failed. REPO=$REPO"; echo "수동으로 repo 확보 후 재시도하세요."; }
   ```
   - **REPO는 `write-handoff/SKILL.md` Step 1-B에서 확보한 값으로 치환**한다. 확보 경로: repo slug는 `~/.claude/scripts/write-handoff-repo-slug.sh` 또는 `~/.codex/scripts/write-handoff-repo-slug.sh` 헬퍼를 LLM이 직접 호출(이슈 인자가 있으면 URL 파싱, 실패 시 빈 줄 반환 = fail-closed. 이슈 인자가 없을 때만 cwd `gh repo view --json nameWithOwner` fallback). 작성자 LLM은 placeholder(`<REPO_SLUG>`)를 그대로 두지 않고 확보된 값으로 치환한다. 특정 repo slug(`greenheadHQ/nixos-config` 등)을 예시로 하드코딩하지 않는다 — 다른 repo handoff에서 엉뚱한 clone을 유발한다.
