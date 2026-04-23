@@ -190,14 +190,14 @@ echo 'access-tokens = github.com=ghp_YOUR_TOKEN' >> ~/.config/nix/nix.conf
 nix flake update
 ./scripts/fix-fod-hashes.sh  # FOD hash mismatch 자동 보정 (현재 호스트 한정)
 nrs  # 또는 sudo darwin-rebuild switch --flake .
-git add -u && git commit -m "update" && git push
+git add -u && git commit -m "update flake inputs" && git push
 
 # 2. 다른 호스트에서 pull 후 offline rebuild
 git pull
 nrs --offline  # ~10초 완료!
 ```
 
-> **주의**: `./scripts/fix-fod-hashes.sh`는 **현재 호스트의 단일 flake attr**만 검증하고 `.nix` 파일의 hash를 직접 수정한다. hostname이 다른 머신(macOS/NixOS 포함)에서도 각각 실행한 뒤 `git add -u`로 함께 커밋해 push하라. 누락 시 해당 머신의 rebuild가 실패한다.
+> **주의**: `./scripts/fix-fod-hashes.sh`는 **현재 호스트의 단일 flake attr**만 검증하고 `.nix` 파일의 hash를 직접 수정한다. hostname이 다른 머신(macOS/NixOS 포함)에서도 각각 실행한 뒤 **clean working tree에서** `git add -u`로 함께 커밋해 push하라. 누락 시 해당 머신의 rebuild가 실패한다.
 
 > **참고**: `nrs`, `nrp` 명령은 `~/.local/bin/`에 설치되며, `--offline` 플래그로 오프라인 모드를 사용합니다.
 

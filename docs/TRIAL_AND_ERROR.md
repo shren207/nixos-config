@@ -509,7 +509,7 @@ nix flake update <input-name>              # Nix 2.19+
 nrs                                        # 시스템 적용
 ```
 
-> **주의**: `./scripts/fix-fod-hashes.sh`는 **현재 호스트의 단일 flake attr**만 검증하고 `.nix` 파일의 hash를 직접 수정한다. hostname이 다른 머신(macOS/NixOS 포함)에서도 각각 실행한 뒤 `git add -u`로 함께 커밋해 push하라. 누락 시 해당 머신의 rebuild가 실패한다.
+> **주의**: `./scripts/fix-fod-hashes.sh`는 **현재 호스트의 단일 flake attr**만 검증하고 `.nix` 파일의 hash를 직접 수정한다. hostname이 다른 머신(macOS/NixOS 포함)에서도 각각 실행한 뒤 **clean working tree에서** `git add -u`로 함께 커밋해 push하라. 누락 시 해당 머신의 rebuild가 실패한다.
 
 **input 제거 (flake.nix에서 삭제 후):**
 
