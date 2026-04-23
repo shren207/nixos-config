@@ -226,7 +226,7 @@ EOF
 ````markdown
 ## Next Session Starter
 
-- **최근 작업 branch 후보 (참고용)**: `<WORKING_BRANCH>` — 실행 경로에 영향을 주지 않는 메타데이터. 실행자는 이 후보를 참고만 하고 실제 checkout은 실행 시점에 사용자 지시로 결정한다. 작성자 LLM이 확보 불가하면 이 bullet 자체를 삭제한다 (bash 코드블록 밖에 있으므로 여기에 개행/escape가 들어가도 실행 경로에 영향이 없지만, 문서 가독성을 위해 유효한 git ref 형태만 넣는다).
+- **최근 작업 branch 후보 (참고용)**: `'<WORKING_BRANCH>'` — 실행 경로에 영향을 주지 않는 메타데이터. 실행자는 이 후보를 참고만 하고 실제 checkout은 실행 시점에 사용자 지시로 결정한다. 작성자 LLM이 확보 불가하면 이 bullet 자체를 삭제한다 (bash 코드블록 밖에 있으므로 여기에 개행/escape가 들어가도 실행 경로에 영향이 없지만, 실행자 수동 checkout 시 shell injection을 차단하기 위해 **single-quoted 형태로 표기**하고 실행자는 `git checkout '<branch-name>'` 형태로 붙여 넣는다).
 - **이 가이드 읽고 바로 시작할 명령어** (복붙 즉시 실행 가능. 임의 cwd에서 실행해도 대상 repo로 복귀 + 실패 시 즉시 중단):
   ```bash
   # 작성자 LLM: <REPO_SLUG>을 write-handoff/SKILL.md Step 1-B(helper)에서 확보한 값으로 치환
@@ -250,16 +250,14 @@ EOF
     echo "→ 현재 branch: $(git branch --show-current)"
     echo "→ (현재 branch 기준 최근 커밋 3개)"
     git log --oneline -3
-    echo "→ 실행자 규약: NSS 상단에 '최근 작업 branch 후보' bullet이 있으면 대조하여 필요 시 'git checkout <branch>'로 이동. bullet이 없으면 사용자 지시로 작업 branch를 결정한다 (이슈 본문/기존 handoff 코멘트는 stale 위험이 구조적이므로 branch 결정 근거로 사용하지 않는다). checkout 후 'git log --oneline -3'를 다시 확인하여 의도된 맥락인지 검증."
+    echo "→ 실행자 규약: NSS 상단에 '최근 작업 branch 후보' bullet이 있으면 대조하여 필요 시 \"git checkout '<branch-name>'\"로 이동 (single-quoted literal로 shell injection 차단). bullet이 없으면 사용자 지시로 작업 branch를 결정한다 (이슈 본문/기존 handoff 코멘트는 stale 위험이 구조적이므로 branch 결정 근거로 사용하지 않는다). checkout 후 'git log --oneline -3'를 다시 확인하여 의도된 맥락인지 검증."
   ) || { echo "ERROR: handoff restore failed. REPO=$REPO"; echo "수동으로 repo 확보 후 재시도하세요."; }
   ```
   - **REPO는 `write-handoff/SKILL.md` Step 1-B에서 확보한 값으로 치환**한다. 확보 경로: repo slug는 `~/.claude/scripts/write-handoff-repo-slug.sh` 또는 `~/.codex/scripts/write-handoff-repo-slug.sh` 헬퍼를 LLM이 직접 호출(이슈 인자가 있으면 URL 파싱, 실패 시 빈 줄 반환 = fail-closed. 이슈 인자가 없을 때만 cwd `gh repo view --json nameWithOwner` fallback). 작성자 LLM은 placeholder(`<REPO_SLUG>`)를 그대로 두지 않고 확보된 값으로 치환한다. 특정 repo slug(`greenheadHQ/nixos-config` 등)을 예시로 하드코딩하지 않는다 — 다른 repo handoff에서 엉뚱한 clone을 유발한다.
   - **`<WORKING_BRANCH>` 후보 bullet은 선택적**이다. 작성자 LLM이 **현재 대화 세션에서 사용자가 명시적으로 제공한 branch**만 리터럴로 치환한다. 이슈 본문의 초기 "작업 branch" 기술이나 **기존 handoff 코멘트**는 stale 위험이 구조적이므로 출처로 허용하지 않는다 (handoff 작성 시점 추정을 제거한 취지와 동일). 확보 불가 시 해당 bullet 자체를 삭제하고 placeholder를 남기지 않는다. 이 bullet은 bash 코드블록 밖에 있어 실행 경로에 영향을 주지 않으며, 실행자는 후보를 참고만 하고 실제 checkout은 실행 시점에 사용자 지시로 결정한다.
-  - **게시 전 placeholder 검증 필수**: Step 8 Self-verification 5번 항목에서 다음 중 하나라도 남아 있으면 게시 금지.
-    - `<...>` 형태 placeholder (`<REPO_SLUG>`, `<unknown-*>` 등). `<WORKING_BRANCH>`는 미확보 시 bullet 자체를 삭제한다.
-    - 빈 문자열
-    - 이 template의 예시 repo slug(`greenheadHQ/nixos-config` 등) 리터럴이 실제 handoff 대상 repo와 다름에도 남아 있는 경우
-    해당 시 SKILL.md Step 1-C "값 확보 실패 처리" 순서(helper 재실행 → 런타임 질문 도구)로 실제 값 확보 후 치환.
+  - **게시 전 placeholder 검증 필수**: Step 8 Self-verification 5번 항목에서 required/optional 구분 적용.
+    - **Required** (치환 실패 시 게시 금지): `<REPO_SLUG>`, `<unknown-*>` 등 `<...>` 형태 placeholder. 빈 문자열. 이 template의 예시 repo slug(`greenheadHQ/nixos-config` 등) 리터럴이 실제 handoff 대상 repo와 다름에도 남아 있는 경우. 해당 시 SKILL.md Step 1-C "값 확보 실패 처리" 순서로 치환.
+    - **Optional** (치환 실패 시 bullet 삭제): `<WORKING_BRANCH>`. 미확보 시 bullet 자체를 삭제하고 placeholder를 남기지 않는다.
   - `git rev-parse --show-toplevel`은 repo 밖에서 `fatal: not a git repository`를 반환하므로 `2>/dev/null` + `|| true`로 우회하고 `CURRENT_REPO` 빈 변수 검사로 분기한다.
   - **"어떤 git repo든 toplevel로 이동" 방지**: 사용자가 다른 repo 체크아웃 안에서 이 명령을 실행해도 `CURRENT_REPO ≠ REPO`일 때 clone 경로로 분기하므로 엉뚱한 repo를 재사용하지 않는다.
   - **실패 경로 격리 (서브쉘 + `set -e`)**: `gh repo clone` 실패, `cd` 실패 등 어떤 중간 명령이 실패해도 서브쉘이 즉시 exit 1로 종료한다. 따라서 후속 명령이 **엉뚱한 cwd**(예: clone 실패 후 이전 디렉토리)에서 실행되는 경로가 원천 차단. 서브쉘 종료 후 `||` 에러 메시지로 사용자에게 명시적 복구 안내.
