@@ -2,11 +2,15 @@
 name: plan-with-questions
 argument-hint: "[for_action|for_issue] [issue-ref | task description]"
 description: |
-  Structured planning with requirements clarification via iterative Q&A.
-  Two modes: for_action (issue ref → plan), for_issue (idea → issue creation).
-  Trigger: '계획 수립', '계획 세우기', 'plan', '스무고개', '요구사항 파악', '불명확점 질문',
-  '파악하자', '접근', '같이 정리', '논의', '어떻게 할지', '이슈 분석'.
-  NOT for DA (use run-da). NOT for PR 본문 (use create-pr).
+  Use this skill when a user wants to figure out WHAT to build or HOW to approach work through iterative Q&A — NOT when a spec/PRD already exists that just needs translating to tasks.
+
+  Two modes auto-detect:
+  - **for_action**: User references an issue (URL, `#123`, `DEV-123`, Linear/Jira key) or says "착수/작업 시작/이슈 분석/질문 정리" → resolve issue, explore code, ask questions, produce approved execution plan.
+  - **for_issue**: Vague feature wish or problem without an issue ref — "...하고 싶어", "...기능 추가", "...했으면 좋겠어", raw brainstorming → probe with questions, then file a GitHub issue.
+
+  Also triggers: "계획 세워/수립", "plan", "스무고개", "요구사항 파악", "어떻게 할지", "brainstorming → plan 전환", "불명확점 정리".
+
+  Do NOT use when: spec/PRD already exists (use prd), checking implementation against existing PRD/spec (use review-implementation), user wants bare implementation plan without discovery, filing issues without Q&A (create-issue), DA review (run-da), or PR bodies (create-pr).
 ---
 
 # 스무고개식 계획 수립

@@ -1,0 +1,19 @@
+[
+  {"query": "LLM 이행 가이드 작성해줘", "should_trigger": true, "why": "명시적: 핵심 트리거 키워드"},
+  {"query": "이행 가이드 작성", "should_trigger": true, "why": "명시적: 핵심 트리거 키워드"},
+  {"query": "인수인계 작성해줘", "should_trigger": true, "why": "명시적: 핵심 트리거 키워드"},
+  {"query": "세션 인수인계", "should_trigger": true, "why": "명시적: 핵심 트리거 키워드"},
+  {"query": "write-handoff #252", "should_trigger": true, "why": "명시적: 스킬 이름 + 이슈 번호"},
+  {"query": "handoff 써줘", "should_trigger": true, "why": "명시적: handoff 키워드"},
+  {"query": "이 이슈 다른 LLM이 처음부터 할 수 있게 정리해줘", "should_trigger": true, "why": "경계선: LLM 이행 의도"},
+  {"query": "Phase 기반 이행 가이드 작성", "should_trigger": true, "why": "경계선: 스킬 산출물 형식"},
+  {"query": "이슈 등록해줘", "should_trigger": false, "why": "혼동 쌍: create-issue"},
+  {"query": "PR 만들어줘", "should_trigger": false, "why": "혼동 쌍: create-pr"},
+  {"query": "PR 본문 업데이트", "should_trigger": false, "why": "혼동 쌍: create-pr"},
+  {"query": "계획 수립해줘", "should_trigger": false, "why": "혼동 쌍: plan-with-questions"},
+  {"query": "스무고개로 요구사항 정리", "should_trigger": false, "why": "혼동 쌍: plan-with-questions"},
+  {"query": "PRD 작성해줘", "should_trigger": false, "why": "혼동 쌍: prd"},
+  {"query": "DA 피드백 돌려줘", "should_trigger": false, "why": "혼동 쌍: run-da"},
+  {"query": "PR 코멘트 반영", "should_trigger": false, "why": "혼동 쌍: review-pr-feedback"},
+  {"query": "CIR 기록해줘", "should_trigger": false, "why": "혼동 쌍: documenting-intent"}
+]

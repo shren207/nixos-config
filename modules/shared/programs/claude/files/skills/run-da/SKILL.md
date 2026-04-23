@@ -2,9 +2,11 @@
 name: run-da
 argument-hint: "[for_plan|for_pr|both] [full] [fresh]"
 description: |
-  Run Devil's Advocate review on plans or code. Args: for_plan, for_pr, both. Modifier: full, fresh.
-  Trigger: 'DA', 'DA 피드백', '피드백 루프', 'YAGNI 리뷰', '코드 리뷰 루프', 'run-da'.
-  NOT for PR 코멘트 (use review-pr-feedback). NOT for 전수조사 (use parallel-audit).
+  Use this skill whenever the user wants a rigorous, adversarial review of a plan or code change — including any mention of "DA", "Devil's Advocate", 피드백 루프, 설계 검토, 코드 품질/리뷰, YAGNI/NGMI/HALLUCINATION/SECURITY/SIDE_EFFECT/CONSISTENCY/READABILITY/CLEAN_CODE 관점 점검, or requests framed as "이 계획/PR 엄격히 봐줘", "이거 괜찮을까 검증". Args: `for_plan`, `for_pr`, `both`. Modifiers: `full` (exhaustive 8-domain override), `fresh` (no prior-round context).
+
+  **Also invoke this skill when the user asks whether DA is needed or proposes skipping DA for "simple" changes** (e.g. "간단하니까 DA 생략하자", "오타 수정인데 DA 필요해?"). The skill's independent intensity agent decides SKIP/LITE/FULL — the main LLM must not rationalize skipping on its own.
+
+  NOT for applying existing PR comments/CodeRabbit feedback (use review-pr-feedback). NOT for exhaustive side-effect/regression sweeps via many parallel auditors (use parallel-audit).
 ---
 
 # Devil's Advocate 피드백 루프

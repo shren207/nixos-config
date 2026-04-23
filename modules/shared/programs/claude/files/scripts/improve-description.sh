@@ -171,6 +171,7 @@ raw_output=$(env -u CLAUDECODE -u ANTHROPIC_API_KEY SKILL_EVAL_MODE=1 \
     --output-format json \
     --max-turns 1 \
     --no-session-persistence \
+    --tools "" \
   2>/dev/null) || { echo "Error: claude -p failed" >&2; exit 1; }
 
 # --- Parse response ---
@@ -210,6 +211,7 @@ ${shorten_prompt}"
       --output-format json \
       --max-turns 1 \
       --no-session-persistence \
+      --tools "" \
     2>/dev/null) || true
 
   shortened=$(echo "$shorten_output" | jq -r '

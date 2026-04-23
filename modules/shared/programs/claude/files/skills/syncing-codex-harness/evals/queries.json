@@ -1,0 +1,18 @@
+[
+  {"query": "codex sync 실행해줘", "should_trigger": true, "why": "명시적: 핵심 트리거 키워드"},
+  {"query": "codex 동기화", "should_trigger": true, "why": "명시적: 핵심 트리거 키워드"},
+  {"query": "하네스 동기화", "should_trigger": true, "why": "명시적: 핵심 트리거 키워드"},
+  {"query": "sync.sh 실행해줘", "should_trigger": true, "why": "명시적: 핵심 트리거 키워드"},
+  {"query": "Codex CLI에 Claude 스킬 투영", "should_trigger": true, "why": "명시적: sync.sh의 핵심 기능"},
+  {"query": ".agents/skills 갱신해줘", "should_trigger": true, "why": "경계선: sync.sh이 수행하는 투영 경로"},
+  {"query": "claude와 codex 구조 맞춰줘", "should_trigger": true, "why": "경계선: 두 하네스 동기화 의미"},
+  {"query": "codex exec 실행해줘", "should_trigger": false, "why": "혼동 쌍: using-codex-exec (intentionally excluded peer)"},
+  {"query": "비대화형 codex 돌려줘", "should_trigger": false, "why": "혼동 쌍: using-codex-exec (excluded)"},
+  {"query": "codex review 돌려줘", "should_trigger": false, "why": "혼동 쌍: using-codex-exec (excluded)"},
+  {"query": "--yolo 모드로 실행", "should_trigger": false, "why": "혼동 쌍: using-codex-exec (excluded)"},
+  {"query": "codex 실행", "should_trigger": false, "why": "혼동 쌍: using-codex-exec — 'codex 실행'은 exec 트리거"},
+  {"query": "claude -p 호출 방법", "should_trigger": false, "why": "혼동 쌍: using-claude-p (intentionally excluded peer)"},
+  {"query": "PR 만들어줘", "should_trigger": false, "why": "혼동 쌍: create-pr"},
+  {"query": "DA 피드백", "should_trigger": false, "why": "혼동 쌍: run-da"},
+  {"query": "이슈 등록해줘", "should_trigger": false, "why": "혼동 쌍: create-issue"}
+]

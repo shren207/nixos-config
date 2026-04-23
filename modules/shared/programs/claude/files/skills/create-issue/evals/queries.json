@@ -1,0 +1,19 @@
+[
+  {"query": "이슈 등록해줘", "should_trigger": true, "why": "명시적: 핵심 트리거 키워드"},
+  {"query": "이슈 만들어줘", "should_trigger": true, "why": "명시적: 핵심 트리거 키워드"},
+  {"query": "todo 등록해줘", "should_trigger": true, "why": "명시적: todo는 create-issue 트리거"},
+  {"query": "버그 등록해줘", "should_trigger": true, "why": "명시적: 버그 리포트 등록"},
+  {"query": "이슈 추가", "should_trigger": true, "why": "명시적: 트리거 키워드"},
+  {"query": "GitHub 이슈 만들어줘", "should_trigger": true, "why": "명시적: GitHub + 이슈"},
+  {"query": "이거 추적하게 등록해둬", "should_trigger": true, "why": "경계선: 추적/등록은 create-issue 의도"},
+  {"query": "나중에 할 일로 남겨둬", "should_trigger": true, "why": "경계선: 할 일 = todo issue"},
+  {"query": "PR 만들어줘", "should_trigger": false, "why": "혼동 쌍: create-pr"},
+  {"query": "PR 본문 작성", "should_trigger": false, "why": "혼동 쌍: create-pr"},
+  {"query": "CIR 기록해줘", "should_trigger": false, "why": "혼동 쌍: documenting-intent (excluded peer)"},
+  {"query": "ADR 작성해줘", "should_trigger": false, "why": "혼동 쌍: documenting-intent (excluded peer)"},
+  {"query": "결정 근거 기록", "should_trigger": false, "why": "혼동 쌍: documenting-intent"},
+  {"query": "왜 이렇게 했는지 기록해줘", "should_trigger": false, "why": "혼동 쌍: documenting-intent"},
+  {"query": "계획 세우자", "should_trigger": false, "why": "혼동 쌍: plan-with-questions"},
+  {"query": "PRD 만들어줘", "should_trigger": false, "why": "혼동 쌍: prd"},
+  {"query": "DA 피드백 돌려줘", "should_trigger": false, "why": "혼동 쌍: run-da"}
+]

@@ -2,9 +2,11 @@
 name: create-issue
 argument-hint: "[issue title or description (optional)]"
 description: |
-  Create a structured GitHub issue with auto-enriched labels.
-  Trigger: '이슈 등록', '이슈 만들어', 'todo 등록', '버그 등록', '이슈 추가'.
-  NOT for CIR/ADR (use documenting-intent). NOT for PR 본문 (use create-pr).
+  Use this skill when the user wants to file, log, or track a piece of work in GitHub issues — whether phrased as creating an issue, logging a bug, adding a todo, or more implicit framings like "추적하게 등록해둬", "나중에 할 일로 남겨둬", "이거 기록해둬", "따로 남겨두자", "백로그에 올려". Triggers on any intent to capture work-to-be-done as a trackable item: bugs, feature requests, refactors, follow-ups, deferred tasks, or reminders. Produces a structured issue with auto-enriched labels via `gh` CLI.
+
+  NOT for recording decisions/rationale (use documenting-intent for CIR/ADR).
+  NOT for writing PR descriptions (use create-pr).
+  NOT for querying/editing/closing existing issues (use `gh` directly).
 ---
 
 # 이슈 등록
