@@ -226,13 +226,14 @@ EOF
 ````markdown
 ## Next Session Starter
 
-- **이 가이드 읽고 바로 시작할 명령어** (복붙 즉시 실행 가능. 임의 cwd에서 실행해도 대상 repo로 복귀 + 실패 시 즉시 중단):
+- **이 가이드 읽고 바로 시작할 명령어** (복붙 즉시 실행 가능. 임의 cwd에서 실행해도 대상 repo로 복귀 + 실패 시 즉시 중단. 작업 branch는 후보 주석을 참고하여 사용자가 실행 시점에 checkout):
   ```bash
-  # 작성자 LLM: 아래 두 placeholder를 write-handoff/SKILL.md Step 1-B(repo slug) / Step 1-C(branch)에서 확보한 값으로 치환
+  # 작성자 LLM: <REPO_SLUG>을 write-handoff/SKILL.md Step 1-B(helper)에서 확보한 값으로 치환
   # single-quoted literal로 emit하여 $(...), 백틱, $var 해석을 차단한다.
-  # 값에 '(single quote) 또는 \가 포함되면 Step 9(게시)를 중단하고 사용자에게 확답받는다 (Step 1-D).
+  # 값에 '(single quote)가 포함되면 Step 9(게시)를 중단하고 사용자에게 확답받는다 (Step 1-C).
+  # 최근 작업 branch 후보 (참고용, 비실행형): <WORKING_BRANCH>
+  # 실행자는 이 후보를 참고만 하고, 실제 checkout은 실행 시점에 사용자 지시로 결정한다.
   REPO='<REPO_SLUG>'      # 예: acme/project (owner/name)
-  BRANCH='<BRANCH_NAME>'  # 예: feat/foo (handoff 대상 branch)
 
   # 서브쉘 + set -e: 중간 명령 실패 시 즉시 중단하여 엉뚱한 cwd의 follow-up 명령 실행 방지
   (
@@ -246,24 +247,20 @@ EOF
       gh repo clone "$REPO" "${REPO##*/}"
       cd "${REPO##*/}"
     fi
-    git fetch origin "$BRANCH"
-    git checkout "$BRANCH"
     git status
     git log --oneline -3
-  ) || { echo "ERROR: handoff restore failed. REPO=$REPO BRANCH=$BRANCH"; echo "수동으로 repo/branch 확보 후 재시도하세요."; }
+  ) || { echo "ERROR: handoff restore failed. REPO=$REPO"; echo "수동으로 repo 확보 후 재시도하세요."; }
   ```
-  - **REPO와 BRANCH는 `write-handoff/SKILL.md` Step 1-B / Step 1-C에서 확보한 값으로 치환**한다. 확보 경로: repo slug는 `~/.claude/scripts/write-handoff-repo-slug.sh` 또는 `~/.codex/scripts/write-handoff-repo-slug.sh` 헬퍼를 LLM이 직접 호출(이슈 인자가 있으면 URL 파싱, 실패 시 빈 줄 반환 = fail-closed. 이슈 인자가 없을 때만 cwd `gh repo view --json nameWithOwner` fallback). branch는 `gh api graphql`로 `linkedBranches` 조회(1순위), 미확보 시 `closedByPullRequestsReferences`의 PR 번호로 `gh pr view --json headRefName` 호출(2순위), 최종 미확보 시 런타임 도구 매핑 표의 질문 도구로 사용자 확답. `gh issue view --json`은 `repository`/`linkedBranches` 필드를 지원하지 않으므로 절대 `gh issue view --json repository` 또는 `gh issue view --json linkedBranches`로 대체하지 않는다. 작성자 LLM은 placeholder(`<REPO_SLUG>`, `<BRANCH_NAME>`)를 그대로 두지 않고 확보된 값으로 치환한다. 특정 repo slug(`greenheadHQ/nixos-config` 등)을 예시로 하드코딩하지 않는다 — 다른 repo handoff에서 엉뚱한 clone을 유발한다.
+  - **REPO는 `write-handoff/SKILL.md` Step 1-B에서 확보한 값으로 치환**한다. 확보 경로: repo slug는 `~/.claude/scripts/write-handoff-repo-slug.sh` 또는 `~/.codex/scripts/write-handoff-repo-slug.sh` 헬퍼를 LLM이 직접 호출(이슈 인자가 있으면 URL 파싱, 실패 시 빈 줄 반환 = fail-closed. 이슈 인자가 없을 때만 cwd `gh repo view --json nameWithOwner` fallback). 작성자 LLM은 placeholder(`<REPO_SLUG>`)를 그대로 두지 않고 확보된 값으로 치환한다. 특정 repo slug(`greenheadHQ/nixos-config` 등)을 예시로 하드코딩하지 않는다 — 다른 repo handoff에서 엉뚱한 clone을 유발한다.
+  - **`<WORKING_BRANCH>` 후보 주석은 선택적**이다. 작성자 LLM이 이슈 컨텍스트 또는 대화 컨텍스트에서 확인 가능한 branch(기존 handoff 코멘트, 사용자 명시)를 리터럴로 치환한다. 확보 불가 시 해당 두 주석 라인 자체를 삭제하고 placeholder를 남기지 않는다. 실행자는 이 후보를 참고만 하고 실제 checkout은 실행 시점에 사용자 지시로 결정하므로, 추정 실패가 실행 경로를 깨뜨리지 않는다.
   - **게시 전 placeholder 검증 필수**: Step 8 Self-verification 5번 항목에서 다음 중 하나라도 남아 있으면 게시 금지.
-    - `<...>` 형태 placeholder (`<REPO_SLUG>`, `<BRANCH_NAME>`, `<unknown-*>` 등)
+    - `<...>` 형태 placeholder (`<REPO_SLUG>`, `<unknown-*>` 등). `<WORKING_BRANCH>`는 미확보 시 주석 라인 자체를 삭제한다.
     - 빈 문자열
-    - `null` 리터럴 문자열
-    - 실제 handoff 대상과 다른 기본 branch(`main`/`master`)
     - 이 template의 예시 repo slug(`greenheadHQ/nixos-config` 등) 리터럴이 실제 handoff 대상 repo와 다름에도 남아 있는 경우
-    해당 시 SKILL.md Step 1-D "값 확보 실패 처리" 순서(helper 재실행 / GraphQL 재시도 → 런타임 질문 도구)로 실제 값 확보 후 치환.
+    해당 시 SKILL.md Step 1-C "값 확보 실패 처리" 순서(helper 재실행 → 런타임 질문 도구)로 실제 값 확보 후 치환.
   - `git rev-parse --show-toplevel`은 repo 밖에서 `fatal: not a git repository`를 반환하므로 `2>/dev/null` + `|| true`로 우회하고 `CURRENT_REPO` 빈 변수 검사로 분기한다.
   - **"어떤 git repo든 toplevel로 이동" 방지**: 사용자가 다른 repo 체크아웃 안에서 이 명령을 실행해도 `CURRENT_REPO ≠ REPO`일 때 clone 경로로 분기하므로 엉뚱한 repo를 재사용하지 않는다.
-  - **실패 경로 격리 (서브쉘 + `set -e`)**: `gh repo clone` 실패, `cd` 실패, `git fetch` 실패 등 어떤 중간 명령이 실패해도 서브쉘이 즉시 exit 1로 종료한다. 따라서 `git fetch`/`git checkout`가 **엉뚱한 cwd**(예: clone 실패 후 이전 디렉토리)에서 실행되는 경로가 원천 차단. 서브쉘 종료 후 `||` 에러 메시지로 사용자에게 명시적 복구 안내.
-  - **주의**: `gh repo clone`은 기본 branch(main)를 체크아웃하므로 `git fetch origin $BRANCH && git checkout $BRANCH` 단계로 handoff 작업 맥락 복귀.
+  - **실패 경로 격리 (서브쉘 + `set -e`)**: `gh repo clone` 실패, `cd` 실패 등 어떤 중간 명령이 실패해도 서브쉘이 즉시 exit 1로 종료한다. 따라서 후속 명령이 **엉뚱한 cwd**(예: clone 실패 후 이전 디렉토리)에서 실행되는 경로가 원천 차단. 서브쉘 종료 후 `||` 에러 메시지로 사용자에게 명시적 복구 안내.
 - **이전 세션 산출물 위치**: <파일 경로 또는 PR/이슈 URL>
 - **재개 지점**: Phase N-M부터
 - **남은 Blockers**: <있으면 명시, 없으면 "없음">
