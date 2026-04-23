@@ -144,6 +144,7 @@ selective consistency trigger([stability-measurement.md](stability-measurement.m
    **(a) 기본 경로 + config 차단** (권장, 간단):
    - `CODEX_HOME`을 그대로 두어 기본 auth chain(`auth.json` 등)을 유지한다.
    - codex exec 호출에 `--ignore-user-config`를 추가하여 사용자 `config.toml`(MCP 서버 포함) 로딩을 차단한다. `using-codex-exec/SKILL.md:113`에 기록된 대로 이 플래그는 **config만 차단하고 auth는 유지**한다.
+   - **주의**: `--ignore-user-config`는 `$CODEX_HOME/config.toml`의 `model_reasoning_effort` 등 strong review profile 설정도 함께 제거한다. Arbiter는 strong profile을 유지해야 하므로 `-c model_reasoning_effort="xhigh"`(Claude Code 세션/headless는 Arbiter 기본값과 동일)를 **명시적으로 재지정**한다. 필요 시 `-c model="..."`도 함께.
    - 부작용: `~/.codex/sessions` 기반 세션이 생성되므로 동시 N=3 실행 시 세션 파일 경합이 발생할 수 있다. `--ephemeral`로 session 저장 자체를 회피한다.
 
    **(b) scratch CODEX_HOME + auth 복사** (세션 충돌 완전 분리가 필요할 때):
