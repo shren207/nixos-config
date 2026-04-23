@@ -4,7 +4,7 @@
 # 호출: LLM이 write-handoff/SKILL.md Step 1-B 절차에 따라 런타임별 경로로 직접 실행한다.
 #   Claude Code 세션: ~/.claude/scripts/write-handoff-repo-and-issue.sh "$ARGUMENTS"
 #   Codex 세션:       ~/.codex/scripts/write-handoff-repo-and-issue.sh "$ARGUMENTS"
-# 양 런타임은 Home Manager로 동일 source를 프로비저닝한다 (#486).
+# 양 런타임은 Home Manager로 동일 source를 프로비저닝한다.
 #
 # 출력 (항상 2줄; 둘 중 하나가 빈 줄일 수 있음):
 #   1줄 REPO_SLUG (owner/name 또는 빈 줄)
@@ -12,7 +12,7 @@
 #
 # 동작:
 #   1. 이슈 인자($1)가 있으면 `gh issue view --json url,number`로 두 값 동시 파싱
-#      → 실패 시 REPO/ISSUE_NUM 모두 빈 줄 (cwd fallback 하지 않음 — wrong-repo slug 방지, #486 H2)
+#      → 실패 시 REPO/ISSUE_NUM 모두 빈 줄 (cwd fallback 하지 않음 — wrong-repo slug 방지)
 #   2. 이슈 인자가 없으면 cwd repo의 `gh repo view --json nameWithOwner` 사용 (REPO만, ISSUE_NUM은 빈 줄)
 #   3. 최종 실패 시 해당 줄만 빈 줄 (SKILL.md Step 1-D 실패 처리가 사용자 확답 요구)
 #

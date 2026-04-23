@@ -140,7 +140,7 @@ NSS는 실제 재개 branch를 `TARGET_BRANCH`로 직접 기록한다. `issue/$I
 1. authoritative metadata 조회가 issue repo branch를 가리키지 않고,
 2. NSS 복구가 wrong repo의 `origin/$TARGET_BRANCH`만 찾다가 실패하거나 같은 이름의 local branch로 silent fallback할 수 있다.
 
-Cross-repo 시나리오를 감지하면 (예: `linkedBranches.nodes[0].ref.repository.nameWithOwner`가 `$REPO`와 다름, 또는 PR head가 다른 repo) 자동 복구를 중단하고 질문 도구로 사용자에게 `TARGET_REPO`/`TARGET_BRANCH`를 확답받는다. 지원 확장은 별도 이슈에서 다룬다.
+Cross-repo 시나리오를 감지하면 (예: `linkedBranches.nodes[0].ref.repository.nameWithOwner`가 `$REPO`와 다름, 또는 PR head가 다른 repo) 자동 복구를 중단하고 질문 도구로 사용자에게 `TARGET_REPO`/`TARGET_BRANCH`를 확답받는다.
 
 예시:
 

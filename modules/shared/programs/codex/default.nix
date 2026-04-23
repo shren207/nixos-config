@@ -83,8 +83,7 @@ in
     # Claude와 동일 source를 공유한다.
     ".codex/scripts/write-handoff-repo-and-issue.sh".source =
       config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/scripts/write-handoff-repo-and-issue.sh";
-    # Backward-compatible shim for legacy write-handoff-repo-slug.sh callers.
-    # Retire in lockstep with the Claude-side entry (see modules/shared/programs/claude/default.nix).
+    # Backward-compatible shim: 구 slug-only helper 경로.
     ".codex/scripts/write-handoff-repo-slug.sh".source =
       config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/scripts/write-handoff-repo-slug.sh";
 

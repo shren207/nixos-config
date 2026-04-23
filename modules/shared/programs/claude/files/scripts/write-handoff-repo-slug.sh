@@ -1,22 +1,9 @@
 #!/usr/bin/env bash
-# Compatibility shim preserving the original slug-only contract.
-# New public helper: write-handoff-repo-and-issue.sh (2-line REPO_SLUG + ISSUE_NUM).
-# This shim restricts output to REPO_SLUG only so pre-existing handoff docs/runtimes
-# that consume the legacy path keep seeing the 1-line contract.
+# Legacy slug-only helper path. Output is exactly one REPO_SLUG line.
+# Callers that need ISSUE_NUM should use write-handoff-repo-and-issue.sh (2-line).
 #
-# External consumers: issue comments posted by write-handoff before the rename
-# (legacy NSS snippets that call `~/.claude/scripts/write-handoff-repo-slug.sh`
-# or `~/.codex/scripts/write-handoff-repo-slug.sh`).
-#
-# Removal criteria: once no active handoff document references the legacy path
-# (audit outstanding open issues / comments for callers of this filename), retire
-# this shim and the provisioning entries in
-# modules/shared/programs/claude/default.nix + modules/shared/programs/codex/default.nix
-# along with the verify-ai-compat.sh check.
-#
-# Self-contained fallback: if the new sibling helper is not yet provisioned
-# (e.g. repo code updated but nrs/symlink refresh pending), run the original
-# slug-only logic inline to preserve the contract.
+# 동작: 새 sibling helper가 provisioning 되어 있으면 그 첫 줄만 반환하고,
+# 없으면 아래 inline fallback으로 slug-only 로직을 직접 수행한다.
 
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)"
 NEW_HELPER="$SCRIPT_DIR/write-handoff-repo-and-issue.sh"

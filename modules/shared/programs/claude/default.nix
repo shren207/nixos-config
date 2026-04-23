@@ -260,10 +260,7 @@ in
     # Codex 세션은 ~/.codex/scripts/ 경로에서 동일 source를 공유한다 (codex/default.nix).
     ".claude/scripts/write-handoff-repo-and-issue.sh".source =
       config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/scripts/write-handoff-repo-and-issue.sh";
-    # Backward-compatible shim for legacy write-handoff-repo-slug.sh callers
-    # (issue comments posted before the rename). Retire once no open handoff
-    # comment references the legacy filename — also remove the verify-ai-compat.sh
-    # entry and the codex/default.nix counterpart.
+    # Backward-compatible shim: 구 slug-only helper 경로.
     ".claude/scripts/write-handoff-repo-slug.sh".source =
       config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/scripts/write-handoff-repo-slug.sh";
 
