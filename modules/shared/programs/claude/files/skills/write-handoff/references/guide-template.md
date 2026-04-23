@@ -228,13 +228,15 @@ EOF
 
 - **이 가이드 읽고 바로 시작할 명령어** (복붙 즉시 실행 가능. 임의 cwd에서 실행해도 대상 repo로 복귀 + 실패 시 즉시 중단):
   ```bash
-  # 작성자 LLM: 아래 두 placeholder를 write-handoff/SKILL.md Step 1-B helper 출력 (REPO, ISSUE_NUM 순)으로 치환
+  # 작성자 LLM: 아래 세 placeholder를 write-handoff/SKILL.md Step 1-B/1-C에서 확보한 실제 값으로 치환
   # single-quoted literal로 emit하여 $(...), 백틱, $var 해석을 차단한다.
-  # Shell-안전성/escape 규칙은 write-handoff/SKILL.md Step 1-C(SoT) 참조 — REPO 값의 single quote가 해당.
-  # issue/{N} 규약 상세는 write-handoff/SKILL.md의 "Handoff branch convention" 섹션 참조.
+  # Shell-안전성/escape 규칙은 write-handoff/SKILL.md Step 1-D(SoT) 참조.
+  # 복구 계약 상세는 write-handoff/SKILL.md의 "Next Session Starter Contract" 섹션 참조.
   REPO='<REPO_SLUG>'      # 예: acme/project (owner/name)
   ISSUE_NUM='<ISSUE_NUM>' # 예: 123 (이슈 번호; write-handoff의 $ARGUMENTS에서 helper가 파싱)
-  TARGET="issue/$ISSUE_NUM"
+  TARGET_BRANCH='<TARGET_BRANCH>' # 예: feat/foo (실제 handoff 대상 branch)
+  REMOTE_REF="refs/remotes/origin/$TARGET_BRANCH"
+  REMOTE_STATE="unknown"
 
   # 서브쉘 + set -e: 중간 명령 실패 시 즉시 중단하여 엉뚱한 cwd의 follow-up 명령 실행 방지
   (
@@ -249,24 +251,66 @@ EOF
       cd "${REPO##*/}"
     fi
 
-    # issue/{N} graceful fallback. fetch 성공을 자동 복구의 전제로 강제 (stale remote-tracking/local ref 신뢰 차단).
-    # fetch 실패 시 fail-closed, 성공 시 branch namespace(refs/heads/, refs/remotes/origin/)만 검사하여
-    # tag/기타 ref 오동작 차단.
-    if ! git fetch origin "$TARGET" 2>/dev/null; then
-      echo "→ 'origin/$TARGET' fetch 실패 — 네트워크/인증/repo URL 확인 필요."
-      echo "→ stale remote-tracking/local ref 신뢰를 차단합니다 (silent wrong-branch 방지)."
-      echo "→ 수동으로 네트워크 복구 후 재시도하세요."
-      exit 1
-    fi
-    if git show-ref --verify --quiet "refs/remotes/origin/$TARGET"; then
-      # origin에 있으면 local branch를 origin tip에 강제 동기화 (stale local commit 재사용 방지).
-      # handoff 재개는 clean state 전제이므로 -C(force-create/reset)가 안전하다.
-      git switch -C "$TARGET" --track "origin/$TARGET"
-    elif git show-ref --verify --quiet "refs/heads/$TARGET"; then
-      # fetch는 성공했지만 origin에 ref 없음 + local에만 있는 케이스 (흔치 않음).
-      git switch "$TARGET"
+    # remote branch 존재는 ls-remote(exit 0=present, 2=absent) + explicit refspec fetch로만 신뢰한다.
+    if git ls-remote --exit-code --heads origin "$TARGET_BRANCH" >/dev/null 2>&1; then
+      REMOTE_STATE="present"
+      git fetch origin "refs/heads/$TARGET_BRANCH:$REMOTE_REF"
     else
-      echo "→ '$TARGET' branch가 없습니다. 이 이슈는 서술형 branch로 작업됐을 수 있습니다."
+      status=$?
+      if [ "$status" -eq 2 ]; then
+        REMOTE_STATE="absent"
+      else
+        echo "→ origin 조회 실패 — 네트워크/인증/repo URL 확인 필요."
+        echo "→ transport error 상태에서는 stale local branch를 자동 복구에 사용하지 않습니다."
+        exit 1
+      fi
+    fi
+
+    LOCAL_EXISTS=0
+    if git show-ref --verify --quiet "refs/heads/$TARGET_BRANCH"; then
+      LOCAL_EXISTS=1
+    fi
+
+    if [ "$REMOTE_STATE" = "present" ] && [ "$LOCAL_EXISTS" -eq 0 ]; then
+      git switch --track "origin/$TARGET_BRANCH"
+    elif [ "$LOCAL_EXISTS" -eq 1 ]; then
+      git switch "$TARGET_BRANCH"
+
+      if [ "$REMOTE_STATE" = "present" ]; then
+        git branch --set-upstream-to="origin/$TARGET_BRANCH" "$TARGET_BRANCH" >/dev/null 2>&1 || true
+
+        if [ -n "$(git status --porcelain)" ]; then
+          echo "→ local '$TARGET_BRANCH'에 uncommitted change가 있습니다."
+          echo "→ 자동 reset/merge를 중단합니다. 상태를 확인한 뒤 수동으로 동기화하세요."
+          exit 1
+        fi
+
+        COUNTS="$(git rev-list --left-right --count "$TARGET_BRANCH...origin/$TARGET_BRANCH" 2>/dev/null)" || {
+          echo "→ local/origin divergence 계산 실패. 수동으로 확인하세요."
+          exit 1
+        }
+        AHEAD="${COUNTS%% *}"
+        BEHIND="${COUNTS##* }"
+
+        if [ "$AHEAD" -gt 0 ] && [ "$BEHIND" -gt 0 ]; then
+          echo "→ local '$TARGET_BRANCH'와 origin/$TARGET_BRANCH 가 diverged 상태입니다."
+          echo "→ 자동 reset 하지 않습니다. 수동으로 rebase/merge/reset 여부를 결정하세요."
+          exit 1
+        fi
+        if [ "$AHEAD" -gt 0 ]; then
+          echo "→ local '$TARGET_BRANCH'가 origin/$TARGET_BRANCH 보다 $AHEAD commit ahead 입니다."
+          echo "→ 자동 reset 하지 않습니다. 수동으로 push/rebase 여부를 결정하세요."
+          exit 1
+        fi
+        if [ "$BEHIND" -gt 0 ]; then
+          git merge --ff-only "origin/$TARGET_BRANCH"
+        fi
+      else
+        echo "→ origin/$TARGET_BRANCH 는 없고 local branch만 존재합니다. local branch로 재개합니다."
+      fi
+    else
+      echo "→ '$TARGET_BRANCH' branch가 없습니다."
+      echo "→ 힌트: gh issue view \"$ISSUE_NUM\" --repo \"$REPO\" --json closedByPullRequestsReferences"
       echo "→ 힌트: git log --all --format='%D %s' --grep=\"#$ISSUE_NUM\" | head -5"
       echo "→ 사용자 지시로 작업 branch를 결정하고 수동으로 checkout하세요."
       exit 1
@@ -274,21 +318,21 @@ EOF
 
     git status
     git log --oneline -3
-  ) || { echo "ERROR: handoff restore failed. REPO=$REPO ISSUE_NUM=$ISSUE_NUM"; echo "수동으로 repo 확보 후 재시도하세요."; }
+  ) || { echo "ERROR: handoff restore failed. REPO=$REPO ISSUE_NUM=$ISSUE_NUM TARGET_BRANCH=$TARGET_BRANCH"; echo "수동으로 repo/branch 상태를 확인한 뒤 재시도하세요."; }
   ```
-  - **REPO와 ISSUE_NUM은 `write-handoff/SKILL.md` Step 1-B helper 출력으로 치환**한다. 확보 경로: `~/.claude/scripts/write-handoff-repo-slug.sh` 또는 `~/.codex/scripts/write-handoff-repo-slug.sh` 헬퍼를 LLM이 직접 호출(이슈 인자가 있으면 `gh issue view --json url,number`로 URL + 번호 동시 파싱, 실패 시 빈 줄 반환 = fail-closed. 이슈 인자가 없을 때만 cwd `gh repo view --json nameWithOwner` fallback — ISSUE_NUM은 빈 줄). 작성자 LLM은 placeholder(`<REPO_SLUG>`, `<ISSUE_NUM>`)를 그대로 두지 않고 확보된 값으로 치환한다. 특정 repo slug(`greenheadHQ/nixos-config` 등)를 예시로 하드코딩하지 않는다 — 다른 repo handoff에서 엉뚱한 clone을 유발한다.
-  - **`issue/{N}` 규약**: `issue/$ISSUE_NUM` ref가 origin 또는 local에 존재하면 자동 checkout. 부재 시 서브쉘이 `exit 1`로 종료되면서 commit 메시지 기반 힌트(`git log --grep="#$ISSUE_NUM"`)를 출력하여 수동 branch 결정을 안내한다. 규약 상세는 `write-handoff/SKILL.md`의 "Handoff branch convention" 섹션 참조.
+  - **REPO/ISSUE_NUM은 `write-handoff/SKILL.md` Step 1-B helper 출력, TARGET_BRANCH는 Step 1-C에서 확정한 실제 branch로 치환**한다. helper 경로는 `~/.claude/scripts/write-handoff-repo-and-issue.sh` 또는 `~/.codex/scripts/write-handoff-repo-and-issue.sh`다. 작성자 LLM은 placeholder(`<REPO_SLUG>`, `<ISSUE_NUM>`, `<TARGET_BRANCH>`)를 그대로 두지 않는다.
+  - **복구 계약은 SoT를 그대로 따른다**: `TARGET_BRANCH`를 `ISSUE_NUM`에서 재구성하지 않고, remote 존재는 `ls-remote` + explicit refspec fetch로 검증하며, 기존 local branch는 fast-forward 가능할 때만 동기화한다. `git fetch origin "$TARGET_BRANCH"`나 `git switch -C`로 대체하지 않는다.
   - **게시 전 placeholder 검증 필수**: Step 8 Self-verification 5번 항목에서 다음 중 하나라도 남아 있으면 게시 금지.
-    - `<...>` 형태 placeholder (`<REPO_SLUG>`, `<ISSUE_NUM>`, `<unknown-*>` 등)
+    - `<...>` 형태 placeholder (`<REPO_SLUG>`, `<ISSUE_NUM>`, `<TARGET_BRANCH>`, `<unknown-*>` 등)
     - 빈 문자열
     - `null` 리터럴 문자열
     - ISSUE_NUM이 정수가 아닌 값 (`[0-9]+` 불일치)
+    - TARGET_BRANCH가 Step 1-C에서 확정한 branch와 불일치하거나 heuristic candidate로만 남아 있는 경우
     - 이 template의 예시 repo slug(`greenheadHQ/nixos-config` 등) 리터럴이 실제 handoff 대상 repo와 다름에도 남아 있는 경우
-    해당 시 SKILL.md Step 1-C "값 확보 실패 처리" 순서(helper 재실행 → 런타임 질문 도구)로 실제 값 확보 후 치환.
+    해당 시 SKILL.md Step 1-D "값 확보 실패 처리" 순서(helper 재실행 → branch 재확인 → 런타임 질문 도구)로 실제 값 확보 후 치환.
   - `git rev-parse --show-toplevel`은 repo 밖에서 `fatal: not a git repository`를 반환하므로 `2>/dev/null` + `|| true`로 우회하고 `CURRENT_REPO` 빈 변수 검사로 분기한다.
   - **"어떤 git repo든 toplevel로 이동" 방지**: 사용자가 다른 repo 체크아웃 안에서 이 명령을 실행해도 `CURRENT_REPO ≠ REPO`일 때 clone 경로로 분기하므로 엉뚱한 repo를 재사용하지 않는다.
-  - **실패 경로 격리 (서브쉘 + `set -e`)**: `gh repo clone` 실패, `cd` 실패, `git fetch` 실패, `git checkout` 실패, `issue/{N}` ref 부재의 명시적 `exit 1` 모두 서브쉘이 즉시 종료한다. 따라서 `git status`/`git log`가 **엉뚱한 cwd 또는 wrong-branch 상태**에서 실행되는 경로가 원천 차단. 서브쉘 종료 후 `||` 에러 메시지로 사용자에게 명시적 복구 안내.
-  - **stale remote-ref 회피 (fail-closed)**: `git fetch origin "$TARGET"`이 **성공해야 자동 복구 진행**한다. fetch 실패(네트워크/인증/repo URL 오류) 시 stale remote-tracking ref와 stale local branch 모두 신뢰하지 않고 exit 1로 종료 (silent wrong-branch resume 방지).
+  - **실패 경로 격리 (서브쉘 + `set -e`)**: `gh repo clone` 실패, `cd` 실패, `ls-remote`/`fetch` 실패, `git switch` 실패, divergence 감지 후 `exit 1` 모두 서브쉘이 즉시 종료한다. 따라서 `git status`/`git log`가 **엉뚱한 cwd 또는 wrong-branch 상태**에서 실행되는 경로가 원천 차단된다.
 - **이전 세션 산출물 위치**: <파일 경로 또는 PR/이슈 URL>
 - **재개 지점**: Phase N-M부터
 - **남은 Blockers**: <있으면 명시, 없으면 "없음">
