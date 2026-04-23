@@ -213,7 +213,7 @@ EOF
    - frontmatter 유효성 (name, description, Triggers)
    - 본문 구조 (Purpose → 빠른참조 → 핵심절차 → 참조)
    - `references/` 링크 유효성
-2. **skill-creator 플러그인**: `evals/queries.json` 검증
+2. **skill-creator 플러그인**: 해당 스킬에 `evals/queries.json`이 있을 때만 검증 (파일이 부재하면 이 단계를 스킵하고 그 사실을 QA 결과에 명시)
    - positive 10개 + negative 10개 충족
    - negative에 인접 스킬 트리거 포함
 3. (선택) **`/parallel-audit`** — 다중 스킬 영향·광범위 사이드이펙트·고위험 변경일 때만 추가로 전수조사.
@@ -248,10 +248,12 @@ EOF
     fi
     git status
     git log --oneline -3
+    echo "→ 현재 branch: $(git branch --show-current)"
+    echo "→ 실행자 규약: 위 '최근 작업 branch 후보' bullet과 대조하여 필요 시 'git checkout <branch>'로 이동. 현재 branch에서 작업을 이어갈 경우 의도된 branch인지 스스로 확인."
   ) || { echo "ERROR: handoff restore failed. REPO=$REPO"; echo "수동으로 repo 확보 후 재시도하세요."; }
   ```
   - **REPO는 `write-handoff/SKILL.md` Step 1-B에서 확보한 값으로 치환**한다. 확보 경로: repo slug는 `~/.claude/scripts/write-handoff-repo-slug.sh` 또는 `~/.codex/scripts/write-handoff-repo-slug.sh` 헬퍼를 LLM이 직접 호출(이슈 인자가 있으면 URL 파싱, 실패 시 빈 줄 반환 = fail-closed. 이슈 인자가 없을 때만 cwd `gh repo view --json nameWithOwner` fallback). 작성자 LLM은 placeholder(`<REPO_SLUG>`)를 그대로 두지 않고 확보된 값으로 치환한다. 특정 repo slug(`greenheadHQ/nixos-config` 등)을 예시로 하드코딩하지 않는다 — 다른 repo handoff에서 엉뚱한 clone을 유발한다.
-  - **`<WORKING_BRANCH>` 후보 bullet은 선택적**이다. 작성자 LLM이 이슈 컨텍스트 또는 대화 컨텍스트에서 확인 가능한 branch(기존 handoff 코멘트, 사용자 명시)를 리터럴로 치환한다. 확보 불가 시 해당 bullet 자체를 삭제하고 placeholder를 남기지 않는다. 이 bullet은 bash 코드블록 밖에 있어 실행 경로에 영향을 주지 않으며, 실행자는 후보를 참고만 하고 실제 checkout은 실행 시점에 사용자 지시로 결정한다.
+  - **`<WORKING_BRANCH>` 후보 bullet은 선택적**이다. 작성자 LLM이 **현재 대화 세션에서 사용자가 명시적으로 제공한 branch**만 리터럴로 치환한다. 이슈 본문의 초기 "작업 branch" 기술이나 **기존 handoff 코멘트**는 stale 위험이 구조적이므로 출처로 허용하지 않는다 (handoff 작성 시점 추정을 제거한 취지와 동일). 확보 불가 시 해당 bullet 자체를 삭제하고 placeholder를 남기지 않는다. 이 bullet은 bash 코드블록 밖에 있어 실행 경로에 영향을 주지 않으며, 실행자는 후보를 참고만 하고 실제 checkout은 실행 시점에 사용자 지시로 결정한다.
   - **게시 전 placeholder 검증 필수**: Step 8 Self-verification 5번 항목에서 다음 중 하나라도 남아 있으면 게시 금지.
     - `<...>` 형태 placeholder (`<REPO_SLUG>`, `<unknown-*>` 등). `<WORKING_BRANCH>`는 미확보 시 bullet 자체를 삭제한다.
     - 빈 문자열
