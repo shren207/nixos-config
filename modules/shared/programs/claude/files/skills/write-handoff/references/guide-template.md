@@ -259,9 +259,12 @@ EOF
       exit 1
     fi
     if git show-ref --verify --quiet "refs/remotes/origin/$TARGET"; then
-      git checkout "$TARGET"
+      # origin에 있으면 local branch를 origin tip에 강제 동기화 (stale local commit 재사용 방지).
+      # handoff 재개는 clean state 전제이므로 -C(force-create/reset)가 안전하다.
+      git switch -C "$TARGET" --track "origin/$TARGET"
     elif git show-ref --verify --quiet "refs/heads/$TARGET"; then
-      git checkout "$TARGET"
+      # fetch는 성공했지만 origin에 ref 없음 + local에만 있는 케이스 (흔치 않음).
+      git switch "$TARGET"
     else
       echo "→ '$TARGET' branch가 없습니다. 이 이슈는 서술형 branch로 작업됐을 수 있습니다."
       echo "→ 힌트: git log --all --format='%D %s' --grep=\"#$ISSUE_NUM\" | head -5"
