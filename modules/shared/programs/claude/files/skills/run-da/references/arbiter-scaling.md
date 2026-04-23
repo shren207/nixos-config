@@ -129,6 +129,8 @@ fi
 
 selective consistency trigger([stability-measurement.md](stability-measurement.md)의 trigger 조건)에 매치된 finding에 대해 N=3 독립 Arbiter를 실행한다. 각 런타임별 실행 규약은 다음과 같다.
 
+**프롬프트 축소 규칙**: N=3 재판정 프롬프트는 first-pass Arbiter 프롬프트 전체가 아니라, **trigger된 finding 목록만 포함한 축소 프롬프트**로 조립한다. first-pass 프롬프트를 그대로 N=3번 재실행하면 비용이 "애매한 finding 수"가 아니라 "전체 Arbiter batch 크기"에 비례해 xhigh reasoning으로 3배 증가한다. [arbiter-prompt.md](arbiter-prompt.md)의 for_pr/for_plan 조립 규칙은 selective consistency 모드에서 `## 검증 대상 findings` 섹션에 trigger된 subset만 포함해야 한다. 동일 규칙을 for_plan에도 적용하며, 계획 원문/diff 컨텍스트는 유지하되 finding 목록만 좁힌다.
+
 ### Codex 세션 경로 (N=3)
 
 1. 동일 Arbiter 프롬프트로 **3개의 fresh subagent**를 strong review profile로 `spawn_agent` 실행한다. 프롬프트는 first-pass와 동일하다(독립 판정 원칙; 이전 판정 transcript 공유 금지).

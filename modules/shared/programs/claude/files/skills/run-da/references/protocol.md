@@ -6,14 +6,15 @@ DA → Arbiter → Main Agent 상태 흐름, Arbiter 판정 프로토콜, 무한
 
 | DA 결과 | Arbiter 판정 | stability_status | 메인 에이전트 행동 | 사용자 보고 |
 |---------|-------------|------------------|-------------------|-----------|
-| finding 있음 | CONFIRMED_ISSUE | N/A / stable | 자동 수정 (CRITICAL은 진행 차단) | 수정 필요 테이블 |
-| finding 있음 | NOT_AN_ISSUE | N/A / stable | 반영 불필요 | 무해 테이블 |
+| finding 있음 | CONFIRMED_ISSUE | N/A / stable (+ low_confidence_warning=false) | 자동 수정 (CRITICAL은 진행 차단) | 수정 필요 테이블 |
+| finding 있음 | NOT_AN_ISSUE | N/A / stable (+ low_confidence_warning=false) | 반영 불필요 | 무해 테이블 |
 | finding 있음 | NEEDS_MORE_INFO | N/A / stable | 사용자 판단 대기 | AskUserQuestion |
+| finding 있음 | 임의 | N/A / stable + low_confidence_warning=true | **fail-closed 승격** (AskUser) | AskUserQuestion with LOW confidence 이력 |
 | finding 있음 | (majority verdict) | split | 사용자 판단 대기 (NEEDS_MORE_INFO 경로) | AskUserQuestion with vote-shape |
-| finding 있음 | — | fragmented | **BLOCKED** — 자동 수정 금지 | AskUserQuestion 또는 중단 보고 |
+| finding 있음 | — | fragmented / partial_failure / unknown | **BLOCKED** — 자동 수정 금지 | AskUserQuestion 또는 중단 보고 |
 | finding 없음 | — | — | — | ALL CLEAR |
 
-stability_status 의미와 selective consistency 트리거는 [`stability-measurement.md`](stability-measurement.md) 참조.
+stability_status 의미, selective consistency 트리거, `unknown` sentinel 정의는 [`stability-measurement.md`](stability-measurement.md) 참조. `partial_failure`는 `fleiss-kappa.py` 출력의 top-level 플래그와 `missing`/`file_level_failures`/`per_file_malformed` 필드로 전달되며 해당 finding은 `per_finding`에 포함되지 않는다 — caller는 이를 finding별 BLOCKED로 매핑한다.
 
 ### 기존 용어 매핑
 

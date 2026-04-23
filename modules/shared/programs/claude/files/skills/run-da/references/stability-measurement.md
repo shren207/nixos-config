@@ -80,6 +80,15 @@ Fleiss 1971의 chance-corrected agreement 지표. N명의 판정자가 범주형
 
 **중요**: 이 문서는 다른 **문서**에 대해서는 single source이지만, 런타임은 `fleiss-kappa.py` 상단 상수(`STABLE_MIN`, `ESCALATE_MIN`)를 실제로 사용한다. 따라서 문서와 스크립트 사이에는 **기계적 동기화 장치 없는 manual sync contract**다. 값 조정 시 이 문서와 `modules/shared/programs/claude/files/scripts/fleiss-kappa.py`의 상수를 반드시 함께 수정한다. 향후 attrset/JSON에서 생성하는 기계 SSOT는 Phase 2 확장으로 검토.
 
+### Harness runtime requirements
+
+`fleiss-kappa.py`는 Python3 표준 라이브러리만 사용한다 (`json`, `argparse`, `pathlib`, `re`, `collections`, `sys`).
+
+- **NixOS**: `pkgs.python3`가 선언적으로 프로비저닝된다 (`modules/shared/programs/shell/nixos.nix`).
+- **macOS**: system python3(`/usr/bin/python3`, Xcode Command Line Tools에 포함)를 사용한다. nix-darwin은 Command Line Tools를 전제로 하므로 실질적으로 보장된다. Homebrew python이 있으면 PATH 순서에 따라 그쪽이 우선한다.
+
+최소 Python 3.9 (표준 라이브러리 타입 힌트 사용).
+
 ## 독립 판정 설계 원칙
 
 N=3 재판정이 의미 있는 신호를 내려면 아래 원칙을 따라야 한다. 세부 실행 계약은 [`arbiter-scaling.md`](arbiter-scaling.md) 참조.

@@ -33,6 +33,10 @@ STABLE_MIN = 0.6
 ESCALATE_MIN = 0.4
 
 VERDICT_CATEGORIES = ("CONFIRMED_ISSUE", "NOT_AN_ISSUE", "NEEDS_MORE_INFO")
+CONFIDENCE_VALUES = ("HIGH", "MEDIUM", "LOW", "N/A")
+
+# 지원되는 VERDICT_JSON 스키마 major 버전. breaking change 시 이 set을 갱신.
+SUPPORTED_SCHEMA_MAJOR = {"1"}
 
 # arbiter-prompt.md "출력 형식 > 기계 파싱용 VERDICT_JSON 블록" 스키마와 일치
 VERDICT_JSON_PATTERN = re.compile(
@@ -41,14 +45,25 @@ VERDICT_JSON_PATTERN = re.compile(
 )
 
 
-def parse_verdict_json_blocks(markdown_path: Path) -> dict:
+def parse_verdict_json_blocks(markdown_path: Path):
     """Parse VERDICT_JSON blocks from Arbiter result markdown.
 
-    Returns dict mapping finding_id -> verdict entry dict.
-    Malformed JSON blocks are skipped with a warning on stderr.
+    Returns (entries, malformed_count):
+      entries: dict mapping finding_id -> verdict entry dict (valid only).
+      malformed_count: int — 수 보존. caller는 malformed>0을 partial_failure로 승격.
+
+    방어 규칙:
+      - JSONDecodeError: malformed 카운트 +1, 해당 block skip.
+      - json 결과가 dict가 아니면(list/str/null 등): malformed +1, skip.
+      - finding_id 누락/비문자열: malformed +1, skip.
+      - schema_version이 SUPPORTED_SCHEMA_MAJOR에 없으면: malformed +1, skip.
+      - 동일 파일 내 동일 finding_id 중복: malformed +1, 해당 finding entries에서 제거
+        (silent overwrite 방지; caller는 BLOCKED 취급).
     """
     text = markdown_path.read_text(encoding="utf-8")
     entries = {}
+    duplicated_ids = set()
+    malformed = 0
     for match in VERDICT_JSON_PATTERN.finditer(text):
         raw = match.group("body")
         try:
@@ -58,16 +73,65 @@ def parse_verdict_json_blocks(markdown_path: Path) -> dict:
                 f"warning: malformed VERDICT_JSON in {markdown_path}: {exc}",
                 file=sys.stderr,
             )
+            malformed += 1
             continue
-        finding_id = entry.get("finding_id")
-        if not finding_id:
+        if not isinstance(entry, dict):
             print(
-                f"warning: VERDICT_JSON without finding_id in {markdown_path}",
+                f"warning: VERDICT_JSON is not an object ({type(entry).__name__}) in {markdown_path}",
                 file=sys.stderr,
             )
+            malformed += 1
+            continue
+        finding_id = entry.get("finding_id")
+        if not isinstance(finding_id, str) or not finding_id:
+            print(
+                f"warning: VERDICT_JSON without valid finding_id in {markdown_path}",
+                file=sys.stderr,
+            )
+            malformed += 1
+            continue
+        # schema_version 검증: 없으면 보수적으로 skip (1.0 assumed만 허용).
+        sv = entry.get("schema_version")
+        if sv is not None:
+            major = str(sv).split(".", 1)[0]
+            if major not in SUPPORTED_SCHEMA_MAJOR:
+                print(
+                    f"warning: unsupported schema_version={sv!r} in {markdown_path}",
+                    file=sys.stderr,
+                )
+                malformed += 1
+                continue
+        if finding_id in entries:
+            # 같은 파일 안 중복 — 어느 쪽도 신뢰 불가. 해당 finding을 duplicated_ids에 표시.
+            print(
+                f"warning: duplicate finding_id={finding_id!r} in {markdown_path}",
+                file=sys.stderr,
+            )
+            duplicated_ids.add(finding_id)
+            malformed += 1
+            continue
+        # confidence enum strict validation (arbiter-prompt.md "출력 형식" 스키마).
+        conf = entry.get("confidence")
+        if conf is not None and conf not in CONFIDENCE_VALUES:
+            print(
+                f"warning: invalid confidence={conf!r} in {markdown_path} (finding_id={finding_id})",
+                file=sys.stderr,
+            )
+            malformed += 1
+            continue
+        # verdict enum 검증 — downstream에서도 거르지만 조기 거부로 caller 계약 명확화.
+        v = entry.get("verdict")
+        if v is not None and v not in VERDICT_CATEGORIES:
+            print(
+                f"warning: invalid verdict={v!r} in {markdown_path} (finding_id={finding_id})",
+                file=sys.stderr,
+            )
+            malformed += 1
             continue
         entries[finding_id] = entry
-    return entries
+    for fid in duplicated_ids:
+        entries.pop(fid, None)
+    return entries, malformed
 
 
 def classify_vote_shape(verdicts):
@@ -213,7 +277,17 @@ def main():
     )
     args = parser.parse_args()
 
-    arbiter_entries = [parse_verdict_json_blocks(p) for p in args.arbiter_files]
+    # 각 Arbiter 파일에서 (entries, malformed_count) 수집.
+    parsed = [parse_verdict_json_blocks(p) for p in args.arbiter_files]
+    arbiter_entries = [entries for entries, _ in parsed]
+    per_file_malformed = [mal for _, mal in parsed]
+    # 파일이 아예 비었거나 모든 블록이 malformed인 경우 file-level failure.
+    # caller는 이 상태를 partial_failure로 간주하여 BLOCKED 처리해야 한다.
+    file_level_failures = [
+        i
+        for i, entries in enumerate(arbiter_entries)
+        if len(entries) == 0
+    ]
     all_finding_ids = set()
     for entries in arbiter_entries:
         all_finding_ids.update(entries.keys())
@@ -272,10 +346,21 @@ def main():
         "n_findings": len(all_finding_ids),
         "n_classified": len(per_finding),
         "per_finding": per_finding,
+        "per_file_malformed": per_file_malformed,
     }
 
+    partial_failure = False
     if missing:
         result["missing"] = missing
+        partial_failure = True
+    if file_level_failures:
+        # 파일이 비어 있거나 전부 malformed — arbiter-scaling.md "Selective consistency N=3 partial failure"
+        # 계약에 따라 BLOCKED 처리되어야 한다.
+        result["file_level_failures"] = file_level_failures
+        partial_failure = True
+    if any(m > 0 for m in per_file_malformed):
+        partial_failure = True
+    if partial_failure:
         result["partial_failure"] = True
 
     if args.offline:
