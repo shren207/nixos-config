@@ -2,15 +2,15 @@
 name: plan-with-questions
 argument-hint: "[for_action|for_issue] [issue-ref | task description]"
 description: |
-  Use this skill when a user wants to figure out WHAT to build or HOW to approach work through iterative Q&A — NOT when a spec/PRD already exists that just needs translating to tasks.
+  Use when a user wants to figure out WHAT to build or HOW to approach work via iterative Q&A — NOT when a spec/PRD already exists and just needs translating to tasks.
 
   Two modes auto-detect:
-  - **for_action**: User references an issue (URL, `#123`, `DEV-123`, Linear/Jira key) or explicitly passes `for_action` as the first arg → resolve issue, explore code, ask questions, produce approved execution plan.
-  - **for_issue**: No issue ref and no explicit `for_action`/`for_issue` token — vague feature wish or problem ("...하고 싶어", "...기능 추가", "...했으면 좋겠어", raw brainstorming, 단독 phrase like "착수/작업 시작/이슈 분석") → probe with questions, then file a GitHub issue.
+  - **for_action**: Issue ref (URL, `#123`, `DEV-123`, Linear/Jira key) or explicit `for_action` first arg → resolve issue, explore code, ask questions, produce approved plan.
+  - **for_issue**: No issue ref and no explicit token — vague wish/problem ("...하고 싶어", "...기능 추가", brainstorming, 단독 phrase "착수/이슈 분석") → probe with questions, file a GitHub issue.
 
-  Also triggers: "계획 세워/수립", "plan", "스무고개", "요구사항 파악", "어떻게 할지", "brainstorming → plan 전환", "불명확점 정리".
+  Also triggers: "계획 수립", "plan", "스무고개", "요구사항 파악", "brainstorming → plan 전환", "불명확점 정리".
 
-  Do NOT use when: spec/PRD already exists (use prd), checking implementation against existing PRD/spec (use review-implementation), user wants bare implementation plan without discovery, filing issues without Q&A (create-issue), DA review (run-da), or PR bodies (create-pr).
+  Do NOT use when: spec/PRD exists (use prd), checking impl vs PRD/spec (use review-implementation), bare impl plan, filing issues without Q&A (create-issue), DA review (run-da), or PR bodies (create-pr).
 ---
 
 # 스무고개식 계획 수립
