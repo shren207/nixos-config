@@ -186,13 +186,16 @@ echo 'access-tokens = github.com=ghp_YOUR_TOKEN' >> ~/.config/nix/nix.conf
 **권장 워크플로우**:
 
 ```bash
-# 1. 한 호스트에서 flake update 후 push
+# 1. 각 호스트(macOS/NixOS)에서 flake update 후 FOD 보정 + rebuild
+#    hostname이 다른 머신에서도 이 블록을 반복한 뒤 아래 커밋/푸시로 모은다
 nix flake update
 ./scripts/fix-fod-hashes.sh  # FOD hash mismatch 자동 보정 (현재 호스트 한정)
-nrs  # 또는 sudo darwin-rebuild switch --flake .
+nrs --force                  # fix-fod-hashes 검증 후 preflight known-heavy abort 우회
+
+# 2. 모든 호스트 보정이 끝난 뒤 커밋/푸시 (한 호스트에서 수행)
 git add -u && git commit -m "update flake inputs" && git push
 
-# 2. 다른 호스트에서 pull 후 offline rebuild
+# 3. pull 후 빠른 offline rebuild (위 1을 해당 호스트에서 이미 수행했을 때만 유효)
 git pull
 nrs --offline  # ~10초 완료!
 ```

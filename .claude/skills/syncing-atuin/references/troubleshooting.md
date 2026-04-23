@@ -508,7 +508,7 @@ atuin --version
 # nixpkgs를 해당 migration을 포함하는 버전 이상으로 업데이트
 nix flake update nixpkgs     # 또는 nix flake update (전체)
 ./scripts/fix-fod-hashes.sh  # FOD hash mismatch 자동 보정 (현재 호스트 한정)
-nrs                          # rebuild 적용
+nrs --force                  # fix-fod-hashes 검증 후 preflight known-heavy abort 우회
 atuin --version              # 18.13.x 이상 확인
 ```
 

@@ -30,7 +30,7 @@ Atuin 동기화 상태 점검, 한글 히스토리 정리, encryption key 문제
 - 새 버전의 atuin이 DB에 migration을 적용한 후, 구버전으로 돌아가면 발생
 - 에러: `migration XXXXXXXX was previously applied but is missing in the resolved migrations`
 - 원인: atuin DB migration은 forward-only — 한번 적용되면 해당 버전 이상을 유지해야 함
-- 해결: `nix flake update nixpkgs` → `./scripts/fix-fod-hashes.sh` → `nrs` (각 호스트에서 실행. 상세: [references/troubleshooting.md](references/troubleshooting.md))
+- 해결: `nix flake update nixpkgs` → `./scripts/fix-fod-hashes.sh` → `nrs --force` (각 호스트에서 실행. 상세: [references/troubleshooting.md](references/troubleshooting.md))
 - 사례: v18.13.0의 `20260224000100` ("history author intent") migration이 Mac DB에만 적용된 상태에서 nixpkgs lock이 v18.12.1을 가리켜 발생 (PR #333)
 - 예방: `nix run nixpkgs#atuin` 등으로 nixpkgs lock보다 새 버전을 임시 실행하지 않기
 
