@@ -38,11 +38,11 @@ NSS 블록이 재개 시 복구할 실제 작업 target 계약. 이 섹션이 **
 
 - **공용 스킬의 책임 범위**: shared `write-handoff`는 repo/workflow별 branch naming policy를 정의하지 않는다. `issue/{N}` 같은 관례는 프로젝트 local override가 있다면 그쪽 책임이다.
 - **기록 대상**: NSS는 `REPO`, `ISSUE_NUM`, `TARGET_BRANCH`를 각각 first-class 값으로 기록한다. `TARGET_BRANCH`를 `ISSUE_NUM`에서 재구성하지 않는다.
-- **`TARGET_BRANCH` 확보 순서**:
-  1. 이슈 본문/댓글/기존 handoff 초안/사용자 지시에 실제 branch가 이미 명시되어 있으면 그 값을 우선 사용한다.
-  2. `gh api graphql`로 `Issue.linkedBranches`를 조회한다.
-  3. `gh issue view --json closedByPullRequestsReferences`로 PR 번호를 얻은 뒤 `gh pr view --json headRefName`으로 PR head branch를 조회한다.
-  4. 프로젝트 local override가 heuristic candidate(예: `issue/{N}`)를 제공하더라도 보조 힌트로만 사용한다. 실제 branch 발견 결과나 사용자 확답보다 우선하지 않는다.
+- **`TARGET_BRANCH` 확보 순서** (authoritative GitHub metadata 우선):
+  1. `gh api graphql`로 `Issue.linkedBranches`를 조회한다 (authoritative — repo write 권한 필요).
+  2. `gh issue view --json closedByPullRequestsReferences`로 PR 번호를 얻은 뒤 `gh pr view --json headRefName`으로 PR head branch를 조회한다 (authoritative).
+  3. 이슈 본문/댓글/기존 handoff 초안/사용자 지시의 텍스트 branch는 **non-authoritative 보조 힌트**로만 사용한다. 1·2 metadata가 있고 텍스트와 불일치하면 metadata가 우선하며, 필요 시 사용자에게 재확답받는다 (공개 이슈 텍스트는 임의 commenter가 작성 가능).
+  4. 프로젝트 local override가 heuristic candidate(예: `issue/{N}`)를 제공하더라도 보조 힌트로만 사용한다. 1·2·3보다 우선하지 않는다.
   5. 여전히 미확정이면 질문 도구로 사용자에게 정확한 branch를 확답받는다.
 - **NSS 복구 규칙**:
   1. remote branch 존재는 `git ls-remote --exit-code --heads origin "$TARGET_BRANCH"`와 `git fetch origin "refs/heads/$TARGET_BRANCH:refs/remotes/origin/$TARGET_BRANCH"` 조합으로만 신뢰한다. `git fetch origin "$TARGET_BRANCH"` 성공만으로 존재 증거로 취급하지 않는다.
@@ -125,12 +125,14 @@ bare 번호 + cwd 불일치 조합은 Step 1-D 실패 처리 대상이다.
 
 NSS는 실제 재개 branch를 `TARGET_BRANCH`로 직접 기록한다. `issue/$ISSUE_NUM` 같은 추론값으로 대체하지 않는다.
 
-우선순위:
-1. **이미 명시된 actual branch 우선**: 이슈 본문/댓글/기존 handoff 초안/사용자 지시에 exact branch가 있으면 그 값을 사용한다.
-2. **`linkedBranches` 1순위**: GitHub GraphQL `Issue.linkedBranches`에서 branch를 조회한다.
-3. **PR head 2순위**: `closedByPullRequestsReferences`로 PR 번호를 얻은 뒤 `gh pr view --json headRefName`으로 branch를 조회한다.
-4. **repo-local heuristic는 보조 힌트만**: 프로젝트 local override가 `issue/{N}` 같은 후보를 제시해도 exact branch/실제 ref/user 확답보다 우선하지 않는다.
+우선순위 (authoritative GitHub metadata를 텍스트 주장보다 우선):
+1. **`linkedBranches` 1순위** (authoritative): GitHub GraphQL `Issue.linkedBranches`에서 branch를 조회한다. nodes 비어 있지 않으면 그 값을 사용.
+2. **PR head 2순위** (authoritative): `closedByPullRequestsReferences`로 PR 번호를 얻은 뒤 `gh pr view --json headRefName`으로 branch를 조회한다.
+3. **이슈 본문/댓글/기존 handoff 초안/사용자 지시의 텍스트 branch 3순위** (non-authoritative): 1·2에서 확보되지 않았거나 metadata와 일치 확인이 필요한 경우에만 보조 힌트로 사용. 외부 commenter의 임의 텍스트일 수 있으므로 **metadata와 불일치하면 사용자 확답 도구로 반드시 재검증**한다. authoritative metadata가 있는데 텍스트가 다른 branch를 가리키면 메타데이터를 우선한다.
+4. **repo-local heuristic 4순위**: 프로젝트 local override가 `issue/{N}` 같은 후보를 제시해도 1·2·3보다 우선하지 않는다.
 5. **최종 게이트**: 위 경로로도 미확정이면 질문 도구로 사용자에게 정확한 branch를 확답받는다.
+
+**trust boundary 원칙**: 공개 이슈의 본문/댓글 텍스트는 임의 작성자가 편집 가능하므로 **non-authoritative**로 간주한다. `linkedBranches`와 PR head는 repo write 권한이 필요한 authoritative metadata다. 텍스트가 더 구체적으로 보여도 metadata가 있으면 metadata가 우선한다.
 
 예시:
 
