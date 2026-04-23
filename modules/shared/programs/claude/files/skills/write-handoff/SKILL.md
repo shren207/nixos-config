@@ -206,7 +206,7 @@ LLM이 커밋 메시지를 자의적으로 작성하지 않고, 가이드에 명
     - 빈 문자열
     - **REPO 값이 Step 1-B에서 확보한 repo slug와 불일치**: 예시 template의 repo slug(`greenheadHQ/nixos-config` 등)이 남아 있고 실제 handoff 대상이 다른 repo인 경우. Step 1-B에서 확보한 repo slug와 **문자열 비교하여 동일 여부 확인**. 다르면 반드시 치환.
 
-    `<WORKING_BRANCH>` 후보 bullet은 선택적 비실행형 metadata이다 (bash 코드블록 밖에 배치되어 실행 경로와 분리). 작성자 LLM이 확보 불가하면 해당 bullet 자체를 삭제하고 placeholder를 남기지 않는다.
+    `<WORKING_BRANCH>` 후보 bullet은 선택적 비실행형 metadata이다 (bash 코드블록 밖에 배치되어 실행 경로와 분리). 작성자 LLM이 확보 불가하면 해당 bullet 자체를 삭제하고 placeholder를 남기지 않는다. **`<WORKING_BRANCH>` 리터럴이 NSS에 잔존하면 bullet이 삭제되지 않은 것이므로 Step 9를 중단하고 bullet을 삭제한다** (grep `'<WORKING_BRANCH>'` on NSS 블록).
 6. **Shell-안전성 재검증 (필수)**: NSS 블록의 `REPO=` 할당이 **single-quoted literal(`'...'`)** 형태인지 확인하고, 값에 `'`(single quote)이 포함되어 있으면 Step 9를 중단한다 (Step 1-C Shell-안전성 가드 참조).
 
 ### Step 9: 이슈 코멘트로 게시
