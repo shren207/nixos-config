@@ -4,12 +4,16 @@ DA → Arbiter → Main Agent 상태 흐름, Arbiter 판정 프로토콜, 무한
 
 ## DA → Arbiter → Main Agent 상태 흐름
 
-| DA 결과 | Arbiter 판정 | 메인 에이전트 행동 | 사용자 보고 |
-|---------|-------------|-------------------|-----------|
-| finding 있음 | CONFIRMED_ISSUE | 자동 수정 (CRITICAL은 진행 차단) | 수정 필요 테이블 |
-| finding 있음 | NOT_AN_ISSUE | 반영 불필요 | 무해 테이블 |
-| finding 있음 | NEEDS_MORE_INFO | 사용자 판단 대기 | AskUserQuestion |
-| finding 없음 | — | — | ALL CLEAR |
+| DA 결과 | Arbiter 판정 | stability_status | 메인 에이전트 행동 | 사용자 보고 |
+|---------|-------------|------------------|-------------------|-----------|
+| finding 있음 | CONFIRMED_ISSUE | N/A / stable | 자동 수정 (CRITICAL은 진행 차단) | 수정 필요 테이블 |
+| finding 있음 | NOT_AN_ISSUE | N/A / stable | 반영 불필요 | 무해 테이블 |
+| finding 있음 | NEEDS_MORE_INFO | N/A / stable | 사용자 판단 대기 | AskUserQuestion |
+| finding 있음 | (majority verdict) | split | 사용자 판단 대기 (NEEDS_MORE_INFO 경로) | AskUserQuestion with vote-shape |
+| finding 있음 | — | fragmented | **BLOCKED** — 자동 수정 금지 | AskUserQuestion 또는 중단 보고 |
+| finding 없음 | — | — | — | ALL CLEAR |
+
+stability_status 의미와 selective consistency 트리거는 [`stability-measurement.md`](stability-measurement.md) 참조.
 
 ### 기존 용어 매핑
 
@@ -26,16 +30,36 @@ DA → Arbiter → Main Agent 상태 흐름, Arbiter 판정 프로토콜, 무한
 
 1. DA 에이전트가 findings를 반환한다 (각 finding에 보고용 ID 포함).
 2. findings 개수에 따라 Arbiter 수를 결정한다 ([arbiter-scaling.md](arbiter-scaling.md)).
-3. Arbiter 에이전트가 각 finding을 4가지 기준으로 독립 검증한다 ([arbiter-prompt.md](arbiter-prompt.md)).
-4. 메인 에이전트는 사용자에게 전건 보고한다.
-5. CONFIRMED_ISSUE 항목을 자동 수정한다 (CRITICAL은 즉시, 진행 차단).
-6. NEEDS_MORE_INFO 항목은 사용자 판단을 요청한다.
+3. Arbiter 에이전트가 각 finding을 5가지 기준으로 독립 검증한다 ([arbiter-prompt.md](arbiter-prompt.md)). Portability는 verdict 결정권 없는 guardrail이다.
+4. first-pass Arbiter 결과가 selective consistency trigger 조건([stability-measurement.md](stability-measurement.md)의 OR 3조건)에 매치되면 N=3 재판정을 실행하고 vote-shape로 stability_status를 결정한다. 자세한 상태 전이는 아래 "Selective consistency 상태 전이" 참조.
+5. 메인 에이전트는 사용자에게 전건 보고한다 (vote-shape가 있으면 함께 보고).
+6. CONFIRMED_ISSUE + (stability_status=N/A 또는 stable) 항목을 자동 수정한다 (CRITICAL은 즉시, 진행 차단).
+7. NEEDS_MORE_INFO 또는 stability_status=split 항목은 사용자 판단을 요청한다.
+8. stability_status=fragmented 항목은 BLOCKED 상태로 기록하고 자동 수정하지 않는다 (아래 섹션 참조).
 
 ### Arbiter 출력 요건
 
-- 각 finding에 대해 verdict, 신뢰도, 4가지 기준 평가, 근거를 반환한다.
-- NOT_AN_ISSUE 판정에는 직접 확인 + 반증 근거가 필수다 (모드별 상세: [arbiter-prompt.md](arbiter-prompt.md) 참조).
+- 각 finding에 대해 사람용 markdown 블록(verdict, 신뢰도, 5가지 기준 평가, stability_status, 근거)과 기계 파싱용 VERDICT_JSON 블록을 **둘 다** 반환한다. 형식은 [`arbiter-prompt.md`](arbiter-prompt.md)의 "출력 형식" 섹션 참조.
+- VERDICT_JSON 블록은 selective consistency harness(`fleiss-kappa.py`)가 파싱한다. 사람용 markdown wording이 변해도 JSON 스키마는 유지되어야 한다.
+- NOT_AN_ISSUE 판정에는 직접 확인 + 반증 근거가 필수다 (모드별 상세: [`arbiter-prompt.md`](arbiter-prompt.md) 참조).
 - LOW 신뢰도 NOT_AN_ISSUE는 자동으로 NEEDS_MORE_INFO로 승격된다.
+- LOW 신뢰도, NEEDS_MORE_INFO, 이전 outer round 반복 finding은 selective consistency N=3 재판정 trigger 조건이다. trigger 상세는 [`stability-measurement.md`](stability-measurement.md) 참조.
+
+### Selective consistency 상태 전이
+
+first-pass Arbiter 결과가 trigger 조건에 매치되면 동일 입력으로 N=3 재판정을 실행한다. `fleiss-kappa.py`가 VERDICT_JSON 블록 3개에서 vote-shape를 계산하여 stability_status를 채운다. vote-shape 분류 정의는 [`stability-measurement.md`](stability-measurement.md)의 "v1 정책: vote-shape 기반 selective consistency" 섹션이 단일 진실 원천이다.
+
+상태 전이:
+
+| stability_status | majority verdict | 메인 에이전트 행동 |
+|------------------|------------------|-------------------|
+| `stable` (3:0) | unanimous verdict | 기존 경로 (CONFIRMED→수정, NOT_AN_ISSUE→무해, NEEDS_MORE_INFO→AskUser) |
+| `split` (2:1) | majority verdict (정보 표시) | NEEDS_MORE_INFO 경로로 사용자 판단 요청. vote-shape와 minority verdict도 함께 보고. |
+| `fragmented` (1:1:1) | — | **BLOCKED**. AskUser 지원 런타임: 사용자에게 판단 요청 (비유법 설명 포함). AskUser 미지원 런타임: 자동 승격 금지, 중단 보고 후 명시적 rerun 전에는 재개하지 않음. |
+
+**AskUser 미지원 런타임 주의**: 기존 "NEEDS_MORE_INFO 자동 CONFIRMED_ISSUE 승격" 규칙은 first-pass single Arbiter 판정에만 적용된다. selective consistency에서 나온 `split`/`fragmented`는 이 자동 승격 경로를 **따르지 않는다** — fragmented는 BLOCKED, split는 명시적 rerun 대기. 상세는 [`arbiter-scaling.md`](arbiter-scaling.md)의 "AskUserQuestion 미지원 대응" 섹션 참조.
+
+**Threshold 숫자는 이 문서에서 재서술하지 않는다**. `STABLE_MIN`/`ESCALATE_MIN` 값과 vote-shape 분류 규칙은 [`stability-measurement.md`](stability-measurement.md)가 단일 진실 원천이다.
 
 ## Reviewer output propagation
 
@@ -108,7 +132,7 @@ Arbiter가 CONFIRMED_ISSUE로 판정한 항목을 수정할 때:
 
 ### 3회 반복 규칙
 
-동일한 지적(세부 관점 + 위치(파일:줄 또는 계획 항목 번호) 기준)이 3회 연속 라운드에서 반복되면:
+동일한 지적(세부 관점 + 위치(파일:줄 또는 계획 항목 번호) 기준)이 3회 연속 **outer round**에서 반복되면:
 
 1. 해당 지적과 이전 라운드의 Arbiter 판정 이력을 요약한다.
 2. 사용자에게 AskUserQuestion으로 3가지 선택지를 제시한다:
@@ -116,10 +140,12 @@ Arbiter가 CONFIRMED_ISSUE로 판정한 항목을 수정할 때:
    - **제외 + 근거 기록**: 기술적 근거를 CIR로 남기고 현재 루프에서 제외한다.
    - **보류**: 별도 이슈로 등록하고 현재 루프에서 제외한다.
 
+**Selective consistency 서브런 카운팅**: selective consistency의 N=3 재판정은 동일 outer round 내부의 **서브런**이다. 3회 반복 규칙과 최대 라운드 카운트에 포함하지 **않는다**. 즉, outer round 1에서 N=3 재판정을 수행해도 outer round 카운트는 1에 머문다.
+
 ### 최대 라운드 수
 
-명시적 제한은 두지 않되, 5회 라운드 이후에도 CLEAR에 도달하지 못하면
-사용자에게 현황을 보고하고 계속 진행 여부를 확인한다.
+명시적 제한은 두지 않되, 5회 **outer round** 이후에도 CLEAR에 도달하지 못하면
+사용자에게 현황을 보고하고 계속 진행 여부를 확인한다. selective consistency 서브런은 outer round 카운트에 포함하지 않는다.
 
 ## 라운드 요약 기록
 
