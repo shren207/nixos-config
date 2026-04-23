@@ -32,6 +32,7 @@ flake 평가, derivation 해석, substituter/빌드 성능, 공통 오류 복구
 ```bash
 nix flake update                          # 모든 input 갱신
 nix flake update <input-name>             # 특정 input만 갱신
+./scripts/fix-fod-hashes.sh               # FOD hash mismatch 자동 보정 (현재 호스트 한정)
 nix flake check --no-build --all-systems  # flake 평가 오류 검사
 ```
 
@@ -63,7 +64,8 @@ nix derivation show .#darwinConfigurations.<host>.system  # derivation 확인
 
 1. `git add .` — Nix flakes는 git-tracked 파일만 인식한다.
 2. `nix flake update <input-name>` — 외부 input 갱신이 필요한 경우.
-3. `nrs` 또는 `nrs --offline`으로 빌드.
+3. `./scripts/fix-fod-hashes.sh` — input 갱신으로 FOD hash가 변한 경우 자동 보정. 현재 호스트만 검증하므로 다른 플랫폼은 해당 머신에서 재실행.
+4. `nrs` 또는 `nrs --offline`으로 빌드.
 
 ### 빌드 실패 진단
 
