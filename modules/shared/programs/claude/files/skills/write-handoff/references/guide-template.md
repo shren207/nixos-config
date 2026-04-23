@@ -226,7 +226,7 @@ EOF
 ````markdown
 ## Next Session Starter
 
-- **최근 작업 branch 후보 (참고용)**: `'<WORKING_BRANCH>'` — 실행 경로에 영향을 주지 않는 메타데이터. 실행자는 이 후보를 참고만 하고 실제 checkout은 실행 시점에 사용자 지시로 결정한다. 작성자 LLM이 확보 불가하면 이 bullet 자체를 삭제한다 (bash 코드블록 밖에 있으므로 여기에 개행/escape가 들어가도 실행 경로에 영향이 없지만, 실행자 수동 checkout 시 shell injection을 차단하기 위해 **single-quoted 형태로 표기**하고 실행자는 `git checkout '<branch-name>'` 형태로 붙여 넣는다).
+- **최근 작업 branch 후보 (참고용)**: `'<WORKING_BRANCH>'` — 실행 경로에 영향을 주지 않는 메타데이터. 실행자는 이 후보를 참고만 하고 실제 checkout은 실행 시점에 사용자 지시로 결정한다. 작성자 LLM이 확보 불가하거나 branch 값에 **`'`(single quote)가 포함된 경우** 이 bullet 자체를 삭제한다 (`'` 포함 branch는 `git check-ref-format`이 유효 ref로 허용하지만 single-quoted literal 가드를 깨뜨려 실행자 수동 checkout 시 shell injection 벡터가 됨). 그 외 값은 single-quoted 형태로 표기하고 실행자는 `git checkout '<branch-name>'` 형태로 붙여 넣는다.
 - **이 가이드 읽고 바로 시작할 명령어** (복붙 즉시 실행 가능. 임의 cwd에서 실행해도 대상 repo로 복귀 + 실패 시 즉시 중단):
   ```bash
   # 작성자 LLM: <REPO_SLUG>을 write-handoff/SKILL.md Step 1-B(helper)에서 확보한 값으로 치환
@@ -248,8 +248,12 @@ EOF
     fi
     git status
     echo "→ 현재 branch: $(git branch --show-current)"
-    echo "→ (현재 branch 기준 최근 커밋 3개)"
-    git log --oneline -3
+    if git rev-parse --verify HEAD >/dev/null 2>&1; then
+      echo "→ (현재 branch 기준 최근 커밋 3개)"
+      git log --oneline -3
+    else
+      echo "→ (커밋 없는 repo — git log 생략)"
+    fi
     echo "→ 실행자 규약: NSS 상단에 '최근 작업 branch 후보' bullet이 있으면 대조하여 필요 시 \"git checkout '<branch-name>'\"로 이동 (single-quoted literal로 shell injection 차단). bullet이 없으면 사용자 지시로 작업 branch를 결정한다 (이슈 본문/기존 handoff 코멘트는 stale 위험이 구조적이므로 branch 결정 근거로 사용하지 않는다). checkout 후 'git log --oneline -3'를 다시 확인하여 의도된 맥락인지 검증."
   ) || { echo "ERROR: handoff restore failed. REPO=$REPO"; echo "수동으로 repo 확보 후 재시도하세요."; }
   ```

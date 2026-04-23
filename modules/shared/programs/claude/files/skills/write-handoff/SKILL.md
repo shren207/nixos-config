@@ -45,7 +45,7 @@ helper 스크립트는 양 런타임에서 동일 source를 공유한다 (Home M
 | 2 | 핵심 원칙 | 행동 제약 1-3개 — 작업 전체에 적용되는 불변 규칙 |
 | 3 | Phase 1: 사전 확인 | CLI/파일시스템에서 현재 값 확인 (병렬 가능 힌트 포함) |
 | 4 | Phase 2: 실행 | BEFORE/AFTER 치환 또는 상세 변경 지시 |
-| 5 | Phase 3: 검증 + 커밋 | 빌드 확인 + git add/commit 템플릿 |
+| 5 | 마지막 Phase (3~6): 검증 + 커밋 | 빌드 확인 + git add/commit 템플릿. 복잡도별 Phase 수는 아래 "복잡도별 분기"에 따라 3/4/6 |
 | 6 | 주의사항 | 환경 분기, 대체 행동, 예외 처리 |
 | 7 | **Next Session Starter 블록** | 다음 세션 LLM이 바로 실행할 명령어/재개 지점 (recency bias) |
 
@@ -204,11 +204,11 @@ LLM이 커밋 메시지를 자의적으로 작성하지 않고, 가이드에 명
 5. **NSS placeholder 검증 (필수)**: placeholder는 **required**와 **optional** 두 부류로 구분하여 검증한다.
 
     **Required placeholder (치환 실패 시 게시 금지)**: Next Session Starter 블록의 REPO가 다음 중 하나라도 해당하면 Step 1-C "값 확보 실패 처리" 순서로 실제 값 확보 후 치환한다. 치환 완료 전에는 Step 9(게시)로 진행하지 않는다.
-    - `<...>` 형태 placeholder (`<REPO_SLUG>`, `<unknown-*>`, `<repo-root-path>` 등)
+    - `<...>` 형태 placeholder (`<REPO_SLUG>`, `<unknown-*>` 등)
     - 빈 문자열
     - **REPO 값이 Step 1-B에서 확보한 repo slug와 불일치**: 예시 template의 repo slug(`greenheadHQ/nixos-config` 등)이 남아 있고 실제 handoff 대상이 다른 repo인 경우. Step 1-B에서 확보한 repo slug와 **문자열 비교하여 동일 여부 확인**. 다르면 반드시 치환.
 
-    **Optional metadata placeholder (치환 실패 시 bullet 삭제)**: `<WORKING_BRANCH>`는 required와 달리 **optional** 규칙을 따른다. 작성자 LLM이 확보 불가하면 해당 bullet 자체를 삭제하고 placeholder를 남기지 않는다. bash 코드블록 밖에 배치되어 실행 경로와 분리되며, 실행자 수동 checkout을 위해 single-quoted 형태(`'<WORKING_BRANCH>'`)로 표기한다. **`<WORKING_BRANCH>` 리터럴이 NSS에 잔존하면 bullet이 삭제되지 않은 것이므로 Step 9를 중단하고 bullet을 삭제한다** (grep `'<WORKING_BRANCH>'` on NSS 블록).
+    **Optional metadata placeholder (치환 실패 시 bullet 삭제)**: `<WORKING_BRANCH>`는 required와 달리 **optional** 규칙을 따른다. 작성자 LLM이 확보 불가하면 해당 bullet 자체를 삭제하고 placeholder를 남기지 않는다. bash 코드블록 밖에 배치되어 실행 경로와 분리되며, 실행자 수동 checkout을 위해 single-quoted 형태(`'<WORKING_BRANCH>'`)로 표기한다. **`<WORKING_BRANCH>` 리터럴이 NSS에 잔존하면 bullet이 삭제되지 않은 것이므로 Step 9를 중단하고 bullet을 삭제한다** (grep `'<WORKING_BRANCH>'` on NSS 블록). **branch 값에 `'`(single quote)가 포함되면** single-quoted literal 가드가 깨지므로 bullet 자체를 삭제하고 placeholder 없이 게시한다 (`git check-ref-format`은 `O'Reilly` 같은 값을 유효 ref로 허용하므로 실행자 수동 checkout 시 shell injection 위험).
 6. **Shell-안전성 재검증 (필수)**: NSS 블록의 `REPO=` 할당이 **single-quoted literal(`'...'`)** 형태인지 확인하고, 값에 `'`(single quote)이 포함되어 있으면 Step 9를 중단한다 (Step 1-C Shell-안전성 가드 참조).
 
 ### Step 9: 이슈 코멘트로 게시
@@ -217,7 +217,9 @@ LLM이 커밋 메시지를 자의적으로 작성하지 않고, 가이드에 명
 
 ```bash
 # 필수: 본문을 파일에 저장한 뒤 --body-file로 전달
-gh issue comment <number> --body-file <path-to-guide.md>
+# bare 번호 대신 이슈 URL(Step 1-B 입력 또는 Step 1-C에서 확답받은 URL)을 사용하여
+# cwd 의존 wrong-repo 게시를 원천 차단한다.
+gh issue comment <ISSUE_URL> --body-file <path-to-guide.md>
 ```
 
 참고: `gh issue comment --body-file -`로 stdin도 허용되지만, 생성된 가이드를 파일로 저장하는 워크플로가 디버깅·재실행에 유리하다.
