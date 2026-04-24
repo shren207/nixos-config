@@ -84,10 +84,12 @@ Codex 세션에서 `spawn_agent`가 정책상 거부될 때(예: `multi_agent=fa
 
 **role별 review profile**:
 
-| 역할 | 명령 |
+| 역할 | 명령 (stdin pipe 포함, 결과/stderr 경로 포함) |
 |------|------|
-| reviewer / Intensity / Auditor (standard profile) | `codex exec --sandbox read-only --ephemeral -c model="gpt-5.5" -c model_reasoning_effort="medium" -` |
-| Arbiter (strong profile) | `codex exec --sandbox read-only --ephemeral -c model="gpt-5.5" -c model_reasoning_effort="xhigh" -` |
+| reviewer / Intensity / Auditor (standard profile) | `cat "$DA_DIR/{unit}.md" \| codex exec --sandbox read-only --ephemeral -c model="gpt-5.5" -c model_reasoning_effort="medium" -o "$DA_DIR/{unit}-result.md" - 2>"$DA_DIR/{unit}-stderr.log"` |
+| Arbiter (strong profile) | `cat "$ARBITER_DIR/arbiter-prompt.md" \| codex exec --sandbox read-only --ephemeral -c model="gpt-5.5" -c model_reasoning_effort="xhigh" -o "$ARBITER_DIR/arbiter-result.md" - 2>"$ARBITER_DIR/arbiter-stderr.log"` |
+
+`-o` 플래그(`--output-last-message <FILE>`)가 마지막 메시지를 결과 파일로 저장한다 (이것이 없으면 파일 수집 계약이 깨진다). stderr도 별도 로그 파일로 분리해 실패 진단을 보존한다.
 
 **실행 방식**: serial (multiple review units를 순차 실행). 병렬 발사는 `spawn_agent`가 거부된 상황이므로 shell-level `&+wait` 대신 각 subprocess를 직렬로 기동한다. 결과 파일은 `$DA_DIR/{unit}-result.md`에 수집 후 메인 에이전트가 파싱한다.
 
