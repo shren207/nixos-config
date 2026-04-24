@@ -66,9 +66,10 @@ REPO="${OWNER_REPO##*/}"
 
 **파싱 규칙** (fail-closed):
 
-- `--parent=<값>` 또는 `--parent <값>` 형식을 옵션으로 인식한다. 위치는 자유(토큰 앞/중/뒤 모두 허용).
-- `--` 이후의 모든 토큰은 옵션으로 소비하지 않고 제목/본문으로 취급한다 — 자유 텍스트에 리터럴 `--parent`를 포함하려면 반드시 이 escape를 사용한다 (예: `/create-issue -- "--parent 옵션 문서화 이슈"`).
+- **토큰 스캔 순서**: `$ARGUMENTS`를 왼쪽부터 shell-like tokenize 후 스캔한다. 첫 standalone `--` 토큰을 만나면 **그 이후 토큰은 모두 옵션 검색 대상에서 제외**하고 제목/본문으로 취급한다 (escape). 이 규칙은 아래 `--parent` 옵션 검색보다 **먼저** 적용된다.
+- `--parent=<값>` 또는 `--parent <값>` 형식만 옵션으로 인식한다. 위치는 자유(standalone `--` 앞이라면 어디든).
 - `--parent` 또는 `--parent=` 를 옵션 토큰으로 만난 뒤 값이 아래 값 패턴 중 어디에도 매칭되지 않거나 값이 없으면 **`ERROR: --parent 값 누락 또는 유효하지 않음` 출력 후 `exit 1`**. 사용자 오타로 인한 silent parent 연결 누락을 막기 위한 fail-closed 경계.
+- `--parent` 옵션은 **최대 1회**만 허용한다. 2회 이상 발견되면 **`ERROR: --parent 중복 지정` 출력 후 `exit 1`**. first-wins/last-wins 해석 모호성 제거.
 
 **값 패턴** (둘 중 하나에만 매칭 허용):
 
@@ -90,7 +91,9 @@ REPO="${OWNER_REPO##*/}"
 | `"제목" --parent https://github.com/OWNER/REPO/issues/539` | `539` | `"제목"` | URL 값 매칭 (same-repo) |
 | `--parent 539abc "제목"` | — | — | exit 1 (값 패턴 불일치, 오타 방지) |
 | `"제목" --parent` | — | — | exit 1 (값 누락) |
+| `--parent 539 --parent 540 "제목"` | — | — | exit 1 (중복 지정) |
 | `-- "--parent 문서화 이슈"` | (unset) | `"--parent 문서화 이슈"` | escape로 literal 보존 |
+| `"제목" -- --parent 539` | (unset) | `"제목" --parent 539` | standalone `--` 이후는 옵션 검색 제외 |
 
 **Pre-check** (존재 확인 + object shape 검증, PR 배제):
 
@@ -212,9 +215,10 @@ if [ -n "$PARENT_NUM" ]; then
 
   # Branch 1: child database id 조회
   # Sub-Issues API는 visible issue number가 아니라 child의 database id(sub_issue_id)를 요구한다.
+  # -q '.id'는 필드 부재 시 "null" 문자열을 반환할 수 있으므로 numeric 형식도 검증한다.
   ISSUE_ID=$(gh api "/repos/$OWNER/$REPO/issues/$ISSUE_NUM" -q '.id' 2>/dev/null || true)
 
-  if [ -z "$ISSUE_ID" ]; then
+  if [ -z "$ISSUE_ID" ] || ! [[ "$ISSUE_ID" =~ ^[0-9]+$ ]]; then
     # Branch 1 failure: child id 조회 실패 → POST 스킵
     echo "WARN: ISSUE_ID 조회 실패 — sub-issue 연결 스킵, 수동 재시도 필요"
     echo "SUBISSUE_STATUS=FAILED_ID_LOOKUP  # ISSUE_URL=$ISSUE_URL (이슈는 생성됨, parent 미연결)"
@@ -270,7 +274,7 @@ fi
 - `refactor(skills): X 단순화 (epic, #A/#B/#C)`
 - `feat(codex): Y 캠페인 (epic, Wave 1)`
 
-Umbrella를 사용할 때는 먼저 `/create-issue`로 umbrella를 등록한 뒤, 반환된 번호(또는 URL)를 children 등록 시 `--parent <umbrella_NUM|URL>`로 전달한다. `/create-issue` 자체는 단일 등록만 수행한다 — 복수 이슈 순서 유도나 umbrella 선생성 판단은 이 스킬의 책임이 아니다.
+Umbrella를 사용할 때는 먼저 `/create-issue`로 umbrella를 등록한 뒤, 반환된 umbrella issue의 번호 또는 URL을 children 등록 시 `--parent <NUM|URL>`로 전달한다 (frontmatter argument-hint와 동일 표기). `/create-issue` 자체는 단일 등록만 수행한다 — 복수 이슈 순서 유도나 umbrella 선생성 판단은 이 스킬의 책임이 아니다.
 
 ## 주의사항
 
