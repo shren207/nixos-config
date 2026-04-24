@@ -83,13 +83,13 @@ Codex 세션에서 `spawn_agent`가 정책상 거부될 때(예: `multi_agent=fa
 - 각 review unit은 독립 subprocess (fresh 판정 경계는 프로세스 경계로 보존).
 - 사용자 승인 후에만 실행 (SKILL.md "Delegation fallback" 섹션 참조).
 
-**role별 review profile** (각 역할이 사용하는 임시 디렉토리와 파일 이름 규약은 SKILL.md 본문 절차를 따른다):
+**role별 명령** (각 역할이 사용하는 임시 디렉토리와 파일 이름 규약은 SKILL.md 본문 절차를 따른다. `$PROFILE_MODEL`, `$PROFILE_EFFORT`는 SKILL.md 상단 "런타임 도구 매핑"의 **review profile 매핑** 불릿 값 — standard는 `model="gpt-5.5"`+medium, strong은 `model="gpt-5.5"`+xhigh — 을 그대로 전달한다. fallback 경로에서도 literal을 중복 서술하지 않는다):
 
-| 역할 | 명령 (stdin pipe, 결과/stderr 경로 포함) |
-|------|------|
-| reviewer / Auditor (standard profile) | `cat "$DA_DIR/{unit}.md" \| codex exec --sandbox read-only --ignore-user-config --ephemeral -c model="gpt-5.5" -c model_reasoning_effort="medium" -o "$DA_DIR/{unit}-result.md" - 2>"$DA_DIR/{unit}-stderr.log"` |
-| Intensity (standard profile) | `cat "$INTENSITY_DIR/prompt.md" \| codex exec --sandbox read-only --ignore-user-config --ephemeral -c model="gpt-5.5" -c model_reasoning_effort="medium" -o "$INTENSITY_DIR/result.md" - 2>"$INTENSITY_DIR/stderr.log"` |
-| Arbiter (strong profile) | `cat "$ARBITER_DIR/arbiter-prompt.md" \| codex exec --sandbox read-only --ignore-user-config --ephemeral -c model="gpt-5.5" -c model_reasoning_effort="xhigh" -o "$ARBITER_DIR/arbiter-result.md" - 2>"$ARBITER_DIR/arbiter-stderr.log"` |
+| 역할 | 프로파일 | 명령 (stdin pipe, 결과/stderr 경로 포함) |
+|------|----------|------|
+| reviewer / Auditor | standard | `cat "$DA_DIR/{unit}.md" \| codex exec --sandbox read-only --ignore-user-config --ephemeral -c model="$PROFILE_MODEL" -c model_reasoning_effort="$PROFILE_EFFORT" -o "$DA_DIR/{unit}-result.md" - 2>"$DA_DIR/{unit}-stderr.log"` |
+| Intensity | standard | `cat "$INTENSITY_DIR/prompt.md" \| codex exec --sandbox read-only --ignore-user-config --ephemeral -c model="$PROFILE_MODEL" -c model_reasoning_effort="$PROFILE_EFFORT" -o "$INTENSITY_DIR/result.md" - 2>"$INTENSITY_DIR/stderr.log"` |
+| Arbiter | strong | `cat "$ARBITER_DIR/arbiter-prompt.md" \| codex exec --sandbox read-only --ignore-user-config --ephemeral -c model="$PROFILE_MODEL" -c model_reasoning_effort="$PROFILE_EFFORT" -o "$ARBITER_DIR/arbiter-result.md" - 2>"$ARBITER_DIR/arbiter-stderr.log"` |
 
 `-o` 플래그(`--output-last-message <FILE>`)가 마지막 메시지를 결과 파일로 저장한다 (이것이 없으면 파일 수집 계약이 깨진다). stderr도 별도 로그 파일로 분리해 실패 진단을 보존한다.
 

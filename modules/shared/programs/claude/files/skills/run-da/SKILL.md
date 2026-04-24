@@ -92,7 +92,8 @@ DA 호출 자체를 생략하지 마라 — run-da를 호출하면
 | 행동 | Codex 세션 | Claude Code 세션 | headless 세션 |
 |------|-----------|------------------|---------------|
 | 사용자에게 질문 (**blocking tool call**) | Plan mode의 `request_user_input` (지원 런타임에서만). Plan mode 밖에서는 **질문 도구 미지원**으로 간주하고 [`arbiter-scaling.md`](references/arbiter-scaling.md)의 "질문 도구 미지원 대응" 자동 전이를 따른다 | `AskUserQuestion` 도구 | **미지원** (자동 전이 적용) |
-| fan-out 실행 | `spawn_agent` → `wait_agent` → `close_agent` (delegation 허용 시). 거부 시 codex exec subprocess fallback (아래 "Delegation fallback" + `arbiter-scaling.md` 실행 계약) | `Agent` tool + `run_in_background: true` (codex exec 사전점검 실패 시 기본). 또는 `Bash tool` + `run_in_background: true`로 `codex exec` subprocess 병렬 발사 | `codex exec` subprocess를 **serial foreground**로 순차 실행 (완료 알림/`&+wait` 없음 — 각 unit 종료 후 다음 unit 기동) |
+| fan-out 실행 (기본) | `spawn_agent` → `wait_agent` → `close_agent` (delegation 허용 시) | `Bash tool` + `run_in_background: true`로 `codex exec` subprocess 병렬 발사 (codex exec 사전점검 성공 시 기본) | `codex exec` subprocess를 **serial foreground**로 순차 실행 (완료 알림/`&+wait` 없음) |
+| fan-out 실행 (fallback) | codex exec subprocess (아래 "Delegation fallback" + `arbiter-scaling.md` 실행 계약) | `Agent` tool + `run_in_background: true` (codex exec 사전점검 실패 시 — "Claude Code 세션 Agent tool fallback 세부" 섹션) | — |
 | 결과 수집 | `wait_agent` 반환값, 또는 `exec_command`로 `cat`/`sed` 셸 읽기 | `Read` 도구 | `cat`/`sed` via shell |
 | 파일 읽기 | `exec_command`로 `cat`/`sed`/`rg` | `Read` 도구 | `cat`/`sed`/`rg` |
 
