@@ -36,7 +36,7 @@ description: |
 
 ## 런타임 경로
 
-**"나는 어떤 세션에서 실행되고 있는가?"** 로 경로를 선택한다. 실행 명령 상세(native subagent fan-out, codex exec subprocess, Claude Code fallback 등)는 run-da의 "런타임 도구 매핑" 표가 단일 소스다. 이 표는 세션 판별 조건만 명시한다.
+**"나는 어떤 세션에서 실행되고 있는가?"** 로 경로를 선택한다. 런타임별 도구 binding은 [run-da의 "런타임 도구 매핑" 표](../run-da/SKILL.md#런타임-도구-매핑), 상세 subprocess/fallback 실행 계약은 [run-da references/arbiter-scaling.md](../run-da/references/arbiter-scaling.md)가 단일 소스다. 이 표는 세션 판별 조건만 명시한다.
 
 | 경로 | 조건 |
 |------|------|
@@ -109,13 +109,9 @@ git status --porcelain=v1 > "$BASELINE_FILE"
 echo "$BASELINE_FILE"
 ```
 
-`BASELINE_FILE` 경로는 stdout으로 출력해 메인 에이전트가 Step 4에서 리터럴로 재사용한다 (run-da의 "셸 호출 간 환경변수 유실" 공통 주의 참조).
+`BASELINE_FILE` 경로는 stdout으로 출력해 메인 에이전트가 Step 4에서 리터럴로 재사용한다 (run-da의 "셸 호출 간 환경변수 유실" 공통 주의 참조). Step 4 비교가 끝나면 `BASELINE_FILE`을 삭제한다.
 
-이 baseline은 **`git status --porcelain=v1` path/status delta**만 감지한다. 다음은 구조적 감지 불가이므로 self-report 없이는 별도 감지 수단이 없다 (Non-goals 참조):
-- **content-only mutation**: 이미 dirty인 tracked 파일의 내용 추가 변경, untracked 파일의 내용 변경은 같은 status 줄이 유지되어 baseline diff로 감지되지 않는다.
-- **ignored 파일**: `.gitignore` 대상은 `git status` 출력에서 제외되므로 baseline에 포함되지 않는다.
-- **write-then-revert**: 파일을 수정한 뒤 원상복구하면 최종 status가 baseline과 같아 감지되지 않는다.
-- **branch/remote/GitHub/host/main-agent-only command mutation**.
+이 baseline은 **`git status --porcelain=v1` path/status delta**만 감지한다. 구조적 감지 불가 범위(content-only/ignored/write-then-revert/cross-workspace mutation)의 상세는 Non-goals 섹션이 canonical 단일 소스다.
 
 ### 병렬 디스패치 사전 조건
 
@@ -127,7 +123,7 @@ N개 에이전트를 병렬 실행하기 전에 다음을 확인한다:
 
 ### Step 3: 병렬 에이전트 실행
 
-N개 에이전트를 **한 턴에 동시 병렬 실행**한다.
+N개 에이전트를 **한 턴에 병렬 실행**한다 (런타임이 지원하는 경우). headless 세션은 [run-da 런타임 도구 매핑](../run-da/SKILL.md#런타임-도구-매핑)에 따라 **serial foreground**로 순차 실행한다 — 각 subprocess의 종료와 result를 직렬로 확인한다.
 
 각 에이전트에게 전달하는 내용:
 
@@ -181,11 +177,10 @@ N개 에이전트를 **한 턴에 동시 병렬 실행**한다.
 
    **경로 A — baseline delta 있음 + self-report 없음**: aggregate workspace mutation은 감지되나 병렬 N auditor 중 **어느 unit이 썼는지 식별 불가** (child tool-call audit trail 부재, Non-goals 참조). `STATEFUL VIOLATION (workspace mutation, unit unknown)`으로 즉시 **fail-closed BLOCKED** 보고하고, offending unit cleanup/fresh rerun은 진행하지 않는다.
 
-   **경로 B — self-report로 unit이 특정됨** (baseline delta 유무 무관): 해당 unit을 `STATEFUL VIOLATION (unit=<unit-id>)`로 표시하고, run-da canonical contract의 offending-unit cleanup 범위(offending thread 닫기, 이번 라운드 scratch/임시 ref/산출물 정리)만 적용한다.
+   **경로 B — self-report로 stateful mutation과 unit이 특정됨** (baseline delta 유무 무관): 해당 unit을 `STATEFUL VIOLATION (unit=<unit-id>)`로 표시하고, run-da canonical contract의 offending-unit cleanup 범위(offending thread 닫기, 이번 라운드 scratch/임시 ref/산출물 정리)만 적용한다. recoverable self-report(출력 형식 위반/scope 침범 등)는 이 경로가 아니라 아래 6번의 `RECOVERABLE VIOLATION` 경로로 분류한다.
 
-   - **구조적 감지 불가 범위** (모든 경로 공통 Non-goals):
-     - content-only 변경, ignored 파일 수정, write-then-revert는 `git status --porcelain=v1`로 감지되지 않는다.
-     - branch/remote/GitHub/host/main-agent-only command mutation은 `git status`로 감지 불가다. 자식 self-report가 이들 범위에서 수정을 보고하거나 의심되면 동일하게 `BLOCKED (VIOLATION)`로 fail-closed 처리한다.
+   - 비교가 끝나면 `rm -f "$BASELINE_FILE"`로 임시 파일을 삭제한다.
+   - 감지 불가 범위(content-only/ignored/write-then-revert/cross-workspace mutation)는 Non-goals 참조. self-report가 이들 범위에서 수정을 보고하거나 의심되면 `BLOCKED (VIOLATION)`로 fail-closed 처리한다.
 6. `RECOVERABLE VIOLATION`은 `SAFE`에서 제외하고 fresh auditor로 재디스패치한다. 이는 auditor가 새 상태 코드를 정의하는 것이 아니라, 메인 에이전트가 출력 형식 위반이나 scope 침범 같은 contract breach를 감지했을 때 부여하는 조율 분류다.
 7. `STATEFUL VIOLATION`만 `BLOCKED (VIOLATION)`로 남긴다. 이 경우 cleanup 범위가 특정되거나 사용자에게 불완전한 run이 보고되기 전에는 fresh auditor로 재디스패치하지 않는다.
 
