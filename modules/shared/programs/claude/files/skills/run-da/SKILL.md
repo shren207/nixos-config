@@ -129,8 +129,8 @@ codex exec 경로(Claude Code 세션 · headless 세션)는 [arbiter-scaling.md]
 
 | 용어 | 뜻 | 우선순위 |
 |------|-----|---------|
-| strong review profile | Codex 세션 Arbiter subagent는 `model="gpt-5.4"`와 `reasoning_effort="xhigh"`로 실행한다. Claude Code에서는 `model: "opus"` | Arbiter spawn 기본값 |
-| standard review profile | Codex 세션 reviewer/auditor/Intensity subagent는 `model="gpt-5.4"`와 `reasoning_effort="high"`로 실행한다. Claude Code에서는 `model: "sonnet"` | DA/Intensity spawn 기본값 |
+| strong review profile | Codex 세션 Arbiter subagent는 `model="gpt-5.5"`와 `reasoning_effort="xhigh"`로 실행한다. Claude Code에서는 `model: "opus"` | Arbiter spawn 기본값 |
+| standard review profile | Codex 세션 reviewer/auditor/Intensity subagent는 `model="gpt-5.5"`와 `reasoning_effort="high"`로 실행한다. Claude Code에서는 `model: "sonnet"` | DA/Intensity spawn 기본값 |
 | conservative wait | `wait_agent` timeout이나 단순 지연은 실패 신호가 아니다. 명시적 agent failure, documented violation, 최종 응답 파싱 실패 전에는 kill/self-auditing 대체를 금지한다 | 조급한 조기 종료보다 우선 |
 | single-writer | tracked workspace write, 최종 파일 수정, branch mutation, commit/push, GitHub comment/issue/PR write는 메인 에이전트 소유다. explicit delegation만 예외다 | generic PoC 허용보다 우선 |
 | main-agent-only commands | `wt`, `nrs`, rebuild 계열과 host/repo 상태를 바꾸는 동급 명령은 direct fan-out subagent가 실행하지 않는다 | lock-sensitive convenience보다 우선 |
