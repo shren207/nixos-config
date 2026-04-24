@@ -82,11 +82,12 @@ Codex 세션에서 `spawn_agent`가 정책상 거부될 때(예: `multi_agent=fa
 - 각 review unit은 독립 subprocess (fresh 판정 경계는 프로세스 경계로 보존).
 - 사용자 승인 후에만 실행 (SKILL.md "Delegation fallback" 섹션 참조).
 
-**role별 review profile**:
+**role별 review profile** (각 역할이 사용하는 임시 디렉토리와 파일 이름 규약은 SKILL.md 본문 절차를 따른다):
 
-| 역할 | 명령 (stdin pipe 포함, 결과/stderr 경로 포함) |
+| 역할 | 명령 (stdin pipe, 결과/stderr 경로 포함) |
 |------|------|
-| reviewer / Intensity / Auditor (standard profile) | `cat "$DA_DIR/{unit}.md" \| codex exec --sandbox read-only --ephemeral -c model="gpt-5.5" -c model_reasoning_effort="medium" -o "$DA_DIR/{unit}-result.md" - 2>"$DA_DIR/{unit}-stderr.log"` |
+| reviewer / Auditor (standard profile) | `cat "$DA_DIR/{unit}.md" \| codex exec --sandbox read-only --ephemeral -c model="gpt-5.5" -c model_reasoning_effort="medium" -o "$DA_DIR/{unit}-result.md" - 2>"$DA_DIR/{unit}-stderr.log"` |
+| Intensity (standard profile) | `cat "$INTENSITY_DIR/prompt.md" \| codex exec --sandbox read-only --ephemeral -c model="gpt-5.5" -c model_reasoning_effort="medium" -o "$INTENSITY_DIR/result.md" - 2>"$INTENSITY_DIR/stderr.log"` |
 | Arbiter (strong profile) | `cat "$ARBITER_DIR/arbiter-prompt.md" \| codex exec --sandbox read-only --ephemeral -c model="gpt-5.5" -c model_reasoning_effort="xhigh" -o "$ARBITER_DIR/arbiter-result.md" - 2>"$ARBITER_DIR/arbiter-stderr.log"` |
 
 `-o` 플래그(`--output-last-message <FILE>`)가 마지막 메시지를 결과 파일로 저장한다 (이것이 없으면 파일 수집 계약이 깨진다). stderr도 별도 로그 파일로 분리해 실패 진단을 보존한다.
@@ -164,7 +165,11 @@ selective consistency trigger([stability-measurement.md](stability-measurement.m
 
 ### codex exec 경로 (Claude Code 세션 · headless 세션, N=3)
 
-1. 동일 Arbiter 프롬프트 파일을 3번 실행하기 위해 **3개의 background `codex exec` 프로세스**를 띄운다. reviewer fan-out과 달리 Arbiter N=3 자체는 **모두 같은 프롬프트**다(프롬프트 조향 금지, 독립 판정 원칙).
+**실행 매커니즘은 런타임에 따라 다르다** (SKILL.md "런타임 도구 매핑" 표의 fan-out 실행 행 참조):
+- **Claude Code 세션**: 아래 병렬(background) 방식으로 3개 프로세스 동시 실행, 완료 알림 기반 수집.
+- **headless 세션**: **serial foreground**로 3개 프로세스를 순차 실행한다 (완료 알림/`&+wait` 없음, 각 프로세스 종료 후 다음 프로세스 기동). 결과 파일 경로·환경 격리 방식은 아래와 동일하게 적용하되, 실행 방식만 serial로 바꾼다.
+
+1. 동일 Arbiter 프롬프트 파일을 3번 실행하기 위해 **3개의 `codex exec` 프로세스**를 기동한다 (Claude Code: background, headless: serial foreground). reviewer fan-out과 달리 Arbiter N=3 자체는 **모두 같은 프롬프트**다(프롬프트 조향 금지, 독립 판정 원칙).
 2. **환경 격리** — first-pass Arbiter는 기존 규칙(xhigh, `~/.codex/config.toml` 기본값)을 따르지만, **selective consistency N=3**은 외부 표면과 충돌을 줄이기 위해 다음 두 방식 중 하나를 선택한다:
 
    **(a) 기본 경로 + config 차단** (권장, 간단):
@@ -181,7 +186,7 @@ selective consistency trigger([stability-measurement.md](stability-measurement.m
      - 둘 다 불가능하면 scratch CODEX_HOME에서 `codex login status`가 `Not logged in`으로 실패하므로 방식 (a)로 돌아간다.
    - 최소 `$CODEX_HOME/config.toml`을 작성하되 `[mcp_servers.<name>]` 테이블(실제 Codex TOML 스키마, `modules/shared/programs/codex/files/config.darwin.toml:34` 참조)을 **포함하지 않는다**. 또는 TOML 파서로 기존 config를 복사한 뒤 `mcp_servers` 테이블 전체를 삭제한다. (참고: `[[mcp_servers]]` array-of-table 문법은 현재 Codex가 사용하지 않으므로 혼동 방지를 위해 `[mcp_servers.*]` 정확 표기를 사용한다.)
    - 모델/효과 옵션은 **필수로** 명시적으로 지정한다: `-c model="gpt-5.5"`와 `-c model_reasoning_effort="xhigh"`. scratch `CODEX_HOME`이므로 user config default가 적용되지 않아 호출 시점 기본값 의존이 불가하다.
-3. `run_in_background: true`로 3개를 병렬 발사 후 완료 알림을 기다린다. sleep/poll 금지. 결과 파일 경로는 `/tmp/da-${_DA_SID}-arbiter-selective-<round>/arbiter-{1,2,3}-result.md`로 라운드별 분리.
+3. **Claude Code 세션**: `run_in_background: true`로 3개를 병렬 발사 후 완료 알림을 기다린다 (sleep/poll 금지). **headless 세션**: 3개 프로세스를 serial foreground로 순차 실행한다 (각 종료 확인 후 다음). 결과 파일 경로는 두 경로 모두 `/tmp/da-${_DA_SID}-arbiter-selective-<round>/arbiter-{1,2,3}-result.md`로 라운드별 분리.
 4. 수집 후 세션 scope의 `fleiss-kappa.py`(Claude: `~/.claude/scripts/fleiss-kappa.py`, Codex: `~/.codex/scripts/fleiss-kappa.py`)에 `arbiter-1-result.md arbiter-2-result.md arbiter-3-result.md`를 인자로 전달하여 vote-shape를 얻는다. `--offline` 플래그는 배포 후 kappa 관찰 목적일 때만 부가한다.
 
 ## 실패 처리
