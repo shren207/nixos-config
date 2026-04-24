@@ -18,39 +18,8 @@ _bootstrap_worktree() {
     cp "$src_settings" "$dst_claude_dir/settings.local.json"
   fi
 
-  # .codex/ 디렉토리 복사 (기존 제거 후 복사 — 중첩 방지)
-  local src_codex="$git_root/.codex"
-  if [[ -d "$src_codex" ]]; then
-    rm -rf "$wt_path/.codex"
-    cp -r "$src_codex" "$wt_path/.codex"
-  fi
-
   # .claude/plans/ 제거 (worktree에서는 불필요)
   rm -rf "$wt_path/.claude/plans"
-
-  # Claude → Codex projection 재실행 (plugin-aware worktree bootstrap 복구)
-  local script_dir codex_sync_sh=""
-  script_dir="${WT_SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
-  local repo_local_sync_sh="$script_dir/codex-sync.sh"
-  local deployed_sync_bin="$script_dir/codex-sync"
-
-  if [[ -x "$deployed_sync_bin" ]]; then
-    codex_sync_sh="$deployed_sync_bin"
-  elif [[ -f "$repo_local_sync_sh" ]]; then
-    codex_sync_sh="$repo_local_sync_sh"
-  else
-    codex_sync_sh="$(command -v codex-sync 2>/dev/null || true)"
-  fi
-
-  if [[ -n "$codex_sync_sh" ]]; then
-    if [[ "$codex_sync_sh" == "$repo_local_sync_sh" ]]; then
-      bash "$codex_sync_sh" "$wt_path" || _warn "codex-sync 실패 — 수동으로 'codex-sync $wt_path'를 실행하세요"
-    elif ! "$codex_sync_sh" "$wt_path"; then
-      _warn "codex-sync 실패 — 수동으로 'codex-sync $wt_path'를 실행하세요"
-    fi
-  else
-    _warn "codex-sync 스크립트를 찾지 못해 Codex projection을 건너뜁니다"
-  fi
 }
 
 # ── worktree 열기 (tmux 또는 stdout) ─────────────────────────────────────────

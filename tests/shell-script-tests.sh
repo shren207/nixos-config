@@ -768,7 +768,7 @@ EOF
   assert_not_contains "$output" "MALICIOUS_REBUILD"
 }
 
-test_wt_create_creates_worktree_without_shadow_codex_sync() {
+test_wt_create_does_not_run_codex_sync() {
   local sandbox home_dir repo_root output new_worktree fallback_dir marker_file
   sandbox=$(new_sandbox)
   home_dir="$sandbox/home"
@@ -779,6 +779,10 @@ test_wt_create_creates_worktree_without_shadow_codex_sync() {
   create_git_fixture_repo "$repo_root"
   repo_root="$(cd "$repo_root" && pwd -P)"
   install_deployed_layout "$sandbox" "$repo_root"
+
+  # src_codex seed — bootstrap이 실수로 .codex 복사 경로를 재도입하면 여기가 새 worktree로 전파된다.
+  mkdir -p "$repo_root/.codex"
+  echo "seed = true" > "$repo_root/.codex/config.toml"
 
   mkdir -p "$home_dir/.local/bin" "$fallback_dir"
   cat > "$home_dir/.local/bin/codex-sync" <<'EOF'
@@ -817,8 +821,8 @@ EOF
   [[ -d "$new_worktree" ]] || fail "expected worktree directory to exist: $new_worktree"
   assert_contains "$output" "$new_worktree"
   assert_not_contains "$output" "SHADOW_CODEX_SYNC"
-  assert_contains "$(cat "$marker_file")" "managed"
-  assert_not_contains "$(cat "$marker_file")" "fallback"
+  [[ ! -e "$marker_file" ]] || fail "expected wt bootstrap to not run codex-sync"
+  [[ ! -e "$new_worktree/.codex" ]] || fail "expected wt bootstrap to not copy .codex into new worktree"
 }
 
 test_wt_recreate_guard_uses_physical_paths() {
@@ -1354,7 +1358,7 @@ run_test "wt ls lists deployed worktrees" test_wt_ls_from_deployed_layout_lists_
 run_test "shadow paths do not override managed helpers" test_shadow_paths_do_not_override_managed_helpers
 run_test "wt symlink alias does not load adjacent helpers" test_wt_symlink_alias_does_not_load_adjacent_helpers
 run_test "rebuild-common symlink alias does not load adjacent helpers" test_rebuild_common_symlink_alias_does_not_load_adjacent_helpers
-run_test "wt create uses managed codex-sync path" test_wt_create_creates_worktree_without_shadow_codex_sync
+run_test "wt create does not run codex-sync" test_wt_create_does_not_run_codex_sync
 run_test "wt recreate guard uses physical paths" test_wt_recreate_guard_uses_physical_paths
 run_test "wt cleanup auto removes merged worktree" test_wt_cleanup_auto_removes_merged_worktree
 run_test "wt cleanup auto skips dirty merged worktree" test_wt_cleanup_auto_skips_dirty_merged_worktree
