@@ -87,14 +87,16 @@ DA 호출 자체를 생략하지 마라 — run-da를 호출하면
 
 ## 런타임 도구 매핑
 
-**"나는 어떤 세션에서 실행되고 있는가?"** 로 경로를 선택한다. 아래 표는 본문에서 쓰는 중립 용어를 세션별 실제 도구로 매핑하는 **얇은 glossary**다. 상세 실행 계약(실패 처리, N=3, 질문 도구 미지원 대응)의 단일 진실 원천은 [`references/arbiter-scaling.md`](references/arbiter-scaling.md)다.
+**"나는 어떤 세션에서 실행되고 있는가?"** 로 경로를 선택한다. 아래 표는 본문에서 쓰는 중립 용어를 세션별 **실제 도구명**으로 binding하는 **glossary**다. 표 자체는 용어 정책의 예외로, literal 도구명을 그대로 명시한다. 본문은 계속 중립 용어를 사용하되, 런타임별 실행 시 이 표의 binding을 참조한다. 상세 실행 계약(실패 처리, N=3, 질문 도구 미지원 대응, Delegation fallback)의 단일 진실 원천은 [`references/arbiter-scaling.md`](references/arbiter-scaling.md)다.
 
 | 행동 | Codex 세션 | Claude Code 세션 | headless 세션 |
 |------|-----------|------------------|---------------|
-| 사용자에게 질문 | plain-text 질문 후 다음 턴 재개 (Plan mode에서 `request_user_input` 가능, 미지원 대응: [`arbiter-scaling.md`](references/arbiter-scaling.md)의 "질문 도구 미지원 대응" 섹션) | 질문 도구 | 미지원 대응 적용 |
-| fan-out 실행 | `spawn_agent`/`wait_agent`/`close_agent` (delegation 허용 시) · 불가 시 codex exec subprocess fallback (아래 "Delegation fallback" 참조) | codex exec subprocess (기본) → fan-out 도구 fallback (`command -v codex` 사전점검) | codex exec subprocess 직접 실행 |
-| 결과 수집 | `wait_agent` 반환값 또는 `exec_command` 셸 읽기 | 파일 읽기 도구 | `cat`/`sed` via shell |
-| 파일 읽기 | `exec_command` `cat`/`sed`/`rg` | 파일 읽기 도구 | `cat`/`sed`/`rg` |
+| 사용자에게 질문 (**blocking tool call**) | Plan mode의 `request_user_input` (지원 런타임에서만). Plan mode 밖에서는 **질문 도구 미지원**으로 간주하고 [`arbiter-scaling.md`](references/arbiter-scaling.md)의 "질문 도구 미지원 대응" 자동 전이를 따른다 | `AskUserQuestion` 도구 | **미지원** (자동 전이 적용) |
+| fan-out 실행 | `spawn_agent` → `wait_agent` → `close_agent` (delegation 허용 시). 거부 시 codex exec subprocess fallback (아래 "Delegation fallback" + `arbiter-scaling.md` 실행 계약) | `Agent` tool + `run_in_background: true` (codex exec 사전점검 실패 시 기본). 또는 `Bash tool` + `run_in_background: true`로 `codex exec` subprocess 병렬 발사 | `codex exec` subprocess 직접 실행 (subprocess 여러 개 병렬 실행) |
+| 결과 수집 | `wait_agent` 반환값, 또는 `exec_command`로 `cat`/`sed` 셸 읽기 | `Read` 도구 | `cat`/`sed` via shell |
+| 파일 읽기 | `exec_command`로 `cat`/`sed`/`rg` | `Read` 도구 | `cat`/`sed`/`rg` |
+
+**plain-text 재개 ≠ 질문 도구** — Codex 세션의 일반 채팅 "질문 후 다음 턴 재개"는 blocking tool call이 아니므로 질문 도구로 간주하지 않는다. 질문 도구가 필수인 지점(SKIP 승인, 3회 반복 판정, 5회 라운드 초과)은 Codex 세션이 Plan mode를 쓰지 않는 한 **자동 상태 전이 경로**(arbiter-scaling.md)로 처리한다.
 
 **review profile 매핑** (fan-out 대상 역할별):
 - **Arbiter (strong review profile)** — Codex: `model="gpt-5.5"`, `reasoning_effort="xhigh"`. Claude Code: `model: "opus"`.
@@ -168,19 +170,16 @@ codex exec 경로(Claude Code 세션 · headless 세션)는 [arbiter-scaling.md]
 - `STATEFUL`: 현재 라운드를 즉시 중단한다. offending thread를 닫고, 이번 라운드에서 offending unit이 만든 scratch dir, 임시 ref/branch, 산출물만 정리한다.
 - `STATEFUL` 경로에서도 기존 local tracked/untracked 변경은 자동 정리하지 않는다. 비가역적 외부 side effect가 있었거나 cleanup 범위를 특정할 수 없으면 해당 unit을 `BLOCKED`로 남기고 명시적 rerun 전까지 종료한다.
 
-### Delegation fallback
+### Delegation fallback (정책 요약)
 
-Codex 세션에서 `spawn_agent`가 정책상 거부되면(예: `multi_agent=false`, `"delegation not permitted"`·`"multi_agent disabled"` 에러) 메인 에이전트는 다음 순서로 fallback한다.
+Codex 세션에서 `spawn_agent`가 정책상 거부되면(예: `multi_agent=false`, `"delegation not permitted"`·`"multi_agent disabled"` 에러) 메인 에이전트는 다음 정책을 따른다. **subprocess 실행 계약(role별 명령, sandbox 플래그, stdin pipe, 실패 처리)의 SSOT는 [`references/arbiter-scaling.md`](references/arbiter-scaling.md)의 "Codex delegation-denied fallback" 섹션**이다.
 
 **"같은 에이전트 컨텍스트 serial" 금지** — 메인 에이전트가 reviewer/Arbiter/Intensity 프롬프트를 자기 컨텍스트에서 순차 실행하는 것은 위 "역할별 경계" 표의 메인 에이전트 금지 항목(`Review Intensity/Arbiter 판정 대체`)을 위반한다. fresh 독립 실행 단위를 유지해야 한다.
 
-**자동 우회 금지** — `spawn_agent` 거부는 사용자/정책 의사표시다. `codex exec --full-auto`(workspace-write)로 조용히 우회하면 reviewer/Arbiter/Intensity의 no-write 경계가 구조적으로 보장되지 않는다. 자동 subprocess fallback을 허용하기 **전에** 사용자 승인을 얻고, 실행 시 read-only sandbox를 강제한다.
+**자동 우회 금지** — `spawn_agent` 거부는 정책 의사표시다. `codex exec --full-auto`(workspace-write)로 조용히 우회하면 reviewer/Arbiter/Intensity의 no-write 경계가 구조적으로 보장되지 않는다. 자동 subprocess fallback을 허용하기 **전에** 사용자 승인을 얻고, 실행 시 read-only sandbox를 강제한다 (명령 상세는 위 SSOT).
 
-1. **BLOCKED + 사용자 승인 대기** (기본): `spawn_agent` 거부 감지 시 현재 DA 라운드 중단, 질문 도구(상단 "런타임 도구 매핑" 표 참조)로 "delegation 거부 감지 — codex exec subprocess로 fallback할까요?"를 물어 사용자 승인 요청. 질문 도구 미지원 런타임은 자동 승격 금지, plain-text로 `"delegation unavailable → BLOCKED"` 보고 후 종료.
-2. **codex exec subprocess fallback** (사용자 승인 후에만): role별 review profile을 유지하여 각 unit을 독립 프로세스로 순차 실행한다.
-   - **reviewer / Intensity / Auditor (standard profile)**: `codex exec --sandbox read-only --ephemeral -c model_reasoning_effort="medium" -`
-   - **Arbiter (strong profile)**: `codex exec --sandbox read-only --ephemeral -c model="gpt-5.5" -c model_reasoning_effort="xhigh" -`
-   - `--sandbox read-only`로 no-write 경계를 구조적으로 강제한다 (`--full-auto` 금지 — workspace-write라 경계 우회). 실행 계약 상세는 [`arbiter-scaling.md`](references/arbiter-scaling.md)의 "codex exec 경로" 섹션 참조.
+1. **BLOCKED + 사용자 승인 대기** (기본): `spawn_agent` 거부 감지 시 현재 DA 라운드 중단 → 질문 도구로 "delegation 거부 감지 — codex exec subprocess fallback 승인?" 요청. 질문 도구 미지원 런타임(예: Codex 일반 세션)은 자동 승격 금지, plain-text로 `"delegation unavailable → BLOCKED"` 보고 후 종료.
+2. **codex exec subprocess fallback** (사용자 승인 후에만): [`arbiter-scaling.md`](references/arbiter-scaling.md)의 "Codex delegation-denied fallback" 섹션이 정의한 role별 명령(standard profile = `model="gpt-5.5"`+medium, strong profile = `model="gpt-5.5"`+xhigh)을 `--sandbox read-only --ephemeral`로 실행한다. 각 unit은 독립 subprocess.
 
 라운드 요약에는 경로와 sandbox 모드를 명시한다:
 

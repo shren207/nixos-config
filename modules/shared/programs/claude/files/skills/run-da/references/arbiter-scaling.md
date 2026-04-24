@@ -71,6 +71,28 @@ Claude Code에서 Codex CLI를 subprocess로 호출할 때, 비대화형 automat
 `& + wait` shell-level 병렬을 사용하지 않는다 (Bash tool sandbox 제약).
 `cat file | codex exec ... -` stdin pipe로 프롬프트를 전달한다. 인라인 인자 `"$(cat file)"`는 사용하지 않는다.
 
+### Codex delegation-denied fallback (subprocess 실행 계약)
+
+Codex 세션에서 `spawn_agent`가 정책상 거부될 때(예: `multi_agent=false`, `"delegation not permitted"`·`"multi_agent disabled"` 에러) 사용되는 subprocess 실행 계약이다. SKILL.md의 "Delegation fallback" 섹션은 정책 요약(승인 관문, 자동 우회 금지)만 두고, 실제 명령은 이 섹션이 SSOT다.
+
+**공통**:
+- `--sandbox read-only` 강제 (reviewer/Arbiter/Intensity/Auditor 모두 no-write 경계 구조적 enforcement). `--full-auto`는 workspace-write라 금지.
+- `--ephemeral`로 세션 히스토리 오염 방지.
+- `exec_command`를 `cat "$DIR/prompt.md" | codex exec --sandbox read-only --ephemeral ... - 2>stderr.log` 형태로 stdin pipe 전달.
+- 각 review unit은 독립 subprocess (fresh 판정 경계는 프로세스 경계로 보존).
+- 사용자 승인 후에만 실행 (SKILL.md "Delegation fallback" 섹션 참조).
+
+**role별 review profile**:
+
+| 역할 | 명령 |
+|------|------|
+| reviewer / Intensity / Auditor (standard profile) | `codex exec --sandbox read-only --ephemeral -c model="gpt-5.5" -c model_reasoning_effort="medium" -` |
+| Arbiter (strong profile) | `codex exec --sandbox read-only --ephemeral -c model="gpt-5.5" -c model_reasoning_effort="xhigh" -` |
+
+**실행 방식**: serial (multiple review units를 순차 실행). 병렬 발사는 `spawn_agent`가 거부된 상황이므로 shell-level `&+wait` 대신 각 subprocess를 직렬로 기동한다. 결과 파일은 `$DA_DIR/{unit}-result.md`에 수집 후 메인 에이전트가 파싱한다.
+
+**실패 처리**: 이 경로에서도 exit code ≠ 0, 빈 결과 파일, stdin hang은 위 "codex exec 경로" 섹션의 실패 감지 규칙을 따른다. `codex` binary 부재나 반복 실패 시 BLOCKED 처리.
+
 ## 실행 절차
 
 ### Codex 세션 경로
