@@ -179,8 +179,8 @@ N=3 중 **1개 이상이 실패**하면 (결과 파일 없음/빈 파일/exit co
 1. surviving single-arbiter 결과로 **fallback하지 않는다**. 부분 표본은 vote-shape 집계에 충분하지 않다.
 2. `fleiss-kappa.py` 출력에서 `partial_failure: true`로 표기되며, 해당 finding은 `per_finding`에서 제외된다.
 3. partial failure 대상 finding은 **BLOCKED** 상태로 기록한다 (protocol.md 상태 전이 표 참조).
-4. AskUser 지원 런타임: 사용자에게 판단 요청 (수용 / 기각 / 이번 round 제외 / 실행 환경 확인 후 rerun).
-5. AskUser 미지원 런타임: 자동 승격 금지. 명시적 rerun 전에는 재개하지 않는다.
+4. 질문 도구 지원 런타임: 사용자에게 판단 요청 (수용 / 기각 / 이번 round 제외 / 실행 환경 확인 후 rerun).
+5. 질문 도구 미지원 런타임: 자동 승격 금지. 명시적 rerun 전에는 재개하지 않는다.
 
 ## Codex 세션 violation 처리
 
