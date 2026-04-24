@@ -1,6 +1,6 @@
 ---
 name: create-issue
-argument-hint: "[issue title or description (optional)]"
+argument-hint: "[issue title or description (optional)] [--parent <NUM|URL>]"
 description: |
   Create a structured GitHub issue with auto-enriched labels.
   Trigger: '이슈 등록', '이슈 만들어', 'todo 등록', '버그 등록', '이슈 추가'.
@@ -22,7 +22,72 @@ description: |
 | 핵심 도구 | 코드베이스 검색, `gh` CLI |
 | 범위 | 등록 전용. 조회/감사/라이프사이클은 `gh` CLI를 직접 사용 |
 
+## 런타임 도구 매핑
+
+이 스킬은 Claude Code 세션과 direct Codex 세션 모두에서 동작한다.
+사용자에게 질문하는 행동은 런타임에 해당하는 도구로 수행한다.
+
+| 행동 | Claude Code 세션 | Codex 세션 |
+|------|------------------|------------|
+| 사용자에게 질문 | `AskUserQuestion` 도구 | plain-text 번호 질문 |
+
+본문에서 "질문 도구"는 위 표의 런타임별 실제 도구를 가리킨다.
+
+## 용어 / 변수 계약
+
+Sub-Issues API는 GitHub visible issue number와 database id를 서로 다른 위치에서 요구한다. 혼동을 막기 위해 본 스킬은 다음 계약을 유지한다. `_NUM`과 `_ID`를 바꿔 쓰면 Sub-Issues API 호출이 404 또는 422로 실패한다.
+
+| 변수 | 의미 | 예시 |
+|------|------|------|
+| `PARENT_REF` | `--parent` 뒤 사용자 raw 입력 (숫자 또는 GitHub issue URL) | `539`, `https://github.com/OWNER/REPO/issues/539` |
+| `PARENT_NUM` | GitHub visible issue number (integer). REST path의 `{issue_number}` | `539` |
+| `PARENT_ID` | GitHub database id (integer). Sub-Issues POST body의 `sub_issue_id` | `4313326118` |
+| `ISSUE_URL` | `gh issue create`가 반환하는 HTML URL | `https://github.com/OWNER/REPO/issues/540` |
+| `ISSUE_NUM` | `ISSUE_URL`에서 추출한 visible number | `540` |
+| `ISSUE_ID` | 새로 생성된 이슈의 database id | `4313342653` |
+
 ## 절차
+
+### Step 1-A — `--parent` 파싱 + pre-check (옵션 지정 시)
+
+`$ARGUMENTS`가 `--parent` 토큰을 포함하면 Step 1 본문에 진입하기 전에 이 단계를 수행한다. `--parent` 미지정 시 이 단계를 건너뛰고 기존 동작을 유지한다.
+
+**파싱 규칙**:
+
+- `--parent=<값>` 또는 `--parent <값>` 형식만 옵션으로 인식한다. 위치는 자유(토큰 앞/중/뒤 모두 허용).
+- `--` 이후의 모든 토큰은 옵션으로 소비하지 않고 제목/본문으로 취급한다 (escape 경로).
+- `--parent` 뒤 토큰이 없거나 `<값>`이 아래 값 패턴 중 어디에도 매칭되지 않으면 옵션으로 소비하지 않고 `exit 1`한다. 이는 자유 텍스트(예: `"--parent 옵션 문서화 이슈"`)가 실수로 플래그로 소비되는 회귀를 막기 위함이다. 사용자가 진짜 자유 텍스트에 `--parent`를 포함하려면 `--`로 escape한다.
+
+**값 패턴** (둘 중 하나에만 매칭 허용):
+
+1. 숫자: `^[0-9]+$` — `PARENT_NUM`으로 직접 사용.
+2. anchored URL: `^https://github\.com/([^/]+)/([^/]+)/issues/([0-9]+)([/?#].*)?$`
+   - owner/repo를 lowercase 정규화하여 `gh repo view --json nameWithOwner -q .nameWithOwner` 결과(lowercase 정규화)와 비교한다. 불일치 시 `"ERROR: cross-repo sub-issue는 미지원"` 출력 후 `exit 1`.
+   - GitHub owner/repo는 case-insensitive이므로 raw 비교 금지.
+   - `.git`, 추가 slash, percent-encoding이 섞인 비정상 입력은 URL regex에 anchor가 있으므로 거부된다.
+   - 매칭된 숫자 그룹을 `PARENT_NUM`으로 추출한다.
+
+**Pre-check** (존재 확인 + object shape 검증):
+
+```bash
+# GitHub Sub-Issues API는 integer issue_number와 integer sub_issue_id를 요구한다.
+# 입력이 숫자 형태여도 실제 issue object인지 확인하고, sub_issues/comments 같은 다른 endpoint로 우회되지 않도록 shape까지 검증한다.
+OWNER_REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+OWNER="${OWNER_REPO%%/*}"
+REPO="${OWNER_REPO##*/}"
+
+if ! PARENT_META=$(gh api "/repos/$OWNER/$REPO/issues/$PARENT_NUM" \
+     --jq 'select((.number|type=="number") and (.id|type=="number")) | {id,number,state}') \
+     || [ -z "$PARENT_META" ]; then
+  echo "ERROR: parent #$PARENT_NUM 조회 실패 또는 이슈가 아님"
+  exit 1
+fi
+PARENT_ID=$(echo "$PARENT_META" | jq -r '.id')
+```
+
+성공 시 `PARENT_NUM`과 `PARENT_ID`를 Step 5-C에서 재사용한다. parent가 `closed` 상태여도 차단하지 않는다 (v1 YAGNI 범위).
+
+Step 1-A 완료 후 나머지 `$ARGUMENTS`(=`--parent`/값 토큰 제거 후의 자유 텍스트)가 Step 1 본문의 title/description 경로로 흐른다.
 
 ### Step 1 — 코드베이스 탐색
 
@@ -68,8 +133,12 @@ description: |
 
 ### Step 5 — 등록 및 확인
 
+Step 5는 세 하위 단계로 진행한다. Step 5-A가 실패하면 Step 5-B/5-C/6 모두 건너뛴다 (기존 fail-closed). Step 5-B/5-C의 실패는 `WARN:`으로 출력되며 Step 6 진입을 차단하지 않는다.
+
+#### Step 5-A — 이슈 등록
+
 1. 등록 전 **제목, 라벨 조합을 사용자에게 보여주고 확인**을 받는다.
-2. 확인 후 `gh issue create`를 **`--body-file`로 실행**한다. 본문은 임시 파일에 저장 후 전달. 실패 시 Step 6으로 진행하지 않는다.
+2. 확인 후 `gh issue create`를 **`--body-file`로 실행**한다. 본문은 임시 파일에 저장 후 전달. 실패 시 Step 5-B/5-C/6으로 진행하지 않는다.
    ```bash
    # BSD/macOS mktemp는 템플릿 끝(trailing)에 XXXXXX가 와야 랜덤 치환함.
    # 확장자 없이 랜덤 파일 생성 — gh issue create --body-file은 확장자 무관.
@@ -90,20 +159,53 @@ description: |
      echo "---"
      echo "재시도 명령 (동일 shell 세션 또는 ISSUE_BODY_PATH 값을 직접 입력):"
      echo "  gh issue create --title '<제목>' --label '<라벨>' --body-file \"\$ISSUE_BODY_PATH\""
-     echo "**Step 6(이행 가이드 연계)은 이슈 등록 완료 전에는 진행하지 않는다.**"
+     echo "**Step 5-B/5-C/6은 이슈 등록 완료 전에는 진행하지 않는다.**"
      exit 1
    fi
    ```
-3. 반환된 `ISSUE_URL`이 실제 GitHub URL(`https://github.com/.../issues/N`)인지 확인. 실패 시 Step 6 진행 금지.
+3. 반환된 `ISSUE_URL`이 실제 GitHub URL(`https://github.com/.../issues/N`)인지 확인. 실패 시 Step 5-B/5-C/6 진행 금지.
+
+#### Step 5-B — `ISSUE_ID` 추출
+
+`--parent` 미지정 시에도 실행한다 (핸드오프/외부 도구가 database id를 필요로 할 수 있음). 실패는 fail-open.
+
+```bash
+ISSUE_NUM="${ISSUE_URL##*/}"
+# Sub-Issues API는 visible issue number가 아니라 database id(sub_issue_id)를 요구한다.
+if ! ISSUE_ID=$(gh api "/repos/$OWNER/$REPO/issues/$ISSUE_NUM" -q '.id'); then
+  echo "WARN: ISSUE_ID 조회 실패 — sub-issue 연결은 수동 재시도 필요"
+  ISSUE_ID=""
+fi
+echo "ISSUE_ID=$ISSUE_ID"
+```
+
+#### Step 5-C — sub-issue 연결 (`--parent` 지정 시만)
+
+```bash
+if [ -n "$PARENT_NUM" ] && [ -n "$ISSUE_ID" ]; then
+  # Fail-open: 이슈 본체는 이미 생성되었으므로 연결 실패는 handoff(Step 6)를 차단하지 않는다.
+  # 메시지 필드 순서는 Step 5-A와 동일: 상태 보존 → 재시도 명령 → 다음 단계 여부.
+  if gh api -X POST "/repos/$OWNER/$REPO/issues/$PARENT_NUM/sub_issues" \
+       -F "sub_issue_id=$ISSUE_ID" >/dev/null; then
+    echo "SUBISSUE_LINKED=#$ISSUE_NUM -> parent #$PARENT_NUM"
+  else
+    rc=$?
+    echo "WARN: sub-issue 연결 실패 (exit $rc)"
+    echo "SUBISSUE_LINK_FAILED=#$ISSUE_NUM  # ISSUE_URL=$ISSUE_URL (이슈는 생성됨)"
+    echo "재시도: gh api -X POST /repos/$OWNER/$REPO/issues/$PARENT_NUM/sub_issues -F sub_issue_id=$ISSUE_ID"
+    echo "Step 6 진행은 계속된다 (이슈 본체 생성 성공)."
+  fi
+fi
+```
 
 ### Step 6 — LLM 이행 가이드 연계
 
-**진입 가드**: Step 5가 성공적으로 `ISSUE_URL` 을 반환했는지 확인한다. 반환이 없거나 `ERROR:` 출력이 있었다면 **Step 6으로 진행하지 않는다** — 존재하지 않는 이슈 번호로 `/write-handoff`를 호출하면 handoff comment가 엉뚱한 곳에 게시되거나 오류로 중단된다.
+**진입 가드**: **Step 5-A의 `gh issue create`가 실패(`ERROR:` + `ISSUE_URL` 미반환)했다면 Step 6으로 진행하지 않는다** — 존재하지 않는 이슈 번호로 `/write-handoff`를 호출하면 handoff comment가 엉뚱한 곳에 게시되거나 오류로 중단된다. 반면 Step 5-B의 `ISSUE_ID` 조회 실패(`WARN:`)와 Step 5-C의 sub-issue 연결 실패(`WARN:` + `SUBISSUE_LINK_FAILED=`)는 Step 6 진행을 차단하지 않는다 — 이슈 본체는 이미 생성되었으므로 handoff 수신자(다음 LLM)는 `ISSUE_URL`로 정상 동작할 수 있고, parent 연결은 로그된 재시도 명령으로 사후 복구 가능하다.
 
 **호출 맥락 확인**: plan-with-questions에서 호출된 경우(Step I-5), 이 Step을 건너뛴다.
 (plan-with-questions Step I-6에서 통합 선택지로 제안하므로 중복 방지.)
 
-이슈 생성이 완료되면, AskUserQuestion으로 사용자에게 묻는다:
+이슈 생성이 완료되면, 질문 도구로 사용자에게 묻는다:
 
 "LLM 이행 가이드를 작성할까요?"
 
@@ -120,6 +222,12 @@ description: |
 | `test:` | 테스트 추가/수정 |
 | `docs:` | 문서 |
 | `chore:` | 기타 유지보수 |
+
+**Epic/Umbrella 패턴 예시**:
+- `refactor(skills): X 단순화 (epic, #A/#B/#C)`
+- `feat(codex): Y 캠페인 (epic, Wave 1)`
+
+Umbrella 이슈는 children을 먼저 만들어야 번호를 알 수 있다. `/create-issue`는 단일 등록만 수행하므로, umbrella-first 순서 유도는 호출 측(예: `/plan-with-questions for_issue`)의 책임이다. 개별 호출 시 사용자는 umbrella를 먼저 만든 뒤 children 등록 시 `--parent <umbrella_NUM|URL>`로 연결하면 된다.
 
 ## 주의사항
 
