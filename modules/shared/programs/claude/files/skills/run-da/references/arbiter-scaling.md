@@ -83,13 +83,13 @@ Codex 세션에서 `spawn_agent`가 정책상 거부될 때(예: `multi_agent=fa
 - 각 review unit은 독립 subprocess (fresh 판정 경계는 프로세스 경계로 보존).
 - 사용자 승인 후에만 실행 (SKILL.md "Delegation fallback" 섹션 참조).
 
-**role별 명령** (각 역할이 사용하는 임시 디렉토리와 파일 이름 규약은 SKILL.md 본문 절차를 따른다. `$PROFILE_MODEL`, `$PROFILE_EFFORT`는 SKILL.md 상단 "런타임 도구 매핑"의 **review profile 매핑** 불릿 값을 그대로 전달한다 — fallback 경로에서 literal을 중복 서술하지 않는다). 각 명령은 아래 fenced code block에서 직접 복사해 실행할 수 있다 (markdown table cell의 `\|` 이스케이프가 shell에서 제대로 동작하지 않으므로 table 대신 code block 사용):
+**role별 명령** (각 역할이 사용하는 임시 디렉토리와 파일 이름 규약은 SKILL.md 본문 절차를 따른다). 아래 fenced code block은 바로 복사해 실행할 수 있도록 standard/strong profile의 model/effort 값을 **literal**로 고정한다. profile 이름·의미의 SSOT는 SKILL.md 상단 "런타임 도구 매핑"의 **review profile 매핑** 불릿이며, 값이 바뀌면 아래 literal도 함께 갱신해야 한다 (문서-코드 manual sync contract — selective consistency harness와 동일한 패턴):
 
 **reviewer / Auditor** (standard profile):
 
 ```bash
 cat "$DA_DIR/{unit}.md" | codex exec --sandbox read-only --ignore-user-config --ephemeral \
-  -c model="$PROFILE_MODEL" -c model_reasoning_effort="$PROFILE_EFFORT" \
+  -c model="gpt-5.5" -c model_reasoning_effort="medium" \
   -o "$DA_DIR/{unit}-result.md" - 2>"$DA_DIR/{unit}-stderr.log"
 ```
 
@@ -97,7 +97,7 @@ cat "$DA_DIR/{unit}.md" | codex exec --sandbox read-only --ignore-user-config --
 
 ```bash
 cat "$INTENSITY_DIR/prompt.md" | codex exec --sandbox read-only --ignore-user-config --ephemeral \
-  -c model="$PROFILE_MODEL" -c model_reasoning_effort="$PROFILE_EFFORT" \
+  -c model="gpt-5.5" -c model_reasoning_effort="medium" \
   -o "$INTENSITY_DIR/result.md" - 2>"$INTENSITY_DIR/stderr.log"
 ```
 
@@ -105,7 +105,7 @@ cat "$INTENSITY_DIR/prompt.md" | codex exec --sandbox read-only --ignore-user-co
 
 ```bash
 cat "$ARBITER_DIR/arbiter-prompt.md" | codex exec --sandbox read-only --ignore-user-config --ephemeral \
-  -c model="$PROFILE_MODEL" -c model_reasoning_effort="$PROFILE_EFFORT" \
+  -c model="gpt-5.5" -c model_reasoning_effort="xhigh" \
   -o "$ARBITER_DIR/arbiter-result.md" - 2>"$ARBITER_DIR/arbiter-stderr.log"
 ```
 
