@@ -92,13 +92,22 @@ git log --oneline -5     # 최근 커밋 컨텍스트
 
 ### Step 2a: Baseline 저장
 
-Step 3 fan-out 이전에 tracked workspace baseline을 저장한다 (Step 4의 사후 비교용). self-report가 누락된 tracked write를 sandbox 비의존 방식으로 감지하기 위함이다.
+Step 3 fan-out 이전에 tracked workspace baseline을 **세션 네임스페이스 파일**에 저장한다 (Step 4의 사후 비교용). self-report가 누락된 **최종 tracked/untracked workspace delta**를 sandbox 비의존 방식으로 감지하기 위함이다.
 
 ```bash
-git status --porcelain=v1 > /tmp/parallel-audit-baseline.txt
+# 세션 네임스페이스 (run-da의 codex exec 경로 위생 규칙 계승)
+_DA_SID="${CODEX_COMPANION_SESSION_ID:+${CODEX_COMPANION_SESSION_ID:0:8}}"
+[ -z "$_DA_SID" ] && _DA_SID="$(printf '%s' "$PWD" | sha1sum 2>/dev/null | head -c 8 || printf '%s' "$PWD" | shasum | head -c 8)"
+BASELINE_FILE=$(mktemp /tmp/da-${_DA_SID}-audit-baseline-XXXXXX)
+git status --porcelain=v1 > "$BASELINE_FILE"
+echo "$BASELINE_FILE"
 ```
 
-이 baseline은 tracked workspace 변경만 감지한다. branch/remote/GitHub/host/main-agent-only command mutation은 parent API가 audit trail을 노출하지 않아 구조적 감지 불가다 (Non-goals 참조).
+`BASELINE_FILE` 경로는 stdout으로 출력해 메인 에이전트가 Step 4에서 리터럴로 재사용한다 (run-da의 "셸 호출 간 환경변수 유실" 공통 주의 참조).
+
+이 baseline은 **최종 tracked/untracked workspace delta**만 감지한다. 다음은 구조적 감지 불가이므로 self-report 없이는 별도 감지 수단이 없다 (Non-goals 참조):
+- **write-then-revert** (파일 수정 후 원상복구)
+- **branch/remote/GitHub/host/main-agent-only command mutation**
 
 ### 병렬 디스패치 사전 조건
 
@@ -159,10 +168,11 @@ N개 에이전트를 **한 턴에 동시 병렬 실행**한다.
 2. 중복 발견을 제거한다 (여러 bundle에서 같은 문제를 지적한 경우).
 3. 심각도 순으로 정렬한다.
 4. Codex 세션 경로에서는 결과 집계가 끝난 completed audit thread를 `close_agent`로 닫아 다음 batch/retry 슬롯을 회수한다.
-5. **Baseline 비교** (Step 2a 저장본과 비교):
-   - 현재 `git status --porcelain=v1`을 `/tmp/parallel-audit-baseline.txt`와 비교한다.
-   - 차이가 있으면 self-report 여부와 무관하게 **STATEFUL VIOLATION (tracked write)**로 fail-closed 처리한다.
-   - branch/remote/GitHub/host/main-agent-only command mutation은 `git status`로 감지 불가다 (Non-goals 참조). 자식 self-report가 이들 범위에서 수정을 보고하거나 의심되면 동일하게 `BLOCKED (VIOLATION)`로 fail-closed 처리한다.
+5. **Baseline 비교 (aggregate)** (Step 2a 출력 `$BASELINE_FILE`과 비교):
+   - 현재 `git status --porcelain=v1`을 `$BASELINE_FILE`과 비교한다.
+   - 차이가 있으면 **aggregate workspace mutation이 발생**했음은 알 수 있으나, 병렬 N auditor 중 **어느 unit이 썼는지 구조적 식별 불가**다 (child tool-call audit trail 부재, Non-goals 참조). 따라서 self-report 여부와 무관하게 `STATEFUL VIOLATION (tracked write, unit unknown)`으로 즉시 **fail-closed BLOCKED** 보고하고, offending unit cleanup/fresh rerun은 진행하지 않는다. unit이 self-report로 특정된 경우에만 run-da canonical contract의 offending-unit cleanup 범위를 적용한다.
+   - **write-then-revert**(파일 수정 후 원상복구)는 최종 delta가 baseline과 같아 감지되지 않는다 (Non-goals).
+   - branch/remote/GitHub/host/main-agent-only command mutation은 `git status`로 감지 불가다 (Non-goals). 자식 self-report가 이들 범위에서 수정을 보고하거나 의심되면 동일하게 `BLOCKED (VIOLATION)`로 fail-closed 처리한다.
 6. `RECOVERABLE VIOLATION`은 `SAFE`에서 제외하고 fresh auditor로 재디스패치한다. 이는 auditor가 새 상태 코드를 정의하는 것이 아니라, 메인 에이전트가 출력 형식 위반이나 scope 침범 같은 contract breach를 감지했을 때 부여하는 조율 분류다.
 7. `STATEFUL VIOLATION`만 `BLOCKED (VIOLATION)`로 남긴다. 이 경우 cleanup 범위가 특정되거나 사용자에게 불완전한 run이 보고되기 전에는 fresh auditor로 재디스패치하지 않는다.
 
@@ -280,7 +290,10 @@ BUG/REGRESSION/EDGECASE가 있으면 요약 테이블 아래에 상세를 추가
 
 이 스킬이 **구조적으로 보장하지 않는** auditor-specific 경계. 공통 한계(zsh 전제, `/tmp` 쓰기 sandbox 정책, project-scoped MCP 차단 한계, `spawn_agent` per-child read-only sandbox 부재)는 [run-da Non-goals](../run-da/SKILL.md#non-goals)를 단일 진실 원천으로 참조한다 (중복 방지).
 
-1. **child tool-call audit trail 부재**: Codex parent API는 자식 에이전트의 tool-call 전체 audit trail을 노출하지 않는다. 따라서 `RECOVERABLE VIOLATION` vs. `STATEFUL VIOLATION` 구분은 구조적 판단이 아니라 (a) 자식 self-report, (b) 메인 에이전트의 사후 `git status --porcelain=v1` baseline 비교(tracked workspace 한정)의 조합으로 근사한다. branch/remote/GitHub/host/main-agent-only command mutation은 구조적 감지 불가이므로 self-report 누락 또는 의심 시 fail-closed `BLOCKED` 처리한다.
+1. **child tool-call audit trail 부재**: Codex parent API는 자식 에이전트의 tool-call 전체 audit trail을 노출하지 않는다. 따라서 `RECOVERABLE VIOLATION` vs. `STATEFUL VIOLATION` 구분은 구조적 판단이 아니라 (a) 자식 self-report, (b) 메인 에이전트의 사후 `git status --porcelain=v1` baseline 비교의 조합으로 근사한다. 이 근사의 한계:
+   - **aggregate 한정**: 병렬 N auditor의 baseline 비교는 global workspace mutation 여부만 알 수 있고 offending unit을 식별하지 못한다 → `STATEFUL VIOLATION (unit unknown)`으로 즉시 fail-closed BLOCKED 보고하고, offending unit cleanup/fresh rerun은 self-report로 unit이 특정된 경우에만 진행한다.
+   - **write-then-revert 미감지**: 파일을 수정한 뒤 원상복구하면 최종 `git status` delta가 baseline과 같아 감지되지 않는다.
+   - **cross-workspace mutation 미감지**: branch/remote/GitHub/host/main-agent-only command mutation은 `git status`로 감지 불가이므로 self-report 누락 또는 의심 시 fail-closed `BLOCKED` 처리한다.
 
 2. **auditor 기본 실행 경로의 workspace-write 허용**: Claude Code 세션과 headless 세션의 기본 경로는 `codex exec --full-auto` (workspace-write)다. 이는 run-da canonical contract와 일관된 선택이며, read-only sandbox 구조적 enforcement는 없다. auditor의 "읽기 전용" 경계는 **정책 + 프롬프트 계약 + self-report + sandbox 비의존 baseline 점검**의 조합으로 운영한다. `--sandbox read-only` 경로는 run-da의 "Delegation fallback"(사용자 승인 필수)에만 적용된다.
 
