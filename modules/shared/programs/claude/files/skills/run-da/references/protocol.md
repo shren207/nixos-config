@@ -8,10 +8,10 @@ DA → Arbiter → Main Agent 상태 흐름, Arbiter 판정 프로토콜, 무한
 |---------|-------------|------------------|-------------------|-----------|
 | finding 있음 | CONFIRMED_ISSUE | N/A / stable (+ low_confidence_warning=false) | 자동 수정 (CRITICAL은 진행 차단) | 수정 필요 테이블 |
 | finding 있음 | NOT_AN_ISSUE | N/A / stable (+ low_confidence_warning=false) | 반영 불필요 | 무해 테이블 |
-| finding 있음 | NEEDS_MORE_INFO | N/A / stable | 사용자 판단 대기 | AskUserQuestion |
-| finding 있음 | 임의 | N/A / stable + low_confidence_warning=true | **fail-closed 승격** (AskUser) | AskUserQuestion with LOW confidence 이력 |
-| finding 있음 | (majority verdict) | split | 사용자 판단 대기 (NEEDS_MORE_INFO 경로) | AskUserQuestion with vote-shape |
-| finding 있음 | — | fragmented / partial_failure / unknown | **BLOCKED** — 자동 수정 금지 | AskUserQuestion 또는 중단 보고 |
+| finding 있음 | NEEDS_MORE_INFO | N/A / stable | 사용자 판단 대기 | 질문 도구 |
+| finding 있음 | 임의 | N/A / stable + low_confidence_warning=true | **fail-closed 승격** (AskUser) | 질문 도구 + LOW confidence 이력 |
+| finding 있음 | (majority verdict) | split | 사용자 판단 대기 (NEEDS_MORE_INFO 경로) | 질문 도구 + vote-shape |
+| finding 있음 | — | fragmented / partial_failure / unknown | **BLOCKED** — 자동 수정 금지 | 질문 도구 또는 중단 보고 |
 | finding 없음 | — | — | — | ALL CLEAR |
 
 stability_status 의미, selective consistency 트리거, `unknown` sentinel 정의는 [`stability-measurement.md`](stability-measurement.md) 참조. `partial_failure`는 `fleiss-kappa.py` 출력의 top-level 플래그와 `missing`/`file_level_failures`/`per_file_malformed` 필드로 전달되며 해당 finding은 `per_finding`에 포함되지 않는다 — caller는 이를 finding별 BLOCKED로 매핑한다.
@@ -59,7 +59,7 @@ first-pass Arbiter 결과가 trigger 조건에 매치되면 동일 입력으로 
 | `split` (2:1) | majority verdict (정보 표시) | any | NEEDS_MORE_INFO 경로로 사용자 판단 요청. vote-shape와 minority verdict도 함께 보고. |
 | `fragmented` (1:1:1) | — | any | **BLOCKED**. AskUser 지원 런타임: 사용자에게 판단 요청 (비유법 설명 포함). AskUser 미지원 런타임: 자동 승격 금지, 중단 보고 후 명시적 rerun 전에는 재개하지 않음. |
 
-**AskUser 미지원 런타임 주의**: 기존 "NEEDS_MORE_INFO 자동 CONFIRMED_ISSUE 승격" 규칙은 first-pass single Arbiter 판정에만 적용된다. selective consistency에서 나온 `split`/`fragmented`는 이 자동 승격 경로를 **따르지 않는다** — fragmented는 BLOCKED, split는 명시적 rerun 대기. 상세는 [`arbiter-scaling.md`](arbiter-scaling.md)의 "AskUserQuestion 미지원 대응" 섹션 참조.
+**AskUser 미지원 런타임 주의**: 기존 "NEEDS_MORE_INFO 자동 CONFIRMED_ISSUE 승격" 규칙은 first-pass single Arbiter 판정에만 적용된다. selective consistency에서 나온 `split`/`fragmented`는 이 자동 승격 경로를 **따르지 않는다** — fragmented는 BLOCKED, split는 명시적 rerun 대기. 상세는 [`arbiter-scaling.md`](arbiter-scaling.md)의 "질문 도구 미지원 대응" 섹션 참조.
 
 **Threshold 숫자는 이 문서에서 재서술하지 않는다**. `STABLE_MIN`/`ESCALATE_MIN` 값과 vote-shape 분류 규칙은 [`stability-measurement.md`](stability-measurement.md)가 단일 진실 원천이다.
 
@@ -99,7 +99,7 @@ SKILL.md 상단의 경고 헤딩도 참조하라.
 
 | 합리화 패턴 | 왜 틀렸는가 |
 |---|---|
-| "이건 단순한 수정이라 DA가 필요 없다" | 단순한 수정에서 가장 많은 사이드이펙트가 발생한다. Review Intensity 판단은 너의 역할이 아니다 — 독립 에이전트가 수행한다. **예외**: 독립 에이전트가 SKIP을 판정하고, 사용자가 AskUserQuestion으로 승인한 경우만 합리화가 아니다. 독립 에이전트를 거치지 않은 생략 시도는 여전히 금지한다. |
+| "이건 단순한 수정이라 DA가 필요 없다" | 단순한 수정에서 가장 많은 사이드이펙트가 발생한다. Review Intensity 판단은 너의 역할이 아니다 — 독립 에이전트가 수행한다. **예외**: 독립 에이전트가 SKIP을 판정하고, 사용자가 질문 도구로 승인한 경우만 합리화가 아니다. 독립 에이전트를 거치지 않은 생략 시도는 여전히 금지한다. |
 | "이미 충분히 검토했다" | 너의 검토와 독립 검증은 다르다. 확증 편향은 자기 검토에서 가장 강하다. 그래서 독립 에이전트가 있다 |
 | "사용자가 빨리 하라고 했다" | 사용자 지시는 DA 면제 근거가 아니다. 품질은 비협상적이다 |
 | "설정값 변경뿐이다" | 소량 설정 변경이 빌드 병목, 서비스 중단, OOM을 유발할 수 있다. 독립 에이전트가 SKIP/LITE/FULL을 판단한다 |
@@ -137,7 +137,7 @@ Arbiter가 CONFIRMED_ISSUE로 판정한 항목을 수정할 때:
 동일한 지적(세부 관점 + 위치(파일:줄 또는 계획 항목 번호) 기준)이 3회 연속 **outer round**에서 반복되면:
 
 1. 해당 지적과 이전 라운드의 Arbiter 판정 이력을 요약한다.
-2. 사용자에게 AskUserQuestion으로 3가지 선택지를 제시한다:
+2. 사용자에게 질문 도구로 3가지 선택지를 제시한다:
    - **수용**: 지적대로 수정한다.
    - **제외 + 근거 기록**: 기술적 근거를 CIR로 남기고 현재 루프에서 제외한다.
    - **보류**: 별도 이슈로 등록하고 현재 루프에서 제외한다.
