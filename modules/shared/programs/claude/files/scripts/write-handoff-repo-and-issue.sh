@@ -11,12 +11,9 @@
 #   2줄 ISSUE_NUM (정수 또는 빈 줄)
 #
 # stderr (실패 시 한 줄, 정상 시 빈 줄):
-#   ERR_AUTH         gh auth 미인증 / 토큰 무효
-#   ERR_NETWORK      네트워크 오류
-#   ERR_NOT_FOUND    이슈/repo 미존재
-#   ERR_NO_CWD_REPO  cwd가 git repo 밖 (인자 없는 호출)
-#   ERR_URL_PARSE    gh 성공했으나 URL 파싱 실패
-#   ERR_GH_UNKNOWN   분류 실패한 비정상 종료
+#   ERR_AUTH / ERR_NETWORK / ERR_NOT_FOUND / ERR_NO_CWD_REPO / ERR_URL_PARSE / ERR_GH_UNKNOWN
+# 각 코드의 의미와 복구 절차는 write-handoff/SKILL.md Step 1-C 표가
+# 단일 진실이다 (control flow의 SSOT).
 #
 # 동작:
 #   1. 이슈 인자($1)가 있으면 `gh issue view --json url,number`로 두 값 동시 파싱
@@ -46,7 +43,15 @@ classify_gh_stderr() {
   [ "$rc" -eq 0 ] && return 0
   local err_text
   err_text=$(cat "$err_file")
+  # case 평가 순서는 specific → general이다. cwd 기반 repo 추론 실패 메시지에는
+  # gh가 종종 "gh auth login"을 같이 안내하지만(예: non-GitHub remote), 이는 인증
+  # 문제가 아니므로 ERR_NO_CWD_REPO를 ERR_AUTH보다 먼저 평가한다.
   case "$err_text" in
+    # cwd 기반 repo 추론 실패: git repo 자체가 없거나 / remote 미설정 / non-GitHub remote
+    *"not a git repository"* | \
+    *"no git remotes found"* | \
+    *"none of the git remotes"*)
+      printf 'ERR_NO_CWD_REPO\n' ;;
     # 인증/토큰 관련: gh auth login 안내, Bad credentials, GH_TOKEN 안내 등
     *"Bad credentials"* | \
     *"Try authenticating with:"* | \
@@ -68,10 +73,6 @@ classify_gh_stderr() {
     # 이슈/리포지토리 미존재: gh GraphQL "Could not resolve to ..."
     *"GraphQL: Could not resolve to "*)
       printf 'ERR_NOT_FOUND\n' ;;
-    # cwd 기반 repo 추론 실패: git repo 자체가 없거나, repo이지만 remote 미설정
-    *"not a git repository"* | \
-    *"no git remotes found"*)
-      printf 'ERR_NO_CWD_REPO\n' ;;
     *)
       printf 'ERR_GH_UNKNOWN\n' ;;
   esac
