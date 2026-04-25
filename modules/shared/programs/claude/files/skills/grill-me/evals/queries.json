@@ -10,8 +10,8 @@
   {"query": "계획 수립해줘", "should_trigger": false, "why": "혼동 쌍: plan-with-questions (산출물=계획)"},
   {"query": "스무고개로 계획 만들어줘", "should_trigger": false, "why": "혼동 쌍: plan-with-questions"},
   {"query": "DA 피드백 돌려줘", "should_trigger": false, "why": "혼동 쌍: run-da"},
-  {"query": "설계 검토해줘", "should_trigger": false, "why": "혼동 쌍: run-da (DESIGN-1 분리)"},
-  {"query": "이 디자인 검증해줘", "should_trigger": false, "why": "혼동 쌍: run-da (DESIGN-1 분리)"},
+  {"query": "설계 검토해줘", "should_trigger": false, "why": "혼동 쌍: run-da (설계/디자인 검토는 인터뷰가 아니라 코드/계획 리뷰)"},
+  {"query": "이 디자인 검증해줘", "should_trigger": false, "why": "혼동 쌍: run-da (설계/디자인 검토는 인터뷰가 아니라 코드/계획 리뷰)"},
   {"query": "PR 만들어줘", "should_trigger": false, "why": "혼동 쌍: create-pr"},
   {"query": "이슈 등록해줘", "should_trigger": false, "why": "혼동 쌍: create-issue"}
 ]
