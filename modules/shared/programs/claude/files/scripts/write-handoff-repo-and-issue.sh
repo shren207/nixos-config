@@ -39,18 +39,38 @@ trap 'rm -f "$tmp_out" "$tmp_err"' EXIT
 
 classify_gh_stderr() {
   # $1: gh exit code, $2: stderr 파일 경로
-  # stdout: ERR_<CODE> 한 줄 (분류된 경우만)
+  # 함수는 stdout으로 ERR_<CODE>를 출력한다. 호출자가 `>&2`로 redirect하여
+  # script-level stderr 계약(외부 ERR_<CODE> 단일 라인)에 연결한다.
   local rc="$1"
   local err_file="$2"
   [ "$rc" -eq 0 ] && return 0
-  case "$(cat "$err_file")" in
-    *"Bad credentials"*|*"Try authenticating with:"*|*"gh auth login"*|*"GH_TOKEN environment variable"*)
+  local err_text
+  err_text=$(cat "$err_file")
+  case "$err_text" in
+    # 인증/토큰 관련: gh auth login 안내, Bad credentials, GH_TOKEN 안내 등
+    *"Bad credentials"* | \
+    *"Try authenticating with:"* | \
+    *"gh auth login"* | \
+    *"GH_TOKEN environment variable"*)
       printf 'ERR_AUTH\n' ;;
-    *"error connecting to "*|*"check your internet connection"*|*"dial tcp"*|*"no such host"*|*"connection refused"*|*"connection reset"*|*"i/o timeout"*|*"TLS handshake timeout"*|*"Client.Timeout"*|*"proxyconnect"*)
+    # 네트워크/transport 오류: gh 자체 메시지 + Go HTTP transport(dial/proxy/DNS/TLS/timeout)
+    *"error connecting to "* | \
+    *"check your internet connection"* | \
+    *"dial tcp"* | \
+    *"no such host"* | \
+    *"connection refused"* | \
+    *"connection reset"* | \
+    *"i/o timeout"* | \
+    *"TLS handshake timeout"* | \
+    *"Client.Timeout"* | \
+    *"proxyconnect"*)
       printf 'ERR_NETWORK\n' ;;
+    # 이슈/리포지토리 미존재: gh GraphQL "Could not resolve to ..."
     *"GraphQL: Could not resolve to "*)
       printf 'ERR_NOT_FOUND\n' ;;
-    *"not a git repository"*)
+    # cwd 기반 repo 추론 실패: git repo 자체가 없거나, repo이지만 remote 미설정
+    *"not a git repository"* | \
+    *"no git remotes found"*)
       printf 'ERR_NO_CWD_REPO\n' ;;
     *)
       printf 'ERR_GH_UNKNOWN\n' ;;
