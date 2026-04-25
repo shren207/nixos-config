@@ -70,15 +70,10 @@ MiniPC에 저장된 파일이므로 이미지는 SSH로 staging한 뒤 이미지
 # 사전 검증된 원본 경로 (허용 루트 + ".." 부재 통과 후 변수에 담는다)
 FILE_PATH="<검증 통과한 원본경로>"
 BASENAME="${FILE_PATH##*/}"
-
-if [[ "$BASENAME" != *.* ]]; then
-  echo "오류: 파일 확장자가 없습니다." >&2
-  exit 1
-fi
-
 EXT="${BASENAME##*.}"
-case "$EXT" in
-  jpg|jpeg|png|webp|gif|JPG|JPEG|PNG|WEBP|GIF)
+# 확장자 없거나 ($BASENAME == $EXT) 비이미지 확장자면 메타데이터 fallback으로 보낸다
+case "$BASENAME" in
+  *.jpg|*.jpeg|*.png|*.webp|*.gif|*.JPG|*.JPEG|*.PNG|*.WEBP|*.GIF)
     DEST="/tmp/immich_photo_$(date +%s).$EXT"
     scp -- "minipc:${FILE_PATH}" "$DEST"
     # 이후 이미지 표시 도구에 "$DEST"를 전달
