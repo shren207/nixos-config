@@ -68,6 +68,7 @@ classify_gh_stderr() {
     *"i/o timeout"* | \
     *"TLS handshake timeout"* | \
     *"Client.Timeout"* | \
+    *"context deadline exceeded"* | \
     *"proxyconnect"*)
       printf 'ERR_NETWORK\n' ;;
     # 이슈/리포지토리 미존재: gh GraphQL "Could not resolve to ..."
