@@ -46,7 +46,7 @@ classify_gh_stderr() {
   case "$(cat "$err_file")" in
     *"Bad credentials"*|*"Try authenticating with:"*|*"gh auth login"*|*"GH_TOKEN environment variable"*)
       printf 'ERR_AUTH\n' ;;
-    *"error connecting to "*|*"check your internet connection"*)
+    *"error connecting to "*|*"check your internet connection"*|*"dial tcp"*|*"no such host"*|*"connection refused"*|*"connection reset"*|*"i/o timeout"*|*"TLS handshake timeout"*|*"Client.Timeout"*|*"proxyconnect"*)
       printf 'ERR_NETWORK\n' ;;
     *"GraphQL: Could not resolve to "*)
       printf 'ERR_NOT_FOUND\n' ;;
