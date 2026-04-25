@@ -44,7 +44,7 @@ classify_gh_stderr() {
   local err_file="$2"
   [ "$rc" -eq 0 ] && return 0
   case "$(cat "$err_file")" in
-    *"Bad credentials"*|*"Try authenticating with:"*)
+    *"Bad credentials"*|*"Try authenticating with:"*|*"gh auth login"*|*"GH_TOKEN environment variable"*)
       printf 'ERR_AUTH\n' ;;
     *"error connecting to "*|*"check your internet connection"*)
       printf 'ERR_NETWORK\n' ;;
