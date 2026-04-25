@@ -336,7 +336,10 @@ EOF
     해당 시 SKILL.md Step 1-C "값 확보 실패 처리" 순서(helper 재실행 → 런타임 질문 도구)로 실제 값 확보 후 치환.
   - `git rev-parse --show-toplevel`은 repo 밖에서 `fatal: not a git repository`를 반환하므로 `2>/dev/null` + `|| true`로 우회하고 `CURRENT_REPO` 빈 변수 검사로 분기한다.
   - **"어떤 git repo든 toplevel로 이동" 방지**: 사용자가 다른 repo 체크아웃 안에서 이 명령을 실행해도 `CURRENT_REPO ≠ REPO`일 때 clone 경로로 분기하므로 엉뚱한 repo를 재사용하지 않는다.
-  - **실패 경로 격리 (서브쉘 + 명시적 `|| exit 1`)**: `gh repo clone` 실패, `cd` 실패, `ls-remote`/`fetch` 실패, `git switch` 실패, `git merge --ff-only` 실패, divergence 감지 후 `exit 1`, `issue/{N}` ref 부재 시 `exit 1` 모두 서브쉘이 즉시 종료한다. 따라서 `git status`/`git log`가 **엉뚱한 cwd 또는 wrong-branch 상태**에서 실행되는 경로가 원천 차단된다. `set -e`는 POSIX 규정상 AND-OR list의 비최종 위치에서 억제되므로(`( ... ) || { ... }` 문맥 포함) 본 블록에서는 사용하지 않는다. 근거: [POSIX Shell Command Language — set](https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#set), [Bash Manual — The Set Builtin](https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html), [BashFAQ 105](http://mywiki.wooledge.org/BashFAQ/105).
+  - **실패 경로 격리 (서브쉘 + 명시적 `|| exit 1`)**:
+    - **보호되는 실패 경로**: `gh repo clone`, `cd`, `ls-remote`/`fetch`, `git switch`, `git merge --ff-only` 실패와 divergence 감지 후 `exit 1`, `issue/{N}` ref 부재 시 `exit 1` 모두 서브쉘이 즉시 종료한다. 따라서 `git status`/`git log`가 **엉뚱한 cwd 또는 wrong-branch 상태**에서 실행되는 경로가 원천 차단된다.
+    - **`set -e`를 쓰지 않는 이유**: POSIX 규정상 AND-OR list의 비최종 위치에서 억제되므로(`( ... ) || { ... }` 문맥 포함) 본 블록에서는 사용하지 않는다.
+    - **근거 링크**: [POSIX Shell Command Language — set](https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#set), [Bash Manual — The Set Builtin](https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html), [BashFAQ 105](http://mywiki.wooledge.org/BashFAQ/105).
 - **이전 세션 산출물 위치**: <파일 경로 또는 PR/이슈 URL>
 - **재개 지점**: Phase N-M부터
 - **남은 Blockers**: <있으면 명시, 없으면 "없음">
