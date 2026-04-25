@@ -318,7 +318,7 @@ DA for_plan의 Arbiter 판정 결과와 selective consistency 집계(해당 시)
 
 사용자가 수정을 요청하면 계획 파일을 편집한 뒤 승인 요청 도구를 다시 호출한다 (Claude: `EnterPlanMode`로 재진입 → `ExitPlanMode`, Codex: 파일 편집 후 plain-text 재제시).
 
-계획이 승인되면 (사용자가 수정 요청을 하지 않으면) 추가 확인 없이 즉시 아래 **Post-Implementation 1번**부터 진행한다. 1~7번 절차(변경 구현·커밋·`/run-da`·`/parallel-audit`·10-pass review·`/create-pr`)는 본 SKILL.md의 Post-Implementation 섹션이 정의한 고정 절차이며, Step 8의 "Post-Implementation 자동 수행 범위" 필수 항목이 plan 파일에 포함되어 ExitPlanMode/Codex confirm 시 사용자에게 노출된다. 따라서 계획 승인은 이 자동 진행 범위(tracked write·commit·GitHub PR write 포함)에 대한 사용자 동의로 간주된다.
+계획이 승인되면 (사용자가 수정 요청을 하지 않으면) 추가 확인 없이 즉시 아래 **Post-Implementation 1번**부터 진행한다. 1~7번 절차(변경 구현·구현 커밋·`/run-da for_pr`·`/parallel-audit`·10-pass review·반영 커밋·`/create-pr`)는 본 SKILL.md의 Post-Implementation 섹션이 정의한 고정 절차이며, Step 8의 "Post-Implementation 자동 수행 범위" 필수 항목이 plan 파일에 포함되어 ExitPlanMode/Codex confirm 시 사용자에게 노출된다. 따라서 계획 승인은 이 자동 진행 범위(tracked write·commit·GitHub PR write 포함)에 대한 사용자 동의로 간주된다.
 
 ## Post-Implementation (승인 후 자동 수행)
 
