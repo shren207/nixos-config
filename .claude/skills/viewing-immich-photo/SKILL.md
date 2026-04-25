@@ -19,7 +19,7 @@ Immich 저장 경로 검증, 플랫폼별 파일 접근, 이미지 표시 절차
 | 항목 | 값 |
 |------|----|
 | 허용 루트 | `/mnt/data/immich/photos/`, `/var/lib/docker-data/immich/upload-cache/` |
-| macOS 동작 | `scp minipc:…`로 staging 후 이미지 표시 도구로 표시 (비이미지는 `ssh minipc -- file --`) |
+| macOS 동작 | `scp minipc:…`로 staging 후 이미지 표시 도구로 표시 (비이미지는 SSH 원격에서 `file --`) |
 | NixOS 동작 | 로컬 경로를 이미지 표시 도구에 직접 전달 (비이미지는 로컬 `file --`) |
 | 비허용 패턴 | `..` 포함 경로 |
 
@@ -33,6 +33,7 @@ Immich 저장 경로 검증, 플랫폼별 파일 접근, 이미지 표시 절차
 | 비이미지 메타데이터 명령 | 공통 셸 `file -- <path>` | 공통 셸 `file -- <path>` |
 
 **이미지 표시**는 런타임 분기, **메타데이터 명령**은 파일 형식 분기다 — 같은 축으로 섞지 않는다.
+**비이미지 메타데이터 명령의 실행 위치**는 호스트 플랫폼에 따라 다르다: macOS는 SSH 원격에서 실행, NixOS는 로컬에서 실행 (상세는 아래 macOS/NixOS 섹션 참조).
 
 ## 경로 검증 (보안)
 
@@ -60,7 +61,7 @@ MiniPC에 저장된 파일이므로 이미지는 SSH로 staging한 뒤 이미지
 1. 경로가 `/mnt/data/immich/photos` 또는 `/var/lib/docker-data/immich/upload-cache`로 시작하는지 확인 (path traversal 차단)
 2. 확장자 분기:
    - **이미지** (`.jpg/.jpeg/.png/.webp/.gif`): `scp`로 `/tmp`에 staging → 이미지 표시 도구로 표시
-   - **비이미지** (동영상/문서 등): `ssh minipc -- file -- "${FILE_PATH}"`로 메타데이터만 출력 (staging 불필요)
+   - **비이미지** (동영상/문서 등): 원격 셸에 단일 command string으로 `file --`을 보내 메타데이터만 출력 (staging 불필요). 명령 형식은 아래 명령어 블록 참조.
 3. `/tmp`는 시스템 자동 정리 (수동 삭제 불필요)
 
 ### 명령어
@@ -72,7 +73,7 @@ BASENAME="${FILE_PATH##*/}"
 
 if [[ "$BASENAME" != *.* ]]; then
   echo "오류: 파일 확장자가 없습니다." >&2
-  return 1
+  exit 1
 fi
 
 EXT="${BASENAME##*.}"
@@ -83,13 +84,17 @@ case "$EXT" in
     # 이후 이미지 표시 도구에 "$DEST"를 전달
     ;;
   *)
-    # 비이미지 fallback — staging 없이 원격에서 메타데이터만 출력
-    ssh minipc -- file -- "${FILE_PATH}"
+    # 비이미지 fallback — 원격 셸에 단일 command string으로 전달.
+    # `ssh host arg...`는 arguments를 공백으로 join해 원격 셸이 재파싱하므로,
+    # 로컬에서 미리 shell-quote(`printf '%q'`, bash/zsh 공통)해야 메타문자가 보존된다.
+    ssh minipc "file -- $(printf '%q' "$FILE_PATH")"
     ;;
 esac
 ```
 
-**보안**: `<원본경로>` 같은 placeholder를 명령 문자열에 직접 삽입하지 마라. 검증 통과한 변수만 quote(`"${FILE_PATH}"`)와 `--` end-of-options 구분자와 함께 전달한다. 그러지 않으면 공백/특수문자 포함 경로에서 인자 경계가 깨진다.
+**보안**: `<원본경로>` 같은 placeholder를 명령 문자열에 직접 삽입하지 마라.
+- `scp` 같은 로컬 명령에는 검증 통과한 변수를 quote(`"${FILE_PATH}"`)와 `--` end-of-options 구분자로 전달한다.
+- `ssh host cmd args`는 args를 공백으로 join해 원격 셸이 다시 파싱하므로, 로컬 quoting만으로 원격 셸 인자 경계가 보존되지 않는다. `printf '%q'`로 미리 quote해 단일 command string을 만들어 전달한다 (위 fallback 예시 참조).
 
 **주의**: `minipc`는 SSH config에 정의된 호스트 alias.
 
