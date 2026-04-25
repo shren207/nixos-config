@@ -1,0 +1,16 @@
+[
+  {"query": "그릴해줘", "should_trigger": true, "why": "명시적: 핵심 트리거"},
+  {"query": "이 계획 심층 인터뷰해줘", "should_trigger": true, "why": "명시적: 심층 인터뷰 + 인터뷰 intent"},
+  {"query": "내 결정 트리 검증해줘", "should_trigger": true, "why": "명시적: 결정 트리 검증"},
+  {"query": "스무고개식으로 인터뷰해", "should_trigger": true, "why": "명시적: 스무고개식 인터뷰"},
+  {"query": "내가 놓친 분기 있는지 인터뷰해", "should_trigger": true, "why": "경계선: 놓친 분기 인터뷰"},
+  {"query": "결정 트리 모든 분기 한번씩 질문해", "should_trigger": true, "why": "저항적: 의미적 동치"},
+  {"query": "그릴해서 결정 분기 해소", "should_trigger": true, "why": "저항적: 그릴 + 결정 분기"},
+  {"query": "계획 수립해줘", "should_trigger": false, "why": "혼동 쌍: plan-with-questions (산출물=계획)"},
+  {"query": "스무고개로 계획 만들어줘", "should_trigger": false, "why": "혼동 쌍: plan-with-questions"},
+  {"query": "DA 피드백 돌려줘", "should_trigger": false, "why": "혼동 쌍: run-da"},
+  {"query": "설계 검토해줘", "should_trigger": false, "why": "혼동 쌍: run-da (DESIGN-1 분리)"},
+  {"query": "이 디자인 검증해줘", "should_trigger": false, "why": "혼동 쌍: run-da (DESIGN-1 분리)"},
+  {"query": "PR 만들어줘", "should_trigger": false, "why": "혼동 쌍: create-pr"},
+  {"query": "이슈 등록해줘", "should_trigger": false, "why": "혼동 쌍: create-issue"}
+]
