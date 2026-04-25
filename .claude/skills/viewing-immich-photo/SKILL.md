@@ -58,7 +58,7 @@ MiniPC에 저장된 파일이므로 이미지는 SSH로 staging한 뒤 이미지
 
 ### 핵심 절차
 
-1. 경로가 `/mnt/data/immich/photos` 또는 `/var/lib/docker-data/immich/upload-cache`로 시작하는지 확인 (path traversal 차단)
+1. 위 "허용 루트" 표 기준으로 경로 검증 (`/mnt/data/immich/photos/` 또는 `/var/lib/docker-data/immich/upload-cache/`로 시작 + `..` 부재, path traversal 차단)
 2. 확장자 분기:
    - **이미지** (`.jpg/.jpeg/.png/.webp/.gif`): `scp`로 `/tmp`에 staging → 이미지 표시 도구로 표시
    - **비이미지** (동영상/문서 등): 원격 셸에 단일 command string으로 `file --`을 보내 메타데이터만 출력 (staging 불필요). 명령 형식은 아래 명령어 블록 참조.
