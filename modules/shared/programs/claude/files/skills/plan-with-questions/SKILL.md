@@ -22,8 +22,8 @@ description: |
 |--------|----------|
 | Claude Code 세션 | 완전 지원 |
 | Codex Plan mode (`request_user_input` 지원 시) | 완전 지원 |
-| Codex 일반 세션 (Plan mode 미사용) | 질문 도구 미지원 → BLOCKED ("질문 도구 미지원 대응" 섹션 참조) |
-| headless 세션 (CI · `claude -p` · `codex exec`) | 미지원 (인터뷰 기반 SKILL의 본질상 자동 진행 불가) |
+| Codex 일반 세션 (Plan mode 미사용) | BLOCKED ("질문 도구 미지원 대응" 섹션 참조) |
+| headless 세션 (CI · `claude -p` · `codex exec`) | BLOCKED — 보고 채널 없음 → silent exit ("질문 도구 미지원 대응" 섹션 참조) |
 
 ## 용어 정책
 
@@ -32,29 +32,32 @@ description: |
 | 용어 유형 | 처리 |
 |----------|------|
 | 사용자 질문 실행 지시 | "질문 도구" |
+| 사용자 승인 요청 지시 | "승인 요청 도구" (런타임별 실제 도구는 아래 "런타임 도구 매핑" 표의 "계획 승인 요청" 행) |
 | 파일 읽기/검색 지시 | "파일 읽기 도구" (또는 명시적 셸 명령 `rg -n` / `sed -n` / `find`) |
 | 파일 편집 지시 | "파일 편집 도구" |
 
 ## 런타임 도구 매핑 (plan-with-questions 고유)
 
-이 표는 plan-with-questions 고유 행만 정의한다. 사용자 질문/fan-out/파일 읽기·편집은 [run-da 런타임 도구 매핑 표](../run-da/SKILL.md#런타임-도구-매핑)를 단일 진실 원천으로 참조한다.
+이 표는 plan-with-questions 고유 행만 정의한다. 사용자 질문/fan-out/파일 읽기·편집은 [run-da 런타임 도구 매핑 표](../run-da/SKILL.md#런타임-도구-매핑)를 단일 진실 원천으로 참조한다. 미지원 런타임(Codex 일반 세션 · headless)은 위 "지원 런타임" 표 + "질문 도구 미지원 대응" 섹션이 단일 소스다 — 본 표에서는 중복 명시하지 않는다.
 
-| 행동 | Claude Code 세션 | Codex Plan mode | Codex 일반 세션 |
-|------|------------------|-----------------|-----------------|
-| 계획 추적 상태 진입 | `EnterPlanMode` (계획 파일 경로 배정 + write 제한 모드) | `update_plan` (단계별 chat state 추적; 파일 IO 없음) | 미지원 → BLOCKED |
-| 계획 파일 작성/편집 | `Write`/`Edit`로 진입 시 배정된 경로에 작성 | `apply_patch`로 `.claude/plans/<slug>.md`에 직접 작성 | 미지원 → BLOCKED |
-| 계획 승인 요청 | `ExitPlanMode`로 계획 파일 제시 및 승인 대기 | 계획 파일 경로/요약을 `request_user_input`으로 제시하고 confirm 대기 (Plan mode 한정) | 미지원 → BLOCKED |
+| 행동 | Claude Code 세션 | Codex Plan mode |
+|------|------------------|-----------------|
+| 계획 추적 상태 진입 | `EnterPlanMode` (계획 파일 경로 배정 + write 제한 모드) | `update_plan` (단계별 chat state 추적; 파일 IO 없음) |
+| 계획 파일 작성/편집 | `Write`/`Edit`로 진입 시 배정된 경로에 작성 | `apply_patch`로 `.claude/plans/<slug>.md`에 직접 작성 |
+| 계획 승인 요청 | `ExitPlanMode`로 계획 파일 제시 및 승인 대기 | 계획 파일 경로/요약을 `request_user_input`으로 제시하고 confirm 대기 (Plan mode 한정) |
 
 본문의 "계획 추적 도구", "파일 편집 도구", "승인 요청 도구"는 위 표의 런타임별 실제 도구를 가리킨다. 최종 산출물은 두 지원 런타임 모두 `.claude/plans/<slug>.md` 계획 **파일**이다.
 
 ## 질문 도구 미지원 대응
 
+이 섹션은 Step 4 / Step I-4 / Step 7에서 참조되는 BLOCKED 처리 정책의 단일 소스다.
+
 현재 런타임에서 질문 도구를 호출할 수 없으면 (Codex 일반 세션 + Plan mode 미사용, headless 세션 등), plan-with-questions는 **BLOCKED 처리**한다. 인터뷰 기반 SKILL의 본질상 사용자 입력 없는 자동 진행이 불가능하므로 자동 전이를 채택하지 않는다.
 
 처리 절차:
-1. 현재 단계(Step 4 / Step I-4 / Step 6 등)와 차단 사유(질문 도구 미지원)를 plain-text로 보고한다.
+1. 현재 단계(Step 4 / Step I-4 / Step 7 등)와 차단 사유(질문 도구 미지원)를 plain-text로 보고한다 (보고 채널이 없는 headless에서는 silent exit한다).
 2. SKILL 절차를 종료한다.
-3. 사용자가 새 메시지에서 명시 재개("계속 진행" 등)하거나 질문 도구 지원 런타임으로 전환할 때까지 자동 재개하지 않는다.
+3. 사용자가 새 메시지에서 명시 재개("계속 진행" 등)하거나 질문 도구 지원 런타임으로 전환할 때까지 자동 재개하지 않는다. **지원 런타임 전환 방법**: Claude Code 세션 사용 또는 Codex Plan mode 활성화. Codex Plan mode 활성화 절차는 사용자 codex 환경 설정에 따른다 (이 SKILL의 책임 범위 밖).
 
 이 정책은 [run-da의 "질문 도구 미지원 대응"](../run-da/references/arbiter-scaling.md#질문-도구-미지원-대응) 섹션과 결을 같이 하지만, plan-with-questions 인터뷰 컨텍스트 전용으로 적용 규칙이 다르다 (자동 승격/LITE 승격/5라운드 종료 같은 DA 흐름 규칙은 적용하지 않는다).
 
@@ -78,7 +81,7 @@ description: |
 |------|-----------|-----------|
 | 입력 | 이슈 레퍼런스 (URL/ID/이슈키) | 텍스트 설명 또는 빈 인자 |
 | 출력 | 사용자 승인을 받은 상세 실행 계획 (계획 파일) | 등록된 이슈 (+ 선택적 LLM 이행 가이드) |
-| 핵심 도구 | 런타임 도구 매핑 참조 | 런타임 도구 매핑 참조 + codex exec / Agent / native subagent(런타임 분기) + /create-issue |
+| 핵심 도구 | 자체 "런타임 도구 매핑" + run-da SSOT 참조 | 자체 "런타임 도구 매핑" + run-da SSOT 참조 + codex exec / Agent / native subagent(런타임 분기) + /create-issue |
 | DA | for_plan 실행 (for_action에서만) | 생략 (스무고개 자체가 품질 보장) |
 | 계획 추적 도구 | 사용 (Step 7-9) | 미사용 (산출물이 이슈) |
 | 제1원칙 | YAGNI / NGMI | YAGNI / NGMI |
@@ -199,7 +202,8 @@ $ARGUMENTS에 이슈 레퍼런스가 있으면 이 모드로 진행한다.
 
 - **Claude Code 세션**: 계획 추적 도구 진입 시점부터 write 작업이 제한되므로 검증은 반드시 진입 전에 완료돼야 한다.
 - **Codex Plan mode**: chat state 추적은 write 제한을 강제하지 않지만, Step 7 이후는 "검증 단계 종료 + 계획 작성 단계"로 규약되므로 동일하게 Step 1-6에서 검증을 완료한다.
-- **Codex 일반 세션**: 미지원 → BLOCKED. "질문 도구 미지원 대응" 섹션을 따른다.
+
+미지원 런타임(Codex 일반 세션 · headless)은 Step 4에서 이미 BLOCKED 처리되어 이 단계에 도달하지 않는다 ("질문 도구 미지원 대응" 섹션 참조).
 
 ### Step 1: 이슈 유효성 판단 [일반 모드]
 
@@ -307,11 +311,10 @@ DA for_plan의 Arbiter 판정 결과와 selective consistency 집계(해당 시)
 
 ### Step 7: 계획 상태 진입 [전환점]
 
-모든 분석, 질문, DA 검토가 완료되었으므로 계획 추적 도구로 진입한다 (런타임별 실제 도구는 자체 "런타임 도구 매핑" 표 참조).
+모든 분석, 질문, DA 검토가 완료되었으므로 계획 추적 도구로 진입한다 (런타임별 실제 도구는 자체 "런타임 도구 매핑" 표 참조). Codex 일반 세션·headless에서는 Step 4(또는 for_issue의 Step I-4)에서 이미 BLOCKED 처리되어 이 단계에 도달하지 않는다.
 
 - **Claude Code 세션**: 계획 추적 도구가 계획 파일 경로 배정과 write 제한 모드 전환을 수행한다. Step 8에서 파일 편집 도구로 해당 경로에 계획 파일을 작성한다.
 - **Codex Plan mode**: chat state 추적을 시작한 뒤, Step 8에서 파일 편집 도구로 `.claude/plans/<slug>.md`에 직접 작성한다 (chat state 추적은 상태 표시 전용이며 파일을 생성하지 않는다).
-- **Codex 일반 세션**: 미지원 → BLOCKED. "질문 도구 미지원 대응" 섹션을 따른다.
 
 ### Step 8: 계획 파일 작성 [계획 추적 상태]
 
