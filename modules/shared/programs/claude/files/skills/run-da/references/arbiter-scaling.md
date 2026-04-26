@@ -64,7 +64,7 @@ Claude Code에서 Codex CLI를 subprocess로 호출할 때, 비대화형 automat
 - `cat "$ARBITER_DIR/arbiter-prompt.md" | codex exec ... -` stdin pipe로 프롬프트 전달 (pipe EOF가 stdin hang 방지)
 - `2>"$ARBITER_DIR/arbiter-stderr.log"` stderr 분리
 - `-m` 플래그 생략 (config.toml 기본 모델)
-- Arbiter는 config.toml 기본 `model_reasoning_effort`(xhigh = strong review profile)를 사용한다. `-c` 오버라이드 불필요.
+- Arbiter는 strong review profile(high)을 사용한다. config.toml 기본 `model_reasoning_effort`(xhigh)와 다르므로 `-c model_reasoning_effort="high"`를 명시적으로 지정한다.
 - 프롬프트에서 "리뷰만 수행하고 파일을 수정하지 마라" 명시
 - `--ephemeral`로 세션 히스토리 오염 방지
 
@@ -105,7 +105,7 @@ cat "$INTENSITY_DIR/prompt.md" | codex exec --sandbox read-only --ignore-user-co
 
 ```bash
 cat "$ARBITER_DIR/arbiter-prompt.md" | codex exec --sandbox read-only --ignore-user-config --ephemeral \
-  -c model="gpt-5.5" -c model_reasoning_effort="xhigh" \
+  -c model="gpt-5.5" -c model_reasoning_effort="high" \
   -o "$ARBITER_DIR/arbiter-result.md" - 2>"$ARBITER_DIR/arbiter-stderr.log"
 ```
 
@@ -141,6 +141,7 @@ PROMPT
 
 # 3. codex exec 실행 (foreground)
 cat "$ARBITER_DIR/arbiter-prompt.md" | codex exec --full-auto --ephemeral \
+  -c model_reasoning_effort="high" \
   -o "$ARBITER_DIR/arbiter-result.md" \
   - \
   2>"$ARBITER_DIR/arbiter-stderr.log"
@@ -177,7 +178,7 @@ fi
 
 selective consistency trigger([stability-measurement.md](stability-measurement.md)의 trigger 조건)에 매치된 finding에 대해 N=3 독립 Arbiter를 실행한다. 각 런타임별 실행 규약은 다음과 같다.
 
-**프롬프트 축소 규칙**: N=3 재판정 프롬프트는 first-pass Arbiter 프롬프트 전체가 아니라, **trigger된 finding 목록만 포함한 축소 프롬프트**로 조립한다. first-pass 프롬프트를 그대로 N=3번 재실행하면 비용이 "애매한 finding 수"가 아니라 "전체 Arbiter batch 크기"에 비례해 xhigh reasoning으로 3배 증가한다. [arbiter-prompt.md](arbiter-prompt.md)의 for_pr/for_plan 조립 규칙은 selective consistency 모드에서 `## 검증 대상 findings` 섹션에 trigger된 subset만 포함해야 한다. 동일 규칙을 for_plan에도 적용하며, 계획 원문/diff 컨텍스트는 유지하되 finding 목록만 좁힌다.
+**프롬프트 축소 규칙**: N=3 재판정 프롬프트는 first-pass Arbiter 프롬프트 전체가 아니라, **trigger된 finding 목록만 포함한 축소 프롬프트**로 조립한다. first-pass 프롬프트를 그대로 N=3번 재실행하면 비용이 "애매한 finding 수"가 아니라 "전체 Arbiter batch 크기"에 비례해 high reasoning으로 3배 증가한다. [arbiter-prompt.md](arbiter-prompt.md)의 for_pr/for_plan 조립 규칙은 selective consistency 모드에서 `## 검증 대상 findings` 섹션에 trigger된 subset만 포함해야 한다. 동일 규칙을 for_plan에도 적용하며, 계획 원문/diff 컨텍스트는 유지하되 finding 목록만 좁힌다.
 
 ### Codex 세션 경로 (N=3)
 
@@ -193,12 +194,12 @@ selective consistency trigger([stability-measurement.md](stability-measurement.m
 - **headless 세션**: **serial foreground**로 3개 프로세스를 순차 실행한다 (완료 알림/`&+wait` 없음, 각 프로세스 종료 후 다음 프로세스 기동). 결과 파일 경로·환경 격리 방식은 아래와 동일하게 적용하되, 실행 방식만 serial로 바꾼다.
 
 1. 동일 Arbiter 프롬프트 파일을 3번 실행하기 위해 **3개의 `codex exec` 프로세스**를 기동한다 (Claude Code: background, headless: serial foreground). reviewer fan-out과 달리 Arbiter N=3 자체는 **모두 같은 프롬프트**다(프롬프트 조향 금지, 독립 판정 원칙).
-2. **환경 격리** — first-pass Arbiter는 기존 규칙(xhigh, `~/.codex/config.toml` 기본값)을 따르지만, **selective consistency N=3**은 외부 표면과 충돌을 줄이기 위해 다음 두 방식 중 하나를 선택한다:
+2. **환경 격리** — first-pass Arbiter와 selective consistency N=3 모두 strong review profile(high)을 사용한다 (`~/.codex/config.toml` 기본값 xhigh와 다르므로 `-c model_reasoning_effort="high"` 핀 필수). **selective consistency N=3**은 외부 표면과 충돌을 줄이기 위해 다음 두 방식 중 하나를 선택한다:
 
    **(a) 기본 경로 + config 차단** (권장, 간단):
    - `CODEX_HOME`을 그대로 두어 기본 auth chain(`auth.json` 등)을 유지한다.
    - codex exec 호출에 `--ignore-user-config`를 추가하여 사용자 `config.toml`(MCP 서버 포함) 로딩을 차단한다. `using-codex-exec/SKILL.md:113`에 기록된 대로 이 플래그는 **config만 차단하고 auth는 유지**한다.
-   - **주의**: `--ignore-user-config`는 `$CODEX_HOME/config.toml`의 `model` / `model_reasoning_effort` 등 strong review profile 설정을 함께 제거한다. Arbiter는 strong profile을 유지해야 하므로 `-c model="gpt-5.5"`와 `-c model_reasoning_effort="xhigh"`를 **명시적으로 재지정**한다 (defensive explicit pin — config.toml default가 차단되므로).
+   - **주의**: `--ignore-user-config`는 `$CODEX_HOME/config.toml`의 `model` / `model_reasoning_effort` 등 user config 설정을 함께 제거한다. Arbiter는 strong review profile(high)을 유지해야 하므로 `-c model="gpt-5.5"`와 `-c model_reasoning_effort="high"`를 **명시적으로 재지정**한다 (defensive explicit pin — config.toml default가 차단되므로).
    - 부작용: `~/.codex/sessions` 기반 세션이 생성되므로 동시 N=3 실행 시 세션 파일 경합이 발생할 수 있다. `--ephemeral`로 session 저장 자체를 회피한다.
 
    **(b) scratch CODEX_HOME + auth 복사** (세션 충돌 완전 분리가 필요할 때):
@@ -208,7 +209,7 @@ selective consistency trigger([stability-measurement.md](stability-measurement.m
      - 그렇지 않으면 `cp ~/.codex/auth.json "$CODEX_HOME/"`로 기존 auth.json을 scratch로 복사.
      - 둘 다 불가능하면 scratch CODEX_HOME에서 `codex login status`가 `Not logged in`으로 실패하므로 방식 (a)로 돌아간다.
    - 최소 `$CODEX_HOME/config.toml`을 작성하되 `[mcp_servers.<name>]` 테이블(실제 Codex TOML 스키마, `modules/shared/programs/codex/files/config.darwin.toml:34` 참조)을 **포함하지 않는다**. 또는 TOML 파서로 기존 config를 복사한 뒤 `mcp_servers` 테이블 전체를 삭제한다. (참고: `[[mcp_servers]]` array-of-table 문법은 현재 Codex가 사용하지 않으므로 혼동 방지를 위해 `[mcp_servers.*]` 정확 표기를 사용한다.)
-   - 모델/효과 옵션은 **필수로** 명시적으로 지정한다: `-c model="gpt-5.5"`와 `-c model_reasoning_effort="xhigh"`. scratch `CODEX_HOME`이므로 user config default가 적용되지 않아 호출 시점 기본값 의존이 불가하다.
+   - 모델/효과 옵션은 **필수로** 명시적으로 지정한다: `-c model="gpt-5.5"`와 `-c model_reasoning_effort="high"`. scratch `CODEX_HOME`이므로 user config default가 적용되지 않아 호출 시점 기본값 의존이 불가하다.
 3. **Claude Code 세션**: `run_in_background: true`로 3개를 병렬 발사 후 완료 알림을 기다린다 (sleep/poll 금지). **headless 세션**: 3개 프로세스를 serial foreground로 순차 실행한다 (각 종료 확인 후 다음). 결과 파일 경로는 두 경로 모두 `/tmp/da-${_DA_SID}-arbiter-selective-<round>/arbiter-{1,2,3}-result.md`로 라운드별 분리.
 4. 수집 후 세션 scope의 `fleiss-kappa.py`(Claude: `~/.claude/scripts/fleiss-kappa.py`, Codex: `~/.codex/scripts/fleiss-kappa.py`)에 `arbiter-1-result.md arbiter-2-result.md arbiter-3-result.md`를 인자로 전달하여 vote-shape를 얻는다. `--offline` 플래그는 배포 후 kappa 관찰 목적일 때만 부가한다.
 
