@@ -311,7 +311,7 @@ DA for_plan의 Arbiter 판정 결과와 selective consistency 집계(해당 시)
 
 ### Step 7: 계획 상태 진입 [전환점]
 
-모든 분석, 질문, DA 검토가 완료되었으므로 계획 추적 도구로 진입한다 (런타임별 실제 도구는 자체 "런타임 도구 매핑" 표 참조). Codex 일반 세션·headless에서는 Step 4(또는 for_issue의 Step I-4)에서 이미 BLOCKED 처리되어 이 단계에 도달하지 않는다.
+모든 분석, 질문, DA 검토가 완료되었으므로 계획 추적 도구로 진입한다 (런타임별 실제 도구는 자체 "런타임 도구 매핑" 표 참조). Codex 일반 세션·headless에서는 Step 4(또는 for_issue의 Step I-4)에서 이미 BLOCKED 처리되어 이 단계에 도달하지 않는다 (상세는 "질문 도구 미지원 대응" 섹션 참조).
 
 - **Claude Code 세션**: 계획 추적 도구가 계획 파일 경로 배정과 write 제한 모드 전환을 수행한다. Step 8에서 파일 편집 도구로 해당 경로에 계획 파일을 작성한다.
 - **Codex Plan mode**: chat state 추적을 시작한 뒤, Step 8에서 파일 편집 도구로 `.claude/plans/<slug>.md`에 직접 작성한다 (chat state 추적은 상태 표시 전용이며 파일을 생성하지 않는다).
