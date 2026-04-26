@@ -23,7 +23,7 @@ description: |
 | Claude Code 세션 | 완전 지원 |
 | Codex Plan mode (`request_user_input` 지원 시) | 완전 지원 |
 | Codex 일반 세션 (Plan mode 미사용) | BLOCKED ("질문 도구 미지원 대응" 섹션 참조) |
-| headless 세션 (CI · `claude -p` · `codex exec`) | BLOCKED — 보고 채널 없음 → silent exit ("질문 도구 미지원 대응" 섹션 참조) |
+| headless 세션 (CI · `claude -p` · `codex exec`) | BLOCKED ("질문 도구 미지원 대응" 섹션 참조) |
 
 ## 용어 정책
 
@@ -38,13 +38,15 @@ description: |
 
 ## 런타임 도구 매핑 (plan-with-questions 고유)
 
-이 표는 plan-with-questions 고유 행만 정의한다. 사용자 질문/fan-out/파일 읽기·편집은 [run-da 런타임 도구 매핑 표](../run-da/SKILL.md#런타임-도구-매핑)를 단일 진실 원천으로 참조한다. 미지원 런타임(Codex 일반 세션 · headless)은 위 "지원 런타임" 표 + "질문 도구 미지원 대응" 섹션이 단일 소스다 — 본 표에서는 중복 명시하지 않는다. **Codex 일반 세션·headless는 진입 즉시 (Step 4 / Step I-4 또는 본 SKILL의 어떤 단계든) 질문 도구 호출이 시도되는 시점에 BLOCKED 처리되므로 본 표의 어떤 행에도 도달하지 않는다.**
+이 표는 plan-with-questions 고유 행만 정의한다. 사용자 질문/fan-out/파일 읽기·편집은 [run-da 런타임 도구 매핑 표](../run-da/SKILL.md#런타임-도구-매핑)를 단일 진실 원천으로 참조한다 (중복 복제 금지).
+
+**미지원 런타임 처리**: Codex 일반 세션·headless는 본 표의 어떤 행에도 도달하지 않는다 (Step 4/Step I-4에서 질문 도구 호출 시점에 BLOCKED). 상세는 위 "지원 런타임" 표와 "질문 도구 미지원 대응" 섹션이 단일 소스다.
 
 | 행동 | Claude Code 세션 | Codex Plan mode |
 |------|------------------|-----------------|
 | 계획 추적 상태 진입 | `EnterPlanMode` (계획 파일 경로 배정 + write 제한 모드) | `update_plan` (단계별 chat state 추적; 파일 IO 없음) |
 | 계획 파일 작성/편집 | `Write`/`Edit`로 진입 시 배정된 경로에 작성 | `apply_patch`로 `.claude/plans/<slug>.md`에 직접 작성 |
-| 계획 승인 요청 | `ExitPlanMode`로 계획 파일 제시 및 승인 대기 | 계획 파일 경로/요약을 `request_user_input`으로 제시하고 confirm 대기 (Plan mode 한정) |
+| 계획 승인 요청 | `ExitPlanMode`로 계획 파일 제시 및 승인 대기 | 계획 파일 경로/요약을 `request_user_input`으로 제시하고 confirm 대기 |
 
 본문의 "계획 추적 도구", "파일 편집 도구", "승인 요청 도구"는 위 표의 런타임별 실제 도구를 가리킨다. 최종 산출물은 두 지원 런타임 모두 `.claude/plans/<slug>.md` 계획 **파일**이다.
 
