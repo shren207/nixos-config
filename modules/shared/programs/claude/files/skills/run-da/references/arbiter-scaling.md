@@ -83,7 +83,7 @@ Codex 세션에서 `spawn_agent`가 정책상 거부될 때(예: `multi_agent=fa
 - 각 review unit은 독립 subprocess (fresh 판정 경계는 프로세스 경계로 보존).
 - 사용자 승인 후에만 실행 (SKILL.md "Delegation fallback" 섹션 참조).
 
-**role별 명령** (각 역할이 사용하는 임시 디렉토리와 파일 이름 규약은 SKILL.md 본문 절차를 따른다). 아래 fenced code block은 바로 복사해 실행할 수 있도록 standard/strong profile의 model/effort 값을 **literal**로 고정한다. profile 이름·의미의 SSOT는 SKILL.md 상단 "런타임 도구 매핑"의 **review profile 매핑** 불릿이며, 값이 바뀌면 아래 literal도 함께 갱신해야 한다 (문서-코드 manual sync contract — selective consistency harness와 동일한 패턴):
+**role별 명령** (각 역할이 사용하는 임시 디렉토리와 파일 이름 규약은 SKILL.md 본문 절차를 따른다). 아래 fenced code block은 바로 복사해 실행할 수 있도록 standard/strong profile의 model/effort 값을 **literal**로 고정한다. profile 이름·의미의 SSOT는 SKILL.md 상단 "런타임 도구 매핑"의 **review profile 매핑** 불릿이며, 값이 바뀌면 아래 literal도 함께 갱신해야 한다 (문서-코드 manual sync contract — selective consistency harness와 동일한 패턴). **현재 effort 매핑**: `medium` = standard profile (reviewer/Intensity/auditor), `high` = strong profile (Arbiter), `xhigh` = `config.toml` `model_reasoning_effort` 기본값 (보존; Arbiter 호출 경로에서만 `-c`로 `high`로 다운그레이드).
 
 **reviewer / Auditor** (standard profile):
 
@@ -140,6 +140,7 @@ cat > "$ARBITER_DIR/arbiter-prompt.md" <<'PROMPT'
 PROMPT
 
 # 3. codex exec 실행 (foreground)
+# Arbiter는 strong review profile(high) — config.toml 기본값(xhigh)을 오버라이드. model은 -m 생략하여 config.toml 기본값 사용.
 cat "$ARBITER_DIR/arbiter-prompt.md" | codex exec --full-auto --ephemeral \
   -c model_reasoning_effort="high" \
   -o "$ARBITER_DIR/arbiter-result.md" \
@@ -194,7 +195,7 @@ selective consistency trigger([stability-measurement.md](stability-measurement.m
 - **headless 세션**: **serial foreground**로 3개 프로세스를 순차 실행한다 (완료 알림/`&+wait` 없음, 각 프로세스 종료 후 다음 프로세스 기동). 결과 파일 경로·환경 격리 방식은 아래와 동일하게 적용하되, 실행 방식만 serial로 바꾼다.
 
 1. 동일 Arbiter 프롬프트 파일을 3번 실행하기 위해 **3개의 `codex exec` 프로세스**를 기동한다 (Claude Code: background, headless: serial foreground). reviewer fan-out과 달리 Arbiter N=3 자체는 **모두 같은 프롬프트**다(프롬프트 조향 금지, 독립 판정 원칙).
-2. **환경 격리** — first-pass Arbiter와 selective consistency N=3 모두 strong review profile(high)을 사용한다 (`~/.codex/config.toml` 기본값 xhigh와 다르므로 `-c model_reasoning_effort="high"` 핀 필수). **selective consistency N=3**은 외부 표면과 충돌을 줄이기 위해 다음 두 방식 중 하나를 선택한다:
+2. **환경 격리** — first-pass Arbiter와 selective consistency N=3 모두 strong review profile(high)을 사용한다. `~/.codex/config.toml` 기본값(xhigh)과 다르므로 **반드시 `-c model_reasoning_effort="high"`를 명시한다**. **selective consistency N=3**은 외부 표면과 충돌을 줄이기 위해 다음 두 방식 중 하나를 선택한다:
 
    **(a) 기본 경로 + config 차단** (권장, 간단):
    - `CODEX_HOME`을 그대로 두어 기본 auth chain(`auth.json` 등)을 유지한다.
