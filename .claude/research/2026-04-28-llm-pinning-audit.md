@@ -3,8 +3,7 @@
 작성일: 2026-04-28
 대상 corpus: nixos-config 67개 jsonl (10,896줄 assistant text)
 보조 검증 corpus: 타 활성 corpus 1,832 jsonl (309,216줄)
-관련 이슈: #582
-관련 PR: feat/llm-pinning-guardrails
+배경: LLM 박제 가드레일 도입 작업의 근거 산출물 (작업 착수 이슈 + 도입 PR은 이 문서 머지 시점에 활성, 머지 후 closed)
 
 ## 메서드
 
