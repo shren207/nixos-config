@@ -167,7 +167,7 @@ selective consistency trigger 없음 (split/fragmented 없음). 14건 모두 본
 
 ## 데이터 위치 (휘발성 — 작업 당시 /tmp 경로, 재현 불가)
 
-> ⚠️ 아래 `/tmp/*` 경로는 분석 작업 시점의 임시 산출물이다. 호스트 재부팅 또는 `/tmp` cleanup 시 사라지므로 **유효 참조로 인용하지 마라**. 재분석이 필요하면 본 문서의 메서드 섹션을 따라 새로 dump를 생성한다. 영구 보관은 본 문서가 단일 진실 원천이다.
+> ⚠️ 아래 `/tmp/*` 경로는 분석 작업 시점의 임시 산출물이다. 호스트 재부팅 또는 `/tmp` cleanup 시 사라지므로 **유효 참조로 인용하지 마라**. 재분석이 필요하면 본 문서의 메서드 섹션을 따라 새로 dump를 생성한다. 재분석 메서드와 당시 측정값은 본 archive만 보존한다 — 운영 정책의 단일 진실 원천(SoT)은 여전히 각 SKILL.md / hook script / lefthook 설정이며 본 문서가 아님 (문서 상단 archive 경고 참조).
 
 - nixos-config corpus jsonl 리스트: `/tmp/nixos-jsonl-list.txt` (67개)
 - nixos-config assistant text dump: `/tmp/nixos-assistant-text.dump` (10,896줄, 644KB)

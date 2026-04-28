@@ -76,7 +76,8 @@
 
 ### References (필수)
 - 비자명한 주장마다 근거 제공 (체크리스트 B1/B4)
-- 근거 타입 (Source reliability 순위 — 체크리스트 B3): 공식 docs URL > repo 내부 파일(`path/to/file.nix:LINE` 또는 `path:START-END`) > 관련 이슈/커밋(`#NNN`/`abc1234`) > blog > LLM 기억
+- 근거 타입 (Source reliability 순위 — 체크리스트 B3): 공식 docs URL > repo 내부 파일(`path/to/file.nix:LINE` 또는 `path:START-END`) > 머지된 commit SHA > 관련 이슈/PR 번호 (`#NNN`) > blog > LLM 기억
+- 관련 이슈/PR 번호 인용은 **출처 입증에 불가결한 경우에만**. 단순 색인용 인용은 close/rename 시 stale 위험.
 - **근거 존재 시**: 최소 1개 링크 또는 path 참조 필수
 - **근거 부재 시**: 섹션을 비우지 않고 `[UNVERIFIED]` 항목으로 대체
 - **상충 시**: `[CONFLICTING]` + 양측 인용 (체크리스트 E3)
@@ -88,8 +89,8 @@
 - 절차는 코드블록 + 언어 태그 (`bash`, `nix` 등) 사용
 
 ### Related Commits (선택)
-- 포맷: `- \`해시7자리\` — 커밋 메시지 한줄 요약`
-- 이 이슈가 생성된 배경/맥락이 되는 **기존 커밋**만 기재
+- 포맷: `- \`머지된 SHA\` — 커밋 메시지 한줄 요약` (안정 식별자만; mid-flight partial hash 박제 금지 — squash 후 dangling 위험)
+- 이 이슈가 생성된 배경/맥락이 되는 **기존 머지된 커밋**만 기재 (단순 색인용 인용 금지)
 - 포함 기준은 SKILL.md Step 2 참조
 
 ### Affected Files (선택)

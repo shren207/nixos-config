@@ -4,11 +4,9 @@
 #       세션 내부 메타데이터(라운드 번호/finding ID/partial hash)가 박혀 squash 후 dangling되거나
 #       drift를 일으키는 것을 차단한다.
 # 정책:
-# - warn-only: 매치 시 stderr 경고만 출력하고 exit 0. commit 차단하지 않음.
+# - warn-only: 매치 시 stderr 경고만 출력하고 exit 0. commit 차단하지 않음. lefthook 단계 자체를
+#   건너뛰려면 lefthook 표준 메커니즘 (`LEFTHOOK=0`, `--no-verify`)을 사용한다.
 # - revert 예외: commit msg 첫 줄이 "revert" 또는 "Revert"로 시작하면 partial hash 검사 skip.
-# - emergency bypass: 운영자용 escape hatch가 있다 (운영 runbook 참조). 경고 메시지에는 변수명을
-#   노출하지 않는다 (사용자 인지부하 회피). 단, 스크립트 소스에서는 평문으로 보이므로 LLM이 Read
-#   도구로 학습하는 경로까지 차단하지는 않는다 (security-by-obscurity 아님).
 # 작동 범위: 이 hook은 신규 commit message의 박제만 감지한다. 과거 GitHub PR/이슈 본문, squash
 #   commit body의 잔존 박제는 본 hook 범위 밖이며 별도 sweep 작업이 필요하다.
 set -euo pipefail
@@ -17,17 +15,6 @@ set -euo pipefail
 COMMIT_MSG_FILE="${1:-.git/COMMIT_EDITMSG}"
 
 if [ ! -f "$COMMIT_MSG_FILE" ]; then
-  exit 0
-fi
-
-is_true() {
-  local val
-  val=$(echo "${1:-}" | tr '[:upper:]' '[:lower:]')
-  [ "$val" = "1" ] || [ "$val" = "true" ] || [ "$val" = "yes" ]
-}
-
-# Emergency bypass (운영자용 — 경고 메시지에 변수명 노출 안 함; 소스에서는 평문)
-if is_true "${SKIP_PINNING_CHECK:-}"; then
   exit 0
 fi
 
@@ -52,6 +39,19 @@ warn() {
   echo "[WARN] pinning: $1" >&2
 }
 
+# check_ere — 단순 정규식 검사 흐름 통합 helper (PATTERN_A/B/C 공통 구조).
+# 매치 시 warn + 줄번호 출력 + found=1 설정. found는 셸 전역 변수 (subshell 회피 위해 함수 안 사용).
+# usage: check_ere "$PATTERN" "$WARN_MESSAGE"
+check_ere() {
+  local pattern="$1"
+  local message="$2"
+  if grep -qE "$pattern" "$CLEAN_MSG"; then
+    warn "$message"
+    grep -nE "$pattern" "$CLEAN_MSG" | sed 's/^/         /' >&2
+    found=1
+  fi
+}
+
 # 패턴 A — 진행 라운드 카운터: "Round N" (단어경계 + Round prefix 의무화).
 # 단독 R[0-9]+는 false positive 너무 많아 제외 (정당한 약어 IPv4 R3, docs 표 R1/R2/R3 등).
 PATTERN_A='\bRound [0-9]+\b'
@@ -68,47 +68,32 @@ PATTERN_B='\b(Correctness|Design|Regression|Maintainability|SECURITY|HALLUCINATI
 # 앞쪽 단어경계 + 컨텍스트 좁힘. "DA Round N"은 패턴 A가 처리하므로 중복 분기 제거 (alert fatigue 회피).
 PATTERN_C='\bDA (for_pr|for_plan|피드백)\b'
 
-# 패턴 D — 백틱 안 partial hex (HASH_MIN ~ HASH_MAX 자리). 순수 숫자열은 hex 알파벳(a-f) 1개 이상
-# 의무화하여 false positive 제외 — 포트 번호/이슈 ID/빌드 번호 같은 백틱 인용 노이즈 회피.
-# commit msg 첫 줄이 revert로 시작하면 skip (정당한 git revert hash 인용 회피).
-# hex 매직 상수(`deadbeef`, `cafebabe` 등)도 매치되나 발생 빈도 낮아 별도 allowlist 두지 않음
-# (의도적 인용이면 amend로 무시 가능).
-PATTERN_D="\`[a-f0-9]*[a-f][a-f0-9]*\`"
+# 패턴 D — partial hex 박제. 백틱 토큰뿐 아니라 raw `7e75df6` / `(7e75df6)` / `commit 7e75df6`
+# 같은 일반 인용 형태도 감지한다 (Codex review로 백틱 전용 PATTERN_D가 raw hex 박제 사례를
+# 놓치는 점이 확인됨). 길이 7-12자 + hex 알파벳(a-f) 1개 이상 의무 (full SHA 40자 제외 + 순수 숫자열 제외).
+# commit msg 첫 줄이 revert로 시작하면 검사 전체를 skip (정당한 git revert hash 인용 회피).
+# hex 매직 상수(`deadbeef` 등) 인용은 매치되나 발생 빈도 낮음 — 의도적 인용이면 amend로 무시 가능.
+# `(cherry picked from commit ...)` 같은 자동 생성 라인의 hash 인용은 박제로 간주 — 자동 머지 hash가
+# 이후 squash로 dangling될 위험이 있어 의도적으로 차단 (false positive 시 amend).
+# grep -oE는 광범위 후보(\b16진 7-40자\b)를 잡고, awk가 길이/알파벳/full SHA 조건을 후처리한다.
+PATTERN_D='\b[a-f0-9]{7,40}\b|`[a-f0-9]+`'
 
 found=0
 
-# 모든 grep은 정제된 임시 파일($CLEAN_MSG)을 직접 읽는다. 변수 + pipeline 조합은 set -o
-# pipefail 환경에서 큰 입력 + grep -q 조기 종료 시 SIGPIPE로 silent fail이 발생한다.
-# 출력 단계의 `grep | sed` pipeline은 grep이 모든 매치 라인을 출력하므로 sed가 빠르게
-# 종료할 수 없어 안전 (sed는 stream 처리).
-
-if grep -qE "$PATTERN_A" "$CLEAN_MSG"; then
-  warn "라운드 카운터(\`Round N\`) 박제 감지. 영구 산출물에는 자연어 설명으로 표현하라."
-  grep -nE "$PATTERN_A" "$CLEAN_MSG" | sed 's/^/         /' >&2
-  found=1
-fi
-
-if grep -qE "$PATTERN_B" "$CLEAN_MSG"; then
-  warn "DA finding ID 박제 감지. 라운드/finding ID는 휘발성 보고에만 사용하고 commit message에는 박지 마라."
-  grep -nE "$PATTERN_B" "$CLEAN_MSG" | sed 's/^/         /' >&2
-  found=1
-fi
-
-if grep -qE "$PATTERN_C" "$CLEAN_MSG"; then
-  warn "DA 키워드 박제 감지. 검토 모드 표기는 commit message가 아니라 PR description 또는 별도 노트에 둬라."
-  grep -nE "$PATTERN_C" "$CLEAN_MSG" | sed 's/^/         /' >&2
-  found=1
-fi
+check_ere "$PATTERN_A" "라운드 카운터(\`Round N\`) 박제 감지. 영구 산출물에는 자연어 설명으로 표현하라."
+check_ere "$PATTERN_B" "DA finding ID 박제 감지. 라운드/finding ID는 휘발성 보고에만 사용하고 commit message에는 박지 마라."
+check_ere "$PATTERN_C" "DA 키워드 박제 감지. 검토 라운드/모드 표기는 commit message에 박지 말고 PR 코멘트 또는 휘발성 작업 노트에 둬라."
 
 if [[ ! "$FIRST_LINE" =~ ^[Rr]evert ]]; then
-  # PATTERN_D는 hex 알파벳 1개 이상 + 길이 경계를 요구하나 ERE에서 두 조건을 단일 표현식으로
-  # 결합하기 어렵다 — grep으로 알파벳 조건만 잡고 awk로 길이 후처리. awk는 항상 exit 0 (매치
-  # 여부는 출력 문자열 길이로 판정) — set -e 환경에서 안전.
+  # PATTERN_D awk 후처리: 길이 7-12, hex 알파벳 1개 이상, full SHA(>=40) 제외.
+  # awk는 명시적 exit 없이 모든 입력을 처리 — set -o pipefail 안전 (||true로 추가 안전망).
   pinning_hash_report=$(grep -noE "$PATTERN_D" "$CLEAN_MSG" 2>/dev/null \
     | awk -v min="$HASH_MIN" -v max="$HASH_MAX" '
         { idx = index($0, ":"); lineno = substr($0, 1, idx - 1); tok = substr($0, idx + 1);
           gsub(/`/, "", tok); n = length(tok);
-          if (n >= min && n <= max) { print "         " lineno ": `" tok "`" } }
+          if (n < min || n > max) next;
+          if (tok !~ /[a-f]/) next;
+          print "         " lineno ": " tok }
       ' || true)
   if [ -n "$pinning_hash_report" ]; then
     warn "Partial commit hash 박제 감지. squash 머지 시 dangling 위험. 안정 식별자(PR 번호, 머지된 SHA)로 대체하라."
