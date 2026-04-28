@@ -320,14 +320,16 @@ cat /tmp/smoke-result.md
 
 ## 빠른 참조 표
 
+모든 `codex exec` 호출에는 `env CODEX_PROGRAMMATIC=1`을 codex 프로세스에 적용한다 (issue #585: Codex 0.124+ user-level hooks의 early-exit 신호).
+
 | 상황 | 패턴 | 명령 요약 |
 |------|------|-----------|
-| 일반 실행 | 1 | `cat prompt \| codex exec --full-auto -o result` |
-| 리뷰 (기본) | 2 | `codex exec review --base main --full-auto > result` |
-| 리뷰 (stdin PROMPT) | 2b | `cat prompt \| codex exec review - --full-auto > result` |
-| 리뷰 + 커스텀 지시 (영구) | 3 | AGENTS.md 작성 후 review --base |
-| 리뷰 + 커스텀 지시 (1회) | 4 | `cat diff+지시 \| codex exec --full-auto -o result -` |
-| 피드백 루프 | 5 | 라운드별 prompt → exec -o → 분석 → 반복 |
-| 구조화 출력 | 6 | `exec --output-schema schema.json -o result` |
-| JSONL 스트림 | 7 | `exec --full-auto --json > events.jsonl` |
-| 환경 점검 | 8 | 최소 프롬프트로 exec 스모크 테스트 |
+| 일반 실행 | 1 | `cat prompt \| env CODEX_PROGRAMMATIC=1 codex exec --full-auto -o result` |
+| 리뷰 (기본) | 2 | `env CODEX_PROGRAMMATIC=1 codex exec review --base main --full-auto > result` |
+| 리뷰 (stdin PROMPT) | 2b | `cat prompt \| env CODEX_PROGRAMMATIC=1 codex exec review - --full-auto > result` |
+| 리뷰 + 커스텀 지시 (영구) | 3 | AGENTS.md 작성 후 `env CODEX_PROGRAMMATIC=1 codex exec review --base` |
+| 리뷰 + 커스텀 지시 (1회) | 4 | `cat diff+지시 \| env CODEX_PROGRAMMATIC=1 codex exec --full-auto -o result -` |
+| 피드백 루프 | 5 | 라운드별 prompt → `env CODEX_PROGRAMMATIC=1 codex exec -o` → 분석 → 반복 |
+| 구조화 출력 | 6 | `env CODEX_PROGRAMMATIC=1 codex exec --output-schema schema.json -o result` |
+| JSONL 스트림 | 7 | `env CODEX_PROGRAMMATIC=1 codex exec --full-auto --json > events.jsonl` |
+| 환경 점검 | 8 | 최소 프롬프트로 `env CODEX_PROGRAMMATIC=1 codex exec` 스모크 테스트 |

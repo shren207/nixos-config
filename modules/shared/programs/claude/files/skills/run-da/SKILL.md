@@ -123,7 +123,7 @@ DA 호출 자체를 생략하지 마라 — run-da를 호출하면
   zsh `(N)` qualifier로 매칭 파일 없을 때 오류를 방지한다. legacy glob(NS 없음)은 전환기 고아 디렉토리 정리용이다.
 - **결과 파일 참조**: `$INTENSITY_DIR`, `$DA_DIR`, `$ARBITER_DIR` 변수로 정확히 참조한다. **`/tmp/da-*` 와일드카드 glob 금지** — 이전 실행의 결과가 섞인다.
 - **셸 호출 간 변수 유지** (모든 런타임 공통): 위 "런타임 도구 매핑" 아래의 공통 주의 참조. 런타임 종류와 무관하게 셸 호출마다 별도 shell이 생성되므로 `mktemp -d` 결과를 stdout으로 출력해 메인 에이전트가 리터럴로 재사용하거나 단일 shell에 체이닝한다. 상세 패턴은 [`arbiter-scaling.md`](references/arbiter-scaling.md)의 "Bash tool 변수 유실 방지" 참조.
-- **stdin pipe로 프롬프트 전달**: 모든 codex exec 호출에서 `cat "$DIR/prompt.md" | codex exec ... -` stdin pipe 패턴을 사용한다. pipe EOF가 stdin을 자동으로 닫아 background 전환 시 stdin hang을 구조적으로 방지한다. `< /dev/null`은 pipe가 대체하므로 불필요. 인라인 인자 `"$(cat file)"`는 사용하지 않는다.
+- **stdin pipe로 프롬프트 전달**: 모든 codex exec 호출에서 `cat "$DIR/prompt.md" | env CODEX_PROGRAMMATIC=1 codex exec ... -` stdin pipe 패턴을 사용한다. pipe EOF가 stdin을 자동으로 닫아 background 전환 시 stdin hang을 구조적으로 방지한다. `< /dev/null`은 pipe가 대체하므로 불필요. 인라인 인자 `"$(cat file)"`는 사용하지 않는다. **`CODEX_PROGRAMMATIC=1` env assignment는 pipeline 우측 codex 프로세스에 적용되어야 한다 (issue #585).**
 - **Intensity/Arbiter는 foreground 실행** (단일 exec): 결과를 즉시 확인한다. **reviewer만 병렬 실행** (런타임별 병렬 실행 매커니즘은 "런타임 도구 매핑" 표 참조).
 
 ## Claude Code 세션 Agent tool fallback 세부

@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Codex 사본 — Claude 원본과 동일 동작 (~/.claude/hooks/nrs-session-cleanup.sh).
-# Codex Stop dispatcher의 마지막 단계로만 호출된다 (Codex 0.124+에 SessionEnd 등가 부재;
-# Stop이 main turn 종료를 cover하므로 lock cleanup 누락 없음).
-# Programmatic codex subprocess의 lock cleanup도 의도된 동작이므로 가드 미적용 (issue #585).
+# Codex 사본 — ~/.claude/hooks/nrs-session-cleanup.sh에서 파생.
+# 본문 로직은 Claude 원본과 동일하나, 호출 계약은 다음 차이가 있다 (issue #585):
+#   - Codex Stop dispatcher의 마지막 단계로만 호출된다 (Codex 0.124+에 SessionEnd 등가 부재;
+#     Stop이 main turn 종료를 cover하므로 lock cleanup 누락 없음).
+#   - Programmatic codex subprocess의 lock cleanup도 의도된 동작이므로 CLAUDECODE/CODEX_PROGRAMMATIC
+#     early-exit 가드를 적용하지 않는다.
 # Claude Code Stop/SessionEnd hook: nrs lock 자동 정리
 # LLM turn 종료(Stop) 또는 CC 세션 종료(SessionEnd) 시 해당 worktree의 lock을 자동 해제
 #

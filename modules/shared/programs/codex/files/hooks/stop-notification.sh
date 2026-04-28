@@ -23,6 +23,12 @@ export LC_ALL=en_US.UTF-8
 # Pushover 메시지 최대 길이
 MAX_MESSAGE_CHARS=1024
 
+# 외부 통신 타임아웃 — issue #585 DA MNT-3.
+# Hammerspoon hs.notify는 macOS 로컬 IPC라 빠르고 hang 시 짧은 cutoff(2s)로 fallback에 위임.
+# Pushover는 외부 HTTPS POST라 네트워크 jitter 여유로 4s.
+HS_NOTIFY_TIMEOUT_SECONDS=2
+PUSHOVER_TIMEOUT_SECONDS=4
+
 # Transcript 파일이 완전히 기록될 때까지 대기
 # Race condition 방어: Stop hook이 transcript flush보다 먼저 실행되는 경우
 # 0.3초 간격으로 파일 크기 확인, 연속 2회 동일하면 안정화된 것으로 판단 (최대 3초)
@@ -250,7 +256,7 @@ if [[ "$OSTYPE" == darwin* ]] && command -v hs >/dev/null 2>&1; then
   HS_BODY_SAFE="${HS_BODY_SAFE//\`/}"
   HS_BODY_SAFE="${HS_BODY_SAFE//\$/}"
   HS_BODY_SAFE="${HS_BODY_SAFE//$'\n'/\\n}"
-  timeout 2 hs -c "
+  timeout "$HS_NOTIFY_TIMEOUT_SECONDS" hs -c "
     local n = hs.notify.new({
       title = 'Claude Code [✅작업 완료]',
       informativeText = '${HS_BODY_SAFE}',
@@ -269,7 +275,7 @@ if [[ "$OSTYPE" == darwin* ]] && command -v hs >/dev/null 2>&1; then
 fi
 
 if [ "$PUSHOVER_AVAILABLE" = true ] && [ "$HS_SENT" = false ]; then
-  curl -s --max-time 4 -X POST \
+  curl -s --max-time "$PUSHOVER_TIMEOUT_SECONDS" -X POST \
     -H "Content-Type: application/x-www-form-urlencoded; charset=utf-8" \
     --data-urlencode "token=$PUSHOVER_TOKEN" \
     --data-urlencode "user=$PUSHOVER_USER" \
