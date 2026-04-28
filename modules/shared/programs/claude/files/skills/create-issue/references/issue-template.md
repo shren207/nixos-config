@@ -23,7 +23,7 @@
 
 - [링크 텍스트](URL) — 한 문장으로 "무엇을 뒷받침하는지"
 - `path/to/file.nix:LINE` 또는 `path/to/file.nix:START-END` — 코드 근거 (단일 라인 또는 라인 범위 허용)
-- `#NNN` / `abc1234` — 관련 이슈/커밋
+- `#NNN` (이슈/PR 번호) 또는 머지된 commit SHA — **출처 입증에 불가결한 경우에만**. 단순 색인용 인용 금지 (close/rename 시 stale).
 
 ## PoC / Reproduction (선택)
 
@@ -130,7 +130,7 @@ Darwin(macOS) 설정에 대한 eval-test를 추가하여 macOS 설정 회귀를 
 
 - [nix flake check docs](https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-flake-check.html) — "평가 가능성"만 확인함을 뒷받침
 - `tests/eval-tests.nix:15-17` — NixOS config 평가 블록 (`nixosCfg = flake.nixosConfigurations.greenhead-minipc.config`)
-- `lefthook.yml:21-22` — pre-push `nix flake check --all-systems` 훅 근거
+- `lefthook.yml`의 `pre-push.flake-check` 항목 — `nix flake check --all-systems` 훅 근거 (라인번호 박제 회피: hook 추가/이동 시 라인이 밀린다)
 - `[UNVERIFIED]` Darwin eval이 x86_64-linux에서 평가 가능한지는 실측 필요 (Notes 참조)
 
 ## Related Commits
