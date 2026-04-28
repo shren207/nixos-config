@@ -7,8 +7,8 @@
 # - warn-only: 매치 시 stderr 경고만 출력하고 exit 0. commit 차단하지 않음. lefthook 단계 자체를
 #   건너뛰려면 lefthook 표준 메커니즘 (`LEFTHOOK=0`, `--no-verify`)을 사용한다.
 # - revert 예외: commit msg 첫 줄이 "revert" 또는 "Revert"로 시작하면 partial hash 검사 skip.
-# 작동 범위: 이 hook은 신규 commit message의 박제만 감지한다. 과거 GitHub PR/이슈 본문, squash
-#   commit body의 잔존 박제는 본 hook 범위 밖이며 별도 sweep 작업이 필요하다.
+# 작동 범위: 이 hook은 신규 commit message만 검사한다. 과거 commit / squash commit body /
+#   PR · 이슈 본문에 이미 박힌 잔존 박제는 **소급해서 수정하지 않으며** 본 hook 범위 밖이다.
 set -euo pipefail
 
 # 검사 대상 commit msg 파일 (lefthook이 {1}로 전달)
