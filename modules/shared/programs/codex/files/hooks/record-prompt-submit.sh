@@ -9,14 +9,13 @@ fi
 # record-prompt-submit.sh — 프롬프트 전송 시 캐시 TTL을 "in-flight" 상태로 전환
 # "0"을 기록하면 statusline.sh가 mtime 기준 카운트다운 표시 (Stop 미기록 상태)
 
-# stdin에서 세션 정보 읽기 (agent_id 가드 + session_id 파싱 공용)
+# stdin에서 세션 정보 읽기 (Codex 0.124+ schema는 agent_id 키 없음 — issue #585 DA C-2).
+# Claude 원본의 agent_id subagent guard는 Codex에서는 항상 비활성이므로 제거했다.
+# subagent UserPromptSubmit이 main으로 기록되는 한계는 #586 fixture가 측정한다 (openai/codex#16226).
 INPUT=""
 [ ! -t 0 ] && INPUT=$(cat)
 
 if [ -n "$INPUT" ]; then
-  # 서브에이전트 내부 UserPromptSubmit은 무시 (메인 턴만 추적)
-  AGENT_ID=$(printf '%s' "$INPUT" | jq -r '.agent_id // empty' 2>/dev/null || true)
-  [ -n "$AGENT_ID" ] && exit 0
   # stdin JSON에서 session_id 파싱 (env var보다 신뢰성 높음)
   SESSION_ID=$(printf '%s' "$INPUT" | jq -r '.session_id // empty' 2>/dev/null || true)
 fi

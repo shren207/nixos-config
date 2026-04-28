@@ -145,28 +145,32 @@ else
 📁 $DIR"
 fi
 
-# Stop hook stdin에서 transcript_path 읽기
+# Stop hook stdin에서 transcript_path / last_assistant_message 읽기.
+# Codex 0.124+ Stop input은 last_assistant_message를 직접 제공하므로 우선 사용한다
+# (Claude transcript JSONL parser는 Codex JSONL schema와 호환되지 않음, issue #585 DA C-1).
+# Codex stdin에 agent_id 키는 없으므로 (openai/codex#16226) subagent guard는 적용하지 않는다.
 INPUT=""
 TRANSCRIPT_PATH=""
+DIRECT_REPLY=""
 if [ ! -t 0 ]; then
   INPUT=$(cat)
 fi
 
 if [ -n "$INPUT" ] && command -v jq >/dev/null 2>&1; then
-  # agent_id 가드: 서브에이전트 내부에서 Stop이 발동한 경우 알림 불필요
-  AGENT_ID=$(printf '%s' "$INPUT" | jq -r '.agent_id // empty' 2>/dev/null || true)
-  if [ -n "$AGENT_ID" ]; then
-    exit 0
-  fi
+  DIRECT_REPLY=$(printf '%s' "$INPUT" | jq -r '.last_assistant_message // empty' 2>/dev/null || true)
   TRANSCRIPT_PATH=$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null || true)
 fi
 
-# Transcript flush 대기 (race condition 방어)
-if [ -n "$TRANSCRIPT_PATH" ] && [ -f "$TRANSCRIPT_PATH" ]; then
+# Transcript flush 대기 (race condition 방어) — fallback path만
+if [ -z "$DIRECT_REPLY" ] && [ -n "$TRANSCRIPT_PATH" ] && [ -f "$TRANSCRIPT_PATH" ]; then
   wait_for_stable_transcript "$TRANSCRIPT_PATH"
 fi
 
-LAST_REPLY="$(extract_last_assistant_text "$TRANSCRIPT_PATH")"
+if [ -n "$DIRECT_REPLY" ]; then
+  LAST_REPLY="$DIRECT_REPLY"
+else
+  LAST_REPLY="$(extract_last_assistant_text "$TRANSCRIPT_PATH")"
+fi
 LAST_REPLY="$(normalize_reply "$LAST_REPLY")"
 
 # 응답 텍스트가 있으면 본문에 포함, 없으면 기존 컨텍스트만 전송
