@@ -91,16 +91,15 @@ fi
 
 if [[ ! "$FIRST_LINE" =~ ^[Rr]evert ]]; then
   # PATTERN_D는 hex 알파벳 1개 이상 + 길이 경계를 요구하나 ERE에서 두 조건을 단일 표현식으로
-  # 결합하기 어렵다 — grep으로 알파벳 조건만 잡고 awk로 길이 후처리. awk 내부 'matched' 변수는
-  # awk-local로 셸 'found'와 독립. 단일 awk pass로 감지 + 출력 통합.
+  # 결합하기 어렵다 — grep으로 알파벳 조건만 잡고 awk로 길이 후처리. awk는 항상 exit 0 (매치
+  # 여부는 출력 문자열 길이로 판정) — set -e 환경에서 안전.
   pinning_hash_report=$(echo "$MSG_BODY" \
     | grep -noE "$PATTERN_D" 2>/dev/null \
     | awk -v min="$HASH_MIN" -v max="$HASH_MAX" '
         { idx = index($0, ":"); lineno = substr($0, 1, idx - 1); tok = substr($0, idx + 1);
           gsub(/`/, "", tok); n = length(tok);
-          if (n >= min && n <= max) { print "         " lineno ": `" tok "`"; matched = 1 } }
-        END { exit (matched ? 0 : 1) }
-      ')
+          if (n >= min && n <= max) { print "         " lineno ": `" tok "`" } }
+      ' || true)
   if [ -n "$pinning_hash_report" ]; then
     warn "Partial commit hash 박제 감지. squash 머지 시 dangling 위험. 안정 식별자(PR 번호, 머지된 SHA)로 대체하라."
     echo "$pinning_hash_report" >&2
