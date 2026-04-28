@@ -41,8 +41,8 @@
 
 ## Related Commits (선택)
 
-- `해시7자리` — 커밋 메시지 한줄 요약
-- `해시7자리` — 커밋 메시지 한줄 요약
+- `<머지된 SHA>` — 커밋 메시지 한줄 요약
+- `<머지된 SHA>` — 커밋 메시지 한줄 요약
 
 ## Affected Files (선택)
 
@@ -136,8 +136,8 @@ Darwin(macOS) 설정에 대한 eval-test를 추가하여 macOS 설정 회귀를 
 
 ## Related Commits
 
-- `bfa4054` — feat(tests): pre-commit E2E eval 테스트 도입 — 네트워크 노출 경계 보안 검증
-- `e2e5a73` — fix(tests): Opus 4.6 DA 피드백 루프 완료 — 36→29개 테스트, A 등급 달성
+- `<머지된 SHA>` — feat(tests): pre-commit E2E eval 테스트 도입 — 네트워크 노출 경계 보안 검증
+- `<머지된 SHA>` — fix(tests): 검토 피드백 루프 완료 — 테스트 정리 + 등급 달성
 
 ## Affected Files
 
