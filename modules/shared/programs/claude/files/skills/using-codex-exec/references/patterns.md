@@ -26,7 +26,7 @@ cat /tmp/codex-result.md
 핵심 요소:
 - `-o`: 마지막 에이전트 메시지를 파일로 저장. 루프 연동 시 필수.
 - `2>&1`: stderr도 함께 캡처하여 실패 원인 추적에 활용.
-- stdin pipe 패턴 (`cat file | codex exec ... -`): pipe EOF가 stdin을 자동으로 닫아, Claude Code Bash tool의 background 전환 시 stdin hang을 구조적으로 방지한다. `< /dev/null`은 pipe가 대체하므로 불필요. 인라인 인자 `"$(cat file)"`는 사용하지 않는다 ([known-issues.md §14](known-issues.md)).
+- stdin pipe 패턴 (`cat file | env CODEX_PROGRAMMATIC=1 codex exec ... -`): pipe EOF가 stdin을 자동으로 닫아, Claude Code Bash tool의 background 전환 시 stdin hang을 구조적으로 방지한다. `< /dev/null`은 pipe가 대체하므로 불필요. 인라인 인자 `"$(cat file)"`는 사용하지 않는다 ([known-issues.md §14](known-issues.md)). marker는 codex 프로세스에 적용한다 (issue #585).
 - 인라인 프롬프트(`codex exec --full-auto "..."`)는 짧은 질의에만 사용.
 
 ## 패턴 2: 코드 리뷰 — scope flag만 사용 (커스텀 지시 불필요)
@@ -168,7 +168,7 @@ cat /tmp/review-prompt.md | env CODEX_PROGRAMMATIC=1 codex exec --full-auto -o /
 리터럴 텍스트만 전달할 때는 `<<'PROMPT'` (따옴표 포함)를 사용한다.
 패턴 1, 5, 8은 명령 치환이 불필요하므로 `<<'PROMPT'`를 사용한다.
 
-**코드 블록 분리**: `run_in_background` 환경에서 heredoc과 codex exec를 같은 Bash 호출에 넣으면 stdin hang이 발생한다 ([known-issues.md §11](known-issues.md) 하위 항목 참조). 모든 패턴에서 heredoc(프롬프트 생성)과 codex exec(실행)를 별도 코드 블록으로 분리한다. 실행 블록에서는 stdin pipe(`cat file | codex exec ... -`)를 사용한다.
+**코드 블록 분리**: `run_in_background` 환경에서 heredoc과 codex exec를 같은 Bash 호출에 넣으면 stdin hang이 발생한다 ([known-issues.md §11](known-issues.md) 하위 항목 참조). 모든 패턴에서 heredoc(프롬프트 생성)과 codex exec(실행)를 별도 코드 블록으로 분리한다. 실행 블록에서는 stdin pipe(`cat file | env CODEX_PROGRAMMATIC=1 codex exec ... -`)를 사용한다.
 
 ### 단점
 
@@ -189,7 +189,7 @@ Ignore style-only issues.
 PROMPT
 ```
 
-**⚠️ `run_in_background` 환경**: 여기서 Bash tool 호출을 종료하고, 아래를 별도 호출로 실행한다. DA 루프에서는 stdin pipe(`cat file | codex exec ... -`)를 사용한다.
+**⚠️ `run_in_background` 환경**: 여기서 Bash tool 호출을 종료하고, 아래를 별도 호출로 실행한다. DA 루프에서는 stdin pipe(`cat file | env CODEX_PROGRAMMATIC=1 codex exec ... -`)를 사용한다.
 
 ```bash
 cat /tmp/da-round1.md | env CODEX_PROGRAMMATIC=1 codex exec --full-auto -o /tmp/da-round1-result.md \

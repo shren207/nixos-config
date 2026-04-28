@@ -284,11 +284,13 @@ cat /tmp/smoke-result.md
 | 방식 | 결과 | 원인 |
 |------|------|------|
 | `&` + `$!` (background PID) | **BROKEN** | `$!` → 리터럴 문자열, PID 미캡처 |
-| `cat file \| codex exec ... -` (stdin pipe) 별도 Bash tool 호출 | **OK** | 각 호출이 독립 shell — pipe EOF가 stdin을 닫음 |
-| `codex exec "$(cat file)"` (인라인 인자) | **OK** | shell 확장 후 인자 전달 |
-| `codex exec < file` (file redirect) | **OK** | 정상 작동 |
+| `cat file \| env CODEX_PROGRAMMATIC=1 codex exec ... -` (stdin pipe) 별도 Bash tool 호출 | **OK** | 각 호출이 독립 shell — pipe EOF가 stdin을 닫음 |
+| `env CODEX_PROGRAMMATIC=1 codex exec "$(cat file)"` (인라인 인자) | **OK** | shell 확장 후 인자 전달 |
+| `env CODEX_PROGRAMMATIC=1 codex exec < file` (file redirect) | **OK** | 정상 작동 |
 | 병렬 Bash tool 호출 (foreground) | **OK** | tool-level 병렬화, 전부 완료까지 대기 |
 | Bash tool `run_in_background: true` | **OK** | background 실행, 각 완료 시 자동 알림 |
+
+(programmatic codex 호출은 모두 `env CODEX_PROGRAMMATIC=1`을 codex 프로세스에 적용한다 — issue #585.)
 
 **영향 범위**: Claude Code Bash tool sandbox에서 `codex exec` subprocess를 돌리는 경우에만 적용.
 Codex 세션의 native subagent 경로와 일반 터미널에는 이 제약을 기본 전제로 적용하지 않는다.
@@ -446,6 +448,6 @@ cat "$DIR/prompt.md" | env CODEX_PROGRAMMATIC=1 codex exec --full-auto --ephemer
 
 **§13과의 관계**: §13의 `< /dev/null` 해결 패턴은 여전히 유효하지만, stdin pipe가 더 구조적인 대안이다. pipe는 (1) 프롬프트 전달과 (2) stdin EOF를 하나의 메커니즘으로 통합한다.
 
-**실증**: 다수 codex exec를 `cat file | codex exec ... - (run_in_background: true)`로 병렬 실행 → 모두 `-o` 결과 파일 정상 생성 (codex v0.120.0, 2026-04-11).
+**실증**: 다수 codex exec를 `cat file | env CODEX_PROGRAMMATIC=1 codex exec ... - (run_in_background: true)`로 병렬 실행 → 모두 `-o` 결과 파일 정상 생성 (codex v0.120.0, 2026-04-11; marker는 issue #585에서 도입).
 
 **발견 세션**: #443 PR 작업 중 DA for_pr R4 (2026-04-11). Correctness reviewer가 대규모 diff 포함 프롬프트에서 hang.

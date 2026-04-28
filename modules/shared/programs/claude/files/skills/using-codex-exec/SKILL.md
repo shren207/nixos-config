@@ -137,13 +137,15 @@ error: the argument '--base <BRANCH>' cannot be used with '--uncommitted'
 
 ## 입력 방법
 
+표 안의 모든 `codex exec` 호출에는 `env CODEX_PROGRAMMATIC=1`을 codex 프로세스에 적용한다 (issue #585: Codex 0.124+ user-level hooks의 early-exit 신호).
+
 | 방법 | 예시 |
 |------|------|
-| 인라인 문자열 | `codex exec --full-auto "짧은 질의"` |
-| stdin 파이프 | `cat prompt.md \| codex exec --full-auto -o result.md` |
-| stdin 마커 | `codex exec review - --full-auto` (stdin에서 읽음) |
-| 파일 리다이렉트 | `codex exec --full-auto < prompt.md -o result.md` |
-| here-doc | `codex exec --full-auto <<'EOF' ... EOF` |
+| 인라인 문자열 | `env CODEX_PROGRAMMATIC=1 codex exec --full-auto "짧은 질의"` |
+| stdin 파이프 | `cat prompt.md \| env CODEX_PROGRAMMATIC=1 codex exec --full-auto -o result.md` |
+| stdin 마커 | `env CODEX_PROGRAMMATIC=1 codex exec review - --full-auto` (stdin에서 읽음) |
+| 파일 리다이렉트 | `env CODEX_PROGRAMMATIC=1 codex exec --full-auto < prompt.md -o result.md` |
+| here-doc | `env CODEX_PROGRAMMATIC=1 codex exec --full-auto <<'EOF' ... EOF` |
 
 ## 표준 실행 절차
 
