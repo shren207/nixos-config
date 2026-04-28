@@ -36,11 +36,17 @@ fi
 HASH_MIN=7
 HASH_MAX=12
 
-# commit msg 본문 읽기 (verbose diff 라인 # 주석 + signed-off trailer 제외)
-MSG_BODY=$(sed -e '/^#/d' "$COMMIT_MSG_FILE")
+# commit msg 본문을 임시 파일에 정제 저장 (verbose diff 라인 `#` 주석 제거).
+# 모든 grep을 파일 직접 읽기로 처리 — `echo "$VAR" | grep` 조합은 큰 메시지 + grep -q 조기
+# 종료 시 echo가 SIGPIPE를 받아 set -o pipefail 환경에서 pipeline이 nonzero를 반환하고
+# warn이 silent fail 한다 (PoC 검증). bash here-string도 동일 위험.
+CLEAN_MSG=$(mktemp)
+trap 'rm -f "$CLEAN_MSG"' EXIT
+sed -e '/^#/d' "$COMMIT_MSG_FILE" > "$CLEAN_MSG"
 
-# commit msg 첫 줄 (revert prefix 판단용)
-FIRST_LINE=$(echo "$MSG_BODY" | head -n 1)
+# commit msg 첫 줄 (revert prefix 판단용) — head는 첫 줄만 읽으므로 SIGPIPE 위험 동일하지만
+# 1줄 읽기는 buffer 크기 미만이라 실측 안전. 명시적 read로 더 견고하게.
+read -r FIRST_LINE < "$CLEAN_MSG" || FIRST_LINE=""
 
 warn() {
   echo "[WARN] pinning: $1" >&2
@@ -71,21 +77,26 @@ PATTERN_D="\`[a-f0-9]*[a-f][a-f0-9]*\`"
 
 found=0
 
-if echo "$MSG_BODY" | grep -qE "$PATTERN_A"; then
+# 모든 grep은 정제된 임시 파일($CLEAN_MSG)을 직접 읽는다. 변수 + pipeline 조합은 set -o
+# pipefail 환경에서 큰 입력 + grep -q 조기 종료 시 SIGPIPE로 silent fail이 발생한다.
+# 출력 단계의 `grep | sed` pipeline은 grep이 모든 매치 라인을 출력하므로 sed가 빠르게
+# 종료할 수 없어 안전 (sed는 stream 처리).
+
+if grep -qE "$PATTERN_A" "$CLEAN_MSG"; then
   warn "라운드 카운터(\`Round N\`) 박제 감지. 영구 산출물에는 자연어 설명으로 표현하라."
-  echo "$MSG_BODY" | grep -nE "$PATTERN_A" | sed 's/^/         /' >&2
+  grep -nE "$PATTERN_A" "$CLEAN_MSG" | sed 's/^/         /' >&2
   found=1
 fi
 
-if echo "$MSG_BODY" | grep -qE "$PATTERN_B"; then
+if grep -qE "$PATTERN_B" "$CLEAN_MSG"; then
   warn "DA finding ID 박제 감지. 라운드/finding ID는 휘발성 보고에만 사용하고 commit message에는 박지 마라."
-  echo "$MSG_BODY" | grep -nE "$PATTERN_B" | sed 's/^/         /' >&2
+  grep -nE "$PATTERN_B" "$CLEAN_MSG" | sed 's/^/         /' >&2
   found=1
 fi
 
-if echo "$MSG_BODY" | grep -qE "$PATTERN_C"; then
+if grep -qE "$PATTERN_C" "$CLEAN_MSG"; then
   warn "DA 키워드 박제 감지. 검토 모드 표기는 commit message가 아니라 PR description 또는 별도 노트에 둬라."
-  echo "$MSG_BODY" | grep -nE "$PATTERN_C" | sed 's/^/         /' >&2
+  grep -nE "$PATTERN_C" "$CLEAN_MSG" | sed 's/^/         /' >&2
   found=1
 fi
 
@@ -93,8 +104,7 @@ if [[ ! "$FIRST_LINE" =~ ^[Rr]evert ]]; then
   # PATTERN_D는 hex 알파벳 1개 이상 + 길이 경계를 요구하나 ERE에서 두 조건을 단일 표현식으로
   # 결합하기 어렵다 — grep으로 알파벳 조건만 잡고 awk로 길이 후처리. awk는 항상 exit 0 (매치
   # 여부는 출력 문자열 길이로 판정) — set -e 환경에서 안전.
-  pinning_hash_report=$(echo "$MSG_BODY" \
-    | grep -noE "$PATTERN_D" 2>/dev/null \
+  pinning_hash_report=$(grep -noE "$PATTERN_D" "$CLEAN_MSG" 2>/dev/null \
     | awk -v min="$HASH_MIN" -v max="$HASH_MAX" '
         { idx = index($0, ":"); lineno = substr($0, 1, idx - 1); tok = substr($0, idx + 1);
           gsub(/`/, "", tok); n = length(tok);
