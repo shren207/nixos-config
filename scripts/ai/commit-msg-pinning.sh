@@ -10,7 +10,7 @@
 #   노출하지 않는다 (사용자 인지부하 회피). 단, 스크립트 소스에서는 평문으로 보이므로 LLM이 Read
 #   도구로 학습하는 경로까지 차단하지는 않는다 (security-by-obscurity 아님).
 # 작동 범위: 이 hook은 신규 commit message의 박제만 감지한다. 과거 GitHub PR/이슈 본문, squash
-#   commit body의 잔존 박제는 별도 sweep 작업 (.claude/research/2026-04-28-llm-pinning-audit.md).
+#   commit body의 잔존 박제는 본 hook 범위 밖이며 별도 sweep 작업이 필요하다.
 set -euo pipefail
 
 # 검사 대상 commit msg 파일 (lefthook이 {1}로 전달)

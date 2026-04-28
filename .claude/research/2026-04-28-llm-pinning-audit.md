@@ -1,9 +1,13 @@
-# LLM 박제(pinning) 패턴 전수조사
+# LLM 박제(pinning) 패턴 전수조사 — 기록 archive
+
+> 본 문서는 분석 시점(2026-04-28)의 측정 결과를 보존하는 **archive**다.
+> 스킬/기술 문서/코드 주석에서 본 문서를 참조하지 않는다 — 운영 정책의 단일 진실 원천은
+> 각 SKILL.md / hook script / lefthook 설정이며, 본 문서는 그 정책의 도입 배경을 설명하는
+> 역사 기록일 뿐이다. 후속 LLM은 본 문서를 일반 인용 대상으로 사용하지 마라.
 
 작성일: 2026-04-28
 대상 corpus: nixos-config 67개 jsonl (10,896줄 assistant text)
 보조 검증 corpus: 타 활성 corpus 1,832 jsonl (309,216줄)
-배경: LLM 박제 가드레일 도입 작업의 근거 산출물 (작업 착수 이슈 + 도입 PR은 이 문서 머지 시점에 활성, 머지 후 closed)
 
 ## 메서드
 
