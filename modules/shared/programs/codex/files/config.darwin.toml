@@ -18,6 +18,25 @@ apps = true
 prevent_idle_sleep = true
 voice_transcription = true
 
+# Codex 0.124+ stable hooks (issue #585 / epic #584).
+# `codex_hooks` feature flag는 PR openai/codex#19012로 default-enabled가 되어 명시
+# 활성화 불필요. 발화 미실측 시 rollback path = `[features].codex_hooks = true`.
+# Stop은 _stop-dispatcher.sh 단일 entry로 등록 (Codex가 같은 이벤트의 multiple command를
+# concurrent 실행하므로 ordering 보장을 dispatcher에 위임).
+# subagent agent_id 부재 등은 graceful fallback에 의존 (#586 fixture가 측정).
+
+[[hooks.UserPromptSubmit]]
+
+[[hooks.UserPromptSubmit.hooks]]
+type = "command"
+command = "$HOME/.codex/hooks/record-prompt-submit.sh"
+
+[[hooks.Stop]]
+
+[[hooks.Stop.hooks]]
+type = "command"
+command = "$HOME/.codex/hooks/_stop-dispatcher.sh"
+
 [plugins."github@openai-curated"]
 enabled = true
 

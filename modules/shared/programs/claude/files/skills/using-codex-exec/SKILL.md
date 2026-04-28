@@ -160,13 +160,14 @@ PROMPT
 **⚠️ `run_in_background` 환경**: 여기서 Bash tool 호출을 종료하고, 아래를 별도 호출로 실행한다 ([§11](references/known-issues.md) 하위 항목).
 
 ```bash
-cat /tmp/prompt.md | codex exec --full-auto -o /tmp/result.md 2>&1
+# marker must apply to `codex`, not `cat` (issue #585): Codex 0.124+ user-level hooks의 early-exit 신호.
+cat /tmp/prompt.md | env CODEX_PROGRAMMATIC=1 codex exec --full-auto -o /tmp/result.md 2>&1
 ```
 
 인라인 프롬프트도 가능하다 (짧은 질의에 한해):
 
 ```bash
-codex exec --full-auto "git diff 기준으로 회귀 가능성 한 줄 요약"
+env CODEX_PROGRAMMATIC=1 codex exec --full-auto "git diff 기준으로 회귀 가능성 한 줄 요약"
 ```
 
 ### 코드 리뷰 — scope flag만 사용 (커스텀 지시 불필요)

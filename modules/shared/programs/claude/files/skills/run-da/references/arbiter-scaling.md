@@ -88,7 +88,8 @@ Codex 세션에서 `spawn_agent`가 정책상 거부될 때(예: `multi_agent=fa
 **reviewer / Auditor** (standard profile):
 
 ```bash
-cat "$DA_DIR/{unit}.md" | codex exec --sandbox read-only --ignore-user-config --ephemeral \
+# marker must apply to `codex`, not `cat` (issue #585): Codex 0.124+ user-level hooks의 early-exit 신호.
+cat "$DA_DIR/{unit}.md" | env CODEX_PROGRAMMATIC=1 codex exec --sandbox read-only --ignore-user-config --ephemeral \
   -c model="gpt-5.5" -c model_reasoning_effort="medium" \
   -o "$DA_DIR/{unit}-result.md" - 2>"$DA_DIR/{unit}-stderr.log"
 ```
@@ -96,7 +97,7 @@ cat "$DA_DIR/{unit}.md" | codex exec --sandbox read-only --ignore-user-config --
 **Intensity** (standard profile):
 
 ```bash
-cat "$INTENSITY_DIR/prompt.md" | codex exec --sandbox read-only --ignore-user-config --ephemeral \
+cat "$INTENSITY_DIR/prompt.md" | env CODEX_PROGRAMMATIC=1 codex exec --sandbox read-only --ignore-user-config --ephemeral \
   -c model="gpt-5.5" -c model_reasoning_effort="medium" \
   -o "$INTENSITY_DIR/result.md" - 2>"$INTENSITY_DIR/stderr.log"
 ```
@@ -104,7 +105,7 @@ cat "$INTENSITY_DIR/prompt.md" | codex exec --sandbox read-only --ignore-user-co
 **Arbiter** (strong profile):
 
 ```bash
-cat "$ARBITER_DIR/arbiter-prompt.md" | codex exec --sandbox read-only --ignore-user-config --ephemeral \
+cat "$ARBITER_DIR/arbiter-prompt.md" | env CODEX_PROGRAMMATIC=1 codex exec --sandbox read-only --ignore-user-config --ephemeral \
   -c model="gpt-5.5" -c model_reasoning_effort="high" \
   -o "$ARBITER_DIR/arbiter-result.md" - 2>"$ARBITER_DIR/arbiter-stderr.log"
 ```
@@ -141,7 +142,8 @@ PROMPT
 
 # 3. codex exec 실행 (foreground)
 # Arbiter는 strong review profile(high) — config.toml 기본값(xhigh)을 오버라이드. model은 -m 생략하여 config.toml 기본값 사용.
-cat "$ARBITER_DIR/arbiter-prompt.md" | codex exec --full-auto --ephemeral \
+# marker must apply to `codex`, not `cat` (issue #585): Codex 0.124+ user-level hooks의 early-exit 신호.
+cat "$ARBITER_DIR/arbiter-prompt.md" | env CODEX_PROGRAMMATIC=1 codex exec --full-auto --ephemeral \
   -c model_reasoning_effort="high" \
   -o "$ARBITER_DIR/arbiter-result.md" \
   - \
