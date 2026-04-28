@@ -131,7 +131,8 @@ local heavy_packages=("anki" "mise")
 
 ### 작성 규칙
 - 관련 PR, 이슈, 외부 링크를 나열한다.
-- 각 항목에 커밋 해시(단축 7자) + 1줄 설명을 포함한다.
+- 각 항목에 안정 식별자(PR 번호 `#N`, 이슈 번호 `#N`, 또는 머지된 commit SHA) + 1줄 설명을 포함한다.
+- 본인 PR의 mid-flight commit hash 또는 squash 전 partial hash chain은 박제하지 않는다 — squash 머지 후 dangling 위험.
 - 레퍼런스가 없으면 "해당 없음"으로 명시한다.
 
 ### 예시
@@ -139,15 +140,16 @@ local heavy_packages=("anki" "mise")
 ```markdown
 ## 참고 레퍼런스
 
-- PR #112 (`a1b2c3d`) — pre-flight 체크 최초 구현
-- PR #115 (`b9cd235`) — known-trivial allowlist 도입
+- PR #112 — pre-flight 체크 최초 구현
+- PR #115 — known-trivial allowlist 도입
 - Issue #118 — `activation-script` false positive 보고
 - [Nix pills: derivation basics](https://nixos.org/guides/nix-pills/our-first-derivation.html) — derivation 판별 로직 참고
 ```
 
 ### 흔한 실수
-- "관련 PR 참조"처럼 구체적 번호/해시 없이 모호하게 쓰는 것.
+- "관련 PR 참조"처럼 구체적 번호 없이 모호하게 쓰는 것.
 - 설명 없이 링크만 나열하는 것.
+- 본인 PR의 mid-flight commit hash chain을 참고 레퍼런스에 박는 것 (squash 후 무효).
 
 ## 7. Human Test Plan
 

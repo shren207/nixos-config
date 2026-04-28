@@ -162,7 +162,9 @@ selective consistency trigger 없음 (split/fragmented 없음). 14건 모두 본
 4. 보조 corpus(타 활성 corpus)의 GitHub 잔존 박제는 측정 안 됨 (별도 repo 직접 조회 필요).
 5. 67개 jsonl 코퍼스에 명시적 auto-compaction marker 0건. Claude Code가 transcript에 별도 형태로 남기는지 미확인 (130 프로젝트 전체 확장 필요).
 
-## 데이터 위치
+## 데이터 위치 (휘발성 — 작업 당시 /tmp 경로, 재현 불가)
+
+> ⚠️ 아래 `/tmp/*` 경로는 분석 작업 시점의 임시 산출물이다. 호스트 재부팅 또는 `/tmp` cleanup 시 사라지므로 **유효 참조로 인용하지 마라**. 재분석이 필요하면 본 문서의 메서드 섹션을 따라 새로 dump를 생성한다. 영구 보관은 본 문서가 단일 진실 원천이다.
 
 - nixos-config corpus jsonl 리스트: `/tmp/nixos-jsonl-list.txt` (67개)
 - nixos-config assistant text dump: `/tmp/nixos-assistant-text.dump` (10,896줄, 644KB)
@@ -170,9 +172,7 @@ selective consistency trigger 없음 (split/fragmented 없음). 14건 모두 본
 - 보조 corpus dump: `/tmp/zari-assistant-text.dump` (309,216줄, 17MB)
 - 통합 corpus 리스트: `/tmp/all-jsonl-list.txt` (2,767 jsonl)
 - 부활 매트릭스 raw: `/tmp/jsonl-meta/sorted.tsv`, `id-counts-all.tsv`, `baked.txt`, `unbaked-ids.txt`
-- pain-points: `~/.claude/pain-points{,.archive}.jsonl` (17건 짜증 시점)
-
-`/tmp/*` 파일은 휘발성. 향후 보존이 필요하면 별도 archive로 이동.
+- pain-points (영구): `~/.claude/pain-points{,.archive}.jsonl` (17건 짜증 시점)
 
 ## 다음 단계 후보 (사용자 결정)
 
