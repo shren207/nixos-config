@@ -6,8 +6,9 @@
 # 정책:
 # - warn-only: 매치 시 stderr 경고만 출력하고 exit 0. commit 차단하지 않음.
 # - revert 예외: commit msg 첫 줄이 "revert" 또는 "Revert"로 시작하면 partial hash 검사 skip.
-# - emergency bypass: 운영자용 escape hatch가 있다 (운영 runbook 참조). 변수명/값은 의도적으로
-#   본 주석 및 경고 메시지에 노출하지 않는다 (LLM이 우회 학습하는 경로 차단).
+# - emergency bypass: 운영자용 escape hatch가 있다 (운영 runbook 참조). 경고 메시지에는 변수명을
+#   노출하지 않는다 (사용자 인지부하 회피). 단, 스크립트 소스에서는 평문으로 보이므로 LLM이 Read
+#   도구로 학습하는 경로까지 차단하지는 않는다 (security-by-obscurity 아님).
 # 작동 범위: 이 hook은 신규 commit message의 박제만 감지한다. 과거 GitHub PR/이슈 본문, squash
 #   commit body의 잔존 박제는 별도 sweep 작업 (.claude/research/2026-04-28-llm-pinning-audit.md).
 set -euo pipefail
@@ -25,7 +26,7 @@ is_true() {
   [ "$val" = "1" ] || [ "$val" = "true" ] || [ "$val" = "yes" ]
 }
 
-# Emergency bypass (운영자용 — 변수명은 의도적으로 헤더 주석/경고에 노출하지 않음)
+# Emergency bypass (운영자용 — 경고 메시지에 변수명 노출 안 함; 소스에서는 평문)
 if is_true "${SKIP_PINNING_CHECK:-}"; then
   exit 0
 fi
@@ -51,9 +52,11 @@ PATTERN_A='\bRound [0-9]+\b'
 
 # 패턴 B — DA finding ID 형식: BUNDLE-순번 (BUNDLE은 Title Case 풀이름 / UPPERCASE 세부 도메인 /
 # 약어 모두 가능, suffix는 항상 숫자 시작). DA 출력 형식 SSOT는 modules/.../run-da/references/da-domains.md.
-# 숫자 시작 suffix 의무화로 자연어 (Design-pattern, Regression-fix, YAGNI-concern, F-string,
-# CIR-section, REG-istry 등) false positive 회피. 단일자 'F' 토큰은 SSOT 정의 없어 제거.
-PATTERN_B='\b(Correctness|Design|Regression|Maintainability|SECURITY|HALLUCINATION|SIDE_EFFECT|CONSISTENCY|READABILITY|CLEAN_CODE|YAGNI|NGMI|CORR|REGR|DESIGN|MAINT|REG|CIR)-[0-9][A-Za-z0-9-]*\b'
+# 본 토큰 enum은 SSOT 스냅샷이며 자동 동기화되지 않는다 — da-domains.md에서 bundle/세부 도메인을
+# 추가/제거하면 본 패턴도 함께 갱신해야 한다. 숫자 시작 suffix 의무화로 자연어 (Design-pattern,
+# Regression-fix, YAGNI-concern, F-string, CIR-section, REG-istry 등) false positive 회피.
+# 'F' 토큰은 SSOT 정의 없어 제거. 'DESIGN'/'REGR'은 'Design'/'REG'와 중복이라 제거.
+PATTERN_B='\b(Correctness|Design|Regression|Maintainability|SECURITY|HALLUCINATION|SIDE_EFFECT|CONSISTENCY|READABILITY|CLEAN_CODE|YAGNI|NGMI|CORR|MAINT|REG|CIR)-[0-9][A-Za-z0-9-]*\b'
 
 # 패턴 C — DA 키워드 컨텍스트: "DA for_pr" / "DA for_plan" / "DA 피드백".
 # 앞쪽 단어경계 + 컨텍스트 좁힘. "DA Round N"은 패턴 A가 처리하므로 중복 분기 제거 (alert fatigue 회피).
@@ -62,6 +65,8 @@ PATTERN_C='\bDA (for_pr|for_plan|피드백)\b'
 # 패턴 D — 백틱 안 partial hex (HASH_MIN ~ HASH_MAX 자리). 순수 숫자열은 hex 알파벳(a-f) 1개 이상
 # 의무화하여 false positive 제외 — 포트 번호/이슈 ID/빌드 번호 같은 백틱 인용 노이즈 회피.
 # commit msg 첫 줄이 revert로 시작하면 skip (정당한 git revert hash 인용 회피).
+# hex 매직 상수(`deadbeef`, `cafebabe` 등)도 매치되나 발생 빈도 낮아 별도 allowlist 두지 않음
+# (의도적 인용이면 amend로 무시 가능).
 PATTERN_D="\`[a-f0-9]*[a-f][a-f0-9]*\`"
 
 found=0
@@ -85,21 +90,20 @@ if echo "$MSG_BODY" | grep -qE "$PATTERN_C"; then
 fi
 
 if [[ ! "$FIRST_LINE" =~ ^[Rr]evert ]]; then
-  # PATTERN_D는 hex 알파벳 1개 이상을 요구하나 길이 경계는 awk로 후처리 (BRE/ERE lookahead 미지원).
-  # awk 내부 변수 'matched'는 awk-local — 셸 변수 'found'와 독립.
-  if echo "$MSG_BODY" | grep -oE "$PATTERN_D" \
-      | awk -v min="$HASH_MIN" -v max="$HASH_MAX" '
-          { gsub(/`/, "", $0); n = length($0); if (n >= min && n <= max) { matched = 1 } }
-          END { exit (matched ? 0 : 1) }
-        '; then
+  # PATTERN_D는 hex 알파벳 1개 이상 + 길이 경계를 요구하나 ERE에서 두 조건을 단일 표현식으로
+  # 결합하기 어렵다 — grep으로 알파벳 조건만 잡고 awk로 길이 후처리. awk 내부 'matched' 변수는
+  # awk-local로 셸 'found'와 독립. 단일 awk pass로 감지 + 출력 통합.
+  pinning_hash_report=$(echo "$MSG_BODY" \
+    | grep -noE "$PATTERN_D" 2>/dev/null \
+    | awk -v min="$HASH_MIN" -v max="$HASH_MAX" '
+        { idx = index($0, ":"); lineno = substr($0, 1, idx - 1); tok = substr($0, idx + 1);
+          gsub(/`/, "", tok); n = length(tok);
+          if (n >= min && n <= max) { print "         " lineno ": `" tok "`"; matched = 1 } }
+        END { exit (matched ? 0 : 1) }
+      ')
+  if [ -n "$pinning_hash_report" ]; then
     warn "Partial commit hash 박제 감지. squash 머지 시 dangling 위험. 안정 식별자(PR 번호, 머지된 SHA)로 대체하라."
-    echo "$MSG_BODY" \
-      | grep -noE "$PATTERN_D" \
-      | awk -v min="$HASH_MIN" -v max="$HASH_MAX" '
-          { idx = index($0, ":"); lineno = substr($0, 1, idx - 1); tok = substr($0, idx + 1);
-            gsub(/`/, "", tok); n = length(tok);
-            if (n >= min && n <= max) { print "         " lineno ": `" tok "`" } }
-        ' >&2
+    echo "$pinning_hash_report" >&2
     found=1
   fi
 fi
