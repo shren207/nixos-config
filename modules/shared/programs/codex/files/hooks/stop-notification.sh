@@ -29,21 +29,24 @@ MAX_MESSAGE_CHARS=1024
 HS_NOTIFY_TIMEOUT_SECONDS=2
 PUSHOVER_TIMEOUT_SECONDS=4
 
-# Transcript 파일이 완전히 기록될 때까지 대기
+# Transcript 파일이 완전히 기록될 때까지 대기 — issue #585 DA MNT-2.
 # Race condition 방어: Stop hook이 transcript flush보다 먼저 실행되는 경우
-# 0.3초 간격으로 파일 크기 확인, 연속 2회 동일하면 안정화된 것으로 판단 (최대 3초)
+# 폴링하여 안정화 감지. POLL_INTERVAL × MAX_POLLS = 최대 대기 시간 (현재 3초).
+TRANSCRIPT_STABLE_POLL_INTERVAL_SECONDS=0.3
+TRANSCRIPT_STABLE_MAX_POLLS=10
 wait_for_stable_transcript() {
   local file="$1"
   local prev_size=-1
   local curr_size
+  local i
 
-  for _ in 1 2 3 4 5 6 7 8 9 10; do
+  for ((i=0; i<TRANSCRIPT_STABLE_MAX_POLLS; i++)); do
     curr_size=$(wc -c < "$file" 2>/dev/null || echo 0)
     if [ "$curr_size" = "$prev_size" ] && [ "$curr_size" -gt 0 ]; then
       return 0
     fi
     prev_size=$curr_size
-    sleep 0.3
+    sleep "$TRANSCRIPT_STABLE_POLL_INTERVAL_SECONDS"
   done
 }
 
