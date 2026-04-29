@@ -335,4 +335,4 @@ printf "\033[?u\033[<u"
 # 또는 새 탭 열기/Ghostty 재시작
 ```
 
-> Ghostty 1.3.0부터 CSI u 복원이 자체 처리되어 `reset-term` alias는 제거됨 (PR #184).
+> Ghostty 1.3.0부터 CSI u 복원이 자체 처리되어 `reset-term` alias는 제거됨.

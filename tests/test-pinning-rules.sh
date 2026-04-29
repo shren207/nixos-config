@@ -95,7 +95,7 @@ test_commit_msg_regression() {
   local out
   out="$(run_commit_hook_text 'feat: DA round 2 MAINTAINABILITY-1 deadbeef 반영')"
   assert_contains "$out" "라운드 카운터" "round counter regression"
-  assert_contains "$out" "DA finding ID" "finding id regression"
+  assert_contains "$out" "리뷰 실행 식별자" "finding id regression"
   assert_contains "$out" "DA/검토 키워드" "DA keyword regression"
   assert_contains "$out" "Partial commit hash" "partial hash regression"
 
@@ -147,7 +147,7 @@ test_pre_commit_scanner() {
   mkdir -p "$repo/src"
   {
     printf '%s\n' 'ref: https://github.com/karakeep-app/karakeep/issues/1977'
-    printf '%s\n' 'ref: karakeep-app/karakeep#1977'
+    printf '%s\n' "ref: karakeep-app/karakeep${bare_ref}"
     printf 'Closes %s\n' "$bare_ref"
     printf '%s\n' 'DA for_pr DESIGN-1 <!-- pinning-allow: intentional metadata exception for test -->'
   } > "$repo/src/allowed.md"

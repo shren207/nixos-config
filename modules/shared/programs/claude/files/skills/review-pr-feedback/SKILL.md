@@ -152,7 +152,7 @@ actionable로 분류된 각 피드백을 다음 7개 기준으로 검증한다.
 
 ### Step 6: 답글 + resolve
 
-모든 피드백(반영 여부 무관)에 대해 사유를 담은 답글/follow-up을 남기고 review thread는 resolve한다.
+모든 피드백에 대해 처리 결과와 사유를 담은 답글/follow-up을 남기고 review thread는 resolve한다.
 분기 요약만 여기 둔다. 구체 mutation, multiline body 전송 규칙, `mktemp` 처리,
 반례는 [references/reply-and-resolve.md](references/reply-and-resolve.md)가 정본이다.
 

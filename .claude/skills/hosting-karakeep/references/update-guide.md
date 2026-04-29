@@ -29,7 +29,6 @@ sudo podman logs --tail=200 karakeep 2>&1 | grep -F 'Will crawl "'
 
 # 2. 패턴이 변경되었다면 -> 로그 모니터 스크립트 수정 필요
 #    로그 모니터 스크립트 위치: modules/nixos/programs/docker/karakeep-log-monitor/files/log-monitor.sh
-#    관련 이슈: #60 (통합 구현 설계 섹션 참조)
 
 # 3. 로그 모니터 서비스 재시작 후 정상 동작 확인
 sudo systemctl restart karakeep-log-monitor
@@ -58,4 +57,4 @@ sudo podman exec karakeep env | grep -E 'MAX_ASSET|CRAWLER_|NODE_OPTIONS'
 # NODE_OPTIONS=--max-old-space-size=1536
 ```
 
-관련 이슈: #60 (대용량 HTML OOM 방지), #59 (알림 미작동)
+관련 변경 맥락은 대용량 HTML OOM 방지와 알림 실패 대응이다.

@@ -94,7 +94,7 @@ echo "FO_DIR=$FO_DIR"
 
 3. 각 에이전트를 **background Bash tool 호출**로 병렬 실행한다 (리터럴 경로 사용):
    ```zsh
-   # marker must apply to `codex`, not `cat` (openai/codex#585 / openai/codex#584).
+   # marker must apply to `codex`, not `cat`.
    # CODEX_PROGRAMMATIC=1은 Codex 0.124+ user-level hooks의 early-exit guard 신호.
    EXEC_CWD="$(mktemp -d /tmp/fo-session-demo-cwd.XXXXXX)"
    EXEC_CODEX_HOME="$(mktemp -d /tmp/fo-session-demo-codex-home.XXXXXX)"

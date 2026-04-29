@@ -2,7 +2,7 @@
 
 공유 reference — Dependent Skills: `prd` (primary owner), `plan-with-questions`, `run-da`, `review-implementation`.
 
-의존 스킬이 신규 추가되면 이 섹션을 갱신한다. drift inventory 문서는 생성하지 않는다 (greenheadHQ/nixos-config#470 Lessons Learned — 실시간 `rg`/`grep`으로 대체 가능한 정보는 작성하지 않는다).
+의존 스킬이 신규 추가되면 이 섹션을 갱신한다. drift inventory 문서는 생성하지 않는다. 실시간 `rg`/`grep`으로 대체 가능한 정보는 문서화하지 않는다.
 
 upstream `playmoreai/agent-skills`의 `prd/SKILL.md` Validation Policy 섹션에는 별도 명명이 없다. 본 정본에서 이를 **validation-path catalog**로 명명한다. 현재 enumerate된 path 수는 enumeration 섹션에서 직접 확인한다 (하드코딩된 숫자는 drift 위험이므로 본 문서 본문에 두지 않는다).
 

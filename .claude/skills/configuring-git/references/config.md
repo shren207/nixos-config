@@ -105,9 +105,9 @@ git:
 
 | 제한 | 설명 |
 |------|------|
-| staging 뷰 pager 미적용 | line-by-line staging에서 delta 미사용 (lazygit issue #2117) |
+| staging 뷰 pager 미적용 | line-by-line staging에서 delta 미사용 |
 | `--navigate` 미지원 | lazygit 키바인딩과 충돌 |
-| 터미널 리사이즈 | diff pager가 리사이즈에 재실행되지 않음 (issue #4415) |
+| 터미널 리사이즈 | diff pager가 리사이즈에 재실행되지 않음 |
 
 ## Interactive Rebase 역순 표시
 

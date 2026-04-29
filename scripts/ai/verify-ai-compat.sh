@@ -472,7 +472,7 @@ fi
 echo ""
 echo "=== Codex helper 스크립트 확인 ==="
 
-# Codex 프로비저닝된 helper가 shared source를 정확히 가리키는지 검증 (#486 F4/F8)
+# Codex 프로비저닝된 helper가 shared source를 정확히 가리키는지 검증
 verify_codex_helper() {
   local helper="$1"
   local helper_path="$HOME/.codex/scripts/$helper"

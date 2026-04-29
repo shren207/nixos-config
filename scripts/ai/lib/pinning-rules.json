@@ -15,7 +15,7 @@
     {
       "id": "finding_id",
       "kind": "regex",
-      "message": "DA finding ID 박제 감지. 라운드/finding ID는 휘발성 보고에만 사용하고 영구 산출물에는 박지 마라.",
+      "message": "리뷰 실행 식별자 박제 감지. 영구 산출물에는 자연어 설명으로 표현하라.",
       "contexts": ["commit_msg", "staged_line", "github_body"],
       "matchers": {
         "grep_ere": "\\b(Correctness|CORRECTNESS|Design|DESIGN|Regression|REGRESSION|Maintainability|MAINTAINABILITY|Security|SECURITY|Hallucination|HALLUCINATION|Side_effect|SIDE_EFFECT|Consistency|CONSISTENCY|Readability|READABILITY|Clean_code|CLEAN_CODE|Yagni|YAGNI|Ngmi|NGMI|CORR|MAINT|MNT|REG|CIR)-[0-9][A-Za-z0-9-]*\\b",
@@ -26,7 +26,7 @@
     {
       "id": "da_keywords",
       "kind": "regex",
-      "message": "DA/검토 키워드 박제 감지. 검토 라운드/모드 표기는 영구 산출물 대신 PR 코멘트 또는 휘발성 작업 노트에 둬라.",
+      "message": "DA/검토 키워드 박제 감지. 리뷰 실행 이력은 영구 산출물 대신 PR 코멘트 또는 휘발성 작업 노트에 둬라.",
       "contexts": ["commit_msg", "staged_line", "github_body"],
       "matchers": {
         "grep_ere": "\\bDA (for_pr|for_plan|피드백|[Rr]ound)\\b|\\bAuditor [A-Za-z_]+-[0-9]|\\bparallel-audit (반영|결과|finding)\\b",

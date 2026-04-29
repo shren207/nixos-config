@@ -225,7 +225,7 @@ for_plan(계획 리뷰)에서는 다음과 같이 해석한다:
 ```text
 ## Arbiter 검증 결과: [count]건
 
-### {finding ID} — {verdict}
+### {finding key} — {verdict}
 - **판정**: CONFIRMED_ISSUE / NOT_AN_ISSUE / NEEDS_MORE_INFO
 - **신뢰도**: HIGH / MEDIUM / LOW / N/A (NEEDS_MORE_INFO 시)
 - **기준 평가**:
@@ -250,7 +250,7 @@ for_plan(계획 리뷰)에서는 다음과 같이 해석한다:
 ```json
 {
   "schema_version": "1.0",
-  "finding_id": "{finding ID 원문}",
+  "finding_id": "{원본 finding key}",
   "verdict": "CONFIRMED_ISSUE" | "NOT_AN_ISSUE" | "NEEDS_MORE_INFO",
   "confidence": "HIGH" | "MEDIUM" | "LOW" | "N/A",
   "stability_status": "N/A" | "stable" | "split" | "fragmented",
@@ -266,7 +266,7 @@ for_plan(계획 리뷰)에서는 다음과 같이 해석한다:
 
 필드 의미:
 - `schema_version`: VERDICT_JSON 스키마 버전. additive 필드 추가는 기존 버전 내 호환, breaking 변경 시 major 증가. 현재 `1.0`.
-- `finding_id`: DA reviewer finding의 원본 ID (예: `Correctness-1`, `SECURITY-2`).
+- `finding_id`: DA reviewer finding의 원본 식별자.
 - `verdict`: core verdict enum. 5번째 축 Portability로 verdict를 뒤집지 않는다.
 - `confidence`: NOT_AN_ISSUE/CONFIRMED_ISSUE 시 Arbiter의 판정 신뢰도. `fleiss-kappa.py`는 이 필드를 selective consistency 결과에 보존하여 low-confidence unanimous verdict의 fail-closed 승격을 유지한다.
 - `stability_status`: **개별 Arbiter 자체는 항상 `N/A`로 내보낸다.** first-pass/단일 판정은 agreement 정보 없이 독립 판단이므로 이 필드를 채울 수 없다. selective consistency N=3 재판정 이후, `fleiss-kappa.py`가 3개 entry를 집계하여 **별도 aggregate envelope**의 `stability_status` 필드(`stable`/`split`/`fragmented`)로 산출한다. 즉 이 필드는 개별 VERDICT_JSON에는 `N/A`로 두고, 실제 값은 aggregate 출력에서 확인한다. 자세한 상태 전이는 [references/stability-measurement.md](stability-measurement.md)와 [references/protocol.md](protocol.md) 참조.
@@ -283,7 +283,7 @@ for_plan(계획 리뷰)에서는 다음과 같이 해석한다:
 
 ## 검증 대상 findings
 
-{DA 결과 파일 전체 — finding ID 포함}
+{DA 결과 파일 전체}
 
 ## 변경 컨텍스트
 Working directory: {cwd}
@@ -309,7 +309,7 @@ Working directory: {cwd}
 
 ## 검증 대상 findings
 
-{DA 결과 파일 전체 — finding ID 포함}
+{DA 결과 파일 전체}
 
 ## 계획 원문
 

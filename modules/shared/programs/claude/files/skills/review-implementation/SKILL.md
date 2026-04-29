@@ -33,7 +33,7 @@ description: |
 - **fix 모드는 tracked write(코드 수정)를 수행하므로 메인 에이전트 전용.** 서브에이전트에 위임하지 않는다.
 - **PRD status transition의 정본 owner는 `prd` 스킬.** 본 스킬은 **evidence-backed sync**로 한정한다:
   - 요청 입력에 PRD/phase 파일이 **명시적으로 포함된 경우에 한해서만** `.claude/prds/` 하위 해당 PRD/phase 파일(single mode: `prd-*.md`, split mode: `prd-*/phase-*.md` 포함)의 체크박스 / validation notes / change log를 갱신한다.
-  - 체크박스 전환(`- [ ]` → `- [x]`)은 **Step 5 Validation이 성공한 항목에 한정** (upstream 규약 + sub-issue #509 Phase 3 제약).
+  - 체크박스 전환(`- [ ]` → `- [x]`)은 **Step 5 Validation이 성공한 항목에 한정**한다.
 - **review-only 모드 기본 경로**는 메인 에이전트 read-only. fan-out은 상위 워크플로(예: `parallel-audit`)에서 위임될 때만 수행.
 - 상세 계약은 [`../run-da/SKILL.md`](../run-da/SKILL.md)의 `Codex 세션 하드닝 계약` 섹션을 따른다.
 

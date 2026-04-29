@@ -28,7 +28,6 @@ blockquote 형태로 작업의 메타 정보를 한눈에 제공한다.
 > **목표**: <이 가이드가 달성하는 최종 상태를 1문장으로>
 > **예상 소요**: ~<N>분 (단일 세션 / 다중 세션)
 > **난이도**: 단순 / 중간 / 복잡
-> **관련 이슈**: owner/repo#N 또는 URL
 ```
 
 ### 예시
@@ -38,7 +37,6 @@ blockquote 형태로 작업의 메타 정보를 한눈에 제공한다.
 > **목표**: Atuin sync 스킬을 생성하여 shell history 동기화 절차를 자동화한다
 > **예상 소요**: ~10분 (단일 세션)
 > **난이도**: 단순
-> **관련 이슈**: greenheadHQ/nixos-config#252
 ```
 
 ## 핵심 원칙
@@ -77,7 +75,7 @@ grep "toolPath" libraries/constants.nix
 ```
 
 **기대 결과**:
-- `modules/shared/programs/tool/default.nix:15` 에 `version = "1.2.3"` (이슈 본문 line 42의 주장에 따라, 실제 값이 다르면 실제 값 기준으로 진행 — [이슈 #NNN](https://github.com/<owner>/<repo>/issues/NNN))
+- `modules/shared/programs/tool/default.nix:15` 에 `version = "1.2.3"` (요구사항의 주장과 실제 값이 다르면 실제 값 기준으로 진행)
 - `modules/shared/programs/tool/config.nix:8` 에 `enableFeature = false;` 존재
 - `libraries/constants.nix:42` 에 `toolPath = "/old/path";` 존재
 - `[UNVERIFIED]` `toolPath`가 다른 모듈에서 import되는지 여부는 구현 시점에 `grep -rn toolPath modules/` 로 실측 필요
@@ -168,7 +166,7 @@ feat(tool): enable feature and bump to v1.3.0
 - version: 1.2.3 → 1.3.0
 - enableFeature: false → true
 
-Closes #252
+Closes #<issue-number>
 EOF
 )"
 ```
@@ -198,7 +196,7 @@ EOF
 - scope: 변경 대상 모듈명
 - 요약: 50자 이내, 명령형 현재시제
 - 변경 내용: BEFORE → AFTER 형태의 bullet points
-- Closes: 관련 이슈 번호. 같은 repo의 bare 번호는 leading GitHub closing-keyword line에서만 사용하고, 그 외 레퍼런스는 URL 또는 `owner/repo#N`을 사용한다.
+- Closes: 관련 이슈를 닫아야 할 때만 leading GitHub closing-keyword line에 둔다. 그 외 본문에는 이슈/PR 번호를 박제하지 않는다.
 
 ## QA 감사 체크리스트 (스킬 관련 이슈용)
 
@@ -348,9 +346,9 @@ EOF
 - **공개 노출 주의**: 이 가이드는 `gh issue comment`로 GitHub에 게시된다. 로컬 사용자명/절대 경로/워크트리 메타데이터가 공개 코멘트에 포함되지 않도록 한다. `<worktree-root>` 같은 placeholder 또는 repo-relative 경로를 우선 사용한다.
 - 출처: [Lost in the Middle (TACL 2024)](https://direct.mit.edu/tacl/article/doi/10.1162/tacl_a_00638/119630/Lost-in-the-Middle-How-Language-Models-Use-Long).
 
-## 모범 패턴 (greenheadHQ/nixos-config#252 기반)
+## 모범 패턴
 
-greenheadHQ/nixos-config#252의 LLM 이행 가이드에서 관찰된 효과적인 패턴:
+LLM 이행 가이드에서 반복적으로 효과적인 패턴:
 
 ### "진실 원천 우선" 패턴
 

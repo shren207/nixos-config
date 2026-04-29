@@ -15,7 +15,7 @@
 - [2026-01-13: Atuin 계정 마이그레이션 실패](#2026-01-13-atuin-계정-마이그레이션-실패)
 - [2026-01-11: Claude Code 유령 플러그인 해결](#2026-01-11-claude-code-유령-플러그인-해결)
 - [2026-01-10: cat → bat alias 제거 (호환성 문제)](#2026-01-10-cat--bat-alias-제거-호환성-문제)
-- [2026-01-10: [Superseded #171] VS Code customLabels에서 동적 앱 이름 추출 실패](#2026-01-10-vs-code-customlabels에서-동적-앱-이름-추출-실패)
+- [2026-01-10: VS Code customLabels에서 동적 앱 이름 추출 실패](#2026-01-10-vs-code-customlabels에서-동적-앱-이름-추출-실패)
 - [2024-12-25: duti로 .html/.htm 기본 앱 설정 실패](#2024-12-25-duti로-htmlhtm-기본-앱-설정-실패)
 - [2024-12-24: Anki 애드온 Nix 선언적 관리 시도 (보류)](#2024-12-24-anki-애드온-nix-선언적-관리-시도-보류)
   - [목표](#목표)
@@ -87,12 +87,6 @@ codex = "command codex --dangerously-bypass-approvals-and-sandbox --no-alt-scree
 1. 긴 출력 확인이 중요할 때는 `codex exec` 우선 사용
 2. TUI 사용 중 출력 누락/스크롤 불가 시 `/resume`으로 재표시 시도
 3. 가능하면 데스크톱 터미널에서 동일 세션 확인
-
-### 관련 이슈/참고 자료
-
-- [Codex Issue #11014: iOS SSH client에서 스크롤 깨짐](https://github.com/openai/codex/issues/11014)
-- [Codex Issue #10726: 0.97+ 스크롤 회귀](https://github.com/openai/codex/issues/10726)
-- [Codex Issue #10901: TUI 출력 앞부분 소실/잘림](https://github.com/openai/codex/issues/10901)
 
 ---
 
@@ -395,12 +389,9 @@ NixOS 설정으로는 **해결 불가능**. Termius 앱의 근본적인 한계.
 5. **하드웨어 키보드가 해결책이 아닐 수 있음** - Termius의 경우 소프트웨어/하드웨어 무관하게 동일 문제
 6. **완벽한 해결이 없을 때는 workaround 문서화**가 중요
 
-### 관련 이슈/참고 자료
+### 참고 자료
 
-- [Starship Issue #6923: Unicode prompt cursor positioning](https://github.com/starship/starship/issues/6923)
-- [Blink Shell Issue #524: Broken unicode with mosh](https://github.com/blinksh/blink/issues/524)
 - [Termius iOS Changelog](https://termius.com/changelog/ios-changelog) - CJK hardware keyboard 지원 언급
-- [React Native iOS 15+ CJK Issue](https://github.com/facebook/react-native/issues/32503)
 
 ---
 
@@ -1049,11 +1040,11 @@ home.shellAliases = {
 
 ---
 
-## 2026-01-10: [Superseded #171] VS Code customLabels에서 동적 앱 이름 추출 실패
+## 2026-01-10: VS Code customLabels에서 동적 앱 이름 추출 실패
 
 > 테스트 환경: Cursor 2.3.33 (VS Code 1.93.0 기반)
 >
-> **Note**: VSCode/Cursor → Zed migration (#171) 이후 이 시행착오의 대상 프로그램은 제거됨. 현재 에디터는 `modules/darwin/programs/zed/`.
+> **Note**: VSCode/Cursor → Zed migration 이후 이 시행착오의 대상 프로그램은 제거됨. 현재 에디터는 `modules/darwin/programs/zed/`.
 
 ### 배경
 

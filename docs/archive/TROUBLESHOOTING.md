@@ -89,8 +89,6 @@ whitelisting ./notes/file.md: Whitelist(IgnoreMatch(Override(Glob(...))))
 
 ### 참고 자료
 - [ripgrep GUIDE.md](https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md)
-- [GitHub Discussion #2128: How can I exclude a directory?](https://github.com/BurntSushi/ripgrep/discussions/2128)
-- [GitHub Issue #691: Exclusion globbing does not work with double quotes](https://github.com/BurntSushi/ripgrep/issues/691)
 
 ### 관련 파일
 - `modules/shared/programs/tmux/files/scripts/pane-search.sh`

@@ -168,7 +168,7 @@ Objective: produce final evidence and open the PR.
   - [ ] `lefthook run pre-push`
 - [ ] Run final review-implementation summary.
 - [ ] Push `issue/600`.
-- [ ] Create PR against `main` with compliant body text and the approved closing keyword line for `greenheadHQ/nixos-config#600`.
+- [ ] Create PR against `main` with compliant body text and the approved leading closing-keyword line.
 
 #### Exit Criteria
 - [ ] Validation evidence recorded.

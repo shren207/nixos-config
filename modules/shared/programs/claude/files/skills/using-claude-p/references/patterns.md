@@ -22,7 +22,7 @@ cat /tmp/prompt.md | claude -p
 핵심 요소:
 - 인라인 프롬프트는 짧은 질의에만 사용 (quote 이슈 방지)
 - 긴 프롬프트는 파일로 작성 후 stdin pipe로 전달
-- ⚠️ `--allowedTools` 사용 시 인라인 프롬프트가 도구 이름으로 먹힘 → stdin 필수 ([gotchas.md](gotchas.md) #1)
+- ⚠️ `--allowedTools` 사용 시 인라인 프롬프트가 도구 이름으로 먹힘 → stdin 필수 ([gotchas.md](gotchas.md))
 
 ## 패턴 2: 도구 실행 — 권한 우회
 
@@ -40,9 +40,9 @@ echo "ls /tmp | head -2를 실행해" | claude -p --dangerously-skip-permissions
 ```
 
 주의:
-- `--max-turns 1`이면 도구 실행 불가 (최소 2턴 필요, [gotchas.md](gotchas.md) #2)
-- 도구 거부 시 exit code는 여전히 0 ([gotchas.md](gotchas.md) #3)
-- `--tools ""`로 빌트인 비활성화해도 MCP는 남아있음 ([gotchas.md](gotchas.md) #5)
+- `--max-turns 1`이면 도구 실행 불가 (최소 2턴 필요, [gotchas.md](gotchas.md))
+- 도구 거부 시 exit code는 여전히 0 ([gotchas.md](gotchas.md))
+- `--tools ""`로 빌트인 비활성화해도 MCP는 남아있음 ([gotchas.md](gotchas.md))
 
 ## 패턴 3: init 이벤트로 harness 인벤토리 조회
 
@@ -122,7 +122,7 @@ cat /tmp/remote-prompt.md | ssh minipc 'claude -p --dangerously-skip-permissions
 - SSH non-login shell에서 alias(`c`)가 로드되지 않음 → `claude` full path 사용 필수
 - 3중 중첩 quote를 시도하지 말 것 → 반드시 stdin pipe 패턴 사용
 - MiniPC sshd 180초 무응답 시 연결 해제 → 장시간 실행 시 `ssh -o ServerAliveInterval=30` 추가
-- 자세한 gotchas: [gotchas.md](gotchas.md) #15, #16, #32
+- 자세한 gotchas: [gotchas.md](gotchas.md)
 
 ## 패턴 6: pipe chain — 출력을 다음 입력으로
 
@@ -180,7 +180,7 @@ print(f'is_error: {result.get(\"is_error\", False)}')"
 ```
 
 subtype 종류: `success`, `error_max_turns`, `error_max_budget_usd`, `error_during_execution` 등 6종.
-⚠️ `success`와 `error_during_execution`만 exit code가 다르다 (나머지는 모두 0). [gotchas.md](gotchas.md) #29 참조.
+⚠️ `success`와 `error_during_execution`만 exit code가 다르다 (나머지는 모두 0). [gotchas.md](gotchas.md) 참조.
 
 ### stream-json (JSONL) 파싱
 
@@ -247,10 +247,10 @@ cat "${CAT_FILES[@]}" \
 
 ### 주의사항
 
-- 대용량 stdin도 정상 동작 확인. 극단적 상한은 미확인 ([gotcha #40](gotchas.md) 참조)
-- `--dangerously-skip-permissions`는 `--allowedTools` 제한을 무시함 ([gotcha #3](gotchas.md) 참조)
-- 커스텀 환경변수는 `VAR=val claude -p` 형태로 전달 ([gotcha #39](gotchas.md) 참조)
-- MCP 도구 사용 시 해당 MCP 서버가 세션에서 활성화되어야 함 ([gotcha #5](gotchas.md) 참조)
+- 대용량 stdin도 정상 동작 확인. 극단적 상한은 미확인 ([gotchas.md](gotchas.md) 참조)
+- `--dangerously-skip-permissions`는 `--allowedTools` 제한을 무시함 ([gotchas.md](gotchas.md) 참조)
+- 커스텀 환경변수는 `VAR=val claude -p` 형태로 전달 ([gotchas.md](gotchas.md) 참조)
+- MCP 도구 사용 시 해당 MCP 서버가 세션에서 활성화되어야 함 ([gotchas.md](gotchas.md) 참조)
 
 ⚠️ **보안 주의**: stdin으로 주입하는 파일 내용이 신뢰할 수 있는 출처인지 확인하라. `--dangerously-skip-permissions`와 결합 시 파일 내 prompt injection이 임의 명령 실행으로 이어질 수 있다. 신뢰할 수 없는 입력에는 `--dangerously-skip-permissions` 없이 `--allowedTools`로 도구를 제한하라:
 

@@ -119,8 +119,6 @@ echo "テスト 한글"  # 정상 출력되는지 확인
 
 - [zsh FAQ - COMBINING_CHARS](https://zsh.sourceforge.io/FAQ/zshfaq05.html)
 - [Home Manager - zsh.autosuggestion 옵션](https://mynixos.com/home-manager/options/programs.zsh.autosuggestion)
-- [Oh My Zsh - macOS NFD issue #12380](https://github.com/ohmyzsh/ohmyzsh/issues/12380)
-- [Ratatui - Korean rendering #1396](https://github.com/ratatui/ratatui/issues/1396)
 
 ---
 
@@ -469,7 +467,7 @@ programs.atuin.settings = {
 
 > **발생 시점**: 2026-03-27
 > **환경**: atuin 18.12.1 (nixpkgs) + DB에 18.13.0 migration 적용됨
-> **상태**: 해결 (nixpkgs 업데이트, PR #333)
+> **상태**: 해결 (nixpkgs 업데이트)
 
 **증상**: `atuin history list` 등 모든 히스토리 관련 명령이 실패.
 

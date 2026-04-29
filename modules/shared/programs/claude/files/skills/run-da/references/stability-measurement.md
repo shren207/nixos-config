@@ -44,7 +44,7 @@ Arbiter first-pass 결과가 아래 **세 조건 중 하나라도 만족**하면
 
 1. **first-pass 신뢰도 LOW**: Arbiter가 VERDICT_JSON에 `"confidence": "LOW"`를 반환한 경우.
 2. **first-pass NEEDS_MORE_INFO**: first-pass verdict가 `NEEDS_MORE_INFO`인 경우.
-3. **이전 outer round 반복**: 같은 finding ID가 이전 outer round에서도 동일 파일:줄 또는 계획 항목에 대해 등장한 경우.
+3. **이전 outer round 반복**: 같은 지적이 이전 outer round에서도 동일 파일:줄 또는 계획 항목에 대해 등장한 경우.
 
 각 조건은 독립적이며 OR 관계다. 세 조건 중 하나라도 매치되면 trigger된다. 매치되지 않은 finding은 first-pass 결과를 그대로 사용한다 (N=1, stability_status=`N/A`).
 

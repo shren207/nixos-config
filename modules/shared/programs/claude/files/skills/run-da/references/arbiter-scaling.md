@@ -61,7 +61,7 @@ Claude Code에서 Codex CLI를 subprocess로 호출할 때, 비대화형 automat
 - `codex exec -C "$EXEC_CWD" --skip-git-repo-check --sandbox read-only --ignore-user-config --disable plugins --ephemeral`
 - **foreground 실행** (병렬/background 없음 — 단일 exec이므로 결과를 즉시 확인. 런타임별 매커니즘은 SKILL.md "런타임 도구 매핑" 표 참조)
 - `-o "$ARBITER_DIR/arbiter-result.md"` 결과 파일
-- `cat "$ARBITER_DIR/arbiter-prompt.md" | env CODEX_PROGRAMMATIC=1 codex exec ... -` stdin pipe로 프롬프트 전달 (pipe EOF가 stdin hang 방지; marker는 codex 프로세스에 적용 — openai/codex#585)
+- `cat "$ARBITER_DIR/arbiter-prompt.md" | env CODEX_PROGRAMMATIC=1 codex exec ... -` stdin pipe로 프롬프트 전달 (pipe EOF가 stdin hang 방지; marker는 codex 프로세스에 적용)
 - `2>"$ARBITER_DIR/arbiter-stderr.log"` stderr 분리
 - `--ignore-user-config`와 scratch `CODEX_HOME`을 쓰므로 config.toml 기본 모델에 의존하지 않는다.
 - Arbiter는 strong review profile(`model="gpt-5.5"`, `model_reasoning_effort="high"`)을 사용한다. reviewer/Intensity/auditor는 standard review profile(`model="gpt-5.5"`, `model_reasoning_effort="medium"`)을 명시적으로 지정한다.
@@ -70,7 +70,7 @@ Claude Code에서 Codex CLI를 subprocess로 호출할 때, 비대화형 automat
 - `--ephemeral`로 세션 히스토리 오염 방지
 
 `& + wait` shell-level 병렬을 사용하지 않는다 (런타임 공통; Claude Code Bash tool sandbox 제약에서 유래했으나 Codex `exec_command`·headless 셸 모두 동일하게 적용).
-`cat file | env CODEX_PROGRAMMATIC=1 codex exec ... -` stdin pipe로 프롬프트를 전달한다. 인라인 인자 `"$(cat file)"`는 사용하지 않는다 (marker는 codex 프로세스 적용 — openai/codex#585).
+`cat file | env CODEX_PROGRAMMATIC=1 codex exec ... -` stdin pipe로 프롬프트를 전달한다. 인라인 인자 `"$(cat file)"`는 사용하지 않는다 (marker는 codex 프로세스 적용).
 
 ### Codex delegation-denied fallback (subprocess 실행 계약)
 
@@ -89,7 +89,7 @@ Codex 세션에서 `spawn_agent`가 정책상 거부될 때(예: `multi_agent=fa
 **reviewer / Auditor** (standard profile):
 
 ```bash
-# marker must apply to `codex`, not `cat` (openai/codex#585): Codex 0.124+ user-level hooks의 early-exit 신호.
+# marker must apply to `codex`, not `cat`: Codex 0.124+ user-level hooks의 early-exit 신호.
 EXEC_CWD="$(mktemp -d /tmp/da-${_DA_SID}-exec-cwd-XXXXXX)"
 EXEC_CODEX_HOME="$(mktemp -d /tmp/da-${_DA_SID}-codex-home-XXXXXX)"
 [ -f "${CODEX_HOME:-$HOME/.codex}/auth.json" ] && cp "${CODEX_HOME:-$HOME/.codex}/auth.json" "$EXEC_CODEX_HOME/auth.json"
@@ -155,7 +155,7 @@ PROMPT
 
 # 3. codex exec 실행 (foreground)
 # Arbiter는 strong review profile(gpt-5.5 + high)을 명령 인자로 명시한다.
-# marker must apply to `codex`, not `cat` (openai/codex#585): Codex 0.124+ user-level hooks의 early-exit 신호.
+# marker must apply to `codex`, not `cat`: Codex 0.124+ user-level hooks의 early-exit 신호.
 EXEC_CWD="$(mktemp -d /tmp/da-${_DA_SID}-exec-cwd-XXXXXX)"
 EXEC_CODEX_HOME="$(mktemp -d /tmp/da-${_DA_SID}-codex-home-XXXXXX)"
 [ -f "${CODEX_HOME:-$HOME/.codex}/auth.json" ] && cp "${CODEX_HOME:-$HOME/.codex}/auth.json" "$EXEC_CODEX_HOME/auth.json"

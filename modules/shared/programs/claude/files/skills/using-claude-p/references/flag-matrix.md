@@ -49,7 +49,7 @@ CLI에 없는 플래그. 사용 시도 시 에러 발생.
 |----------|------|------|
 | `CLAUDE_CODE_MAX_RETRIES` | API 재시도 횟수 | 기본값 오버라이드 (바이너리에서 확인) |
 | `ANTHROPIC_API_KEY` | API 키 | 인증 필수 |
-| *(커스텀 환경변수)* | `VAR=val claude -p` 형태로 명시적 전달 필요. `.env` 자동 로드 안 됨 | [gotcha #39](gotchas.md) |
+| *(커스텀 환경변수)* | `VAR=val claude -p` 형태로 명시적 전달 필요. `.env` 자동 로드 안 됨 | [gotchas.md](gotchas.md) |
 
 ## `--permission-mode` 6종 비교
 

@@ -105,8 +105,6 @@ pnpm 10.28.0
 - "legacy version file" 대신 "idiomatic version file"로 용어 변경 (asdf/mise에 종속되지 않는 파일이므로)
 
 **참고 링크**:
-- [GitHub Issue #3212: rename "legacy files" -> "idiomatic files"](https://github.com/jdx/mise/issues/3212)
-- [Discussion #4345: idiomatic versions default disabled](https://github.com/jdx/mise/discussions/4345)
 - [mise 공식 설정 문서](https://mise.jdx.dev/configuration.html)
 
 **해결**: `idiomatic_version_file_enable_tools` 설정 추가.

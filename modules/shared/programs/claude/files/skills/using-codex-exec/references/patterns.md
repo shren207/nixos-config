@@ -18,7 +18,7 @@ PROMPT
 **⚠️ `run_in_background` 환경**: 여기서 Bash tool 호출을 종료하고, 아래를 별도 호출로 실행한다 ([known-issues.md §11](known-issues.md) 하위 항목).
 
 ```bash
-# marker must apply to `codex`, not `cat` (openai/codex#585): Codex 0.124+ user-level hooks의 early-exit 신호.
+# marker must apply to `codex`, not `cat`: Codex 0.124+ user-level hooks의 early-exit 신호.
 cat /tmp/codex-prompt.md | env CODEX_PROGRAMMATIC=1 codex exec --full-auto -o /tmp/codex-result.md - 2>&1
 cat /tmp/codex-result.md
 ```
@@ -26,7 +26,7 @@ cat /tmp/codex-result.md
 핵심 요소:
 - `-o`: 마지막 에이전트 메시지를 파일로 저장. 루프 연동 시 필수.
 - `2>&1`: stderr도 함께 캡처하여 실패 원인 추적에 활용.
-- stdin pipe 패턴 (`cat file | env CODEX_PROGRAMMATIC=1 codex exec ... -`): pipe EOF가 stdin을 자동으로 닫아, Claude Code Bash tool의 background 전환 시 stdin hang을 구조적으로 방지한다. `< /dev/null`은 pipe가 대체하므로 불필요. 인라인 인자 `"$(cat file)"`는 사용하지 않는다 ([known-issues.md §14](known-issues.md)). marker는 codex 프로세스에 적용한다 (openai/codex#585).
+- stdin pipe 패턴 (`cat file | env CODEX_PROGRAMMATIC=1 codex exec ... -`): pipe EOF가 stdin을 자동으로 닫아, Claude Code Bash tool의 background 전환 시 stdin hang을 구조적으로 방지한다. `< /dev/null`은 pipe가 대체하므로 불필요. 인라인 인자 `"$(cat file)"`는 사용하지 않는다 ([known-issues.md §14](known-issues.md)). marker는 codex 프로세스에 적용한다.
 - 인라인 프롬프트(`codex exec --full-auto "..."`)는 짧은 질의에만 사용.
 
 ## 패턴 2: 코드 리뷰 — scope flag만 사용 (커스텀 지시 불필요)
@@ -320,7 +320,7 @@ cat /tmp/smoke-result.md
 
 ## 빠른 참조 표
 
-모든 `codex exec` 호출에는 `env CODEX_PROGRAMMATIC=1`을 codex 프로세스에 적용한다 (openai/codex#585: Codex 0.124+ user-level hooks의 early-exit 신호).
+모든 `codex exec` 호출에는 `env CODEX_PROGRAMMATIC=1`을 codex 프로세스에 적용한다. Codex 0.124+ user-level hooks의 early-exit 신호다.
 
 | 상황 | 패턴 | 명령 요약 |
 |------|------|-----------|
