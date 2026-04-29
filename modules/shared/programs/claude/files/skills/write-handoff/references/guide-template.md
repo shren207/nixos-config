@@ -28,7 +28,7 @@ blockquote 형태로 작업의 메타 정보를 한눈에 제공한다.
 > **목표**: <이 가이드가 달성하는 최종 상태를 1문장으로>
 > **예상 소요**: ~<N>분 (단일 세션 / 다중 세션)
 > **난이도**: 단순 / 중간 / 복잡
-> **관련 이슈**: #<N>
+> **관련 이슈**: owner/repo#N 또는 URL
 ```
 
 ### 예시
@@ -38,7 +38,7 @@ blockquote 형태로 작업의 메타 정보를 한눈에 제공한다.
 > **목표**: Atuin sync 스킬을 생성하여 shell history 동기화 절차를 자동화한다
 > **예상 소요**: ~10분 (단일 세션)
 > **난이도**: 단순
-> **관련 이슈**: #252
+> **관련 이슈**: greenheadHQ/nixos-config#252
 ```
 
 ## 핵심 원칙
@@ -348,9 +348,9 @@ EOF
 - **공개 노출 주의**: 이 가이드는 `gh issue comment`로 GitHub에 게시된다. 로컬 사용자명/절대 경로/워크트리 메타데이터가 공개 코멘트에 포함되지 않도록 한다. `<worktree-root>` 같은 placeholder 또는 repo-relative 경로를 우선 사용한다.
 - 출처: [Lost in the Middle (TACL 2024)](https://direct.mit.edu/tacl/article/doi/10.1162/tacl_a_00638/119630/Lost-in-the-Middle-How-Language-Models-Use-Long).
 
-## 모범 패턴 (Issue #252 기반)
+## 모범 패턴 (greenheadHQ/nixos-config#252 기반)
 
-Issue #252의 LLM 이행 가이드에서 관찰된 효과적인 패턴:
+greenheadHQ/nixos-config#252의 LLM 이행 가이드에서 관찰된 효과적인 패턴:
 
 ### "진실 원천 우선" 패턴
 
