@@ -286,7 +286,7 @@ const bare = rules.rules.find((rule) => rule.id === 'bare_issue_ref');
 const bareRe = new RegExp(bare.matchers.js_regex);
 const bareRef = '#' + '600';
 if (bareRe.test(scrub(`Closes ${bareRef}`))) throw new Error('closing refs should be scrubbed');
-if (bareRe.test(scrub(`- Fixes ${bareRef}`))) throw new Error('markdown list closing refs should be scrubbed');
+if (!bareRe.test(scrub(`- Fixes ${bareRef}`))) throw new Error('markdown list closing refs should not be scrubbed');
 if (bareRe.test(scrub(`see owner/repo${bareRef}`))) throw new Error('cross-repo refs should be scrubbed');
 if (!bareRe.test(scrub(`see ${bareRef}`))) throw new Error('bare same-repo ref should match');
 if (!bareRe.test(scrub(`This does not fix ${bareRef}`))) throw new Error('non-leading fix prose should not be scrubbed');
@@ -397,6 +397,11 @@ async function runForkBody(body, headRepo = { full_name: 'fork/repo' }) {
   result = await runForkBody(`Closes ${bareRef}`);
   if (result.core.failed) {
     throw new Error(`leading closing ref should be allowed, got ${result.core.failed}`);
+  }
+
+  result = await runForkBody(`- Fixes ${bareRef}`);
+  if (!result.core.failed || !result.core.failed.includes('Pinning findings:')) {
+    throw new Error(`markdown-list closing ref must hard-fail, got ${result.core.failed}`);
   }
 })().catch((error) => {
   console.error(error);

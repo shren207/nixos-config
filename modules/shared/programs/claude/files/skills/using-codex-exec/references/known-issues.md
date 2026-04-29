@@ -285,7 +285,7 @@ cat /tmp/smoke-result.md
 |------|------|------|
 | `&` + `$!` (background PID) | **BROKEN** | `$!` → 리터럴 문자열, PID 미캡처 |
 | `cat file \| env CODEX_PROGRAMMATIC=1 codex exec ... -` (stdin pipe) 별도 Bash tool 호출 | **OK** | 각 호출이 독립 shell — pipe EOF가 stdin을 닫음 |
-| `env CODEX_PROGRAMMATIC=1 codex exec "$(cat file)"` (인라인 인자) | **OK** | shell 확장 후 인자 전달 |
+| `env CODEX_PROGRAMMATIC=1 codex exec "$(cat file)"` (인라인 인자) | **FOREGROUND ONLY** | 단순 전경 실행은 동작하나 자동화/fan-out에서는 deprecated. stdin pipe를 사용 |
 | `env CODEX_PROGRAMMATIC=1 codex exec < file` (file redirect) | **OK** | 정상 작동 |
 | 병렬 Bash tool 호출 (foreground) | **OK** | tool-level 병렬화, 전부 완료까지 대기 |
 | Bash tool `run_in_background: true` | **OK** | background 실행, 각 완료 시 자동 알림 |
