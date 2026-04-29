@@ -14,7 +14,7 @@ Issue 600 expands LLM pinning guardrails beyond commit messages into staged cont
 ## Goals
 - G-1: Finish pinning guardrails across commit messages, staged added lines, PR bodies, and issue bodies.
 - G-2: Keep local hooks warn-only while making GitHub body checks hard-fail on findings.
-- G-3: Preserve safe exceptions for GitHub URLs, `owner/repo#N`, leading closing-keyword lines, and explicit allowlist markers with meaningful reasons.
+- G-3: Preserve safe exceptions for GitHub URLs, `owner/repo#N`, leading closing-keyword lines, and explicit allowlist markers with meaningful reasons for non-reference metadata only.
 - G-4: Keep Codex audit subprocesses isolated enough to avoid Skill context budget warnings and project/user/plugin tool-surface leakage.
 - G-5: Mitigate Codex Stop hook `Too many open files` failures for future macOS shells and verifier runs.
 - G-6: Produce a PR against `main` only after remaining audits and validation are complete.
@@ -46,7 +46,7 @@ Issue 600 expands LLM pinning guardrails beyond commit messages into staged cont
 - FR-3: `scripts/ai/pre-commit-pinning.sh` scans staged added lines only, respects path excludes, handles header-like added content, and remains warn-only.
 - FR-4: `.github/workflows/pinning-check.yml` scans PR/issue bodies using trusted rules loaded via GitHub API.
 - FR-5: GitHub workflow hard-fails findings, updates only its own bot comment when possible, resolves stale comments, and avoids fork comment writes.
-- FR-6: Templates and durable skill docs avoid non-closing same-repo bare references or document allowlist usage.
+- FR-6: Templates and durable skill docs avoid non-closing same-repo bare references entirely; allowlists do not make same-repo bare refs acceptable outside leading closing-keyword lines.
 - FR-7: Codex subprocess documentation prevents Skill context budget warnings in audit/review fan-out paths.
 - FR-8: Stop hook FD mitigation is applied in Darwin shell config and verifier self-heal logic.
 

@@ -57,7 +57,7 @@
     {
       "id": "bare_issue_ref",
       "kind": "bare_issue_ref",
-      "message": "same-repo bare 이슈/PR 번호 인용 감지. URL 또는 owner/repo#N 형태로 대체하거나 inline allowlist로 사유를 명시하라.",
+      "message": "same-repo bare 이슈/PR 번호 인용 감지. URL 또는 owner/repo#N 형태로 대체하라. same-repo bare ref는 leading closing-keyword line에서만 허용된다.",
       "contexts": ["commit_msg", "staged_line", "github_body"],
       "matchers": {
         "grep_ere": "(^|[^/A-Za-z0-9._-])(#[0-9]+|[Ii]ssue #[0-9]+|[Pp][Rr] #[0-9]+|[Pp]ull [Rr]equest #[0-9]+|이슈 #[0-9]+)($|[^0-9A-Za-z_-])",

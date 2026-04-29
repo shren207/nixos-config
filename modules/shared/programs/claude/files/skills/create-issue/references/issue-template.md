@@ -23,7 +23,7 @@
 
 - [링크 텍스트](URL) — 한 문장으로 "무엇을 뒷받침하는지"
 - `path/to/file.nix:LINE` 또는 `path/to/file.nix:START-END` — 코드 근거 (단일 라인 또는 라인 범위 허용)
-- URL, `owner/repo#N`, 또는 머지된 commit SHA — **출처 입증에 불가결한 경우에만**. 같은 repo의 bare 번호 인용은 inline allowlist 사유가 있을 때만 사용한다. 단순 색인용 인용 금지 (close/rename 시 stale).
+- URL, `owner/repo#N`, 또는 머지된 commit SHA — **출처 입증에 불가결한 경우에만**. 같은 repo의 bare 번호 인용은 leading closing-keyword line에서만 허용한다. 단순 색인용 인용 금지 (close/rename 시 stale).
 
 ## PoC / Reproduction (선택)
 
@@ -107,7 +107,7 @@
 
 ### Notes (선택)
 - 추가 참고사항이 있는 경우에만 포함
-- 관련 이슈는 URL 또는 `owner/repo#N` 형식으로 참조. 같은 repo bare 번호는 closing keyword 또는 inline allowlist 사유가 있을 때만 사용
+- 관련 이슈는 URL 또는 `owner/repo#N` 형식으로 참조. 같은 repo bare 번호는 leading closing keyword line에서만 사용
 - YAGNI 판단 근거, 선행 조건, 위험 요소 등 기재
 
 ## 작성 예시

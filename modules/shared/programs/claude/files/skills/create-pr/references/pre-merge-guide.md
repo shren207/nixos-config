@@ -119,9 +119,9 @@ ls <expected_file>
 **수정 필요**: `heavy_packages`에서 `activation-script` 항목을 제거
 ```
 
-## 참고 패턴 (PR #254 기반)
+## 참고 패턴 (greenheadHQ/nixos-config#254 기반)
 
-PR #254의 Pre-Merge E2E 테스트에서 관찰된 효과적인 패턴:
+greenheadHQ/nixos-config#254의 Pre-Merge E2E 테스트에서 관찰된 효과적인 패턴:
 
 ### Phase 기반 3단 검증
 Phase 0(정적) → Phase 1-N(기능) → Phase N+1(Regression)의 3단 구조를 준수한다.

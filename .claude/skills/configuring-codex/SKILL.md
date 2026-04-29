@@ -53,7 +53,7 @@ Codex CLI 바이너리 설치/업데이트는 `modules/shared/programs/codex/def
 ## 진단 우선순위 (중요)
 
 Skills 누락 이슈의 1차 원인은 `trust`보다 투영 방식이다.
-Codex CLI는 **디렉토리 심링크**를 따라가지만 **파일 심링크**는 무시한다 (PR #8801).
+Codex CLI는 **디렉토리 심링크**를 따라가지만 **파일 심링크**는 무시한다 (openai/codex#8801).
 `.agents/skills/<name>`은 반드시 디렉토리 심링크여야 하며, SKILL.md 파일 자체를 심링크하면 안 된다.
 
 ## 실행 정책 / Trust 메모
@@ -84,7 +84,7 @@ sandbox_mode = "danger-full-access"
 .agents/skills/<name>/                  # ../../.claude/skills/<name> 심링크
 ```
 
-Codex CLI는 디렉토리 심링크를 `follow_links(true)`로 순회한다 (PR #8801).
+Codex CLI는 디렉토리 심링크를 `follow_links(true)`로 순회한다 (openai/codex#8801).
 파일 심링크는 무시되므로 반드시 디렉토리 단위로 심링크해야 한다.
 
 ## 활성화

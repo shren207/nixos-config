@@ -122,24 +122,27 @@ previous_hunk = nil
 
 File.foreach(added_path, chomp: true) do |record|
   path, line_no, hunk_id, line = record.split("\u001f", 4)
+  allow_non_reference_rules = false
   if hunk_id != previous_hunk
     skip_next = false
     previous_hunk = hunk_id
   end
 
   if skip_next
+    allow_non_reference_rules = true
     skip_next = false
-    next
   end
 
   if valid_marker?(line, next_markers, min_reason)
+    allow_non_reference_rules = true
     skip_next = true
-    next
   end
 
-  next if valid_marker?(line, same_markers, min_reason)
+  allow_non_reference_rules = true if valid_marker?(line, same_markers, min_reason)
 
   scan_rules.each do |rule|
+    next if allow_non_reference_rules && rule.fetch("kind") != "bare_issue_ref"
+
     matched =
       case rule.fetch("kind")
       when "partial_hash"
@@ -159,7 +162,7 @@ File.foreach(added_path, chomp: true) do |record|
 end
 
 if found
-  warn "[WARN] #{warn_prefix}: 위 경고는 차단하지 않습니다 (warn-only). 필요하면 안정 링크 또는 pinning allowlist marker를 사용하세요."
+  warn "[WARN] #{warn_prefix}: 위 경고는 차단하지 않습니다 (warn-only). bare ref는 안정 링크로 바꾸고, non-reference metadata만 pinning allowlist marker를 사용하세요."
 end
 RUBY
 

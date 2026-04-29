@@ -120,17 +120,19 @@ jobs:
               let skipNext = false;
               for (let i = 0; i < lines.length; i += 1) {
                 const line = lines[i];
+                let allowNonReferenceRules = false;
                 if (skipNext) {
+                  allowNonReferenceRules = true;
                   skipNext = false;
-                  continue;
                 }
-                if (isSameLineAllowed(line, rules)) continue;
+                if (isSameLineAllowed(line, rules)) allowNonReferenceRules = true;
                 if (isNextLineMarker(line, rules)) {
+                  allowNonReferenceRules = true;
                   skipNext = true;
-                  continue;
                 }
                 for (const rule of rules.rules) {
                   if (!rule.contexts.includes('github_body')) continue;
+                  if (allowNonReferenceRules && rule.kind !== 'bare_issue_ref') continue;
                   const match = firstMatch(line, rule, rules);
                   if (match) {
                     findings.push({
@@ -162,7 +164,7 @@ jobs:
                 '',
                 '- Prefer GitHub issue/PR URLs or `owner/repo#N` references.',
                 '- Keep same-repo closing keywords such as `Closes #N` only on closing-keyword lines.',
-                `- For intentional exceptions, add \`${rules.markers.same_line.shell} <reason ${minLength}+ chars>\` or \`${rules.markers.same_line.markdown} <reason ${minLength}+ chars> -->\`.`,
+                `- For intentional non-reference metadata exceptions, add \`${rules.markers.same_line.shell} <reason ${minLength}+ chars>\` or \`${rules.markers.same_line.markdown} <reason ${minLength}+ chars> -->\`.`,
                 '',
                 `Rules source: \`${RULES_PATH}\` from trusted ref \`${target.ref}\`.`
               ].join('\n');

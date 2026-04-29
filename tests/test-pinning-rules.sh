@@ -124,8 +124,9 @@ test_commit_msg_regression() {
 }
 
 test_pre_commit_scanner() {
-  local repo out
+  local repo out bare_ref
   repo="$(new_tmp_dir)"
+  bare_ref="#""600"
   setup_git_fixture "$repo"
 
   mkdir -p "$repo/src"
@@ -144,31 +145,29 @@ test_pre_commit_scanner() {
 
   git -C "$repo" reset --hard HEAD >/dev/null 2>&1
   mkdir -p "$repo/src"
-  cat > "$repo/src/allowed.md" <<'EOF'
-ref: https://github.com/karakeep-app/karakeep/issues/1977
-ref: karakeep-app/karakeep#1977
-Closes #600
-same repo #600 <!-- pinning-allow: intentional local reference for test -->
-<!-- pinning-allow-next-line: intentional local reference for test -->
-next line #601
-EOF
+  {
+    printf '%s\n' 'ref: https://github.com/karakeep-app/karakeep/issues/1977'
+    printf '%s\n' 'ref: karakeep-app/karakeep#1977'
+    printf 'Closes %s\n' "$bare_ref"
+    printf '%s\n' 'DA for_pr DESIGN-1 <!-- pinning-allow: intentional metadata exception for test -->'
+  } > "$repo/src/allowed.md"
   git -C "$repo" add src/allowed.md
   out="$(run_pre_commit_fixture "$repo")"
-  [[ -z "$out" ]] || fail "allowlists and valid markers should suppress findings, got: $out"
+  [[ -z "$out" ]] || fail "stable refs, closing refs, and non-reference allowlists should suppress findings, got: $out"
 
   git -C "$repo" reset --hard HEAD >/dev/null 2>&1
   mkdir -p "$repo/src"
-  printf '%s\n' 'This does not fix #600' > "$repo/src/not-closing.md"
+  printf 'This does not fix %s\n' "$bare_ref" > "$repo/src/not-closing.md"
   git -C "$repo" add src/not-closing.md
   out="$(run_pre_commit_fixture "$repo")"
   assert_contains "$out" "bare 이슈/PR 번호" "non-leading fix prose must not be treated as closing ref"
 
   git -C "$repo" reset --hard HEAD >/dev/null 2>&1
   mkdir -p "$repo/src"
-  printf '%s\n' 'same repo #600 <!-- pinning-allow: short -->' > "$repo/src/not-allowed.md"
+  printf 'same repo %s <!-- pinning-allow: intentional local reference for test -->\n' "$bare_ref" > "$repo/src/not-allowed.md"
   git -C "$repo" add src/not-allowed.md
   out="$(run_pre_commit_fixture "$repo")"
-  assert_contains "$out" "bare 이슈/PR 번호" "short allowlist reason should not suppress"
+  assert_contains "$out" "bare 이슈/PR 번호" "inline allowlist must not suppress same-repo bare refs"
 
   git -C "$repo" reset --hard HEAD >/dev/null 2>&1
   mkdir -p "$repo/src"
@@ -285,11 +284,12 @@ for (const match of multiCandidate.matchAll(new RegExp(partial.matchers.js_regex
 if (foundPartial !== 'deadbee') throw new Error('partial hash scan should continue after rejected candidates');
 const bare = rules.rules.find((rule) => rule.id === 'bare_issue_ref');
 const bareRe = new RegExp(bare.matchers.js_regex);
-if (bareRe.test(scrub('Closes #600'))) throw new Error('closing refs should be scrubbed');
-if (bareRe.test(scrub('- Fixes #600'))) throw new Error('markdown list closing refs should be scrubbed');
-if (bareRe.test(scrub('see owner/repo#600'))) throw new Error('cross-repo refs should be scrubbed');
-if (!bareRe.test(scrub('see #600'))) throw new Error('bare same-repo ref should match');
-if (!bareRe.test(scrub('This does not fix #600'))) throw new Error('non-leading fix prose should not be scrubbed');
+const bareRef = '#' + '600';
+if (bareRe.test(scrub(`Closes ${bareRef}`))) throw new Error('closing refs should be scrubbed');
+if (bareRe.test(scrub(`- Fixes ${bareRef}`))) throw new Error('markdown list closing refs should be scrubbed');
+if (bareRe.test(scrub(`see owner/repo${bareRef}`))) throw new Error('cross-repo refs should be scrubbed');
+if (!bareRe.test(scrub(`see ${bareRef}`))) throw new Error('bare same-repo ref should match');
+if (!bareRe.test(scrub(`This does not fix ${bareRef}`))) throw new Error('non-leading fix prose should not be scrubbed');
 NODE
 
   node - "$script_file" "$RULES" <<'NODE'
@@ -359,6 +359,7 @@ async function runForkBody(body, headRepo = { full_name: 'fork/repo' }) {
 }
 
 (async () => {
+  const bareRef = '#' + '600';
   let result = await runForkBody('DA round 2');
   if (result.requestedRef !== 'trusted-base-sha') {
     throw new Error(`fork PR rules must load from trusted base sha, got ${result.requestedRef}`);
@@ -378,12 +379,22 @@ async function runForkBody(body, headRepo = { full_name: 'fork/repo' }) {
     throw new Error(`missing fork head repo must not write comments, wrote ${result.commentWriteCount}`);
   }
 
-  result = await runForkBody('This does not fix #600');
+  result = await runForkBody(`This does not fix ${bareRef}`);
   if (!result.core.failed || !result.core.failed.includes('Pinning findings:')) {
     throw new Error(`non-leading fix prose must hard-fail, got ${result.core.failed}`);
   }
 
-  result = await runForkBody('Closes #600');
+  result = await runForkBody(`same repo ${bareRef} <!-- pinning-allow: intentional local reference for test -->`);
+  if (!result.core.failed || !result.core.failed.includes('Pinning findings:')) {
+    throw new Error(`inline allowlist must not suppress same-repo bare refs, got ${result.core.failed}`);
+  }
+
+  result = await runForkBody('DA round 2 <!-- pinning-allow: intentional metadata exception for test -->');
+  if (result.core.failed) {
+    throw new Error(`non-reference metadata allowlist should be allowed, got ${result.core.failed}`);
+  }
+
+  result = await runForkBody(`Closes ${bareRef}`);
   if (result.core.failed) {
     throw new Error(`leading closing ref should be allowed, got ${result.core.failed}`);
   }
