@@ -162,7 +162,7 @@ File.foreach(added_path, chomp: true) do |record|
 end
 
 if found
-  warn "[WARN] #{warn_prefix}: 위 경고는 차단하지 않습니다 (warn-only). bare ref는 안정 링크로 바꾸고, non-reference metadata만 pinning allowlist marker를 사용하세요."
+  warn "[WARN] #{warn_prefix}: 위 경고는 차단하지 않습니다 (warn-only). bare ref는 leading closing-keyword line에만 두고, durable references는 URL 또는 full merged 40-char SHA를 사용하세요. non-reference metadata에만 pinning allowlist marker를 사용하세요."
 end
 RUBY
 

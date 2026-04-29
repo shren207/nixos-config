@@ -93,7 +93,7 @@ while IFS= read -r rule_id; do
 done < <(pinning_rule_ids_for_context commit_msg)
 
 if [ "$found" -eq 1 ]; then
-  pinning_warn "위 경고는 차단하지 않습니다 (warn-only). 검토 후 amend로 정정하거나 의도적 사용이면 무시하세요."
+  pinning_warn "위 경고는 차단하지 않습니다 (warn-only). bare ref는 leading closing-keyword line에만 두고, durable references는 URL 또는 full merged 40-char SHA를 사용하세요."
 fi
 
 exit 0
