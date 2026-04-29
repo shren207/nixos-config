@@ -8,7 +8,7 @@
 #   3. noise-guard env 변형              — runner 내부 helper (4 env 조합)
 #   4. sync-codex-config.py preservation — fixtures/codex-hooks/sync-preservation/*.toml
 #   5. env propagation (live opt-in)      — CODEX_HOOK_LIVE=1 / --live
-#   6. stop-notification reliability/security (issue #589) — transcripts/ + stdin secret/transcript fixtures
+#   6. stop-notification reliability/security — transcripts/ + stdin secret/transcript fixtures
 #
 # nrs-session-cleanup.sh는 NRS_LOCK_FILE을 하드코딩하므로 (host /tmp/nrs-state 누수 위험)
 # fixture는 real script를 직접 호출하지 않고 mock subscript로 대체한다.
@@ -540,7 +540,7 @@ assert cmd == expected_stop_cmd, f"command={cmd!r} expected={expected_stop_cmd!r
 PY
 }
 
-# ─── 카테고리 6: stop-notification reliability/security (issue #589) ───
+# ─── 카테고리 6: stop-notification reliability/security ───
 # 6.1 Codex JSONL transcript fallback 추출 검증.
 # fixture stdin은 last_assistant_message=null + transcript_path를 sandbox 안의 Codex schema
 # JSONL fixture로 가리키게 만든다. extract_last_assistant_text 호출 결과가 fixture transcript의
@@ -652,7 +652,7 @@ STUB
 # Codex 사본과 Claude 원본의 redact_secrets()/run_with_timeout() 함수 본문이 byte-for-byte
 # 동일함을 보장한다. hook이 cp 동기화 패턴이라 한쪽만 패턴 추가/regex 수정하는 drift를 차단.
 # Marker 기반 추출: helper 위/아래에 `# === HELPER_BEGIN: <name> ===` / `HELPER_END` 주석을 두고
-# 그 사이를 추출한다. 함수 선언부 포맷(공백/괄호 위치) 변화에 robust하다 (DA for_pr DESIGN-2 반영).
+# 그 사이를 추출한다. 함수 선언부 포맷(공백/괄호 위치) 변화에 robust하다.
 _extract_function_block() {
   local file="$1" name="$2"
   awk -v name="$name" '

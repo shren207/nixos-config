@@ -92,15 +92,15 @@ normalize_reply() {
   fi
 }
 
-# Hammerspoon 호출 timeout wrapper (issue #589).
+# Hammerspoon 호출 timeout wrapper.
 # macOS BSD coreutils에는 `timeout`이 없다. nix-darwin이 GNU coreutils를 PATH에 추가하면 정상이지만,
 # nix 없는 macOS는 `command not found (exit 127)`로 빠진다. 이 hook의 fail-open 패턴은
 # `timeout 2 hs -c "..." && HS_SENT=true || true` 형태라 exit 127이면 HS_SENT=false 유지 →
 # Pushover fallback으로 전이된다. helper는 `timeout` 부재 시 직접 실행 대신 `return 127`로 동일한
 # fail-open 신호를 유지하여 dispatcher hang을 방지한다. ask/plan-notification.sh 와 정책 일관성을
 # 위해 `gtimeout` 분기는 두지 않는다 — Homebrew coreutils 사용자도 ask/plan과 동일하게 Pushover
-# fallback으로 전이된다. (gtimeout 지원은 본 PR 외 follow-up 범위.)
-# Shared helper body mirrored between Codex/Claude stop-notification.sh; test 6.4 enforces this marked block only.
+# fallback으로 전이된다.
+# Shared helper body mirrored between Codex/Claude stop-notification.sh; helper-equivalence test enforces this marked block only.
 # === HELPER_BEGIN: run_with_timeout ===
 run_with_timeout() {
   local secs="$1"; shift
@@ -112,10 +112,10 @@ run_with_timeout() {
 }
 # === HELPER_END: run_with_timeout ===
 
-# Pushover 외부 전송 본문에서 알려진 secret pattern을 마스킹 (issue #589).
+# Pushover 외부 전송 본문에서 알려진 secret pattern을 마스킹.
 # 적용 시점: LAST_REPLY 추출 직후 — clip 전 원본에서 한 번 redact한다. clip은 LAST_REPLY를
-# 그대로 자르므로 redact가 clip 후 원본 secret으로 되돌아오지 않는다. (DA for_pr DESIGN-1
-# 반영: 1차 redaction만으로 충분하며 2차는 redundant.)
+# 그대로 자르므로 redact가 clip 후 원본 secret으로 되돌아오지 않는다. clip 이후 추가 redaction은
+# redundant이므로 두지 않는다.
 # Pattern order rationale:
 # - Family 내부에서 prefix가 겹치거나 가까운 패턴은 specific -> generic 순서로 둔다.
 #   Anthropic/OpenAI API keys: `sk-ant-...` before generic `sk-...`.
@@ -124,10 +124,9 @@ run_with_timeout() {
 # - Redaction marker 자체는 다른 secret 패턴과 매칭되지 않으므로 후속 패턴에 의해 재치환되지 않는다.
 # jq 부재 시 fail-closed: 빈 문자열 반환하여 본문이 외부로 전송되지 않도록 한다.
 # extract_last_assistant_text/normalize_reply 등 다른 jq 의존 함수도 jq 부재 시 결과가 약화되므로 일관.
-# (Auditor Security-2 반영: jq 없으면 redaction이 적용되지 않은 원문이 Pushover로 전송되는 fail-open 차단.)
 # JWT pattern: header/payload base64url segment는 JSON `{` 시작 인코딩이라 첫 두 글자가 `e[wy]`
 # (`eyJ`/`eyA`/`ewo` 등 포함). whitespace JSON header 변형(`{ "...`)도 매칭하도록 prefix를 넓힌다.
-# Shared helper body mirrored between Codex/Claude stop-notification.sh; test 6.4 enforces this marked block only.
+# Shared helper body mirrored between Codex/Claude stop-notification.sh; helper-equivalence test enforces this marked block only.
 # === HELPER_BEGIN: redact_secrets ===
 redact_secrets() {
   local s="$1"
@@ -212,7 +211,7 @@ fi
 
 LAST_REPLY="$(extract_last_assistant_text "$TRANSCRIPT_PATH")"
 LAST_REPLY="$(normalize_reply "$LAST_REPLY")"
-# 1차 redaction: clip 전 원본에서 secret 마스킹 (issue #589).
+# clip 전 원본에서 secret 마스킹.
 LAST_REPLY="$(redact_secrets "$LAST_REPLY")"
 
 # 응답 텍스트가 있으면 본문에 포함, 없으면 기존 컨텍스트만 전송

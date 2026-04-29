@@ -3,7 +3,7 @@
 # to avoid duplicate Pushover notifications. Original lacks `set -euo pipefail`
 # so guard placed immediately after shebang, before all real work
 # (locale export, function defs, stdin parse).
-# Keep in sync with ~/.claude/hooks/stop-notification.sh (issue #585).
+# Keep in sync with ~/.claude/hooks/stop-notification.sh.
 if [ "${CLAUDECODE:-}" = "1" ] || [ "${CODEX_PROGRAMMATIC:-}" = "1" ]; then
   exit 0
 fi
@@ -23,13 +23,13 @@ export LC_ALL=en_US.UTF-8
 # Pushover 메시지 최대 길이
 MAX_MESSAGE_CHARS=1024
 
-# 외부 통신 타임아웃 — issue #585 DA MNT-3.
+# 외부 통신 타임아웃.
 # Hammerspoon hs.notify는 macOS 로컬 IPC라 빠르고 hang 시 짧은 cutoff(2s)로 fallback에 위임.
 # Pushover는 외부 HTTPS POST라 네트워크 jitter 여유로 4s.
 HS_NOTIFY_TIMEOUT_SECONDS=2
 PUSHOVER_TIMEOUT_SECONDS=4
 
-# Transcript 파일이 완전히 기록될 때까지 대기 — issue #585 DA MNT-2.
+# Transcript 파일이 완전히 기록될 때까지 대기.
 # Race condition 방어: Stop hook이 transcript flush보다 먼저 실행되는 경우
 # 폴링하여 안정화 감지. POLL_INTERVAL × MAX_POLLS = 최대 대기 시간 (현재 3초).
 TRANSCRIPT_STABLE_POLL_INTERVAL_SECONDS=0.3
@@ -109,15 +109,15 @@ normalize_reply() {
   fi
 }
 
-# Hammerspoon 호출 timeout wrapper (issue #589).
+# Hammerspoon 호출 timeout wrapper.
 # macOS BSD coreutils에는 `timeout`이 없다. nix-darwin이 GNU coreutils를 PATH에 추가하면 정상이지만,
 # nix 없는 macOS는 `command not found (exit 127)`로 빠진다. 이 hook의 fail-open 패턴은
 # `timeout 2 hs -c "..." && HS_SENT=true || true` 형태라 exit 127이면 HS_SENT=false 유지 →
 # Pushover fallback으로 전이된다. helper는 `timeout` 부재 시 직접 실행 대신 `return 127`로 동일한
 # fail-open 신호를 유지하여 dispatcher hang을 방지한다. ask/plan-notification.sh 와 정책 일관성을
 # 위해 `gtimeout` 분기는 두지 않는다 — Homebrew coreutils 사용자도 ask/plan과 동일하게 Pushover
-# fallback으로 전이된다. (gtimeout 지원은 본 PR 외 follow-up 범위.)
-# Shared helper body mirrored between Codex/Claude stop-notification.sh; test 6.4 enforces this marked block only.
+# fallback으로 전이된다.
+# Shared helper body mirrored between Codex/Claude stop-notification.sh; helper-equivalence test enforces this marked block only.
 # === HELPER_BEGIN: run_with_timeout ===
 run_with_timeout() {
   local secs="$1"; shift
@@ -129,10 +129,10 @@ run_with_timeout() {
 }
 # === HELPER_END: run_with_timeout ===
 
-# Pushover 외부 전송 본문에서 알려진 secret pattern을 마스킹 (issue #589).
+# Pushover 외부 전송 본문에서 알려진 secret pattern을 마스킹.
 # 적용 시점: LAST_REPLY 추출 직후 — clip 전 원본에서 한 번 redact한다. clip은 LAST_REPLY를
-# 그대로 자르므로 redact가 clip 후 원본 secret으로 되돌아오지 않는다. (DA for_pr DESIGN-1
-# 반영: 1차 redaction만으로 충분하며 2차는 redundant.)
+# 그대로 자르므로 redact가 clip 후 원본 secret으로 되돌아오지 않는다. clip 이후 추가 redaction은
+# redundant이므로 두지 않는다.
 # Pattern order rationale:
 # - Family 내부에서 prefix가 겹치거나 가까운 패턴은 specific -> generic 순서로 둔다.
 #   Anthropic/OpenAI API keys: `sk-ant-...` before generic `sk-...`.
@@ -141,10 +141,9 @@ run_with_timeout() {
 # - Redaction marker 자체는 다른 secret 패턴과 매칭되지 않으므로 후속 패턴에 의해 재치환되지 않는다.
 # jq 부재 시 fail-closed: 빈 문자열 반환하여 본문이 외부로 전송되지 않도록 한다.
 # extract_last_assistant_text/normalize_reply 등 다른 jq 의존 함수도 jq 부재 시 결과가 약화되므로 일관.
-# (Auditor Security-2 반영: jq 없으면 redaction이 적용되지 않은 원문이 Pushover로 전송되는 fail-open 차단.)
 # JWT pattern: header/payload base64url segment는 JSON `{` 시작 인코딩이라 첫 두 글자가 `e[wy]`
 # (`eyJ`/`eyA`/`ewo` 등 포함). whitespace JSON header 변형(`{ "...`)도 매칭하도록 prefix를 넓힌다.
-# Shared helper body mirrored between Codex/Claude stop-notification.sh; test 6.4 enforces this marked block only.
+# Shared helper body mirrored between Codex/Claude stop-notification.sh; helper-equivalence test enforces this marked block only.
 # === HELPER_BEGIN: redact_secrets ===
 redact_secrets() {
   local s="$1"
@@ -161,7 +160,7 @@ redact_secrets() {
 }
 # === HELPER_END: redact_secrets ===
 
-# Codex 0.124+ session JSONL transcript에서 마지막 assistant 텍스트 응답 추출 (issue #589).
+# Codex 0.124+ session JSONL transcript에서 마지막 assistant 텍스트 응답 추출.
 # Codex schema: `type=response_item` / `payload.type=message` / `payload.role=assistant` /
 # `payload.content[].type=output_text`. last_assistant_message가 빈 fallback 진입 시 사용.
 # 이 hook은 Codex 사본이므로 Codex schema만 처리한다 (Claude transcript는 Claude 원본 hook이 처리).
@@ -212,8 +211,8 @@ fi
 
 # Stop hook stdin에서 transcript_path / last_assistant_message 읽기.
 # Codex 0.124+ Stop input은 last_assistant_message를 직접 제공하므로 우선 사용한다
-# (Claude transcript JSONL parser는 Codex JSONL schema와 호환되지 않음, issue #585 DA C-1).
-# Codex stdin에 agent_id 키는 없으므로 (openai/codex#16226) subagent guard는 적용하지 않는다.
+# (Claude transcript JSONL parser는 Codex JSONL schema와 호환되지 않으므로 fallback path도 별개로 둔다).
+# Codex stdin에 agent_id 키는 없으므로 subagent guard는 적용하지 않는다.
 INPUT=""
 TRANSCRIPT_PATH=""
 DIRECT_REPLY=""
@@ -237,7 +236,7 @@ else
   LAST_REPLY="$(extract_last_assistant_text "$TRANSCRIPT_PATH")"
 fi
 LAST_REPLY="$(normalize_reply "$LAST_REPLY")"
-# 1차 redaction: clip 전 원본에서 secret 마스킹 (issue #589).
+# clip 전 원본에서 secret 마스킹.
 LAST_REPLY="$(redact_secrets "$LAST_REPLY")"
 
 # 응답 텍스트가 있으면 본문에 포함, 없으면 기존 컨텍스트만 전송
