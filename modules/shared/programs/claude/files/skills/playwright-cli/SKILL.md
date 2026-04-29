@@ -283,13 +283,16 @@ playwright-cli kill-all
 
 ## Installation
 
-If global `playwright-cli` command is not available, try a local version via `npx playwright-cli`:
+If global `playwright-cli` command is not available, try a local version via `npx --no-install playwright-cli`:
 
 ```bash
+# Availability check
 npx --no-install playwright-cli --version
 ```
 
-When local version is available, use `npx playwright-cli` in all commands. Global installation in this repo is declaration-managed (nix-darwin Homebrew: `brews = [ "playwright-cli" ]` in `modules/darwin/programs/homebrew.nix`).
+When local version is available, use `npx --no-install playwright-cli` as the command prefix in all examples (substitute it for `playwright-cli` everywhere in this skill). The `--no-install` flag prevents npx from auto-fetching the package; combined with the availability check above, it makes the fallback deterministic when the package is locally cached.
+
+Global installation in this repo is declaration-managed (nix-darwin Homebrew: `brews = [ "playwright-cli" ]` in `modules/darwin/programs/homebrew.nix`).
 
 ## Example: Form submission
 
@@ -337,7 +340,7 @@ playwright-cli close
 
 ## 런타임 환경 전제
 
-이 스킬은 `playwright-cli` 또는 `npx playwright-cli` 중 하나가 동작하는 호스트 환경에서만 실행 가능하다. 본 repo의 global `playwright-cli`는 nix-darwin Homebrew(`brews = [ "playwright-cli" ]` in `modules/darwin/programs/homebrew.nix`)로 설치되므로 macOS 호스트에서만 PATH에 노출된다. NixOS 또는 다른 호스트에서는 위 Installation 섹션의 `npx --no-install playwright-cli` fallback 경로가 우선 — `npx`도 사용 불가하면 `playwright-cli: command not found`로 실패한다.
+이 스킬은 global `playwright-cli` 또는 `npx --no-install playwright-cli` 중 하나가 동작하는 호스트 환경에서만 실행 가능하다. 본 repo의 global `playwright-cli`는 nix-darwin Homebrew(`brews = [ "playwright-cli" ]` in `modules/darwin/programs/homebrew.nix`)로 설치되므로 macOS 호스트에서만 PATH에 노출된다. NixOS 또는 다른 호스트에서는 위 Installation 섹션의 `npx --no-install playwright-cli` fallback 경로가 우선 — `npx`도 사용 불가하거나 패키지가 local cache에 없으면 `playwright-cli: command not found`로 실패한다.
 
 AI 에이전트 세션 종류(Claude Code · Codex CLI · headless)와 무관하게, 본 스킬의 모든 명령은 호스트 환경에 위 두 경로 중 하나가 활성화되어 있어야 동작한다.
 

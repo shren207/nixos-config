@@ -165,7 +165,9 @@ ARGS=()
 ARGS+=(--plugin-install-path="$INSTALL_PATH:$PLUGIN_NAME")
 
 # user-scope MCP까지 함께 투영하고 싶을 때 (선택)
-ARGS+=(--user-mcp="$HOME/.claude/mcp.json")
+# 빠른 참조와 동일하게 source 파일 존재 가드를 둔다 — sync.sh는 source 부재 시
+# 빈 MCP TOML로 진행해 ~/.codex/config.toml의 기존 [mcp_servers.*]를 silent 삭제한다.
+[ -f "$HOME/.claude/mcp.json" ] && ARGS+=(--user-mcp="$HOME/.claude/mcp.json")
 
 # 프로젝트에 CLAUDE.md가 없고, 플러그인이 CLAUDE.md를 제공하는 경우
 [ ! -e "CLAUDE.md" ] && [ -f "$INSTALL_PATH/CLAUDE.md" ] && \
