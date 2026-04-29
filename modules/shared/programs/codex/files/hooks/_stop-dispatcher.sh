@@ -24,6 +24,13 @@
 set -u
 INPUT=$(cat)
 
+# Sub-script 경로를 dispatcher 시작 시점에 한 번 resolve한다.
+# nrs-session-cleanup이 lock을 풀고 stop-notification이 시작되는 사이에 다른 worktree의 nrs가
+# rebuild + nrs-relink로 ~/.codex/hooks/* symlink를 다른 worktree로 relink할 수 있다.
+# rebuild 자체는 stop-notification 호출 ms 안에 끝날 수 없지만, 실행 hook을 호출 시점이 아닌
+# dispatcher 진입 시점에 고정해 hook 사본 일관성을 구조적으로 보장한다.
+HOOKS_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+
 run_hook() {
   local name="$1"
   local path="$2"
@@ -32,8 +39,8 @@ run_hook() {
   fi
 }
 
-run_hook record-last-stop      "$HOME/.codex/hooks/record-last-stop.sh"      # 1번: 타임스탬프 first-write
-run_hook nrs-session-cleanup   "$HOME/.codex/hooks/nrs-session-cleanup.sh"   # 2번: nrs lock 즉시 해제 (notification 외부 IPC 차단 회피)
-run_hook stop-notification     "$HOME/.codex/hooks/stop-notification.sh"     # 3번: Pushover/Hammerspoon 알림
+run_hook record-last-stop      "$HOOKS_DIR/record-last-stop.sh"      # 1번: 타임스탬프 first-write
+run_hook nrs-session-cleanup   "$HOOKS_DIR/nrs-session-cleanup.sh"   # 2번: nrs lock 즉시 해제 (notification 외부 IPC 차단 회피)
+run_hook stop-notification     "$HOOKS_DIR/stop-notification.sh"     # 3번: Pushover/Hammerspoon 알림
 
 exit 0
