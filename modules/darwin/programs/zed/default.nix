@@ -138,6 +138,11 @@ in
     if [ "$skipped" -gt 0 ]; then
       echo "  ⚠️  Skipped $skipped of $total extensions rejected by duti (first: $first_failure → $first_failure_err)"
     fi
+    # Catastrophic case: 모든 codeExtensions 실패 + 모든 public.* 실패 — bundle id 오류,
+    # Zed 미설치, duti 자체 고장 같은 설정 오류 신호. activation은 통과시키되 즉시 보임.
+    if [ "$total" -gt 0 ] && [ "$skipped" -eq "$total" ] && [ "$public_uti_failed" -eq 2 ]; then
+      echo "  🚨 Critical: all duti registrations failed — likely incorrect bundle id, Zed not installed, or duti broken"
+    fi
     if [ "$public_uti_failed" -gt 0 ]; then
       echo "Zed default settings applied with warnings ($public_uti_failed public UTI registration failed)."
     else
