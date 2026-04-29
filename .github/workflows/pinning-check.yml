@@ -226,19 +226,23 @@ jobs:
             }
 
             const target = targetFromPayload();
-            if (target.isFork) {
-              core.warning('Fork pull requests are not supported by this repository workflow; skipping pinning check.');
-              return;
+            const canComment = !target.isFork;
+            if (!canComment) {
+              core.warning('Fork pull request detected; scanning body but skipping comment writes.');
             }
 
             const rules = await loadRules(target.ref);
             const findings = scanText(target.body, rules);
             if (findings.length === 0) {
-              await resolveComment(target, renderResolvedComment(target, rules));
+              if (canComment) {
+                await resolveComment(target, renderResolvedComment(target, rules));
+              }
               core.info(`No pinning findings in ${target.type} #${target.number}`);
               return;
             }
 
             const comment = renderComment(target, findings, rules);
-            await upsertComment(target, comment);
+            if (canComment) {
+              await upsertComment(target, comment);
+            }
             core.setFailed(`Pinning findings: ${findings.length} in ${target.type} #${target.number}`);

@@ -264,7 +264,84 @@ const bare = rules.rules.find((rule) => rule.id === 'bare_issue_ref');
 const bareRe = new RegExp(bare.matchers.js_regex);
 if (bareRe.test(scrub('Closes #600'))) throw new Error('closing refs should be scrubbed');
 if (bareRe.test(scrub('see owner/repo#600'))) throw new Error('cross-repo refs should be scrubbed');
-if (!bareRe.test(scrub('see #600'))) throw new Error('bare same-repo ref should match');
+  if (!bareRe.test(scrub('see #600'))) throw new Error('bare same-repo ref should match');
+NODE
+
+  node - "$script_file" "$RULES" <<'NODE'
+const fs = require('fs');
+const vm = require('vm');
+
+const script = fs.readFileSync(process.argv[2], 'utf8');
+const rules = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
+let commentWriteCount = 0;
+let requestedRef = null;
+const context = {
+  repo: { owner: 'owner', repo: 'repo' },
+  payload: {
+    pull_request: {
+      number: 123,
+      body: 'DA round 2',
+      head: { repo: { full_name: 'fork/repo' } },
+      base: { sha: 'trusted-base-sha', repo: { full_name: 'owner/repo' } },
+    },
+  },
+};
+const core = {
+  failed: null,
+  infos: [],
+  warnings: [],
+  info(message) { this.infos.push(message); },
+  warning(message) { this.warnings.push(message); },
+  setFailed(message) { this.failed = message; },
+};
+const github = {
+  rest: {
+    repos: {
+      getContent: async ({ ref }) => {
+        requestedRef = ref;
+        return {
+          data: {
+            type: 'file',
+            encoding: 'base64',
+            content: Buffer.from(JSON.stringify(rules), 'utf8').toString('base64'),
+          },
+        };
+      },
+    },
+    issues: {
+      updateComment: async () => { commentWriteCount += 1; },
+      createComment: async () => { commentWriteCount += 1; },
+      listComments: async () => ({ data: [] }),
+    },
+  },
+  paginate: {
+    iterator: async function* iterator() {
+      yield { data: [] };
+    },
+  },
+};
+
+(async () => {
+  await vm.runInNewContext(`(async () => {\n${script}\n})()`, {
+    Buffer,
+    context,
+    core,
+    github,
+  });
+
+  if (requestedRef !== 'trusted-base-sha') {
+    throw new Error(`fork PR rules must load from trusted base sha, got ${requestedRef}`);
+  }
+  if (!core.failed || !core.failed.includes('Pinning findings:')) {
+    throw new Error(`fork PR body findings must hard-fail, got ${core.failed}`);
+  }
+  if (commentWriteCount !== 0) {
+    throw new Error(`fork PR must not write comments, wrote ${commentWriteCount}`);
+  }
+})().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
 NODE
 }
 
