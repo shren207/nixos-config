@@ -107,7 +107,7 @@
 
 ### Notes (선택)
 - 추가 참고사항이 있는 경우에만 포함
-- 관련 이슈는 `#번호` 형식으로 참조
+- 관련 이슈는 URL 또는 `owner/repo#N` 형식으로 참조. 같은 repo bare 번호는 closing keyword 또는 inline allowlist 사유가 있을 때만 사용
 - YAGNI 판단 근거, 선행 조건, 위험 요소 등 기재
 
 ## 작성 예시
