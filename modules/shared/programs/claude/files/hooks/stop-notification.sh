@@ -122,14 +122,16 @@ run_with_timeout() {
 #   GitHub tokens: fine-grained PAT `github_pat_...` before classic `gh[opsu]_...`.
 # - Family 간 overlap이 없는 JWT/AWS access key 패턴은 redaction test fixture의 family 순서를 따른다.
 # - Redaction marker 자체는 다른 secret 패턴과 매칭되지 않으므로 후속 패턴에 의해 재치환되지 않는다.
-# jq 부재 시 fallback은 원본 반환 (현재 hook의 jq 의존 정책과 일관).
+# jq 부재 시 fail-closed: 빈 문자열 반환하여 본문이 외부로 전송되지 않도록 한다.
+# extract_last_assistant_text/normalize_reply 등 다른 jq 의존 함수도 jq 부재 시 결과가 약화되므로 일관.
+# (Auditor Security-2 반영: jq 없으면 redaction이 적용되지 않은 원문이 Pushover로 전송되는 fail-open 차단.)
 # JWT pattern: header/payload base64url segment는 JSON `{` 시작 인코딩이라 첫 두 글자가 `e[wy]`
 # (`eyJ`/`eyA`/`ewo` 등 포함). whitespace JSON header 변형(`{ "...`)도 매칭하도록 prefix를 넓힌다.
 # Shared helper body mirrored between Codex/Claude stop-notification.sh; test 6.4 enforces this marked block only.
 # === HELPER_BEGIN: redact_secrets ===
 redact_secrets() {
   local s="$1"
-  command -v jq >/dev/null 2>&1 || { printf '%s' "$s"; return 0; }
+  command -v jq >/dev/null 2>&1 || { return 0; }
   jq -Rrn --arg s "$s" '
     $s
     | gsub("sk-ant-[a-zA-Z0-9_-]{20,}"; "***REDACTED***")
@@ -138,7 +140,7 @@ redact_secrets() {
     | gsub("gh[opsu]_[A-Za-z0-9_]{36,}"; "***REDACTED***")
     | gsub("e[wy][A-Za-z0-9_-]{8,}\\.e[wy][A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{10,}"; "***REDACTED***")
     | gsub("A[KS]IA[0-9A-Z]{16}"; "***REDACTED***")
-  ' 2>/dev/null || printf '%s' "$s"
+  ' 2>/dev/null
 }
 # === HELPER_END: redact_secrets ===
 

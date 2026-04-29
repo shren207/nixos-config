@@ -2,12 +2,13 @@
 # tests/test-codex-hook-fixtures.sh
 # Codex 0.124+ stable hook 회귀 차단 fixture runner.
 #
-# 5 카테고리:
+# 6 카테고리:
 #   1. stdin schema baseline 0.124       — fixtures/codex-hooks/stdin/*.json
 #   2. dispatcher ordering / failure recovery — runner 내부 mock subscript
 #   3. noise-guard env 변형              — runner 내부 helper (4 env 조합)
 #   4. sync-codex-config.py preservation — fixtures/codex-hooks/sync-preservation/*.toml
 #   5. env propagation (live opt-in)      — CODEX_HOOK_LIVE=1 / --live
+#   6. stop-notification reliability/security (issue #589) — transcripts/ + stdin secret/transcript fixtures
 #
 # nrs-session-cleanup.sh는 NRS_LOCK_FILE을 하드코딩하므로 (host /tmp/nrs-state 누수 위험)
 # fixture는 real script를 직접 호출하지 않고 mock subscript로 대체한다.
@@ -465,7 +466,7 @@ _sync_preservation_run_one() {
 }
 
 test_sync_preservation_scenarios() {
-  # tomlkit이 없으면 sync-codex-config.py가 sync 모드에서 fail하므로 5 카테고리 중 한 카테고리가
+  # tomlkit이 없으면 sync-codex-config.py가 sync 모드에서 fail하므로 sync-preservation 카테고리가
   # 누락된 상태로 "All passed"가 출력될 위험이 있다. hard fail로 회귀 차단.
   if ! python3 -c 'import tomlkit' >/dev/null 2>&1; then
     fail "tomlkit 미가용 — pre-commit/pre-push hook 또는 'nix shell .#pythonWithTomlkit' 환경에서 실행 필요"
