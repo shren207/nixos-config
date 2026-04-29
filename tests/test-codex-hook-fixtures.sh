@@ -599,7 +599,8 @@ test_stop_notification_secret_redaction() {
     "gh-classic-gho:gho_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789"
     "gh-classic-ghu:ghu_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789"
     "github-pat:github_pat_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789aBcDeFgHiJkL"
-    "jwt:eyJabc.eyJdef.signature_segment"
+    "jwt-standard:eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEyMzR9.signature_segment_xyz"
+    "jwt-whitespace-header:eyAhbGciOiJIUzI1NiJ9.eyJzdWIiOjEyMzR9.whitespace_jwt_var"
     "aws-akia:AKIA0123456789ABCDEF"
     "aws-asia:ASIA0123456789ABCDEF"
   )
@@ -617,12 +618,17 @@ test_stop_notification_secret_redaction() {
     || fail "[6.2] ***REDACTED*** 마커가 curl 인자에 등장하지 않음 (redaction 자체 실패 가능성)"
 }
 
-# 6.3 timeout 미가용 fail-open 검증.
-# bin-stubs에 timeout/gtimeout을 exit 127 stub으로 둬서 macOS BSD coreutils 환경(GNU coreutils 부재)
-# 시나리오를 시뮬레이션한다. run_with_timeout이 if branch에 진입하더라도 exit 127로 hs는 실행되지
-# 않고, 호출부 `&& HS_SENT=true || true`가 HS_SENT=false 유지 → Pushover fallback (curl mock 호출).
-# else branch(`return 127`)의 정적 동등성은 6.4 helper-equivalence 가 보장한다.
+# 6.3 timeout 미가용 fail-open 검증 (Darwin 전용).
+# bin-stubs에 timeout을 exit 127 stub으로 둬서 macOS BSD coreutils 환경(GNU coreutils 부재) 시나리오를
+# 시뮬레이션한다. hook의 run_with_timeout 호출은 `[[ "$OSTYPE" == darwin* ]] && command -v hs` 블록
+# 내부이므로 non-Darwin runner에서는 Hammerspoon 블록이 통째로 skip되어 검증 의미가 없다 → skip.
+# Darwin runner에서는 timeout stub의 exit 127로 HS_SENT=false 유지 → Pushover fallback (curl mock).
 test_stop_notification_timeout_unavailable_failopen() {
+  if [[ "$(uname -s)" != "Darwin" ]]; then
+    warn "[6.3] non-Darwin runner — Hammerspoon 블록 skip되므로 검증 의미 없음. skip."
+    return 0
+  fi
+
   local sandbox
   sandbox=$(new_hook_sandbox)
   install_pushover_mock_with_curl_log "$sandbox"
@@ -631,11 +637,7 @@ test_stop_notification_timeout_unavailable_failopen() {
 #!/usr/bin/env bash
 exit 127
 STUB
-  cat > "$sandbox/bin-stubs/gtimeout" <<'STUB'
-#!/usr/bin/env bash
-exit 127
-STUB
-  chmod +x "$sandbox/bin-stubs/timeout" "$sandbox/bin-stubs/gtimeout"
+  chmod +x "$sandbox/bin-stubs/timeout"
 
   run_hook_in_sandbox "$sandbox" "stop-notification.sh" \
     < "$FIXTURE_DIR/stdin/stop-codex-0.124.json" \
@@ -648,12 +650,14 @@ STUB
 # 6.4 양쪽 hook helper 블록 동등성 검증.
 # Codex 사본과 Claude 원본의 redact_secrets()/run_with_timeout() 함수 본문이 byte-for-byte
 # 동일함을 보장한다. hook이 cp 동기화 패턴이라 한쪽만 패턴 추가/regex 수정하는 drift를 차단.
+# Marker 기반 추출: helper 위/아래에 `# === HELPER_BEGIN: <name> ===` / `HELPER_END` 주석을 두고
+# 그 사이를 추출한다. 함수 선언부 포맷(공백/괄호 위치) 변화에 robust하다 (DA for_pr DESIGN-2 반영).
 _extract_function_block() {
   local file="$1" name="$2"
   awk -v name="$name" '
-    $0 == name "() {" { in_block = 1 }
+    $0 == "# === HELPER_BEGIN: " name " ===" { in_block = 1; next }
+    in_block && $0 == "# === HELPER_END: " name " ===" { in_block = 0; exit }
     in_block { print }
-    in_block && $0 == "}" { in_block = 0; exit }
   ' "$file"
 }
 

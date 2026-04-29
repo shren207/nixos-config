@@ -113,28 +113,33 @@ normalize_reply() {
 # macOS BSD coreutils에는 `timeout`이 없다. nix-darwin이 GNU coreutils를 PATH에 추가하면 정상이지만,
 # nix 없는 macOS는 `command not found (exit 127)`로 빠진다. 이 hook의 fail-open 패턴은
 # `timeout 2 hs -c "..." && HS_SENT=true || true` 형태라 exit 127이면 HS_SENT=false 유지 →
-# Pushover fallback으로 전이된다. helper는 두 후보(timeout/gtimeout) 모두 부재 시 직접 실행 대신
-# `return 127`로 동일한 fail-open 신호를 유지하여 dispatcher hang을 방지한다 (REGRESSION-1).
-# Keep in sync with claude/files/hooks/stop-notification.sh의 run_with_timeout() (test 6.4가 동등성 검증).
+# Pushover fallback으로 전이된다. helper는 `timeout` 부재 시 직접 실행 대신 `return 127`로 동일한
+# fail-open 신호를 유지하여 dispatcher hang을 방지한다. ask/plan-notification.sh 와 정책 일관성을
+# 위해 `gtimeout` 분기는 두지 않는다 — Homebrew coreutils 사용자도 ask/plan과 동일하게 Pushover
+# fallback으로 전이된다. (gtimeout 지원은 본 PR 외 follow-up 범위.)
+# Codex/Claude copies of stop-notification.sh — enforced by test 6.4 (helper equivalence).
+# === HELPER_BEGIN: run_with_timeout ===
 run_with_timeout() {
   local secs="$1"; shift
   if command -v timeout >/dev/null 2>&1; then
     timeout "$secs" "$@"
-  elif command -v gtimeout >/dev/null 2>&1; then
-    gtimeout "$secs" "$@"
   else
     return 127
   fi
 }
+# === HELPER_END: run_with_timeout ===
 
 # Pushover 외부 전송 본문에서 알려진 secret pattern을 마스킹 (issue #589).
-# 적용 시점은 두 곳:
-#   1) LAST_REPLY 추출 직후 — clip 전 원본에서 redact (긴 토큰 prefix가 잘려 매칭 실패하는 문제 차단)
-#   2) 최종 MESSAGE clip 후 — 방어적 2차 redact
+# 적용 시점: LAST_REPLY 추출 직후 — clip 전 원본에서 한 번 redact한다. clip은 LAST_REPLY를
+# 그대로 자르므로 redact가 clip 후 원본 secret으로 되돌아오지 않는다. (DA for_pr DESIGN-1
+# 반영: 1차 redaction만으로 충분하며 2차는 redundant.)
 # Pattern order rationale: 더 specific한 prefix(sk-ant-, github_pat_)를 먼저 적용한다. ***REDACTED***
 # 토큰 자체는 다른 패턴과 매칭되지 않으므로 후속 패턴에 의해 재치환되지 않는다.
 # jq 부재 시 fallback은 원본 반환 (현재 hook의 jq 의존 정책과 일관).
-# Keep in sync with claude/files/hooks/stop-notification.sh의 redact_secrets() (test 6.4가 동등성 검증).
+# JWT pattern: header/payload base64url segment는 JSON `{` 시작 인코딩이라 첫 두 글자가 `e[wy]`
+# (`eyJ`/`eyA`/`ewo` 등 포함). whitespace JSON header 변형(`{ "...`)도 매칭하도록 prefix를 넓힌다.
+# Codex/Claude copies of stop-notification.sh — enforced by test 6.4 (helper equivalence).
+# === HELPER_BEGIN: redact_secrets ===
 redact_secrets() {
   local s="$1"
   command -v jq >/dev/null 2>&1 || { printf '%s' "$s"; return 0; }
@@ -144,16 +149,16 @@ redact_secrets() {
     | gsub("sk-[a-zA-Z0-9_-]{20,}"; "***REDACTED***")
     | gsub("github_pat_[A-Za-z0-9_]{82,}"; "***REDACTED***")
     | gsub("gh[opsu]_[A-Za-z0-9_]{36,}"; "***REDACTED***")
-    | gsub("eyJ[A-Za-z0-9_-]+\\.eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+"; "***REDACTED***")
+    | gsub("e[wy][A-Za-z0-9_-]{8,}\\.e[wy][A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{10,}"; "***REDACTED***")
     | gsub("A[KS]IA[0-9A-Z]{16}"; "***REDACTED***")
   ' 2>/dev/null || printf '%s' "$s"
 }
+# === HELPER_END: redact_secrets ===
 
-# transcript(JSONL)에서 마지막 assistant 텍스트 응답 추출.
-# Codex 0.124+ session JSONL은 `type=response_item` / `payload.role=assistant` /
-# `payload.content[].type=output_text` 형태이고, Claude session JSONL은
-# `type=assistant` / `message.content[].type=text` 형태다 (issue #589). last_assistant_message가
-# 빈 fallback 진입 시 두 schema 어느 쪽이든 처리 가능하도록 Codex schema 우선 + Claude schema fallback.
+# Codex 0.124+ session JSONL transcript에서 마지막 assistant 텍스트 응답 추출 (issue #589).
+# Codex schema: `type=response_item` / `payload.type=message` / `payload.role=assistant` /
+# `payload.content[].type=output_text`. last_assistant_message가 빈 fallback 진입 시 사용.
+# 이 hook은 Codex 사본이므로 Codex schema만 처리한다 (Claude transcript는 Claude 원본 hook이 처리).
 extract_last_assistant_text() {
   local transcript_path="$1"
 
@@ -161,8 +166,7 @@ extract_last_assistant_text() {
   [ -f "$transcript_path" ] || return 0
   command -v jq >/dev/null 2>&1 || return 0
 
-  local codex_text claude_text
-  codex_text=$(jq -Rrs '
+  jq -Rrs '
     split("\n")
     | map(select(length > 0) | fromjson?)
     | map(
@@ -178,31 +182,7 @@ extract_last_assistant_text() {
       )
     | map(select(length > 0))
     | last // ""
-  ' "$transcript_path" 2>/dev/null || true)
-
-  if [ -n "$codex_text" ]; then
-    printf '%s' "$codex_text"
-    return 0
-  fi
-
-  claude_text=$(jq -Rrs '
-    split("\n")
-    | map(select(length > 0) | fromjson?)
-    | map(
-        select(.type == "assistant")
-        | (
-            if ((.message | type) == "object") and ((.message.content | type) == "array") then
-              [ .message.content[]? | select(.type == "text") | .text ] | join("\n")
-            else
-              ""
-            end
-          )
-      )
-    | map(select(length > 0))
-    | last // ""
-  ' "$transcript_path" 2>/dev/null || true)
-
-  printf '%s' "$claude_text"
+  ' "$transcript_path" 2>/dev/null || true
 }
 
 # --- 정보 수집 ---
@@ -280,8 +260,6 @@ fi
 
 # 최종 안전망: 전체 메시지 1024자 상한 보장
 MESSAGE="$(clip_tail_chars "$MESSAGE" "$MAX_MESSAGE_CHARS")"
-# 2차 방어적 redaction: clip이 secret prefix를 잘라 1차에서 누락했을 가능성을 보강.
-MESSAGE="$(redact_secrets "$MESSAGE")"
 
 # === Change Intent Record: 중복 알림 해소 ===
 # v1 (초기): Pushover와 hs.notify를 독립 실행 → 개인맥북에서 2중 알림(폰+데스크탑)으로 알림 피로 발생
