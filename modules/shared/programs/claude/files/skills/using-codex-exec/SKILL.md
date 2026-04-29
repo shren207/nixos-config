@@ -139,7 +139,7 @@ error: the argument '--base <BRANCH>' cannot be used with '--uncommitted'
 ## 입력 방법
 
 표 안의 모든 `codex exec` 호출에는 `env CODEX_PROGRAMMATIC=1`을 codex 프로세스에 적용한다 (issue #585: Codex 0.124+ user-level hooks의 early-exit 신호).
-감사·리뷰처럼 외부 plugin surface가 필요 없는 subprocess에는 `--disable plugins`를 함께 붙인다. 이 플래그는 plugin 제공 스킬/도구만 줄이며 `.agents/skills`와 `~/.codex/skills`의 로컬 스킬은 유지한다. user-global skills까지 격리해야 하는 감사 subprocess는 `CODEX_HOME=$(mktemp -d ...)`를 만들고 기존 `auth.json`만 복사한 뒤 그 `CODEX_HOME`으로 실행한다.
+감사·리뷰처럼 외부 plugin surface가 필요 없는 subprocess에는 `--disable plugins`를 함께 붙인다. 이 플래그는 plugin 제공 스킬/도구만 줄이며 `.agents/skills`와 `~/.codex/skills`의 로컬 스킬은 유지한다. user-global skills까지 격리해야 하는 감사 subprocess는 `SOURCE_CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"`를 먼저 저장하고 `EXEC_CODEX_HOME=$(mktemp -d ...)`로 새 home을 만든 뒤, 기존 `auth.json`만 복사해 `env CODEX_HOME="$EXEC_CODEX_HOME" ...`로 실행한다.
 
 | 방법 | 예시 |
 |------|------|
