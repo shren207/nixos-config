@@ -162,7 +162,7 @@ sudo copyparty-update             # 실제 업데이트 (pull → digest 비교 
 
 - `sudo`로 systemd/podman/agenix 명령 실행 (호스트 sudoers 등록 필요)
 - Tailscale VPN 내부에서 `https://copyparty.greenhead.dev` 도달
-- agenix decrypt가 가능한 host private key (`/run/agenix/copyparty-password`)
+- agenix가 호스트의 identity key(`/home/<user>/.ssh/id_ed25519`)로 복호화한 secret 파일(`/run/agenix/copyparty-password`) 접근 권한
 - Podman socket / `podman-<container>.service` systemd unit 권한
 
 따라서 본 스킬을 macOS Codex 세션이나 다른 호스트에서 호출하면 명령이 작동하지 않는다. 호스트 환경에서의 동작만 본 스킬의 보장 범위다.

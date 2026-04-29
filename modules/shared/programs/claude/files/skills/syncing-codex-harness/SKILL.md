@@ -4,6 +4,7 @@ description: |
   Sync Claude Code harness to Codex CLI via sync.sh.
   Trigger: 'codex sync', 'codex 동기화', '하네스 동기화', 'sync.sh'.
   NOT for codex exec (use using-codex-exec).
+allowed-tools: Bash(*)
 ---
 
 # Claude Code -> Codex CLI Harness Sync
@@ -28,8 +29,9 @@ Codex CLI 호환 구조(`.agents/`, `.codex/`)로 프로젝션한다.
 > `mcp-config`는 source 옵션 (`--project-mcp` / `--plugin-mcp` / `--user-mcp`) 중 적어도 하나가
 > 필요하다. source 없이 호출하면 새 MCP TOML이 비어 `replace_mcp_sections`가 기존
 > `[mcp_servers.*]` 섹션을 모두 제거한다 (`references/sync.sh`의 mcp-config 경로 참조).
-> `project-skills`는 `<source-skills-dir> <target-skills-dir>` 두 인자를 모두 명시해야 하며,
-> 한 인자로 호출하면 투영이 0개로 끝난다.
+> `project-skills`는 `<source-skills-dir> <target-skills-dir>` 두 인자를 모두 명시해야 한다.
+> `sync.sh`는 `set -u` 아래에서 동작하므로 한 인자만 넘기면 즉시 `unbound variable`로
+> 실패하고 종료한다 (투영이 0개로 끝나는 게 아니라 실행 자체가 멈춘다).
 
 `sync.sh` 스크립트 경로: 현재 SKILL.md가 위치한 디렉토리의 `references/sync.sh`를 사용하라.
 예: 이 SKILL.md의 실제 경로가 `~/.claude/skills/syncing-codex-harness/SKILL.md`이면

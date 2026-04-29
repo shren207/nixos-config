@@ -1,6 +1,7 @@
 ---
 name: playwright-cli
 description: Automate browser interactions, test web pages and work with Playwright tests.
+allowed-tools: Bash(playwright-cli:*) Bash(npx:*)
 ---
 
 # Browser Automation with playwright-cli
@@ -336,9 +337,9 @@ playwright-cli close
 
 ## Non-goals (런타임 환경 제약)
 
-이 스킬은 `playwright-cli` 바이너리가 PATH에 있는 환경에서만 실행 가능하다. 본 repo의 `playwright-cli`는 nix-darwin Homebrew(`brews = [ "playwright-cli" ]` in `modules/darwin/programs/homebrew.nix`)로 설치되므로 **macOS 호스트 전용**이다. NixOS 또는 다른 호스트에서 본 스킬을 호출하면 `playwright-cli: command not found`로 실패한다 (대안 검색은 `npx playwright-cli` fallback 절차 참조).
+이 스킬은 `playwright-cli` 또는 `npx playwright-cli` 중 하나가 동작하는 호스트 환경에서만 실행 가능하다. 본 repo의 global `playwright-cli`는 nix-darwin Homebrew(`brews = [ "playwright-cli" ]` in `modules/darwin/programs/homebrew.nix`)로 설치되므로 macOS 호스트에서만 PATH에 노출된다. NixOS 또는 다른 호스트에서는 위 Installation 섹션의 `npx --no-install playwright-cli` fallback 경로가 우선 — `npx`도 사용 불가하면 `playwright-cli: command not found`로 실패한다.
 
-AI 에이전트 세션 종류(Claude Code · Codex CLI · headless)와 무관하게, 본 스킬의 모든 명령은 호스트 환경에 `playwright-cli`가 활성화되어 있어야 동작한다.
+AI 에이전트 세션 종류(Claude Code · Codex CLI · headless)와 무관하게, 본 스킬의 모든 명령은 호스트 환경에 위 두 경로 중 하나가 활성화되어 있어야 동작한다.
 
 ## Specific tasks
 

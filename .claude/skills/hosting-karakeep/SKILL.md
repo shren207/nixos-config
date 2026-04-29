@@ -137,7 +137,7 @@ OpenAI 키가 있으면 inference worker가 자동 태깅/요약을 수행한다
 
 - `sudo`로 systemd/podman 명령 실행 (호스트 sudoers 등록 필요)
 - Tailscale VPN 내부에서 `https://archive.greenhead.dev` 도달
-- agenix decrypt가 가능한 host private key (`/run/agenix/karakeep-*`)
+- agenix가 호스트의 identity key(`/home/<user>/.ssh/id_ed25519`)로 복호화한 secret 파일(`/run/agenix/karakeep-*`) 접근 권한
 - 3컨테이너 Podman 네트워크(`karakeep-network`) 권한 + OpenAI/Meilisearch 외부 의존
 
 본 스킬을 macOS Codex 세션 등 다른 호스트에서 호출하면 명령이 작동하지 않는다.
