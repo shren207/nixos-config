@@ -178,7 +178,8 @@ test_workflow_static_and_js() {
   ruby -e 'require "yaml"; YAML.load_file(ARGV[0])' "$WORKFLOW"
   grep -q 'contents: read' "$WORKFLOW" || fail "workflow missing contents: read"
   grep -q 'issues: write' "$WORKFLOW" || fail "workflow missing issues: write"
-  grep -q 'pull-requests: write' "$WORKFLOW" || fail "workflow missing pull-requests: write"
+  ! grep -q 'pull-requests: write' "$WORKFLOW" || fail "workflow must not request pull-requests: write"
+  grep -Eq 'uses: actions/github-script@[0-9a-f]{40}' "$WORKFLOW" || fail "workflow action must be pinned to full commit SHA"
   grep -q 'pull.base.sha' "$WORKFLOW" || fail "workflow must load PR rules from base sha"
   grep -q 'getContent' "$WORKFLOW" || fail "workflow must load rules through GitHub API"
   ! grep -q 'actions/checkout' "$WORKFLOW" || fail "workflow must not read rules from PR checkout"
@@ -196,7 +197,12 @@ test_workflow_static_and_js() {
   grep -q 'function scanText' "$script_file" || fail "workflow JS missing scanText boundary"
   grep -q 'function isSameLineAllowed' "$script_file" || fail "workflow JS missing allowlist boundary"
   grep -q 'function renderComment' "$script_file" || fail "workflow JS missing renderComment boundary"
+  grep -q 'function renderResolvedComment' "$script_file" || fail "workflow JS missing resolved comment boundary"
+  grep -q 'async function findPreviousComment' "$script_file" || fail "workflow JS missing previous comment lookup boundary"
   grep -q 'async function upsertComment' "$script_file" || fail "workflow JS missing upsertComment boundary"
+  grep -q 'async function resolveComment' "$script_file" || fail "workflow JS missing resolveComment boundary"
+  grep -Fq "github-actions[bot]" "$script_file" || fail "workflow must update only its own bot comment"
+  grep -q 'await resolveComment(target, renderResolvedComment(target, rules));' "$script_file" || fail "workflow must resolve stale failure comments"
   {
     printf '(async function __pinningWorkflowCheck(){\n'
     cat "$script_file"

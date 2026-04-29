@@ -201,6 +201,8 @@
               lefthook
               gitleaks
               jq
+              nodejs
+              ruby
               shellcheck
               inputs.agenix.packages.${system}.default
             ];

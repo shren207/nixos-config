@@ -9,14 +9,14 @@ on:
 permissions:
   contents: read
   issues: write
-  pull-requests: write
 
 jobs:
   check-pinning:
     runs-on: ubuntu-latest
     steps:
       - name: Run pinning check
-        uses: actions/github-script@v7
+        # actions/github-script v7 pinned to the tag commit SHA.
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
         with:
           script: |
             const RULES_PATH = 'scripts/ai/lib/pinning-rules.json';
@@ -168,16 +168,31 @@ jobs:
               ].join('\n');
             }
 
-            async function upsertComment(target, body) {
+            function renderResolvedComment(target, rules) {
+              return [
+                COMMENT_MARKER,
+                '## Pinning Check Passed',
+                '',
+                `${target.type} body no longer contains fragile process metadata patterns.`,
+                '',
+                `Rules source: \`${RULES_PATH}\` from trusted ref \`${target.ref}\`.`
+              ].join('\n');
+            }
+
+            async function findPreviousComment(target) {
               const comments = await github.paginate(github.rest.issues.listComments, {
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: target.number,
                 per_page: 100
               });
-              const previous = comments.find((comment) =>
-                comment.user && comment.user.type === 'Bot' && comment.body && comment.body.includes(COMMENT_MARKER)
+              return comments.find((comment) =>
+                comment.user && comment.user.login === 'github-actions[bot]' && comment.body && comment.body.includes(COMMENT_MARKER)
               );
+            }
+
+            async function upsertComment(target, body) {
+              const previous = await findPreviousComment(target);
               if (previous) {
                 await github.rest.issues.updateComment({
                   owner: context.repo.owner,
@@ -195,6 +210,17 @@ jobs:
               });
             }
 
+            async function resolveComment(target, body) {
+              const previous = await findPreviousComment(target);
+              if (!previous) return;
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: previous.id,
+                body
+              });
+            }
+
             const target = targetFromPayload();
             if (target.isFork) {
               core.warning('Fork pull requests are not supported by this repository workflow; skipping pinning check.');
@@ -204,6 +230,7 @@ jobs:
             const rules = await loadRules(target.ref);
             const findings = scanText(target.body, rules);
             if (findings.length === 0) {
+              await resolveComment(target, renderResolvedComment(target, rules));
               core.info(`No pinning findings in ${target.type} #${target.number}`);
               return;
             }

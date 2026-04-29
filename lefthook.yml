@@ -45,6 +45,6 @@ pre-push:
       # runner self-bootstrap이라 추가 nix shell wrap 불필요. live propagation은 attach하지 않음.
       run: bash ./tests/test-codex-hook-fixtures.sh --no-live
     pinning-rules:
-      run: '[ -f ./tests/test-pinning-rules.sh ] && bash ./tests/test-pinning-rules.sh || true'
+      run: '[ ! -f ./tests/test-pinning-rules.sh ] || bash ./tests/test-pinning-rules.sh'
     flake-check:
       run: nix flake check --no-build --all-systems

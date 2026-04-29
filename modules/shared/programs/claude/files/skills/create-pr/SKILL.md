@@ -29,7 +29,7 @@ PR 본문은 반드시 다음 8개 섹션을 포함한다.
 | 3 | CIR (Change Intent Record) | 발견 경위 + 설계 의도 + 대안 검토 이력. **검토 라운드/finding ID/partial hash chain 포함 금지** (변경 의도는 자연어로) |
 | 4 | ADR (Architecture Decision Record) | 대안 비교 테이블 (대안/설명/장점/단점/결정) |
 | 5 | 구현 상세 | 변경 파일 테이블 + 핵심 코드 스니펫 |
-| 6 | 참고 레퍼런스 | 관련 PR/이슈/외부 링크 (안정 식별자: PR 번호, 이슈 번호, 또는 머지된 SHA — partial hash chain 금지) |
+| 6 | 참고 레퍼런스 | 관련 PR/이슈/외부 링크 (안정 식별자: URL, `owner/repo#N`, 또는 머지된 commit SHA — partial hash chain 금지) |
 | 7 | Human Test Plan | 단계별 기대동작 + 실패 시 진단 가이드 |
 | 8 | Pre-Merge E2E 테스트 가이드 | LLM이 직접 실행하는 자동 검증 절차 |
 
