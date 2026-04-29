@@ -100,7 +100,7 @@ normalize_reply() {
 # fail-open 신호를 유지하여 dispatcher hang을 방지한다. ask/plan-notification.sh 와 정책 일관성을
 # 위해 `gtimeout` 분기는 두지 않는다 — Homebrew coreutils 사용자도 ask/plan과 동일하게 Pushover
 # fallback으로 전이된다. (gtimeout 지원은 본 PR 외 follow-up 범위.)
-# Codex/Claude copies of stop-notification.sh — enforced by test 6.4 (helper equivalence).
+# Shared helper body mirrored between Codex/Claude stop-notification.sh; test 6.4 enforces this marked block only.
 # === HELPER_BEGIN: run_with_timeout ===
 run_with_timeout() {
   local secs="$1"; shift
@@ -125,7 +125,7 @@ run_with_timeout() {
 # jq 부재 시 fallback은 원본 반환 (현재 hook의 jq 의존 정책과 일관).
 # JWT pattern: header/payload base64url segment는 JSON `{` 시작 인코딩이라 첫 두 글자가 `e[wy]`
 # (`eyJ`/`eyA`/`ewo` 등 포함). whitespace JSON header 변형(`{ "...`)도 매칭하도록 prefix를 넓힌다.
-# Codex/Claude copies of stop-notification.sh — enforced by test 6.4 (helper equivalence).
+# Shared helper body mirrored between Codex/Claude stop-notification.sh; test 6.4 enforces this marked block only.
 # === HELPER_BEGIN: redact_secrets ===
 redact_secrets() {
   local s="$1"
