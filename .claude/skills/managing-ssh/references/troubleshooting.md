@@ -380,7 +380,7 @@ $ journalctl -u tailscaled --since '5 min ago' | grep DefaultResolvers
 $ claude -p 'say hello'
 ```
 
-**교훈**: Tailscale MagicDNS를 사용할 때는 반드시 admin console에서 global nameserver를 명시적으로 설정할 것. 시스템 DNS fallback에 의존하면 Tailscale 버전 업데이트 시 예고 없이 깨질 수 있음.
+**운영 기준**: Tailscale MagicDNS를 사용할 때는 반드시 admin console에서 global nameserver를 명시적으로 설정할 것. 시스템 DNS fallback에 의존하면 Tailscale 버전 업데이트 시 예고 없이 깨질 수 있음.
 
 ---
 

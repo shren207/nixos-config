@@ -197,7 +197,7 @@ sudo /nix/var/nix/profiles/system-29-link/bin/switch-to-configuration switch
 
 2. 또는 재부팅 시 systemd-boot 메뉴에서 이전 세대 선택
 
-**교훈**:
+**운영 기준**:
 
 - 빌드 실패 시 switch를 진행하지 않도록 주의
 - 불완전한 세대가 생성되면 롤백으로 복구 가능 (NixOS의 장점)

@@ -21,7 +21,7 @@ Pinning guardrails now extend beyond commit messages into staged content and Git
 
 ## Non-Goals
 - NG-1: Supporting fork PR comment writes. Fork and missing-head PRs should still be scanned and hard-fail on findings, but comment writes are skipped.
-- NG-2: Rewriting historical issue/PR bodies that already exist.
+- NG-2: Rewriting already-published issue/PR bodies.
 - NG-3: Running `nrs` as a hidden side effect without an explicit closeout decision.
 
 ## Success Criteria
@@ -32,12 +32,11 @@ Pinning guardrails now extend beyond commit messages into staged content and Git
 - SC-5: Remaining platform, side-effect, docs, and review-implementation passes have no unresolved high/medium findings.
 - SC-6: Full validation suite is recorded with pass/fail evidence before PR creation.
 
-## Discovery Summary
+## Current Implementation Snapshot
 - Reviewed: pinning hook scope planning notes, `.github/workflows/pinning-check.yml`, `lefthook.yml`, `flake.nix`, `scripts/ai/*pinning*.sh`, `scripts/ai/lib/pinning-rules.json`, Codex hook fixtures, run-da/parallel-audit/codex-fan-out docs, shell nofile config, and audit subprocess outputs.
 - Current system: commit-message and pre-commit hooks are local warn-only; GitHub Actions body check hard-fails; pre-push runs tomlkit fixture wrapper, pinning tests, and `nix flake check --no-build --all-systems`.
-- Completed audit evidence: security/API audit SAFE; performance/deps audit SAFE after batching staged scan and isolating subprocess home; tests/edge-case audit iteratively fixed fork/missing-head PRs, closing refs, plus-prefixed staged lines, and live fixture docs.
-- Review-implementation pass: core requirements are satisfied or intentionally refined, with closeout still `partial` until remaining audit bundles and full validation complete. One validation issue was found and fixed: ShellCheck needed an explicit `SC2034` suppression for `PINNING_WARN_PREFIX`, which is read by the sourced common script.
-- Confidence / gaps: platform/macOS+NixOS audit, adjacent side-effect audit, docs consistency audit, final validation suite, and PR creation are still pending.
+- Required coverage: security/API behavior, performance/dependency behavior, parser edge cases, platform behavior, adjacent side effects, docs consistency, and final validation.
+- Remaining gaps: platform/macOS+NixOS audit, adjacent side-effect audit, docs consistency audit, final validation suite, and PR creation.
 
 ## Requirements
 ### Functional Requirements
@@ -99,7 +98,7 @@ Objective: make the current implementation internally consistent before broader 
 - [x] Batch staged-line pre-commit scanning.
 - [x] Preserve staged lines beginning with `++` and `++ b/`.
 - [x] Align live hook fixture docs with hard-fail behavior.
-- [x] Complete review-implementation 9-pass notes after the latest commits.
+- [x] Keep implementation coverage notes current.
 
 #### Validation Checklist
 - [x] `shellcheck -S warning scripts/ai/pre-commit-pinning.sh tests/test-pinning-rules.sh`
@@ -109,11 +108,11 @@ Objective: make the current implementation internally consistent before broader 
 - [x] `shellcheck -S warning scripts/ai/pre-commit-pinning.sh scripts/ai/commit-msg-pinning.sh tests/test-pinning-rules.sh tests/test-codex-hook-fixtures.sh`
 
 #### Exit Criteria
-- [x] No unresolved review-implementation finding above low.
+- [x] No unresolved high/medium implementation risk.
 - [ ] Working tree clean except PRD updates.
 - [ ] Phase 2 audit prompts are still accurate.
 
-#### Review-Implementation 9-Pass Notes
+#### Current Coverage Notes
 - Requirements coverage: `partial`; FR-1 through FR-8 have implementation evidence, but Phase 2/3 closeout remains.
 - Correctness: current focused tests cover fork/missing-head PRs, closing refs, partial hashes, allowlist markers, staged added-line only scanning, large staged diff, and header-like plus-prefixed lines.
 - Integration: local hooks, pre-push tests, GitHub workflow, devShell deps, Codex hook fixtures, and Codex subprocess docs are integrated without a known high/medium conflict.
@@ -167,7 +166,7 @@ Objective: produce final evidence and open the PR.
   - [ ] `nix flake check --no-build --all-systems`
   - [ ] `lefthook run pre-push`
 - [ ] Run final review-implementation summary.
-- [ ] Push `issue/600`.
+- [ ] Push `issue/<issue-number>`.
 - [ ] Create PR against `main` with compliant body text and the approved leading closing-keyword line.
 
 #### Exit Criteria

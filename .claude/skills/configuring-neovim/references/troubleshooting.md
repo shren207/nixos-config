@@ -205,7 +205,7 @@ markdown_oxide = {},
 marksman = { enabled = false },
 ```
 
-**교훈**: extraPackages 추가 시 `nix path-info -r nixpkgs#패키지명 | grep -ci swift` 등으로 무거운 의존성 체인이 없는지 사전 확인할 것.
+**운영 기준**: extraPackages 추가 시 `nix path-info -r nixpkgs#패키지명 | grep -ci swift` 등으로 무거운 의존성 체인이 없는지 사전 확인할 것.
 
 ## indent-blankline setup 함수 호출 실패
 
@@ -270,7 +270,7 @@ Please update your config for LazyVim
 { "echasnovski/mini.surround", enabled = false }
 ```
 
-**교훈**: LazyVim 업데이트 후 플러그인 조직 이전 경고가 나타나면 `disabled.lua`의 `owner/repo`를 확인할 것.
+**운영 기준**: LazyVim 업데이트 후 플러그인 조직 이전 경고가 나타나면 `disabled.lua`의 `owner/repo`를 확인할 것.
 
 ## which-key 사용법
 

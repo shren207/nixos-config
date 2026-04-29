@@ -376,7 +376,7 @@ i18n.defaultLocale = "ko_KR.UTF-8";
 sudo nixos-rebuild switch --flake .#hostname
 ```
 
-**교훈**:
+**운영 기준**:
 
 - NixOS에서 설정 변경 시 반드시 flake 기반 명령 사용
 - AI 어시스턴트 사용 시 flake 시스템임을 먼저 알려주기
