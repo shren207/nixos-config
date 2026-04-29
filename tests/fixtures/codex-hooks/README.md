@@ -32,7 +32,7 @@ tests/test-codex-hook-fixtures.sh
 # verify-ai-compat가 호출하는 형태와 동일
 tests/test-codex-hook-fixtures.sh --no-live
 
-# live opt-in (codex exec 호출 — 환경 결함 시 WARN skip)
+# live opt-in (codex exec 호출 — 환경/setup 결함도 hard fail)
 tests/test-codex-hook-fixtures.sh --live
 # 또는
 CODEX_HOOK_LIVE=1 tests/test-codex-hook-fixtures.sh

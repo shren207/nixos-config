@@ -747,8 +747,8 @@ EOF
     || codex_rc=$?
 
   # hook이 codex exec 실패 전에 실행되었을 수 있으므로 dump_log를 우선 검사한다. dump_log에
-  # 기록이 있으면 propagation 결과를 직접 확인 (환경 결함으로 가리지 않는다). dump_log가 비어 있고
-  # codex exec도 실패한 경우에만 환경 결함 WARN skip으로 분류한다.
+  # 기록이 있으면 propagation 결과를 직접 확인한다. live opt-in 모드에서는 환경/setup 실패도
+  # hard fail로 처리해 propagation 회귀가 WARN skip에 가려지지 않게 한다.
   if [[ -s "$dump_log" ]]; then
     grep -qE '^CLAUDECODE=<unset>$' "$dump_log" \
       || fail "live env propagation: CLAUDECODE는 unset이어야 함 (dump_log=$(cat "$dump_log"))"
