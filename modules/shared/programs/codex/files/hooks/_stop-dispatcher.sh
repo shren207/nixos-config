@@ -7,10 +7,11 @@
 #
 # Ordering rationale (issue #590):
 #   1. record-last-stop  — statusline TTL race 방어를 위해 first-write로 고정한다.
-#   2. nrs-session-cleanup — /tmp/nrs-state lock 해제는 ~ms latency라 외부 IPC/HTTP를 동반하는
-#      stop-notification 앞에서 실행해야 한다. 직렬 실행 중에 notification(Pushover --max-time 4s,
-#      Hammerspoon hs.notify timeout 2s, transcript polling ~3s 등)이 lock 해제를 차단해 동시
-#      worktree에서 새 nrs가 5~7초 대기하던 회귀를 제거한다.
+#   2. nrs-session-cleanup — /tmp/nrs-state lock 해제는 ~ms latency라 stop-notification 앞에서
+#      실행해야 한다. notification은 외부 IPC/HTTP timeout(stop-notification.sh의
+#      HS_NOTIFY_TIMEOUT_SECONDS / PUSHOVER_TIMEOUT_SECONDS / TRANSCRIPT_STABLE_* 상수가 SoT)을
+#      합쳐 다 초 단위 대기를 발생시키므로, 직렬 실행 중에 lock 해제를 차단해 동시 worktree에서
+#      새 nrs가 대기하던 회귀를 만들어왔다.
 #   3. stop-notification — 외부 IPC/HTTP. dispatcher 마지막 단계로 두어 lock 해제와 분리한다.
 #
 # Claude 패턴에서는 nrs-session-cleanup.sh가 Stop과 SessionEnd 양쪽에서 호출되었으나,
