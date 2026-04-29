@@ -204,14 +204,18 @@ bash "$SYNC_SH" all "$PWD" "${ARGS[@]}"
 
 ```bash
 # ~/.claude/mcp.json -> ~/.codex/config.toml
-bash "$SYNC_SH" mcp-config "$PWD" \
+test -f "$HOME/.claude/mcp.json" && bash "$SYNC_SH" mcp-config "$PWD" \
   --user-mcp="$HOME/.claude/mcp.json"
 
 # target 경로를 명시적으로 지정할 수도 있음
-bash "$SYNC_SH" mcp-config "$PWD" \
+test -f "$HOME/.claude/mcp.json" && bash "$SYNC_SH" mcp-config "$PWD" \
   --user-mcp="$HOME/.claude/mcp.json" \
   --user-codex-config="$HOME/.codex/config.toml"
 ```
+
+> 두 예시 모두 `test -f` 가드는 필수다. source 파일 부재 시 `sync.sh`가 빈 MCP TOML로
+> 진행해 `~/.codex/config.toml`의 기존 `[mcp_servers.*]`를 silent 삭제한다 (위 빠른 참조
+> 노트의 source 부재 silent 삭제 동작과 동일).
 
 포맷 호환:
 - Claude user-scope 형식: `{"mcpServers": {...}}`
