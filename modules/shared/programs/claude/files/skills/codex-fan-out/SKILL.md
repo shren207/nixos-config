@@ -102,7 +102,7 @@ echo "FO_DIR=$FO_DIR"
    cat "/tmp/fo-session-demo/agent-1.md" | env CODEX_HOME="$EXEC_CODEX_HOME" CODEX_PROGRAMMATIC=1 codex exec -C "$EXEC_CWD" --skip-git-repo-check --sandbox read-only --ignore-user-config --disable plugins --ephemeral \
      -c approval_policy='"never"' \
      -c model='"gpt-5.5"' \
-     -c model_reasoning_effort="high" \
+     -c model_reasoning_effort='"high"' \
      -o "/tmp/fo-session-demo/agent-1-result.md" \
      - \
      2>"/tmp/fo-session-demo/agent-1-stderr.log"
@@ -118,7 +118,7 @@ echo "FO_DIR=$FO_DIR"
 
 | 기본 | 심층 조사 |
 |------|----------|
-| `-c model_reasoning_effort="high"` | `-c model_reasoning_effort="xhigh"` |
+| `-c model_reasoning_effort='"high"'` | `-c model_reasoning_effort='"xhigh"'` |
 
 기본은 `high`. 호출자가 명시적으로 심층 조사를 요청한 경우에만 `xhigh`를 사용한다.
 
