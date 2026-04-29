@@ -299,7 +299,7 @@ const vm = require('vm');
 const script = fs.readFileSync(process.argv[2], 'utf8');
 const rules = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
 
-async function runForkBody(body) {
+async function runForkBody(body, headRepo = { full_name: 'fork/repo' }) {
   let commentWriteCount = 0;
   let requestedRef = null;
   const context = {
@@ -308,7 +308,7 @@ async function runForkBody(body) {
       pull_request: {
         number: 123,
         body,
-        head: { repo: { full_name: 'fork/repo' } },
+        head: { repo: headRepo },
         base: { sha: 'trusted-base-sha', repo: { full_name: 'owner/repo' } },
       },
     },
@@ -368,6 +368,14 @@ async function runForkBody(body) {
   }
   if (result.commentWriteCount !== 0) {
     throw new Error(`fork PR must not write comments, wrote ${result.commentWriteCount}`);
+  }
+
+  result = await runForkBody('DA round 2', null);
+  if (!result.core.failed || !result.core.failed.includes('Pinning findings:')) {
+    throw new Error(`missing fork head repo findings must hard-fail, got ${result.core.failed}`);
+  }
+  if (result.commentWriteCount !== 0) {
+    throw new Error(`missing fork head repo must not write comments, wrote ${result.commentWriteCount}`);
   }
 
   result = await runForkBody('This does not fix #600');

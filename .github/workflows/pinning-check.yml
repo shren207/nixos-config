@@ -32,7 +32,7 @@ jobs:
                   number: pull.number,
                   body: pull.body || '',
                   ref: pull.base.sha,
-                  isFork: headRepo && baseRepo && headRepo !== baseRepo
+                  isFork: !headRepo || !baseRepo || headRepo !== baseRepo
                 };
               }
               const issue = context.payload.issue;
