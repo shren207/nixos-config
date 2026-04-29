@@ -641,6 +641,35 @@ for _sub in "${EXPECTED_DISPATCHER_SUB_SCRIPTS[@]}"; do
 done
 _check_hook_executable ".codex/hooks/pinning-alert.sh"
 
+# Pinning patterns lockstep 검사 (issue #603 R2 Maintainability-1):
+#   scripts/ai/commit-msg-pinning.sh를 SSOT로 두고 신규 PostToolUse hook 두 개가 PATTERN_A/B/C/D
+#   + HASH_MIN/MAX를 inline 사본으로 들고 있다. drift 자동 감지 자동화 없음을 운영 검증으로
+#   대체한다는 정책이지만, 최소한 수동 갱신 누락을 verifier가 잡아내야 한다.
+echo ""
+echo "=== Pinning patterns SSOT lockstep 검사 ==="
+_pinning_ssot="$REPO_ROOT/scripts/ai/commit-msg-pinning.sh"
+_pinning_hooks=(
+  "$REPO_ROOT/modules/shared/programs/claude/files/hooks/pinning-alert.sh"
+  "$REPO_ROOT/modules/shared/programs/codex/files/hooks/pinning-alert.sh"
+)
+for _var in PATTERN_A PATTERN_B PATTERN_C PATTERN_D HASH_MIN HASH_MAX; do
+  _ssot_line=$(grep -E "^${_var}=" "$_pinning_ssot" | head -1)
+  if [ -z "$_ssot_line" ]; then
+    fail "SSOT $_var 정의 부재 (scripts/ai/commit-msg-pinning.sh)"
+    continue
+  fi
+  for _hook in "${_pinning_hooks[@]}"; do
+    _hook_basename="${_hook#"$REPO_ROOT"/}"
+    _hook_line=$(grep -E "^${_var}=" "$_hook" | head -1)
+    if [ "$_hook_line" = "$_ssot_line" ]; then
+      pass "pinning $_var lockstep OK: $_hook_basename"
+    else
+      fail "pinning $_var drift: $_hook_basename" \
+        "$(printf '\n    SSOT: %s\n    HOOK: %s' "$_ssot_line" "$_hook_line")"
+    fi
+  done
+done
+
 # fixture self-test (deterministic, live 미실행).
 if [ ! -x "$_active_hooks_runner" ]; then
   fail "tests/test-codex-hook-fixtures.sh 실행 불가 (path=$_active_hooks_runner)"

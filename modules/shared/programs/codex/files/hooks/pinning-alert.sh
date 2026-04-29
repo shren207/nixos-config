@@ -47,7 +47,7 @@ HASH_MAX=12
 PATTERN_A='\b[Rr][Oo][Uu][Nn][Dd] [0-9]+\b'
 PATTERN_B='\b(Correctness|CORRECTNESS|Design|DESIGN|Regression|REGRESSION|Maintainability|MAINTAINABILITY|Security|SECURITY|Hallucination|HALLUCINATION|Side_effect|SIDE_EFFECT|Consistency|CONSISTENCY|Readability|READABILITY|Clean_code|CLEAN_CODE|Yagni|YAGNI|Ngmi|NGMI|CORR|MAINT|MNT|REG|CIR)-[0-9][A-Za-z0-9-]*\b'
 PATTERN_C='\bDA (for_pr|for_plan|피드백|[Rr]ound)\b|\bAuditor [A-Za-z_]+-[0-9]|\bparallel-audit (반영|결과|finding)\b'
-PATTERN_D='\b[a-f0-9]{7,40}\b'
+PATTERN_D='\b[a-f0-9]{7,40}\b|`[a-f0-9]+`'
 
 # 임시 디렉토리 (모든 mktemp 파일을 한 곳에 두고 EXIT trap으로 일괄 정리).
 SCAN_DIR=$(mktemp -d "${TMPDIR:-/tmp}/pinning-scan-XXXXXX") || exit 0
@@ -155,15 +155,17 @@ case "$TOOL_NAME" in
 
     [ -s "$SECTIONS_FILE" ] || exit 0
 
-    # 각 eligible path마다 added line만 모아 검사
-    # path 목록 (unique, eligible only)
+    # 각 eligible path마다 added line만 모아 검사.
+    # scan 파일명에 path 원문을 사용하지 않는다 — 긴 nested path가 NAME_MAX(보통 255 bytes)를
+    # 초과하면 redirection이 'File name too long'으로 실패하고 set -e로 hook이 exit 1이 되어
+    # warn-only 계약을 위반한다 (#603 DA for_pr R2 Correctness-1/Regression-1). path는 보고용
+    # 변수로만 유지하고 scan 파일은 mktemp으로 익명 basename을 받는다.
     awk -F'\t' '{print $1}' "$SECTIONS_FILE" | sort -u | while IFS= read -r p; do
       [ -n "$p" ] || continue
       if ! _should_check_path "$p"; then
         continue
       fi
-      # 해당 path의 added line만 추출
-      PATH_SCAN_FILE="$SCAN_DIR/scan-$(printf '%s' "$p" | tr '/' '_').txt"
+      PATH_SCAN_FILE=$(mktemp "$SCAN_DIR/scan-XXXXXX")
       awk -F'\t' -v target="$p" '$1 == target { print substr($0, length(target) + 2) }' \
         "$SECTIONS_FILE" > "$PATH_SCAN_FILE"
       [ -s "$PATH_SCAN_FILE" ] || continue

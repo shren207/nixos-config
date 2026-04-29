@@ -70,7 +70,7 @@ HASH_MAX=12
 PATTERN_A='\b[Rr][Oo][Uu][Nn][Dd] [0-9]+\b'
 PATTERN_B='\b(Correctness|CORRECTNESS|Design|DESIGN|Regression|REGRESSION|Maintainability|MAINTAINABILITY|Security|SECURITY|Hallucination|HALLUCINATION|Side_effect|SIDE_EFFECT|Consistency|CONSISTENCY|Readability|READABILITY|Clean_code|CLEAN_CODE|Yagni|YAGNI|Ngmi|NGMI|CORR|MAINT|MNT|REG|CIR)-[0-9][A-Za-z0-9-]*\b'
 PATTERN_C='\bDA (for_pr|for_plan|피드백|[Rr]ound)\b|\bAuditor [A-Za-z_]+-[0-9]|\bparallel-audit (반영|결과|finding)\b'
-PATTERN_D='\b[a-f0-9]{7,40}\b'
+PATTERN_D='\b[a-f0-9]{7,40}\b|`[a-f0-9]+`'
 
 # 검사 텍스트를 mktemp 파일에 저장 후 파일 기반 grep으로 SIGPIPE 회피.
 SCAN_FILE=$(mktemp "${TMPDIR:-/tmp}/pinning-scan-XXXXXX") || exit 0
