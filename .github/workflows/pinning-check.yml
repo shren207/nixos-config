@@ -163,7 +163,7 @@ jobs:
                 '### How to fix',
                 '',
                 '- Prefer GitHub issue/PR URLs or `owner/repo#N` references.',
-                '- Keep same-repo closing keywords such as `Closes #N` only on closing-keyword lines.',
+                '- Keep same-repo closing keywords such as `Closes #N` only on leading closing-keyword lines.',
                 `- For intentional non-reference metadata exceptions, add \`${rules.markers.same_line.shell} <reason ${minLength}+ chars>\` or \`${rules.markers.same_line.markdown} <reason ${minLength}+ chars> -->\`.`,
                 '',
                 `Rules source: \`${RULES_PATH}\` from trusted ref \`${target.ref}\`.`

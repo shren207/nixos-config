@@ -4,7 +4,7 @@
 
 ### 작성 규칙
 - 핵심 변경을 1-3개 bullet point로 요약한다.
-- 관련 이슈가 있으면 `Closes #N`을 포함한다 (GitHub 자동 링크).
+- 관련 이슈가 있으면 Summary 끝에 standalone leading `Closes #N` line을 추가한다 (GitHub 자동 링크).
 - 변경의 "무엇"보다 "왜"에 초점을 맞춘다.
 
 ### 예시

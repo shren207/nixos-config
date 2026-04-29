@@ -198,7 +198,7 @@ EOF
 - scope: 변경 대상 모듈명
 - 요약: 50자 이내, 명령형 현재시제
 - 변경 내용: BEFORE → AFTER 형태의 bullet points
-- Closes: 관련 이슈 번호. 같은 repo의 bare 번호는 GitHub closing keyword 줄에서만 사용하고, 그 외 레퍼런스는 URL 또는 `owner/repo#N`을 사용한다.
+- Closes: 관련 이슈 번호. 같은 repo의 bare 번호는 leading GitHub closing-keyword line에서만 사용하고, 그 외 레퍼런스는 URL 또는 `owner/repo#N`을 사용한다.
 
 ## QA 감사 체크리스트 (스킬 관련 이슈용)
 
