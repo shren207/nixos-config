@@ -4,7 +4,6 @@ description: |
   Sync Claude Code harness to Codex CLI via sync.sh.
   Trigger: 'codex sync', 'codex 동기화', '하네스 동기화', 'sync.sh'.
   NOT for codex exec (use using-codex-exec).
-allowed-tools: Bash(*)
 ---
 
 # Claude Code -> Codex CLI Harness Sync
@@ -21,10 +20,16 @@ Codex CLI 호환 구조(`.agents/`, `.codex/`)로 프로젝션한다.
 | 단계 | 명령 |
 |------|------|
 | 전체 동기화 | `bash "$SYNC_SH" all "$PWD" "${ARGS[@]}"` |
-| 로컬 스킬만 | `bash "$SYNC_SH" project-skills "$PWD" .claude/skills` |
-| MCP 섹션만 | `bash "$SYNC_SH" mcp-config "$PWD"` |
+| 로컬 스킬만 | `bash "$SYNC_SH" project-skills "$PWD/.claude/skills" "$PWD/.agents/skills"` |
+| 프로젝트 MCP 섹션만 | `bash "$SYNC_SH" mcp-config "$PWD" --project-mcp="$PWD/.mcp.json"` |
 | User-scope MCP 투영 | `bash "$SYNC_SH" mcp-config "$PWD" --user-mcp="$HOME/.claude/mcp.json"` |
 | .gitignore 점검 | `bash "$SYNC_SH" gitignore-check "$PWD"` |
+
+> `mcp-config`는 source 옵션 (`--project-mcp` / `--plugin-mcp` / `--user-mcp`) 중 적어도 하나가
+> 필요하다. source 없이 호출하면 새 MCP TOML이 비어 `replace_mcp_sections`가 기존
+> `[mcp_servers.*]` 섹션을 모두 제거한다 (`references/sync.sh`의 mcp-config 경로 참조).
+> `project-skills`는 `<source-skills-dir> <target-skills-dir>` 두 인자를 모두 명시해야 하며,
+> 한 인자로 호출하면 투영이 0개로 끝난다.
 
 `sync.sh` 스크립트 경로: 현재 SKILL.md가 위치한 디렉토리의 `references/sync.sh`를 사용하라.
 예: 이 SKILL.md의 실제 경로가 `~/.claude/skills/syncing-codex-harness/SKILL.md`이면
@@ -233,7 +238,7 @@ bash "$SYNC_SH" mcp-config "$PWD" \
 | 플러그인 캐시 경로 미존재 | 경고 후 건너뛰기 |
 | 스킬 이름 충돌 (로컬 vs 플러그인) | 플러그인 스킬에 `{plugin-name}--` 접두사 |
 | AGENTS.override.md 사용자 커스텀 보존 | 마커 외부 내용 유지 |
-| `.codex/config.toml` 기존 설정 보존 | user-scope `$PWD/.codex/config.toml`의 `[mcp_servers.*]` 섹션만 교체 (그 외 사용자 설정 완전 보존). `--user-mcp` 옵션이 주어지면 `~/.codex/config.toml`의 `[mcp_servers.*]` 섹션에도 같은 규칙으로 반영하되 그 외 키는 건드리지 않음. `~/.codex/config.toml`의 `[mcp_servers.*]` 외 영역(`model`/`approval_policy`/`[features]`/`[plugins.*]` 등)은 activation writer가 별도 계약으로 관리하므로 이 스킬이 손대지 않음 (Step 3 "계약 참고" 참조). |
+| `.codex/config.toml` 기존 설정 보존 | Step 3 "계약 참고: user-scope `sync.sh` vs activation writer" 표를 단일 진실 원천으로 참조. `[mcp_servers.*]` 섹션만 교체하며 그 외 키는 보존. |
 | `~/.claude/mcp.json` 형식 차이 | `mcpServers` 래퍼 유무 모두 허용 |
 | Worktree 경로 | `$PWD`로 매칭 |
 
