@@ -37,7 +37,7 @@
     {
       "id": "partial_hash",
       "kind": "partial_hash",
-      "message": "Partial commit hash 박제 감지. squash 머지 시 dangling 위험. 안정 식별자(URL, owner/repo#N, 머지된 SHA)로 대체하라.",
+      "message": "Partial commit hash 박제 감지. squash 머지 시 dangling 위험. 안정 식별자(URL, owner/repo#N, full merged 40-char SHA)로 대체하라.",
       "contexts": ["commit_msg", "staged_line", "github_body"],
       "matchers": {
         "grep_ere": "\\b[a-f0-9]{7,40}\\b|`[a-f0-9]+`",

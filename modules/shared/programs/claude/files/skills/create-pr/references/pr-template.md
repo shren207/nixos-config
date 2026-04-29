@@ -47,7 +47,7 @@ Closes #115
 
 ### 작성 규칙
 - 변경 과정에서 검토한 대안들과 방향 전환 이력을 시간순으로 기록한다.
-- 각 버전에 안정 식별자(`owner/repo#N` 또는 머지된 commit SHA)를 포함한다. 같은 repo의 bare `#N`은 Summary의 GitHub closing keyword에만 사용한다. 본인 PR의 mid-flight partial hash는 사용하지 않는다 — squash 머지 후 dangling 위험.
+- 각 버전에 안정 식별자(`owner/repo#N` 또는 full merged commit SHA)를 포함한다. 같은 repo의 bare `#N`은 Summary의 GitHub closing keyword에만 사용한다. 본인 PR의 mid-flight partial hash는 사용하지 않는다 — squash 머지 후 dangling 위험.
 - 예외: PR 생성 전 초안 시점의 **현재 작업 중인 버전**은 PR 번호가 아직 없으므로 `(이번 변경)`으로 표기한다 (PR 본문에 그대로 게시 — 머지 후에는 자기 PR로 자명).
 - 검토 라운드 번호, finding ID(`Correctness-1`, `CORR-2` 등)는 CIR에 포함하지 않는다 (휘발성 보고용).
 - 최종 결정의 trade-off를 솔직하게 명시한다.
@@ -133,7 +133,7 @@ local heavy_packages=("anki" "mise")
 
 ### 작성 규칙
 - 관련 PR, 이슈, 외부 링크를 나열한다.
-- 각 항목에 안정 식별자(URL, `owner/repo#N`, 또는 머지된 commit SHA) + 1줄 설명을 포함한다. 같은 repo의 bare `#N`은 Summary의 GitHub closing keyword에만 사용한다.
+- 각 항목에 안정 식별자(URL, `owner/repo#N`, 또는 full merged 40-char SHA) + 1줄 설명을 포함한다. 같은 repo의 bare `#N`은 Summary의 GitHub closing keyword에만 사용한다.
 - 본인 PR의 mid-flight commit hash 또는 squash 전 partial hash chain은 박제하지 않는다 — squash 머지 후 dangling 위험.
 - 레퍼런스가 없으면 "해당 없음"으로 명시한다.
 

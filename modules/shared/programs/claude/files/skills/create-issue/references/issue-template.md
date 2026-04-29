@@ -23,7 +23,7 @@
 
 - [링크 텍스트](URL) — 한 문장으로 "무엇을 뒷받침하는지"
 - `path/to/file.nix:LINE` 또는 `path/to/file.nix:START-END` — 코드 근거 (단일 라인 또는 라인 범위 허용)
-- URL, `owner/repo#N`, 또는 머지된 commit SHA — **출처 입증에 불가결한 경우에만**. 같은 repo의 bare 번호 인용은 leading closing-keyword line에서만 허용한다. 단순 색인용 인용 금지 (close/rename 시 stale).
+- URL, `owner/repo#N`, 또는 full merged 40-char SHA — **출처 입증에 불가결한 경우에만**. 같은 repo의 bare 번호 인용은 leading closing-keyword line에서만 허용한다. 단순 색인용 인용 금지 (close/rename 시 stale).
 
 ## PoC / Reproduction (선택)
 
@@ -41,8 +41,8 @@
 
 ## Related Commits (선택)
 
-- `<머지된 SHA>` — 커밋 메시지 한줄 요약
-- `<머지된 SHA>` — 커밋 메시지 한줄 요약
+- `<full merged 40-char SHA>` — 커밋 메시지 한줄 요약
+- `<full merged 40-char SHA>` — 커밋 메시지 한줄 요약
 
 ## Affected Files (선택)
 
@@ -76,7 +76,7 @@
 
 ### References (필수)
 - 비자명한 주장마다 근거 제공 (체크리스트 B1/B4)
-- 근거 타입 (Source reliability 순위 — 체크리스트 B3): 공식 docs URL > repo 내부 파일(`path/to/file.nix:LINE` 또는 `path:START-END`) > 머지된 commit SHA > 관련 이슈/PR URL 또는 `owner/repo#N` > blog > LLM 기억
+- 근거 타입 (Source reliability 순위 — 체크리스트 B3): 공식 docs URL > repo 내부 파일(`path/to/file.nix:LINE` 또는 `path:START-END`) > full merged 40-char SHA > 관련 이슈/PR URL 또는 `owner/repo#N` > blog > LLM 기억
 - 관련 이슈/PR 번호 인용은 **출처 입증에 불가결한 경우에만** URL 또는 `owner/repo#N` 형태로 사용한다. 단순 색인용 인용은 close/rename 시 stale 위험.
 - **근거 존재 시**: 최소 1개 링크 또는 path 참조 필수
 - **근거 부재 시**: 섹션을 비우지 않고 `[UNVERIFIED]` 항목으로 대체
@@ -89,7 +89,7 @@
 - 절차는 코드블록 + 언어 태그 (`bash`, `nix` 등) 사용
 
 ### Related Commits (선택)
-- 포맷: `- \`머지된 SHA\` — 커밋 메시지 한줄 요약` (안정 식별자만; mid-flight partial hash 박제 금지 — squash 후 dangling 위험)
+- 포맷: `- \`full merged 40-char SHA\` — 커밋 메시지 한줄 요약` (안정 식별자만; mid-flight partial hash 박제 금지 — squash 후 dangling 위험)
 - 이 이슈가 생성된 배경/맥락이 되는 **기존 머지된 커밋**만 기재 (단순 색인용 인용 금지)
 - 포함 기준은 SKILL.md Step 2 참조
 
@@ -136,8 +136,8 @@ Darwin(macOS) 설정에 대한 eval-test를 추가하여 macOS 설정 회귀를 
 
 ## Related Commits
 
-- `<머지된 SHA>` — feat(tests): pre-commit E2E eval 테스트 도입 — 네트워크 노출 경계 보안 검증
-- `<머지된 SHA>` — fix(tests): 검토 피드백 루프 완료 — 테스트 정리 + 등급 달성
+- `<full merged 40-char SHA>` — feat(tests): pre-commit E2E eval 테스트 도입 — 네트워크 노출 경계 보안 검증
+- `<full merged 40-char SHA>` — fix(tests): 검토 피드백 루프 완료 — 테스트 정리 + 등급 달성
 
 ## Affected Files
 

@@ -70,7 +70,7 @@ Issue 600 expands LLM pinning guardrails beyond commit messages into staged cont
 
 ## Execution Rules
 - Work through phases in order unless a new high-severity finding requires revising this PRD first.
-- Do not spawn native subagents in this current session while FD exhaustion remains a risk; use isolated serial `codex exec` if independent review is needed.
+- For this closeout session only, avoid native subagents because the long-running parent session previously hit FD exhaustion; use isolated serial `codex exec` for independent review. This does not change the general run-da/parallel-audit runtime mapping for fresh Codex sessions.
 - Use `apply_patch` for manual tracked edits.
 - Keep PR body and commit messages compliant with the new pinning policy.
 - At phase end, update this PRD with completed checks, new findings, and validation evidence.
