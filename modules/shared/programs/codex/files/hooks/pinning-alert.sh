@@ -91,7 +91,8 @@ _scan_file() {
   fi
   if grep -oE "$PATTERN_D" "$scan_file" 2>/dev/null \
     | awk -v min="$HASH_MIN" -v max="$HASH_MAX" '
-        length($0) >= min && length($0) <= max && /[a-f]/ { found = 1 }
+        { tok = $0; gsub(/`/, "", tok);
+          if (length(tok) >= min && length(tok) <= max && tok ~ /[a-f]/) found = 1 }
         END { exit !found }
       '; then
     out="${out}\n  - Partial commit hash 박제 (${HASH_MIN}~${HASH_MAX}자)"
@@ -138,11 +139,19 @@ case "$TOOL_NAME" in
 
     # awk로 파일별 added line을 분리. 출력: <path>\t<line> per line.
     # path는 다음 헤더가 나오기 전까지 유지. End Patch 또는 새 File 헤더에서 reset.
+    # `*** Move to: <newpath>`를 만나면 current section의 effective path를 새 경로로 갱신
+    # (V4A rename 케이스: old.txt → new.md에서 새 산출물의 확장자 기준 eligibility 판단 — 이슈 #603 R3 Correctness-1/Regression-1).
     SECTIONS_FILE="$SCAN_DIR/sections.tsv"
     awk '
       /^\*\*\* (Update|Add|Delete) File: / {
         path = $0
         sub(/^\*\*\* [A-Za-z]+ File: /, "", path)
+        next
+      }
+      /^\*\*\* Move to: / {
+        newpath = $0
+        sub(/^\*\*\* Move to: /, "", newpath)
+        path = newpath
         next
       }
       /^\*\*\* End Patch/ { path = ""; next }

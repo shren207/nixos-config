@@ -89,7 +89,8 @@ if grep -qE "$PATTERN_C" "$SCAN_FILE"; then
 fi
 if grep -oE "$PATTERN_D" "$SCAN_FILE" 2>/dev/null \
   | awk -v min="$HASH_MIN" -v max="$HASH_MAX" '
-       length($0) >= min && length($0) <= max && /[a-f]/ { found = 1 }
+       { tok = $0; gsub(/`/, "", tok);
+         if (length(tok) >= min && length(tok) <= max && tok ~ /[a-f]/) found = 1 }
        END { exit !found }
      '; then
   findings="${findings}\n  - Partial commit hash 박제 (${HASH_MIN}~${HASH_MAX}자)"
