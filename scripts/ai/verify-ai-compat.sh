@@ -147,6 +147,19 @@ fi
 echo ""
 echo "=== Codex 런타임 리소스 제한 확인 ==="
 
+_nofile_target=4096
+_nofile_initial_soft="$(ulimit -Sn 2>/dev/null || echo "unknown")"
+if [ "$(uname -s)" = "Darwin" ]; then
+  case "$_nofile_initial_soft" in
+    ''|*[!0-9]*|unlimited) ;;
+    *)
+      if [ "$_nofile_initial_soft" -lt "$_nofile_target" ]; then
+        ulimit -Sn "$_nofile_target" 2>/dev/null || true
+      fi
+      ;;
+  esac
+fi
+
 _nofile_soft="$(ulimit -Sn 2>/dev/null || echo "unknown")"
 _nofile_hard="$(ulimit -Hn 2>/dev/null || echo "unknown")"
 if [ "$(uname -s)" = "Darwin" ]; then
@@ -158,16 +171,21 @@ if [ "$(uname -s)" = "Darwin" ]; then
       warn "nofile soft limit 확인 불가 (soft=$_nofile_soft hard=$_nofile_hard)"
       ;;
     *)
-      if [ "$_nofile_soft" -ge 4096 ]; then
-        pass "nofile soft limit >= 4096 (soft=$_nofile_soft hard=$_nofile_hard)"
+      if [ "$_nofile_soft" -ge "$_nofile_target" ]; then
+        if [ "$_nofile_initial_soft" != "$_nofile_soft" ]; then
+          pass "nofile soft limit raised for verifier: $_nofile_initial_soft → $_nofile_soft (hard=$_nofile_hard)"
+        else
+          pass "nofile soft limit >= $_nofile_target (soft=$_nofile_soft hard=$_nofile_hard)"
+        fi
       else
-        fail "nofile soft limit too low (soft=$_nofile_soft hard=$_nofile_hard, expected >=4096) — Codex Stop hook spawn may fail with 'Too many open files'"
+        fail "nofile soft limit too low (soft=$_nofile_soft hard=$_nofile_hard, expected >=$_nofile_target) — Codex Stop hook spawn may fail with 'Too many open files'"
       fi
       ;;
   esac
 else
   pass "nofile soft limit = $_nofile_soft (hard=$_nofile_hard)"
 fi
+unset _nofile_target _nofile_initial_soft _nofile_soft _nofile_hard
 
 echo ""
 echo "=== AGENTS.md 심링크 확인 ==="
