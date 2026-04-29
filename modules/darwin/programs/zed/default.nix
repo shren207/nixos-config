@@ -96,17 +96,29 @@ in
   };
 
   # Zed를 기본 에디터로 설정 (duti)
+  # macOS LaunchServices에 정적 UTI가 없는 확장자(.mdx, .nix, .toml 등)는 동적 UTI(dyn.*)로
+  # 매핑되어 duti가 -50을 반환한다. activate 스크립트는 set -eu로 실행되므로 첫 실패 시
+  # darwin-rebuild가 exit 2로 종료되므로 helper로 감싸 실패를 카운터로 집계한다.
   home.activation.setZedAsDefaultEditor = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     echo "Setting Zed as default editor for code files..."
 
-    ${lib.concatMapStringsSep "\n" (
-      ext: "${pkgs.duti}/bin/duti -s ${zedBundleId} .${ext} all"
-    ) codeExtensions}
+    skipped=0
+    total=0
+    set_handler() {
+      total=$((total + 1))
+      if ! ${pkgs.duti}/bin/duti -s ${zedBundleId} "$1" all 2>/dev/null; then
+        skipped=$((skipped + 1))
+      fi
+    }
 
-    # UTI 설정 (public.data 제거 — 범위가 너무 넓음)
-    ${pkgs.duti}/bin/duti -s ${zedBundleId} public.plain-text all
-    ${pkgs.duti}/bin/duti -s ${zedBundleId} public.source-code all
+    ${lib.concatMapStringsSep "\n" (ext: ''set_handler ".${ext}"'') codeExtensions}
 
-    echo "Zed default settings applied successfully."
+    set_handler public.plain-text
+    set_handler public.source-code
+
+    if [ "$skipped" -gt 0 ]; then
+      echo "  ⚠️  Skipped $skipped of $total entries rejected by duti (likely no static UTI for some extensions)"
+    fi
+    echo "Zed default settings applied."
   '';
 }
