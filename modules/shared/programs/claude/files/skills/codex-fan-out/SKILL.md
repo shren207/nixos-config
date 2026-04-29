@@ -96,7 +96,7 @@ echo "FO_DIR=$FO_DIR"
    ```zsh
    # marker must apply to `codex`, not `cat` (issue #585 / epic #584).
    # CODEX_PROGRAMMATIC=1은 Codex 0.124+ user-level hooks의 early-exit guard 신호.
-   cat "/tmp/fo-c4a35fc4-AbCdEf/agent-1.md" | env CODEX_PROGRAMMATIC=1 codex exec --full-auto --ephemeral \
+   cat "/tmp/fo-c4a35fc4-AbCdEf/agent-1.md" | env CODEX_PROGRAMMATIC=1 codex exec --disable plugins --full-auto --ephemeral \
      -c model_reasoning_effort="high" \
      -o "/tmp/fo-c4a35fc4-AbCdEf/agent-1-result.md" \
      - \
@@ -105,6 +105,7 @@ echo "FO_DIR=$FO_DIR"
    - `run_in_background: true`로 Bash tool을 호출한다.
    - stdin pipe가 EOF를 닫으므로 `< /dev/null`은 불필요하다.
    - `env CODEX_PROGRAMMATIC=1`은 codex 프로세스에 적용되어야 한다 (회피: `CODEX_PROGRAMMATIC=1 cat ...`은 cat에만 적용 — 절대 사용 금지).
+   - 감사 fan-out에서 plugin tool surface가 필요하지 않으면 `--disable plugins`를 유지해 skill context budget 경고를 피한다.
 
 4. 모든 background 완료 후, 각 결과 파일을 Read 도구로 수집한다.
 

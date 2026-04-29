@@ -20,7 +20,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 FIXTURE_DIR="$SCRIPT_DIR/fixtures/codex-hooks"
 
 # ─── --help는 bootstrap 전에 처리 ───
-# tomlkit bootstrap이 devShell의 pythonWithTomlkit을 우선 사용하고, 없으면 nix shell로
+# tomlkit bootstrap이 devShell/shell wrapper sentinel을 우선 검증하고, 없으면 nix shell로
 # self-wrap(exec)한다. 도움말은 bootstrap이 필요 없으므로 인자만 빠르게 검사해 즉시 출력 + exit한다.
 for arg in "$@"; do
   case "$arg" in
@@ -41,7 +41,8 @@ done
 # sync-preservation 시나리오는 sync-codex-config.py를 통해 tomlkit을 요구한다. 직접 실행과
 # lefthook 경로의 runtime 일관성을 위해 tests/run-shell-script-tests.sh와 동일하게
 # scripts/ai/lib/tomlkit-bootstrap.sh를 source하여 repo-pinned pythonWithTomlkit을 보장한다.
-# devShell에서는 ambient python3를 쓰고, 밖에서는 nix shell로 self-wrap한다.
+# devShell/shell wrapper sentinel이 있으면 현재 python3를 검증하고, 밖에서는 nix shell로
+# self-wrap한다.
 # bootstrap이 exec로 프로세스를 교체할 수 있으므로 sandbox tracking 임시 파일은 그 이후에 생성한다.
 # shellcheck disable=SC1091  # source file은 repo 내부 고정 경로
 . "$REPO_ROOT/scripts/ai/lib/tomlkit-bootstrap.sh"
@@ -744,7 +745,7 @@ EOF
        XDG_DATA_HOME="$sandbox/xdg-data" \
        XDG_CONFIG_HOME="$sandbox/xdg-config" \
        "$timeout_bin" "$LIVE_CODEX_TIMEOUT_SECONDS" \
-       codex exec --ephemeral --skip-git-repo-check --sandbox read-only 'noop' >/dev/null 2>"$codex_stderr" ) \
+       codex exec --disable plugins --ephemeral --skip-git-repo-check --sandbox read-only 'noop' >/dev/null 2>"$codex_stderr" ) \
     || codex_rc=$?
 
   # hook이 codex exec 실패 전에 실행되었을 수 있으므로 dump_log를 우선 검사한다. dump_log에

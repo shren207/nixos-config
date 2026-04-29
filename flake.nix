@@ -201,6 +201,7 @@
               nixfmt
               lefthook
               gitleaks
+              gitMinimal
               jq
               nodejs
               ruby
@@ -209,6 +210,7 @@
               inputs.agenix.packages.${system}.default
             ];
             shellHook = ''
+              export _TOMLKIT_BOOTSTRAP_READY=1
               # worktree 환경에서 공유 config에 남은 core.hooksPath를 정리
               # (lefthook 2.x는 core.hooksPath가 설정되어 있으면 install을 거부함)
               git config --unset-all --local core.hooksPath 2>/dev/null || true

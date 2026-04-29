@@ -19,8 +19,8 @@ warn() { echo "  [WARN] $1" >&2; warnings=$((warnings + 1)); }
 # ─── tomlkit bootstrap ───
 # sync-codex-config.py의 `check` subcommand가 tomlkit에 의존한다. 정책과 재실행 guard는
 # scripts/ai/lib/tomlkit-bootstrap.sh 단일 소스에서 관리한다.
-# Python 사전 체크보다 먼저 실행한다. devShell의 pythonWithTomlkit을 우선 사용하고,
-# 없으면 nix shell .#pythonWithTomlkit으로 self-wrap된 뒤 그 안의 python3로 다시 사전 체크를 수행한다.
+# Python 사전 체크보다 먼저 실행한다. devShell 또는 self-wrap된 nix shell이 설정한 sentinel이
+# 있으면 현재 python3를 검증하고, 없으면 nix shell .#pythonWithTomlkit으로 self-wrap한다.
 _VERIFY_AI_COMPAT_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck disable=SC1091  # source file은 repo 내부 고정 경로
 . "$_VERIFY_AI_COMPAT_REPO_ROOT/scripts/ai/lib/tomlkit-bootstrap.sh"

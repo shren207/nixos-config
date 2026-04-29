@@ -3,7 +3,8 @@
 # Shell script fixture 테스트 실행기.
 # tomlkit bootstrap 정책은 scripts/ai/lib/tomlkit-bootstrap.sh 단일 소스에서 관리한다.
 # 수동 실행(`bash tests/run-shell-script-tests.sh`)과 lefthook pre-push 경로가 flake-pinned
-# `pythonWithTomlkit`을 쓰도록 보장한다. devShell 안에서는 중첩 nix shell을 피한다.
+# `pythonWithTomlkit`을 쓰도록 보장한다. devShell/shell wrapper sentinel이 있으면 중첩
+# nix shell을 피한다.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

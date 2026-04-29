@@ -6,13 +6,12 @@
 # guard env var와 nix shell re-exec 정책을 한 곳에만 둔다.
 #
 # 정책:
-#   1) 이미 `_TOMLKIT_BOOTSTRAP_READY=1` 이면 추가 검사 없이 즉시 반환한다.
-#   2) ambient `python3`가 tomlkit과 Python 3.11+ tomllib를 import할 수 있으면 그대로
-#      사용한다. devShell은 flake-pinned `pythonWithTomlkit`을 PATH에 제공하므로 중첩
-#      `nix shell`을 피한다.
-#   3) 준비된 Python이 없고 nix가 있으면 repo-pinned `nix shell .#pythonWithTomlkit
-#      --command bash "$0" ...`로 재실행한다.
-#   4) nix도 없으면 hard fail한다.
+#   1) 이미 `_TOMLKIT_BOOTSTRAP_READY=1` 이면 현재 python3가 tomllib/tomlkit을 import할 수
+#      있는지만 검증하고 반환한다. 실패하면 broken managed runtime으로 보고 즉시 hard fail한다.
+#      devShell과 self-wrap된 nix shell은 이 sentinel을 설정한다.
+#   2) sentinel이 없고 nix가 있으면 repo-pinned `nix shell .#pythonWithTomlkit --command
+#      bash "$0" ...`로 재실행한다.
+#   3) nix도 없으면 hard fail한다.
 #
 # 사용:
 #   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,19 +28,17 @@ tomlkit_bootstrap_require() {
   local self_path="$2"
   shift 2
 
-  if [ -n "${_TOMLKIT_BOOTSTRAP_READY:-}" ]; then
-    return 0
-  fi
-
-  if python3 -c 'import tomllib, tomlkit' 2>/dev/null; then
-    export _TOMLKIT_BOOTSTRAP_READY=1
-    return 0
+  if [ "${_TOMLKIT_BOOTSTRAP_READY:-}" = "1" ]; then
+    if python3 -c 'import tomllib, tomlkit' 2>/dev/null; then
+      return 0
+    fi
+    echo "  [FAIL] _TOMLKIT_BOOTSTRAP_READY=1 이지만 현재 python3가 tomllib/tomlkit을 import하지 못합니다" >&2
+    exit 1
   fi
 
   if command -v nix >/dev/null 2>&1; then
     echo "  tomlkit bootstrap: nix shell ${repo_root}#pythonWithTomlkit --command bash $self_path" >&2
-    export _TOMLKIT_BOOTSTRAP_READY=1
-    exec nix shell "${repo_root}#pythonWithTomlkit" --command bash "$self_path" "$@"
+    exec nix shell "${repo_root}#pythonWithTomlkit" --command env _TOMLKIT_BOOTSTRAP_READY=1 bash "$self_path" "$@"
   fi
 
   echo "  [FAIL] tomlkit 미가용 + nix 명령도 없음 — 'nix develop' 또는 'nix shell .#pythonWithTomlkit' 환경이 필요합니다" >&2

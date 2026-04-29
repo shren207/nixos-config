@@ -71,6 +71,7 @@ sandbox_mode = "danger-full-access"
 ## 트러블슈팅 / FAQ
 
 - **스킬이 안 보임**: `.agents/skills/*`가 파일 심링크인지 확인하고 디렉토리 심링크로 교정한다.
+- **Skill context budget warning**: `codex exec` subprocess에서 `Warning: Exceeded skills context budget`가 보이면 installed plugin 스킬 설명까지 로드된 것이다. 감사/리뷰처럼 plugin 도구가 필요 없는 실행은 `--disable plugins`를 붙이고, 대화형 세션의 plugin 설정은 유지한다.
 - **권한 프롬프트 반복**: `~/.codex/config.toml`의 `approval_policy`, `sandbox_mode`를 확인한다.
 - **AGENTS 불일치**: 프로젝트 루트 `AGENTS.md -> CLAUDE.md` 심링크를 복구한다.
 - **활성화 누락**: `nrs` 실행 후 `./scripts/ai/verify-ai-compat.sh`로 재검증한다.
