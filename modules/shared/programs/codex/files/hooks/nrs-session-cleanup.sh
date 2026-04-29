@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # Codex 사본 — ~/.claude/hooks/nrs-session-cleanup.sh에서 파생.
-# 본문 로직은 Claude 원본과 동일하나, 호출 계약은 다음 차이가 있다 (issue #585, #590):
-#   - Codex Stop dispatcher의 두 번째 sub-script (record-last-stop 직후, stop-notification 앞)
-#     로만 호출된다. Codex 0.124+에 SessionEnd 등가는 없지만 Stop이 main turn 종료를 cover하므로
-#     lock cleanup 누락은 없다. notification 앞으로 이동시킨 이유는 #590 — 외부 IPC/HTTP latency가
-#     lock 해제를 차단하지 않게 한다.
+# 본문 로직은 Claude 원본과 동일하나, 호출 계약은 다음 차이가 있다 (issue #585):
+#   - Codex Stop dispatcher 경유로만 호출된다. Codex 0.124+에 SessionEnd 등가는 없지만 Stop이
+#     main turn 종료를 cover하므로 lock cleanup 누락은 없다. dispatcher 안에서의 구체 호출
+#     순서와 rationale은 _stop-dispatcher.sh의 헤더가 SoT다.
 #   - Programmatic codex subprocess의 lock cleanup도 의도된 동작이므로 CLAUDECODE/CODEX_PROGRAMMATIC
 #     early-exit 가드를 적용하지 않는다.
 # Claude 원본 배경 (Codex runtime 계약은 위 헤더가 SoT):
