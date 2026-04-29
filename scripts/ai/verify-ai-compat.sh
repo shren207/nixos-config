@@ -116,6 +116,16 @@ handler()
 PY
 }
 
+_realpath() {
+  local path="$1"
+  python3 - "$path" <<'PY'
+import os
+import sys
+
+print(os.path.realpath(sys.argv[1]))
+PY
+}
+
 echo "=== Codex 실행 정책 확인 ==="
 
 CODEX_CONFIG="$HOME/.codex/config.toml"
@@ -435,9 +445,9 @@ else
         fail "노출 누락: ~/.codex/skills/$skill_name (심링크 없음)"
         continue
       fi
-      # Canonical target 검증: readlink -f 결과가 shared source에 도달해야 함
-      resolved="$(readlink -f "$exposed_path" 2>/dev/null || true)"
-      expected_real="$(readlink -f "$skill_dir" 2>/dev/null || true)"
+      # Canonical target 검증: symlink 결과가 shared source에 도달해야 함
+      resolved="$(_realpath "$exposed_path" 2>/dev/null || true)"
+      expected_real="$(_realpath "$skill_dir" 2>/dev/null || true)"
       if [ -z "$resolved" ] || [ "$resolved" != "$expected_real" ]; then
         fail "노출 대상 불일치: $skill_name (actual=$resolved expected=$expected_real)"
         continue
@@ -472,8 +482,8 @@ verify_codex_helper() {
     return
   fi
   local resolved expected
-  resolved="$(readlink -f "$helper_path" 2>/dev/null || true)"
-  expected="$(readlink -f "$helper_source" 2>/dev/null || true)"
+  resolved="$(_realpath "$helper_path" 2>/dev/null || true)"
+  expected="$(_realpath "$helper_source" 2>/dev/null || true)"
   if [ -z "$resolved" ] || [ "$resolved" != "$expected" ]; then
     fail "$helper_path 대상 불일치: actual=$resolved expected=$expected"
   else
@@ -495,8 +505,8 @@ verify_claude_helper() {
     return
   fi
   local resolved expected
-  resolved="$(readlink -f "$helper_path" 2>/dev/null || true)"
-  expected="$(readlink -f "$helper_source" 2>/dev/null || true)"
+  resolved="$(_realpath "$helper_path" 2>/dev/null || true)"
+  expected="$(_realpath "$helper_source" 2>/dev/null || true)"
   if [ -z "$resolved" ] || [ "$resolved" != "$expected" ]; then
     fail "$helper_path 대상 불일치: actual=$resolved expected=$expected"
   else
@@ -633,7 +643,7 @@ _check_hook_executable() {
     return
   fi
   local resolved
-  resolved="$(readlink -f "$abspath" 2>/dev/null || true)"
+  resolved="$(_realpath "$abspath" 2>/dev/null || true)"
   if [ -z "$resolved" ] || [ ! -f "$resolved" ]; then
     fail "hook 사본 readlink 실패 또는 target 부재: $relpath (resolved=$resolved)"
     return
