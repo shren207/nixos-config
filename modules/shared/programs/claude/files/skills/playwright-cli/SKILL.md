@@ -335,7 +335,7 @@ playwright-cli tracing-stop
 playwright-cli close
 ```
 
-## Non-goals (런타임 환경 제약)
+## 런타임 환경 전제
 
 이 스킬은 `playwright-cli` 또는 `npx playwright-cli` 중 하나가 동작하는 호스트 환경에서만 실행 가능하다. 본 repo의 global `playwright-cli`는 nix-darwin Homebrew(`brews = [ "playwright-cli" ]` in `modules/darwin/programs/homebrew.nix`)로 설치되므로 macOS 호스트에서만 PATH에 노출된다. NixOS 또는 다른 호스트에서는 위 Installation 섹션의 `npx --no-install playwright-cli` fallback 경로가 우선 — `npx`도 사용 불가하면 `playwright-cli: command not found`로 실패한다.
 

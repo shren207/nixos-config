@@ -156,7 +156,7 @@ sudo copyparty-update             # 실제 업데이트 (pull → digest 비교 
 3. **CORS 403 (리버스 프록시)**: `rproxy: 1` + `xff-src: 10.88.0.0/16` (constants.network.podmanSubnet) 설정 확인, 컨테이너 재시작
 4. **비밀번호 변경**: `agenix -e secrets/copyparty-password.age` 후 `nrs` 재적용
 
-## Non-goals (런타임 환경 제약)
+## 런타임 환경 전제
 
 이 스킬의 절차는 **NixOS MiniPC 호스트 환경 전제**다. AI 에이전트 세션(Claude Code · Codex CLI · headless)이 어디서 실행되든 다음 의존을 충족하지 못하면 명령은 실행 불가하다.
 

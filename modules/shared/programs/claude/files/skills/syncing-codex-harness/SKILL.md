@@ -23,7 +23,7 @@ Codex CLI 호환 구조(`.agents/`, `.codex/`)로 프로젝션한다.
 | 전체 동기화 | `bash "$SYNC_SH" all "$PWD" "${ARGS[@]}"` |
 | 로컬 스킬만 | `bash "$SYNC_SH" project-skills "$PWD/.claude/skills" "$PWD/.agents/skills"` |
 | 프로젝트 MCP 섹션만 | `test -f "$PWD/.mcp.json" && bash "$SYNC_SH" mcp-config "$PWD" --project-mcp="$PWD/.mcp.json"` |
-| User-scope MCP 투영 | `bash "$SYNC_SH" mcp-config "$PWD" --user-mcp="$HOME/.claude/mcp.json"` |
+| User-scope MCP 투영 | `test -f "$HOME/.claude/mcp.json" && bash "$SYNC_SH" mcp-config "$PWD" --user-mcp="$HOME/.claude/mcp.json"` |
 | .gitignore 점검 | `bash "$SYNC_SH" gitignore-check "$PWD"` |
 
 > `mcp-config`는 source 옵션 (`--project-mcp` / `--plugin-mcp` / `--user-mcp`) 중 적어도 하나가

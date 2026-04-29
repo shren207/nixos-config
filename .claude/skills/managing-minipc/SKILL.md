@@ -137,7 +137,7 @@ ls -la /var/lib/temp-monitor/                  # 상태 파일 (쿨다운 기록
 2. **hardware-configuration.nix 충돌**: disko와 fileSystems 중복 확인
 3. **부팅 불가**: systemd-boot에서 이전 세대 선택 후 롤백
 
-## Non-goals (런타임 환경 제약)
+## 런타임 환경 전제
 
 이 스킬은 **NixOS MiniPC 호스트 환경 전제**다. AI 에이전트 세션(Claude Code · Codex CLI · headless)이 어디서 실행되든 다음 의존을 충족하지 못하면 명령은 실행 불가하다.
 
