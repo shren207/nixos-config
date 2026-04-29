@@ -18,15 +18,15 @@ PROMPT
 **⚠️ `run_in_background` 환경**: 여기서 Bash tool 호출을 종료하고, 아래를 별도 호출로 실행한다 ([known-issues.md §11](known-issues.md) 하위 항목).
 
 ```bash
-# marker must apply to `codex`, not `cat` (issue #585): Codex 0.124+ user-level hooks의 early-exit 신호.
-cat /tmp/codex-prompt.md | env CODEX_PROGRAMMATIC=1 codex exec --full-auto -o /tmp/codex-result.md 2>&1
+# marker must apply to `codex`, not `cat` (openai/codex#585): Codex 0.124+ user-level hooks의 early-exit 신호.
+cat /tmp/codex-prompt.md | env CODEX_PROGRAMMATIC=1 codex exec --full-auto -o /tmp/codex-result.md - 2>&1
 cat /tmp/codex-result.md
 ```
 
 핵심 요소:
 - `-o`: 마지막 에이전트 메시지를 파일로 저장. 루프 연동 시 필수.
 - `2>&1`: stderr도 함께 캡처하여 실패 원인 추적에 활용.
-- stdin pipe 패턴 (`cat file | env CODEX_PROGRAMMATIC=1 codex exec ... -`): pipe EOF가 stdin을 자동으로 닫아, Claude Code Bash tool의 background 전환 시 stdin hang을 구조적으로 방지한다. `< /dev/null`은 pipe가 대체하므로 불필요. 인라인 인자 `"$(cat file)"`는 사용하지 않는다 ([known-issues.md §14](known-issues.md)). marker는 codex 프로세스에 적용한다 (issue #585).
+- stdin pipe 패턴 (`cat file | env CODEX_PROGRAMMATIC=1 codex exec ... -`): pipe EOF가 stdin을 자동으로 닫아, Claude Code Bash tool의 background 전환 시 stdin hang을 구조적으로 방지한다. `< /dev/null`은 pipe가 대체하므로 불필요. 인라인 인자 `"$(cat file)"`는 사용하지 않는다 ([known-issues.md §14](known-issues.md)). marker는 codex 프로세스에 적용한다 (openai/codex#585).
 - 인라인 프롬프트(`codex exec --full-auto "..."`)는 짧은 질의에만 사용.
 
 ## 패턴 2: 코드 리뷰 — scope flag만 사용 (커스텀 지시 불필요)
@@ -273,7 +273,7 @@ cat /tmp/review-prompt.md | env CODEX_PROGRAMMATIC=1 codex exec --full-auto --ou
 자동화 파서와 연결하거나 실행 과정을 기록할 때 사용한다.
 
 ```bash
-cat /tmp/prompt.md | env CODEX_PROGRAMMATIC=1 codex exec --full-auto --json > /tmp/events.jsonl
+cat /tmp/prompt.md | env CODEX_PROGRAMMATIC=1 codex exec --full-auto --json - > /tmp/events.jsonl
 ```
 
 주요 이벤트 타입:
@@ -283,7 +283,7 @@ cat /tmp/prompt.md | env CODEX_PROGRAMMATIC=1 codex exec --full-auto --json > /t
 최종 요약문을 파일로도 보존하려면 `-o`를 별도로 함께 사용한다:
 
 ```bash
-cat /tmp/prompt.md | env CODEX_PROGRAMMATIC=1 codex exec --full-auto --json -o /tmp/result.md > /tmp/events.jsonl
+cat /tmp/prompt.md | env CODEX_PROGRAMMATIC=1 codex exec --full-auto --json -o /tmp/result.md - > /tmp/events.jsonl
 ```
 
 ## 패턴 8: 스모크 테스트
@@ -299,7 +299,7 @@ PROMPT
 **⚠️ `run_in_background` 환경**: 여기서 Bash tool 호출을 종료하고, 아래를 별도 호출로 실행한다 ([known-issues.md §11](known-issues.md) 하위 항목).
 
 ```bash
-cat /tmp/smoke.md | env CODEX_PROGRAMMATIC=1 codex exec --full-auto -o /tmp/smoke-result.md 2>&1
+cat /tmp/smoke.md | env CODEX_PROGRAMMATIC=1 codex exec --full-auto -o /tmp/smoke-result.md - 2>&1
 cat /tmp/smoke-result.md
 ```
 
@@ -320,16 +320,16 @@ cat /tmp/smoke-result.md
 
 ## 빠른 참조 표
 
-모든 `codex exec` 호출에는 `env CODEX_PROGRAMMATIC=1`을 codex 프로세스에 적용한다 (issue #585: Codex 0.124+ user-level hooks의 early-exit 신호).
+모든 `codex exec` 호출에는 `env CODEX_PROGRAMMATIC=1`을 codex 프로세스에 적용한다 (openai/codex#585: Codex 0.124+ user-level hooks의 early-exit 신호).
 
 | 상황 | 패턴 | 명령 요약 |
 |------|------|-----------|
-| 일반 실행 | 1 | `cat prompt \| env CODEX_PROGRAMMATIC=1 codex exec --full-auto -o result` |
+| 일반 실행 | 1 | `cat prompt \| env CODEX_PROGRAMMATIC=1 codex exec --full-auto -o result -` |
 | 리뷰 (기본) | 2 | `env CODEX_PROGRAMMATIC=1 codex exec review --base main --full-auto > result` |
 | 리뷰 (stdin PROMPT) | 2b | `cat prompt \| env CODEX_PROGRAMMATIC=1 codex exec review - --full-auto > result` |
 | 리뷰 + 커스텀 지시 (영구) | 3 | AGENTS.md 작성 후 `env CODEX_PROGRAMMATIC=1 codex exec review --base` |
 | 리뷰 + 커스텀 지시 (1회) | 4 | `cat diff+지시 \| env CODEX_PROGRAMMATIC=1 codex exec --full-auto -o result -` |
 | 피드백 루프 | 5 | 라운드별 prompt → `env CODEX_PROGRAMMATIC=1 codex exec -o` → 분석 → 반복 |
 | 구조화 출력 | 6 | `env CODEX_PROGRAMMATIC=1 codex exec --output-schema schema.json -o result` |
-| JSONL 스트림 | 7 | `env CODEX_PROGRAMMATIC=1 codex exec --full-auto --json > events.jsonl` |
+| JSONL 스트림 | 7 | `cat prompt \| env CODEX_PROGRAMMATIC=1 codex exec --full-auto --json - > events.jsonl` |
 | 환경 점검 | 8 | 최소 프롬프트로 `env CODEX_PROGRAMMATIC=1 codex exec` 스모크 테스트 |

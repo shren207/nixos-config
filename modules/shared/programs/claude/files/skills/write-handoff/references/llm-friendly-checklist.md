@@ -3,7 +3,7 @@
 > `create-issue`/`write-handoff`/`plan-with-questions` 스킬이 공유하는 품질 체크리스트.
 > **Normative**는 스킬이 실제로 강제한다. **Informational**은 작성 시 참고용 권장.
 
-배경: 세션 로그 전수조사 결과 스킬 산출물에 대한 피드백이 "근거/레퍼런스 부족"과 "맥락 부족"에 집중된다. 본 체크리스트는 이 두 축을 구조적으로 방어한다. 상세 배경은 #461 참조.
+배경: 세션 로그 전수조사 결과 스킬 산출물에 대한 피드백이 "근거/레퍼런스 부족"과 "맥락 부족"에 집중된다. 본 체크리스트는 이 두 축을 구조적으로 방어한다. 상세 배경은 greenheadHQ/nixos-config#461 참조.
 
 ---
 
@@ -130,10 +130,10 @@
 - [RAG with Source Reliability (EMNLP 2025)](https://aclanthology.org/2025.emnlp-main.1738/) — source reliability grading (B3).
 - [PROMPTEVALS (NAACL 2025)](https://aclanthology.org/2025.naacl-long.213/) — production prompts + assertion criteria (C1).
 
-전체 출처 목록은 #461 References 섹션 참조.
+전체 출처 목록은 greenheadHQ/nixos-config#461 References 섹션 참조.
 
 ---
 
 ## 관련 이슈
 
-- #461 — 본 체크리스트 도입 이슈 (세션 로그 전수조사 + 공통 원칙 정리).
+- greenheadHQ/nixos-config#461 — 본 체크리스트 도입 이슈 (세션 로그 전수조사 + 공통 원칙 정리).

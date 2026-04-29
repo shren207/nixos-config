@@ -9,7 +9,7 @@ description: |
 
 # LLM 이행 가이드 작성
 
-`$ARGUMENTS`로 이슈 번호(예: `#123`, `123`) 또는 이슈 URL을 수신한다.
+`$ARGUMENTS`로 이슈 번호(예: `123`, hash-prefixed number) 또는 이슈 URL을 수신한다.
 해당 이슈를 분석하여 LLM이 자율적으로 처음부터 끝까지 작업을 수행할 수 있는
 Phase 기반 이행 가이드를 작성하고, 이슈 코멘트로 게시한다.
 
@@ -119,7 +119,7 @@ ISSUE_NUM=$(printf '%s\n' "$HELPER_OUT" | sed -n '2p')
 
 두 값은 NSS placeholder 치환(`<REPO_SLUG>`, `<ISSUE_NUM>`)에 그대로 사용된다. Step 1-A의 `$ARGUMENTS` 원형은 이슈 본문 읽기에만 쓰고, NSS 주입에는 helper 출력을 쓴다 (입력 해석 경로 단일화).
 
-**주의 (bare 번호 입력 시 cwd 의존)**: `$ARGUMENTS`가 `123`, `#123` 같은 bare 번호일 때 `gh issue view 123`은 **cwd repo의 이슈로 해석**된다. cwd가 handoff 대상 repo와 다르면 **전혀 다른 이슈**를 resolve하여 잘못된 repo slug + 이슈 번호를 placeholder 검증을 통과하는 형태로 반환할 수 있다. `gh issue view --json`은 `repository` 필드를 지원하지 않으므로 이 모호성을 helper 내부에서 제거할 방법이 없다. bare 번호 입력 시 LLM은:
+**주의 (bare 번호 입력 시 cwd 의존)**: `$ARGUMENTS`가 `123` 또는 hash-prefixed number 같은 bare 번호일 때 `gh issue view 123`은 **cwd repo의 이슈로 해석**된다. cwd가 handoff 대상 repo와 다르면 **전혀 다른 이슈**를 resolve하여 잘못된 repo slug + 이슈 번호를 placeholder 검증을 통과하는 형태로 반환할 수 있다. `gh issue view --json`은 `repository` 필드를 지원하지 않으므로 이 모호성을 helper 내부에서 제거할 방법이 없다. bare 번호 입력 시 LLM은:
 
 1. `gh repo view --json nameWithOwner -q .nameWithOwner`로 현재 cwd repo를 확인한다.
 2. 작업 맥락(이슈 본문의 파일 경로, 사용자 요청 등)을 살펴 cwd가 handoff 대상 repo와 일치하는지 판단한다.
