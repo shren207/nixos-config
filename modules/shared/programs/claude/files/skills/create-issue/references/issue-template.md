@@ -22,8 +22,8 @@
 [체크리스트 B1/B4. **실제 근거가 있으면 최소 1개 링크를 포함**한다. 근거가 전혀 없으면 섹션을 비우지 말고 `[UNVERIFIED]` 항목만으로 채운다.]
 
 - [링크 텍스트](URL) — 한 문장으로 "무엇을 뒷받침하는지"
-- `path/to/file.nix:LINE` 또는 `path/to/file.nix:START-END` — 코드 근거 (단일 라인 또는 라인 범위 허용)
-- URL, `owner/repo#N`, 또는 full merged 40-char SHA — **출처 입증에 불가결한 경우에만**. 같은 repo의 bare 번호 인용은 leading closing-keyword line에서만 허용한다. 단순 색인용 인용 금지 (close/rename 시 stale).
+- `path/to/file.nix:<line>` 또는 `path/to/file.nix:<line-range>` — 코드 근거 (현재 파일에서 재확인된 라인만 허용)
+- URL, `<issue-or-pr-reference>`, 또는 full merged 40-char SHA — **출처 입증에 불가결한 경우에만**. 같은 repo의 bare 번호 인용은 leading closing-keyword line에서만 허용한다. 단순 색인용 인용 금지 (close/rename 시 stale).
 
 ## PoC / Reproduction (선택)
 
@@ -76,8 +76,8 @@
 
 ### References (필수)
 - 비자명한 주장마다 근거 제공 (체크리스트 B1/B4)
-- 근거 타입 (Source reliability 순위 — 체크리스트 B3): 공식 docs URL > repo 내부 파일(`path/to/file.nix:LINE` 또는 `path:START-END`) > full merged 40-char SHA > 관련 이슈/PR URL 또는 `owner/repo#N` > blog > LLM 기억
-- 관련 이슈/PR 번호 인용은 **출처 입증에 불가결한 경우에만** URL 또는 `owner/repo#N` 형태로 사용한다. 단순 색인용 인용은 close/rename 시 stale 위험.
+- 근거 타입 (Source reliability 순위 — 체크리스트 B3): 공식 docs URL > repo 내부 파일(`path/to/file.nix:<line>` 또는 `path:<line-range>`) > full merged 40-char SHA > 필요한 경우의 이슈/PR reference > blog > LLM 기억
+- 관련 이슈/PR 번호 인용은 **출처 입증에 불가결한 경우에만** 사용한다. 단순 색인용 인용은 close/rename 시 stale 위험.
 - **근거 존재 시**: 최소 1개 링크 또는 path 참조 필수
 - **근거 부재 시**: 섹션을 비우지 않고 `[UNVERIFIED]` 항목으로 대체
 - **상충 시**: `[CONFLICTING]` + 양측 인용 (체크리스트 E3)
@@ -107,7 +107,7 @@
 
 ### Notes (선택)
 - 추가 참고사항이 있는 경우에만 포함
-- 관련 이슈는 URL 또는 `owner/repo#N` 형식으로 참조. 같은 repo bare 번호는 leading closing keyword line에서만 사용
+- 관련 이슈는 출처 입증에 불가결한 경우에만 참조. 같은 repo bare 번호는 leading closing keyword line에서만 사용
 - YAGNI 판단 근거, 선행 조건, 위험 요소 등 기재
 
 ## 작성 예시

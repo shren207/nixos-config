@@ -272,7 +272,7 @@ BUG/REGRESSION/EDGECASE가 있으면 요약 테이블 아래에 상세를 추가
 ```
 ### 발견 사항 상세
 
-#### [finding 2] Performance + Dependencies — BUG
+#### [finding <id>] Performance + Dependencies — BUG
 - **위치**: modules/foo.nix:<line>
 - **문제**: 리스트 전체를 매 반복마다 재탐색 — O(n^2)
 - **근거**: 입력 크기 N=1000 기준 약 100만 회 연산

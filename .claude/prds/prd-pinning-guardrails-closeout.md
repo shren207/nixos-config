@@ -1,20 +1,20 @@
-# PRD: Issue 600 Pinning Guardrails Closeout
+# PRD: Pinning Guardrails Closeout
 
 ## Document Status
 - Status: In Progress
 - File Mode: Single
 - Current Phase: Phase 1
 - Last Updated: 2026-04-29
-- PRD File: `.claude/prds/prd-issue-600-pinning-guardrails.md`
-- Purpose: Living PRD for finishing issue 600 closeout after the initial implementation and repeated audit fixes. Use this as the source of truth for the remaining long-running work.
+- PRD File: `.claude/prds/prd-pinning-guardrails-closeout.md`
+- Purpose: Living PRD for finishing pinning guardrails closeout. Use this as the source of truth for the remaining long-running work.
 
 ## Problem
-Issue 600 expands LLM pinning guardrails beyond commit messages into staged content and GitHub PR/issue bodies. The implementation also uncovered Codex runtime risks: Stop hook file descriptor exhaustion and Skill context budget warnings during audit subprocesses. The branch now has substantial implementation, but it still needs closeout audits, full validation, activation decisions, and PR creation.
+Pinning guardrails now extend beyond commit messages into staged content and GitHub PR/issue bodies. The implementation also covers Codex runtime risks: Stop hook file descriptor exhaustion and Skill context budget warnings during audit subprocesses. The branch now has substantial implementation, but it still needs closeout audits, full validation, activation decisions, and PR creation.
 
 ## Goals
 - G-1: Finish pinning guardrails across commit messages, staged added lines, PR bodies, and issue bodies.
 - G-2: Keep local hooks warn-only while making GitHub body checks hard-fail on findings.
-- G-3: Preserve safe exceptions for GitHub URLs, `owner/repo#N`, leading closing-keyword lines, and explicit allowlist markers with meaningful reasons for non-reference metadata only.
+- G-3: Preserve safe exceptions for GitHub URLs, neutral issue/PR reference placeholders, leading closing-keyword lines, and explicit allowlist markers with meaningful reasons for non-reference metadata only.
 - G-4: Keep Codex audit subprocesses isolated enough to avoid Skill context budget warnings and project/user/plugin tool-surface leakage.
 - G-5: Mitigate Codex Stop hook `Too many open files` failures for future macOS shells and verifier runs.
 - G-6: Produce a PR against `main` only after remaining audits and validation are complete.
@@ -33,7 +33,7 @@ Issue 600 expands LLM pinning guardrails beyond commit messages into staged cont
 - SC-6: Full validation suite is recorded with pass/fail evidence before PR creation.
 
 ## Discovery Summary
-- Reviewed: `.claude/plans/issue-600-pinning-hook-scope.md`, `.github/workflows/pinning-check.yml`, `lefthook.yml`, `flake.nix`, `scripts/ai/*pinning*.sh`, `scripts/ai/lib/pinning-rules.json`, Codex hook fixtures, run-da/parallel-audit/codex-fan-out docs, shell nofile config, and audit subprocess outputs.
+- Reviewed: pinning hook scope planning notes, `.github/workflows/pinning-check.yml`, `lefthook.yml`, `flake.nix`, `scripts/ai/*pinning*.sh`, `scripts/ai/lib/pinning-rules.json`, Codex hook fixtures, run-da/parallel-audit/codex-fan-out docs, shell nofile config, and audit subprocess outputs.
 - Current system: commit-message and pre-commit hooks are local warn-only; GitHub Actions body check hard-fails; pre-push runs tomlkit fixture wrapper, pinning tests, and `nix flake check --no-build --all-systems`.
 - Completed audit evidence: security/API audit SAFE; performance/deps audit SAFE after batching staged scan and isolating subprocess home; tests/edge-case audit iteratively fixed fork/missing-head PRs, closing refs, plus-prefixed staged lines, and live fixture docs.
 - Review-implementation pass: core requirements are satisfied or intentionally refined, with closeout still `partial` until remaining audit bundles and full validation complete. One validation issue was found and fixed: ShellCheck needed an explicit `SC2034` suppression for `PINNING_WARN_PREFIX`, which is read by the sourced common script.
@@ -87,7 +87,7 @@ Issue 600 expands LLM pinning guardrails beyond commit messages into staged cont
 Objective: make the current implementation internally consistent before broader closeout.
 
 #### Phase Discovery Gate
-- [x] Read `.claude/plans/issue-600-pinning-hook-scope.md`.
+- [x] Read pinning hook scope planning notes.
 - [x] Read `review-implementation` workflow.
 - [x] Inspect changed files from `main...HEAD`.
 - [x] Re-run focused pinning tests after latest parser/workflow fixes.
@@ -194,4 +194,4 @@ Required closeout passes:
 - OQ-1: Whether to run `nrs` during this branch closeout or leave activation to the user after merge.
 
 ## Change Log
-- 2026-04-29: Initial living PRD created from current issue 600 implementation state, audit evidence, and remaining closeout work.
+- 2026-04-29: Initial living PRD created from current implementation state and remaining closeout work.
