@@ -15,8 +15,7 @@ pre-commit:
       run: bash ./tests/run-eval-tests.sh
     codex-hook-fixtures:
       # deterministic 모드 (live fixture 미실행). runner 자체가 scripts/ai/lib/tomlkit-bootstrap.sh를
-      # source하여 repo-pinned pythonWithTomlkit으로 self-wrap하므로 lefthook에서 추가 nix shell
-      # wrap이 불필요하다. live propagation 검증은 manual/scheduled에 위임.
+      # source하여 pythonWithTomlkit runtime을 보장한다. live propagation 검증은 manual/scheduled에 위임.
       run: bash ./tests/test-codex-hook-fixtures.sh --no-live
     pinning:
       # warn-only — staged added-lines에서 박제 패턴 검사. SSOT는 scripts/ai/lib/pinning-rules.json.

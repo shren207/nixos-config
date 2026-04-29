@@ -1366,7 +1366,7 @@ run_test "nixos nrs offline force smoke" test_nixos_nrs_offline_force_smoke
 run_test "darwin nrs offline force smoke" test_darwin_nrs_offline_force_smoke
 run_test "darwin nrs no-change releases worktree lock" test_darwin_nrs_no_changes_releases_worktree_lock
 
-# codex-config fixture는 tomlkit이 필요하다. lefthook pre-push는 `nix shell` wrap으로
+# codex-config fixture는 tomlkit이 필요하다. lefthook pre-push는 shared runtime wrapper로
 # 항상 tomlkit을 제공하지만, 사용자가 직접 실행할 때는 미가용일 수 있다. 미가용이면
 # codex-config 섹션만 skip + 안내 (기본 shell suite 진입은 유지).
 if codex_config_tomlkit_available; then
