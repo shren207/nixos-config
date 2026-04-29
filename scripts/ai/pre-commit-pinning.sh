@@ -24,24 +24,34 @@ trap 'rm -f "$ADDED_LINES"' EXIT
 current_file=""
 new_line=0
 hunk_id=0
+in_hunk=0
 
 while IFS= read -r diff_line || [ -n "$diff_line" ]; do
-  case "$diff_line" in
-    "+++ b/"*)
-      current_file="${diff_line#+++ b/}"
-      ;;
-    "+++ /dev/null")
-      current_file=""
-      ;;
-  esac
+  if [[ "$diff_line" == "diff --git "* ]]; then
+    current_file=""
+    in_hunk=0
+    continue
+  fi
+
+  if [ "$in_hunk" -eq 0 ]; then
+    case "$diff_line" in
+      "+++ b/"*)
+        current_file="${diff_line#+++ b/}"
+        ;;
+      "+++ /dev/null")
+        current_file=""
+        ;;
+    esac
+  fi
 
   if [[ "$diff_line" =~ ^@@[[:space:]].*\+([0-9]+)(,([0-9]+))?[[:space:]]@@ ]]; then
     new_line="${BASH_REMATCH[1]}"
     hunk_id=$((hunk_id + 1))
+    in_hunk=1
     continue
   fi
 
-  if [[ "$diff_line" == +* && "$diff_line" != "+++ b/"* && "$diff_line" != "+++ /dev/null" ]]; then
+  if [[ "$diff_line" == +* ]] && ! { [ "$in_hunk" -eq 0 ] && [[ "$diff_line" == "+++ b/"* || "$diff_line" == "+++ /dev/null" ]]; }; then
     line="${diff_line#+}"
     if [ -n "$current_file" ] && ! pinning_path_excluded "$current_file"; then
       printf '%s\037%s\037%s\037%s\n' "$current_file" "$new_line" "$hunk_id" "$line" >> "$ADDED_LINES"
