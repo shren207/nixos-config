@@ -20,8 +20,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 FIXTURE_DIR="$SCRIPT_DIR/fixtures/codex-hooks"
 
 # ─── --help는 bootstrap 전에 처리 ───
-# tomlkit bootstrap이 nix가 있는 환경에서 nix shell로 self-wrap(exec)하므로 --help도 그 후에야
-# 출력된다. 도움말은 bootstrap이 필요 없으므로 인자만 빠르게 검사해 즉시 출력 + exit한다.
+# tomlkit bootstrap이 devShell의 pythonWithTomlkit을 우선 사용하고, 없으면 nix shell로
+# self-wrap(exec)한다. 도움말은 bootstrap이 필요 없으므로 인자만 빠르게 검사해 즉시 출력 + exit한다.
 for arg in "$@"; do
   case "$arg" in
     -h|--help)
@@ -40,8 +40,8 @@ done
 # ─── tomlkit bootstrap ───
 # sync-preservation 시나리오는 sync-codex-config.py를 통해 tomlkit을 요구한다. 직접 실행과
 # lefthook 경로의 runtime 일관성을 위해 tests/run-shell-script-tests.sh와 동일하게
-# scripts/ai/lib/tomlkit-bootstrap.sh를 source하여 repo-pinned pythonWithTomlkit으로 self-wrap한다.
-# `_TOMLKIT_BOOTSTRAP_READY=1`이 이미 set이면 즉시 반환되므로 lefthook 안에서 중첩 nix shell이 발생하지 않는다.
+# scripts/ai/lib/tomlkit-bootstrap.sh를 source하여 repo-pinned pythonWithTomlkit을 보장한다.
+# devShell에서는 ambient python3를 쓰고, 밖에서는 nix shell로 self-wrap한다.
 # bootstrap이 exec로 프로세스를 교체할 수 있으므로 sandbox tracking 임시 파일은 그 이후에 생성한다.
 # shellcheck disable=SC1091  # source file은 repo 내부 고정 경로
 . "$REPO_ROOT/scripts/ai/lib/tomlkit-bootstrap.sh"

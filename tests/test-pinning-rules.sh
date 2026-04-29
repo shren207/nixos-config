@@ -202,6 +202,7 @@ test_workflow_static_and_js() {
   grep -q 'async function upsertComment' "$script_file" || fail "workflow JS missing upsertComment boundary"
   grep -q 'async function resolveComment' "$script_file" || fail "workflow JS missing resolveComment boundary"
   grep -Fq "github-actions[bot]" "$script_file" || fail "workflow must update only its own bot comment"
+  grep -q 'github.paginate.iterator' "$script_file" || fail "workflow must stop comment pagination after finding marker"
   grep -q 'await resolveComment(target, renderResolvedComment(target, rules));' "$script_file" || fail "workflow must resolve stale failure comments"
   {
     printf '(async function __pinningWorkflowCheck(){\n'

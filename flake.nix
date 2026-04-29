@@ -193,6 +193,7 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+          pythonRuntimes = import ./libraries/python-runtimes.nix { inherit pkgs; };
         in
         {
           default = pkgs.mkShell {
@@ -204,6 +205,7 @@
               nodejs
               ruby
               shellcheck
+              pythonRuntimes.pythonWithTomlkit
               inputs.agenix.packages.${system}.default
             ];
             shellHook = ''

@@ -180,15 +180,19 @@ jobs:
             }
 
             async function findPreviousComment(target) {
-              const comments = await github.paginate(github.rest.issues.listComments, {
+              const params = {
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: target.number,
                 per_page: 100
-              });
-              return comments.find((comment) =>
-                comment.user && comment.user.login === 'github-actions[bot]' && comment.body && comment.body.includes(COMMENT_MARKER)
-              );
+              };
+              for await (const response of github.paginate.iterator(github.rest.issues.listComments, params)) {
+                const previous = response.data.find((comment) =>
+                  comment.user && comment.user.login === 'github-actions[bot]' && comment.body && comment.body.includes(COMMENT_MARKER)
+                );
+                if (previous) return previous;
+              }
+              return null;
             }
 
             async function upsertComment(target, body) {
