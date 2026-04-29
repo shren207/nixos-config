@@ -172,6 +172,19 @@ EOF
   git -C "$repo" add src/baseline.sh
   out="$(run_pre_commit_fixture "$repo")"
   [[ -z "$out" ]] || fail "pre-commit should scan added lines only, got: $out"
+
+  git -C "$repo" reset --hard HEAD >/dev/null 2>&1
+  mkdir -p "$repo/src"
+  {
+    for i in $(seq 1 8000); do
+      printf 'ordinary staged line %s\n' "$i"
+    done
+    printf 'large diff keeps warning for deadbeef\n'
+  } > "$repo/src/large.md"
+  git -C "$repo" add src/large.md
+  out="$(run_pre_commit_fixture "$repo")"
+  assert_contains "$out" "src/large.md:8001" "large pre-commit staged diff should still report findings"
+  assert_contains "$out" "Partial commit hash" "large pre-commit staged diff should still scan rules"
 }
 
 test_workflow_static_and_js() {
