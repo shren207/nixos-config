@@ -106,6 +106,7 @@ in
     total=0
     first_failure=""
     first_failure_err=""
+    public_uti_failed=0
     set_handler() {
       total=$((total + 1))
       local err
@@ -119,11 +120,12 @@ in
     }
 
     # public.plain-text / public.source-code는 정적 UTI라 정상 등록되어야 한다.
-    # 실패는 카운트로 흡수하지 않고 즉시 출력 — 정적 UTI fallback이 깨지면 codeExtensions
-    # 매핑에 없는 파일이 Zed로 열리지 않을 수 있다.
+    # 실패는 카운트로 흡수하지 않고 즉시 출력 + 별도 카운터 — 정적 UTI fallback이 깨지면
+    # codeExtensions 매핑에 없는 파일이 Zed로 열리지 않을 수 있다.
     register_public_uti() {
       local err
       if ! err=$(${pkgs.duti}/bin/duti -s ${zedBundleId} "$1" all 2>&1); then
+        public_uti_failed=$((public_uti_failed + 1))
         echo "  ❌ Failed to register $1: $err — Zed may not open code files via fallback UTI"
       fi
     }
@@ -136,6 +138,10 @@ in
     if [ "$skipped" -gt 0 ]; then
       echo "  ⚠️  Skipped $skipped of $total extensions rejected by duti (first: $first_failure → $first_failure_err)"
     fi
-    echo "Zed default settings applied."
+    if [ "$public_uti_failed" -gt 0 ]; then
+      echo "Zed default settings applied with warnings ($public_uti_failed public UTI registration failed)."
+    else
+      echo "Zed default settings applied."
+    fi
   '';
 }
