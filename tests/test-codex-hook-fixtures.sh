@@ -683,8 +683,9 @@ test_stop_notification_helper_equivalence() {
 }
 
 # ─── 카테고리 5: env propagation live (opt-in) ───
-# codex exec --ephemeral로 임시 dump-env hook을 실행해 CLAUDECODE/CODEX_PROGRAMMATIC propagation
-# 도달을 검증한다. 환경 결함(timeout 부재 / codex 부재 / hang / session 실패)이면 WARN skip.
+# codex exec --ephemeral로 임시 dump-env hook을 실행해 CODEX_PROGRAMMATIC propagation
+# 도달을 검증한다. Codex CLI가 marker를 자체 생성하지는 않으므로 caller가 codex 프로세스에
+# `CODEX_PROGRAMMATIC=1`을 적용해야 하며, live 모드는 명시 opt-in이므로 환경 결함은 hard fail이다.
 test_env_propagation_live() {
   local timeout_bin=""
   if command -v timeout >/dev/null 2>&1; then
@@ -692,13 +693,11 @@ test_env_propagation_live() {
   elif command -v gtimeout >/dev/null 2>&1; then
     timeout_bin="gtimeout"
   else
-    warn "live env propagation: timeout/gtimeout 부재 — skip"
-    return 0
+    fail "live env propagation: timeout/gtimeout 부재"
   fi
 
   if ! command -v codex >/dev/null 2>&1; then
-    warn "live env propagation: codex 바이너리 부재 — skip"
-    return 0
+    fail "live env propagation: codex 바이너리 부재"
   fi
 
   local sandbox dump_log
@@ -731,15 +730,14 @@ type = "command"
 command = "$sandbox/home/.codex/hooks/dump-env.sh"
 EOF
 
-  # 본 fixture의 검증 의도는 "codex CLI가 hook subprocess에 CLAUDECODE/CODEX_PROGRAMMATIC을
-  # 자체 propagate한다"이다. 부모 env에 CODEX_PROGRAMMATIC=1을 미리 set하면 codex CLI가
-  # set하는지가 아니라 부모 값이 inherit되는지를 측정하게 되므로 의도가 약화된다.
-  # CLAUDECODE도 동일 이유로 부모에서 set하지 않고 codex CLI가 propagate하는지를 본다.
+  # 본 fixture의 검증 의도는 "codex 프로세스에 적용한 CODEX_PROGRAMMATIC=1이 hook
+  # subprocess까지 상속된다"이다. CLAUDECODE는 Claude Code marker라 여기서는 생성되지
+  # 않아야 한다.
   # cwd는 sandbox로 강제하고 codex exec에 --skip-git-repo-check + --sandbox read-only를 명시해
   # outside-git 거부가 환경 결함으로 분류되지 않도록 + filesystem 보호가 강제되도록 한다.
   local codex_rc=0
   local codex_stderr="$sandbox/codex-exec.stderr"
-  ( cd "$sandbox" && env -u CLAUDECODE -u CODEX_PROGRAMMATIC \
+  ( cd "$sandbox" && env -u CLAUDECODE CODEX_PROGRAMMATIC=1 \
        CODEX_HOME="$sandbox/codex-home" \
        HOME="$sandbox/home" \
        XDG_DATA_HOME="$sandbox/xdg-data" \
@@ -752,23 +750,21 @@ EOF
   # 기록이 있으면 propagation 결과를 직접 확인 (환경 결함으로 가리지 않는다). dump_log가 비어 있고
   # codex exec도 실패한 경우에만 환경 결함 WARN skip으로 분류한다.
   if [[ -s "$dump_log" ]]; then
-    grep -qE '^CLAUDECODE=1$' "$dump_log" \
-      || fail "live env propagation: CLAUDECODE=1 미도달 (dump_log=$(cat "$dump_log"))"
+    grep -qE '^CLAUDECODE=<unset>$' "$dump_log" \
+      || fail "live env propagation: CLAUDECODE는 unset이어야 함 (dump_log=$(cat "$dump_log"))"
     grep -qE '^CODEX_PROGRAMMATIC=1$' "$dump_log" \
       || fail "live env propagation: CODEX_PROGRAMMATIC=1 미도달 (dump_log=$(cat "$dump_log"))"
-    if (( codex_rc != 0 )); then
-      warn "live env propagation: hook propagation 도달 확인 + codex exec 후속 비정상(rc=$codex_rc) — propagation 통과"
-    fi
+    # sandbox CODEX_HOME에는 auth가 없을 수 있다. 이 fixture는 hook propagation만 검증하므로
+    # hook이 dump_log를 남긴 뒤의 codex 본 작업 rc는 판정에 포함하지 않는다.
     return 0
   fi
 
   if (( codex_rc != 0 )); then
-    # codex exec 실패 + dump_log 부재 → hook이 한 번도 실행 안 됨. 환경 결함.
+    # codex exec 실패 + dump_log 부재 → hook이 한 번도 실행 안 됨.
     # codex exec stderr 마지막 부분을 진단에 포함해 운영자가 timeout/auth/network 원인을 식별 가능하게.
     local stderr_tail
     stderr_tail=$(tail -c 800 "$codex_stderr" 2>/dev/null | tr '\n' ' ' || true)
-    warn "live env propagation: codex exec 비정상(rc=$codex_rc) 또는 timeout(${LIVE_CODEX_TIMEOUT_SECONDS}s) + dump_log empty — skip (환경 결함). stderr_tail: ${stderr_tail:-<empty>}"
-    return 0
+    fail "live env propagation: codex exec 비정상(rc=$codex_rc) 또는 timeout(${LIVE_CODEX_TIMEOUT_SECONDS}s) + dump_log empty. stderr_tail: ${stderr_tail:-<empty>}"
   fi
 
   # codex exec 정상 종료 + dump_log 부재 → hook propagation 미도달 회귀.
@@ -803,7 +799,7 @@ run_test "stop-notification helper equivalence (6.4)" \
   test_stop_notification_helper_equivalence
 
 if [[ "$LIVE_MODE" == "1" ]]; then
-  run_test "env propagation live (codex exec --ephemeral)" \
+  run_test "env propagation live (codex exec --ephemeral, CODEX_PROGRAMMATIC)" \
     test_env_propagation_live
 else
   echo "==> env propagation live  (skip; --live 또는 CODEX_HOOK_LIVE=1로 활성화)"

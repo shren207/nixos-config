@@ -198,6 +198,7 @@
         {
           default = pkgs.mkShell {
             buildInputs = with pkgs; [
+              coreutils
               nixfmt
               lefthook
               gitleaks
