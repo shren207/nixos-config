@@ -7,6 +7,11 @@
 #     갱신해야 한다 (lockstep 갱신 의무, drift 감지 자동화 없음 — 운영 검증으로 대체).
 # 정책: warn-only — stderr alert + exit 0. permissionDecision 사용 금지.
 #
+# pipefail 안전 모델 (commit-msg-pinning.sh:26-29와 동일 SSOT):
+#   `printf '%s' "$TEXT" | grep -qE ...` 조합은 큰 입력에서 grep -q 조기 종료 + SIGPIPE로
+#   producer가 nonzero를 반환해 pipefail 환경에서 silent miss를 만든다. 검사 텍스트를 mktemp
+#   파일에 저장하고 `grep -qE "$PATTERN" "$tmpfile"`로 검사하여 회피한다.
+#
 # Codex 0.125 PostToolUse stdin schema 실측 (issue #603 Phase 0):
 #   - tool_name="Bash"        → tool_input.command (shell command text)
 #   - tool_name="apply_patch" → tool_input.command (V4A patch envelope text)
@@ -15,6 +20,11 @@
 #       (openai/codex#18391 + 본 PR Phase 0 echo hook 캡처)
 #   - tool_name="Edit|Write|NotebookEdit" → Claude Code-호환 키 (.tool_input.file_path / .new_string /
 #     .content / .new_source). Codex 0.125에서는 미관측이지만 미래 호환을 위해 fallback path 유지.
+#
+# apply_patch attribution 모델:
+#   patch envelope을 파일 섹션별로 분리하여, eligible path마다 그 파일의 added line(`^+`,
+#   `*** Begin/End Patch` 헤더 제외)만 검사한다. 삭제 라인(`^-`)·context 라인(` `)·헤더는 제외.
+#   매치된 파일 path를 alert에 보고. multi-file patch에서 첫 파일만 보고하던 구조 회귀 (#603 DA for_pr Design-1/Regression-2).
 set -euo pipefail
 
 # 환경 가드(CLAUDECODE/CODEX_PROGRAMMATIC) 없음 — PostToolUse pinning-alert는 자식 LLM 세션의
@@ -39,9 +49,9 @@ PATTERN_B='\b(Correctness|CORRECTNESS|Design|DESIGN|Regression|REGRESSION|Mainta
 PATTERN_C='\bDA (for_pr|for_plan|피드백|[Rr]ound)\b|\bAuditor [A-Za-z_]+-[0-9]|\bparallel-audit (반영|결과|finding)\b'
 PATTERN_D='\b[a-f0-9]{7,40}\b'
 
-# 검사 대상 후보 (file_path, text) 쌍을 표준 출력 친화적 형태로 모은다.
-# 단일 파일 케이스(Edit/Write/NotebookEdit)는 1쌍, apply_patch envelope는 N쌍.
-# 각 쌍은 newline-separated `path\ttext_marker_id`로 표현하지 않고, 함수 호출 + 직접 grep으로 처리.
+# 임시 디렉토리 (모든 mktemp 파일을 한 곳에 두고 EXIT trap으로 일괄 정리).
+SCAN_DIR=$(mktemp -d "${TMPDIR:-/tmp}/pinning-scan-XXXXXX") || exit 0
+trap 'rm -rf "$SCAN_DIR"' EXIT
 
 # 공통: file path가 본 hook 검사 대상에 부합하는지 판정. 통과하면 0, skip이면 1.
 # mktemp tmpfile 한정: 실측 35건 모두 `body` substring(PR/issue body 작성 임시) → 그 형태로 한정.
@@ -65,20 +75,21 @@ _should_check_path() {
   return 0
 }
 
-# 공통: TEXT를 받아 패턴 4종 검사 후 매치된 finding 라인을 stdout으로 출력한다 (없으면 빈 출력).
-_scan_text() {
-  local text="$1"
+# 공통: SCAN_FILE을 받아 패턴 4종 검사 후 매치된 finding 라인을 stdout으로 출력 (없으면 빈 출력).
+# 파일 기반 grep으로 SIGPIPE 회피 (commit-msg-pinning.sh와 동일 안전 모델).
+_scan_file() {
+  local scan_file="$1"
   local out=""
-  if printf '%s' "$text" | grep -qE "$PATTERN_A"; then
+  if grep -qE "$PATTERN_A" "$scan_file"; then
     out="${out}\n  - Round counter 박제: 'Round N'"
   fi
-  if printf '%s' "$text" | grep -qE "$PATTERN_B"; then
+  if grep -qE "$PATTERN_B" "$scan_file"; then
     out="${out}\n  - Bundle finding ID 박제: 'Bundle-N'"
   fi
-  if printf '%s' "$text" | grep -qE "$PATTERN_C"; then
+  if grep -qE "$PATTERN_C" "$scan_file"; then
     out="${out}\n  - DA 실행 키워드 박제"
   fi
-  if printf '%s' "$text" | grep -oE "$PATTERN_D" 2>/dev/null \
+  if grep -oE "$PATTERN_D" "$scan_file" 2>/dev/null \
     | awk -v min="$HASH_MIN" -v max="$HASH_MAX" '
         length($0) >= min && length($0) <= max && /[a-f]/ { found = 1 }
         END { exit !found }
@@ -106,35 +117,61 @@ case "$TOOL_NAME" in
     esac
     [ -n "$TEXT" ] || exit 0
 
-    findings="$(_scan_text "$TEXT")"
+    SCAN_FILE="$SCAN_DIR/scan.txt"
+    printf '%s' "$TEXT" > "$SCAN_FILE"
+
+    findings="$(_scan_file "$SCAN_FILE")"
     if [ -n "$findings" ]; then
       printf '[pinning-alert] %s on %s 매치:%b\n' "$TOOL_NAME" "$FILE_PATH" "$findings" >&2
     fi
     ;;
   apply_patch)
-    # Codex 0.125 V4A apply_patch envelope: tool_input.command 안에 patch text.
-    # patch text에서 `*** {Update,Add,Delete} File: <path>` 헤더로 영향 파일 목록을 추출하고,
-    # 하나라도 검사 대상에 부합하면 patch text 전체에 박제 grep을 수행한다.
+    # Codex 0.125 V4A apply_patch envelope을 파일 섹션별로 분해한다.
+    # 각 파일의 added line(`^+`)만 추출해 그 파일이 eligible일 때 그 파일에 한정해 박제 검사.
+    # 삭제(`^-`)·context(` `)·헤더(`^***`)는 제외하므로 박제 패턴 제거 patch는 alert를 발생시키지 않는다.
+    # multi-file patch에서도 매치된 파일 단위로 정확히 보고한다.
     PATCH_TEXT=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
     [ -n "$PATCH_TEXT" ] || exit 0
 
-    SHOULD_CHECK=0
-    REPORTED_PATH=""
-    while IFS= read -r p; do
+    PATCH_FILE="$SCAN_DIR/patch.txt"
+    printf '%s' "$PATCH_TEXT" > "$PATCH_FILE"
+
+    # awk로 파일별 added line을 분리. 출력: <path>\t<line> per line.
+    # path는 다음 헤더가 나오기 전까지 유지. End Patch 또는 새 File 헤더에서 reset.
+    SECTIONS_FILE="$SCAN_DIR/sections.tsv"
+    awk '
+      /^\*\*\* (Update|Add|Delete) File: / {
+        path = $0
+        sub(/^\*\*\* [A-Za-z]+ File: /, "", path)
+        next
+      }
+      /^\*\*\* End Patch/ { path = ""; next }
+      path != "" && /^\+/ && !/^\*\*\*/ {
+        line = $0
+        sub(/^\+/, "", line)
+        printf "%s\t%s\n", path, line
+      }
+    ' "$PATCH_FILE" > "$SECTIONS_FILE"
+
+    [ -s "$SECTIONS_FILE" ] || exit 0
+
+    # 각 eligible path마다 added line만 모아 검사
+    # path 목록 (unique, eligible only)
+    awk -F'\t' '{print $1}' "$SECTIONS_FILE" | sort -u | while IFS= read -r p; do
       [ -n "$p" ] || continue
-      if _should_check_path "$p"; then
-        SHOULD_CHECK=1
-        REPORTED_PATH="$p"
-        break
+      if ! _should_check_path "$p"; then
+        continue
       fi
-    done < <(printf '%s' "$PATCH_TEXT" | grep -oE '^\*\*\* (Update|Add|Delete) File: .+$' | sed 's/^\*\*\* [A-Za-z]* File: //')
-
-    [ "$SHOULD_CHECK" -eq 1 ] || exit 0
-
-    findings="$(_scan_text "$PATCH_TEXT")"
-    if [ -n "$findings" ]; then
-      printf '[pinning-alert] apply_patch on %s 매치:%b\n' "$REPORTED_PATH" "$findings" >&2
-    fi
+      # 해당 path의 added line만 추출
+      PATH_SCAN_FILE="$SCAN_DIR/scan-$(printf '%s' "$p" | tr '/' '_').txt"
+      awk -F'\t' -v target="$p" '$1 == target { print substr($0, length(target) + 2) }' \
+        "$SECTIONS_FILE" > "$PATH_SCAN_FILE"
+      [ -s "$PATH_SCAN_FILE" ] || continue
+      findings="$(_scan_file "$PATH_SCAN_FILE")"
+      if [ -n "$findings" ]; then
+        printf '[pinning-alert] apply_patch on %s 매치:%b\n' "$p" "$findings" >&2
+      fi
+    done
     ;;
   *) exit 0 ;;
 esac

@@ -6,6 +6,11 @@
 #     Codex 사본(modules/shared/programs/codex/files/hooks/pinning-alert.sh)도 함께
 #     갱신해야 한다 (lockstep 갱신 의무, drift 감지 자동화 없음 — 운영 검증으로 대체).
 # 정책: warn-only — stderr alert + exit 0. permissionDecision 사용 금지.
+#
+# pipefail 안전 모델 (commit-msg-pinning.sh:26-29와 동일 SSOT):
+#   `printf '%s' "$TEXT" | grep -qE ...` 조합은 큰 입력에서 grep -q 조기 종료 + SIGPIPE로
+#   producer가 nonzero를 반환해 pipefail 환경에서 silent miss를 만든다. 검사 텍스트를 mktemp
+#   파일에 저장하고 `grep -qE "$PATTERN" "$tmpfile"`로 검사하여 회피한다.
 set -euo pipefail
 
 # 환경 가드(CLAUDECODE/CODEX_PROGRAMMATIC) 없음 — PostToolUse pinning-alert는 자식 LLM 세션의
@@ -67,17 +72,22 @@ PATTERN_B='\b(Correctness|CORRECTNESS|Design|DESIGN|Regression|REGRESSION|Mainta
 PATTERN_C='\bDA (for_pr|for_plan|피드백|[Rr]ound)\b|\bAuditor [A-Za-z_]+-[0-9]|\bparallel-audit (반영|결과|finding)\b'
 PATTERN_D='\b[a-f0-9]{7,40}\b'
 
+# 검사 텍스트를 mktemp 파일에 저장 후 파일 기반 grep으로 SIGPIPE 회피.
+SCAN_FILE=$(mktemp "${TMPDIR:-/tmp}/pinning-scan-XXXXXX") || exit 0
+trap 'rm -f "$SCAN_FILE"' EXIT
+printf '%s' "$TEXT" > "$SCAN_FILE"
+
 findings=""
-if printf '%s' "$TEXT" | grep -qE "$PATTERN_A"; then
+if grep -qE "$PATTERN_A" "$SCAN_FILE"; then
   findings="${findings}\n  - Round counter 박제: 'Round N'"
 fi
-if printf '%s' "$TEXT" | grep -qE "$PATTERN_B"; then
+if grep -qE "$PATTERN_B" "$SCAN_FILE"; then
   findings="${findings}\n  - Bundle finding ID 박제: 'Bundle-N'"
 fi
-if printf '%s' "$TEXT" | grep -qE "$PATTERN_C"; then
+if grep -qE "$PATTERN_C" "$SCAN_FILE"; then
   findings="${findings}\n  - DA 실행 키워드 박제"
 fi
-if printf '%s' "$TEXT" | grep -oE "$PATTERN_D" 2>/dev/null \
+if grep -oE "$PATTERN_D" "$SCAN_FILE" 2>/dev/null \
   | awk -v min="$HASH_MIN" -v max="$HASH_MAX" '
        length($0) >= min && length($0) <= max && /[a-f]/ { found = 1 }
        END { exit !found }
