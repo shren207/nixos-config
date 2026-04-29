@@ -130,7 +130,7 @@ Darwin(macOS) 설정에 대한 eval-test를 추가하여 macOS 설정 회귀를 
 ## References
 
 - [nix flake check docs](https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-flake-check.html) — "평가 가능성"만 확인함을 뒷받침
-- `tests/eval-tests.nix:15-17` — NixOS config 평가 블록 (`nixosCfg = flake.nixosConfigurations.greenhead-minipc.config`)
+- `tests/eval-tests.nix` — NixOS config 평가 블록 (`nixosCfg = flake.nixosConfigurations.greenhead-minipc.config`)
 - `lefthook.yml`의 `pre-push.flake-check` 항목 — `nix flake check --no-build --all-systems` 훅 근거 (라인번호 박제 회피: hook 추가/이동 시 라인이 밀린다)
 - `[UNVERIFIED]` Darwin eval이 x86_64-linux에서 평가 가능한지는 실측 필요 (Notes 참조)
 

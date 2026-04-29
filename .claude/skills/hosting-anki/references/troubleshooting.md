@@ -198,7 +198,7 @@ journalctl -u anki-sync-backup.service --since today
 코드: `modules/nixos/programs/anki-connect/default.nix`의 `anki-ensure-profile` 스크립트.
 
 ### 버전
-Anki 25.09.2 / Qt 6.10.1에서 확인. `aqt/profiles.py` `setDefaultLang()` (line 465-500).
+Anki 25.09.2 / Qt 6.10.1에서 확인. `aqt/profiles.py`의 `setDefaultLang()` 경로.
 
 ## QtWebEngine EGL 초기화 실패 (SIGABRT)
 

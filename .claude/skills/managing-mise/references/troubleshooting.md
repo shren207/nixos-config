@@ -169,7 +169,7 @@ $ mise trust
 
 ```bash
 $ mise use -g node@lts
-./configure: line 8: exec: python: not found
+./configure: line <n>: exec: python: not found
 ```
 
 **원인**: mise는 기본적으로 node를 소스에서 빌드하려 하지만, NixOS에서는 python이 없어 실패함.

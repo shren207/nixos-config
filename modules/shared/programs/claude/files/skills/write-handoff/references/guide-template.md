@@ -75,9 +75,9 @@ grep "toolPath" libraries/constants.nix
 ```
 
 **기대 결과**:
-- `modules/shared/programs/tool/default.nix:15` 에 `version = "1.2.3"` (요구사항의 주장과 실제 값이 다르면 실제 값 기준으로 진행)
-- `modules/shared/programs/tool/config.nix:8` 에 `enableFeature = false;` 존재
-- `libraries/constants.nix:42` 에 `toolPath = "/old/path";` 존재
+- `modules/shared/programs/tool/default.nix` 에 `version = "1.2.3"` (요구사항의 주장과 실제 값이 다르면 실제 값 기준으로 진행)
+- `modules/shared/programs/tool/config.nix` 에 `enableFeature = false;` 존재
+- `libraries/constants.nix` 에 `toolPath = "/old/path";` 존재
 - `[UNVERIFIED]` `toolPath`가 다른 모듈에서 import되는지 여부는 구현 시점에 `grep -rn toolPath modules/` 로 실측 필요
 ````
 
@@ -95,7 +95,7 @@ BEFORE/AFTER 형식으로 변경 내용을 명시한다.
 
 ### 2-1. 버전 업데이트
 
-**파일**: `modules/shared/programs/tool/default.nix:15` ([upstream v1.3.0 release notes](https://github.com/example/tool/releases/tag/v1.3.0) 근거)
+**파일**: `modules/shared/programs/tool/default.nix` ([upstream v1.3.0 release notes](https://github.com/example/tool/releases/tag/v1.3.0) 근거)
 
 BEFORE:
 ```nix

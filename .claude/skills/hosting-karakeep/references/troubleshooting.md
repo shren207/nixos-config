@@ -6,7 +6,6 @@ Karakeep의 CSP 헤더가 iframe 내 CSS를 차단하는 알려진 버그.
 임시 우회책으로 Caddy에서 CSP 제거 가능 (`caddy.nix` -- `header -Content-Security-Policy`).
 다만 이는 인라인 아카이브 뷰의 XSS 방어를 약화시키므로, Tailscale 내부 전용 환경에서만 제한적으로 적용하고
 업스트림 수정이 가능해지면 원복하는 편이 안전하다.
-ref: https://github.com/karakeep-app/karakeep/issues/1977
 
 ## 2. 웹훅 전달 실패
 

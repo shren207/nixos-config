@@ -153,7 +153,7 @@ gh api graphql -f owner=greenheadHQ -f repo=nixos-config -F pr=399 -f query='
 ### 사례 1: regex escaping 지적 (CodeRabbit)
 
 - **원 지적**: DA harness 플랜 문서의 Python 예시에서 raw string의 `\\n`, `\\b`가 literal 백슬래시로 들어가 regex 의도와 다르게 동작. f-string의 `\\t`도 literal로 출력.
-- **처리**: 로컬에서 `loc_re.findall`, `domain_re.findall`, tab 출력을 직접 실행하여 문제를 재현 (수정 전 `loc_matches=[]`, 수정 후 `loc_matches=['foo/bar.txt:12']`).
+- **처리**: 로컬에서 `loc_re.findall`, `domain_re.findall`, tab 출력을 직접 실행하여 문제를 재현 (수정 전 `loc_matches=[]`, 수정 후 `loc_matches=['foo/bar.txt:<line>']`).
 - **분류 결과**: 기각이 아니라 반영. 답글에 재현 결과와 수정 커밋 해시를 남긴 뒤 resolve.
 
 ### 사례 2: 누락된 `os` import 지적 (CodeRabbit)

@@ -101,9 +101,8 @@ resume 시 `messages[0]`의 content block 구조가 달라진다 (블록 수/순
 
 - **영향**: resume/continue 첫 요청에서 full cache miss. /branch는 Bug 2b + hook 복합 원인
 - **감지**: resume/continue 직후 ✗, 이후 ✓로 즉시 회복 (두 번째 호출부터 정상)
-- **upstream**: [#44045](https://github.com/anthropics/claude-code/issues/44045), [#43657](https://github.com/anthropics/claude-code/issues/43657)
+- **upstream**: resume/continue cache miss 관련 미해결 버그
 - **실측**: 세션 b7e5b535 (v2.1.101) — 232K 토큰 cache rebuild, 5.1% hit → 99.5% 즉시 회복
-  (출처: [#458](https://github.com/greenheadHQ/nixos-config/issues/458))
 - **Bug 2a와의 관계**: v2.1.97에서 수정한 것은 Bug 2a뿐. Bug 2b는 별개 원인(동적 attachment 미persist)으로 v2.1.101에서도 재현
 
 ## Max 구독자 특이사항
@@ -138,8 +137,7 @@ Agent tool로 서브에이전트를 병렬 호출하면, fan-in 시 `TASK_NOTIFI
 | Agent 2~3개 병렬 | 50~80% | attachment 순서 가변 |
 | Agent 4~6개 병렬 | ~27% | attachment 순서 조합 폭증 |
 
-(실측 출처: [#458](https://github.com/greenheadHQ/nixos-config/issues/458),
-근본 원인: claude-code `LocalAgentTask.tsx:252`, `query.ts:1570`, `attachments.ts:1044`)
+근본 원인: claude-code의 agent task, query, attachment 조립 경로에서 `TASK_NOTIFICATION` attachment 순서가 가변적임
 
 **대응**: codex exec는 별도 프로세스로 실행되어 메인 컨텍스트에 attachment를 주입하지 않는다.
 `-o`로 결과만 파일 수집하면 cache prefix에 무영향. run-da/parallel-audit/codex-fan-out이
@@ -161,7 +159,4 @@ Agent tool로 서브에이전트를 병렬 호출하면, fan-in 시 `TASK_NOTIFI
 
 - [Anthropic Docs: Prompt Caching](https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching)
 - [Reddit: Claude Code Cache Bugs (역공학 분석)](https://www.reddit.com/r/ClaudeCode/comments/1s7mitf/)
-- [GitHub: Cache TTL downgrades from 1h to 5m](https://github.com/anthropics/claude-code/issues/43566)
-- [GitHub: Sentinel replacement bug](https://github.com/anthropics/claude-code/issues/40524)
-- [GitHub: --resume cache miss](https://github.com/anthropics/claude-code/issues/34629)
 - [cc-diag: Cache test script](https://gitlab.com/treetank/cc-diag/-/raw/c126a7890f2ee12f76d91bfb1cc92612ae95284e/test_cache.py)

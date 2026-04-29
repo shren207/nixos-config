@@ -231,7 +231,7 @@ Error: There was an error with the atuin sync service: Status 404.
 If the problem persists, contact the host
 
 Location:
-    .../api_client.rs:186:9
+    .../api_client.rs
 ```
 
 **원인**: Atuin 클라우드 서버(`api.atuin.sh`)가 **Sync v1 API를 비활성화**했기 때문입니다.
@@ -475,7 +475,7 @@ programs.atuin.settings = {
 Error: migration 20260224000100 was previously applied but is missing in the resolved migrations
 
 Location:
-    crates/atuin/src/command/client/history.rs:676:18
+    crates/atuin/src/command/client/history.rs
 ```
 
 **원인**: atuin DB migration은 forward-only. 새 버전의 atuin이 DB에 migration을 적용하면, 해당 migration을 모르는 구버전에서 에러가 발생한다.

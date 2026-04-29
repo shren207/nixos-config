@@ -139,7 +139,3 @@ Codex CLI가 **디렉토리 심링크**는 공식 지원함을 확인했다.
 - https://developers.openai.com/codex/config-advanced
 - https://developers.openai.com/codex/config-reference
 - https://developers.openai.com/codex/security/
-- https://github.com/openai/codex/issues/4392
-- https://github.com/openai/codex/pull/8801
-- https://github.com/openai/codex/pull/9384
-- https://github.com/openai/codex/issues/9365

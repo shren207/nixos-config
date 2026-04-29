@@ -218,7 +218,7 @@ selective consistency trigger([stability-measurement.md](stability-measurement.m
 2. **환경 격리** — first-pass Arbiter와 selective consistency N=3 모두 strong review profile(high)을 사용한다. scratch `CODEX_HOME`과 `--ignore-user-config`로 user config 기본값이 차단되므로 **반드시 `-c model='"gpt-5.5"'`와 `-c model_reasoning_effort='"high"'`를 명시한다**.
    - `SOURCE_CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"`를 먼저 저장한 뒤, `EXEC_CODEX_HOME=$(mktemp -d /tmp/codex-home-${_DA_SID}-selective-XXXXXX)`로 사용자 홈과 격리된 scratch 설정 디렉토리를 만든다.
    - **auth 자격을 함께 전달한다**. 세 가지 방식 중 하나:
-     - 환경변수 `CODEX_API_KEY`가 이미 설정되어 있으면 그것이 사용됨 (auth chain 우선순위 `CODEX_API_KEY > ephemeral tokens > auth.json`, `using-codex-exec/SKILL.md:214` 참조). 이 경우 추가 조치 불필요.
+     - 환경변수 `CODEX_API_KEY`가 이미 설정되어 있으면 그것이 사용됨 (auth chain 우선순위 `CODEX_API_KEY > ephemeral tokens > auth.json`, `using-codex-exec/SKILL.md` 참조). 이 경우 추가 조치 불필요.
      - 그렇지 않으면 `cp "$SOURCE_CODEX_HOME/auth.json" "$EXEC_CODEX_HOME/auth.json"`로 기존 auth.json을 scratch로 복사한다.
      - 둘 다 불가능하면 scratch `CODEX_HOME`에서 auth 실패가 나므로 fallback을 중단하고 로그인 상태를 먼저 복구한다.
    - scratch `CODEX_HOME`에는 config.toml을 만들지 않는다. role별 `-c model=...`, `-c model_reasoning_effort=...`, `-c approval_policy=...` 값만 명령 인자로 전달한다.

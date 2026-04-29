@@ -61,7 +61,7 @@
 ### Requirement: FR-3 — "세션 이력 내보내기"
 - **상태**: partial
 - **증거**:
-  - 충족: `src/export/session.ts:42-78` — JSON export 구현
+  - 충족: `src/export/session.ts:<line-range>` — JSON export 구현
   - 누락: CSV export (FR-3의 "다중 형식 지원" 조항이 언급)
 - **권장**: CSV export 구현 추가 또는 FR-3 scope 축소 결정
 ```

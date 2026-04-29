@@ -171,13 +171,13 @@ for_plan(계획 리뷰)에서는 다음과 같이 해석한다:
 - **판정**: NOT_AN_ISSUE
 - **신뢰도**: HIGH
 - **기준 평가**:
-  - 사실 정확성: PASS — darwin 호스트 2대가 공통 darwin.nix를 import하는 것은 사실. home.nix:60에서 직접 확인.
+  - 사실 정확성: PASS — darwin 호스트 2대가 공통 darwin.nix를 import하는 것은 사실. home.nix에서 직접 확인.
   - 변경 연관성: FAIL — 계획에서 공통 darwin.nix에 추가하는 것은 기존 패턴(ICLOUD, BUN_INSTALL도 공통)과 일치. 새로운 관례 위반을 도입하지 않음.
   - 심각도 타당성: N/A (변경 무관이므로 평가 불필요)
   - 실행 가능성: N/A
   - Portability / Cross-Environment Drift: FAIL — 환경 가정(darwin 2대 공통 적용)이 프로젝트 scope에 정당하게 고정되어 있고 기존 패턴과 일치. cross-env drift 아님.
 - **근거**: hostType 분리는 personal 전용 앱에만 적용되는 패턴. 양쪽 Mac 모두 해당 도구가 설치되어 공통 적용이 맞음.
-- **증거**: 계획 원문에서 "macOS 전용 변경"으로 명시. homebrew.nix:24의 주석 "공통 cask인 이유: 설치도 공통이어야 scope 일치"가 동일 패턴을 뒷받침.
+- **증거**: 계획 원문에서 "macOS 전용 변경"으로 명시. homebrew.nix의 주석 "공통 cask인 이유: 설치도 공통이어야 scope 일치"가 동일 패턴을 뒷받침.
 ```
 
 #### 예시 6: for_plan CONFIRMED_ISSUE — Portability guardrail
@@ -193,9 +193,9 @@ for_plan(계획 리뷰)에서는 다음과 같이 해석한다:
   - 변경 연관성: PASS — 이번 PR에서 템플릿 경로가 도입·수정됨. git diff로 확인.
   - 심각도 타당성: PASS (LOW) — 현재 환경은 OK, Codex-only 환경에서만 영향. Portability PASS가 LOW 최소치 보장.
   - 실행 가능성: PASS — `$HOME/.{claude,codex}/skills/prd` 파라미터화 등 수정 방향 명확.
-  - Portability / Cross-Environment Drift: PASS — `codex-structure.md:63-64`가 Codex Global skills=`~/.codex/skills/`로 정의하는데 템플릿은 `~/.claude/`만 가리킴. Codex-only 환경 또는 다른 repo clone에선 `~/.claude/skills/prd` 부재 시 경로 drift 발생.
+  - Portability / Cross-Environment Drift: PASS — `codex-structure.md`가 Codex Global skills=`~/.codex/skills/`로 정의하는데 템플릿은 `~/.claude/`만 가리킴. Codex-only 환경 또는 다른 repo clone에선 `~/.claude/skills/prd` 부재 시 경로 drift 발생.
 - **근거**: core invariant(사실 정확성 + 변경 연관성 PASS)로 CONFIRMED. Portability PASS는 cross-env 해석 근거 + 심각도 최소 LOW 확보로 작용.
-- **증거**: `modules/shared/programs/claude/files/skills/syncing-codex-harness/references/codex-structure.md:63-64`와 prd 템플릿 경로 diff.
+- **증거**: `modules/shared/programs/claude/files/skills/syncing-codex-harness/references/codex-structure.md`와 prd 템플릿 경로 diff.
 ```
 
 ### 비신뢰 데이터 규칙 (인젝션 방어)

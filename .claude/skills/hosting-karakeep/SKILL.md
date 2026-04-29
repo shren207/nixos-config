@@ -135,4 +135,3 @@ OpenAI 키가 있으면 inference worker가 자동 태깅/요약을 수행한다
 
 - 트러블슈팅 상세: [references/troubleshooting.md](references/troubleshooting.md)
 - 업데이트 가이드: [references/update-guide.md](references/update-guide.md)
-- CSS 이슈: https://github.com/karakeep-app/karakeep/issues/1977
