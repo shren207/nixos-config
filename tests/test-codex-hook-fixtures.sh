@@ -2,13 +2,14 @@
 # tests/test-codex-hook-fixtures.sh
 # Codex 0.124+ stable hook 회귀 차단 fixture runner.
 #
-# 6 카테고리:
+# 7 카테고리:
 #   1. stdin schema baseline 0.124       — fixtures/codex-hooks/stdin/*.json
 #   2. dispatcher ordering / failure recovery — runner 내부 mock subscript
 #   3. noise-guard env 변형              — runner 내부 helper (4 env 조합)
 #   4. sync-codex-config.py preservation — fixtures/codex-hooks/sync-preservation/*.toml
 #   5. env propagation (live opt-in)      — CODEX_HOOK_LIVE=1 / --live
 #   6. stop-notification reliability/security — transcripts/ + stdin secret/transcript fixtures
+#   7. pinning-alert behavioral          — fixtures/codex-hooks/stdin/pinning-{claude,codex}-*.json
 #
 # nrs-session-cleanup.sh는 NRS_LOCK_FILE을 하드코딩하므로 (host /tmp/nrs-state 누수 위험)
 # fixture는 real script를 직접 호출하지 않고 mock subscript로 대체한다.
@@ -706,6 +707,52 @@ test_stop_notification_helper_equivalence() {
   done
 }
 
+# ─── 카테고리 7: pinning-alert behavioral ───
+# Claude/Codex pinning-alert.sh(PostToolUse warn-only, #603/#605 도입)의 입력→출력 동작을
+# deterministic stdin fixture로 박제한다. fixture는 stdin/pinning-{claude,codex}-*.json이고,
+# 옆에 위치한 *.expected에 stderr 출력을 박는다. exit code는 모두 0(warn-only contract).
+# Codex apply_patch envelope V4A awk parser의 핵심 분기(*** Move to: rename, multi-file
+# attribution, removeonly added-line filter, backtick HASH_MIN 미만)를 함께 보호한다.
+_assert_pinning_expectation() {
+  local fixture="$1" stderr_log="$2"
+  local expected="${fixture%.json}.expected"
+  if ! diff -u "$expected" "$stderr_log" >/dev/null 2>&1; then
+    local diff_out
+    diff_out=$(diff -u "$expected" "$stderr_log" 2>&1 | head -40)
+    fail "[7] $(basename "$fixture") stderr expectation drift:
+$diff_out"
+  fi
+}
+
+test_pinning_alert_behavioral() {
+  local hook_claude="$REPO_ROOT/modules/shared/programs/claude/files/hooks/pinning-alert.sh"
+  local hook_codex="$REPO_ROOT/modules/shared/programs/codex/files/hooks/pinning-alert.sh"
+  local fixture sandbox stderr_log hook exit_code
+
+  for fixture in "$FIXTURE_DIR"/stdin/pinning-*.json; do
+    assert_file_exists "${fixture%.json}.expected" "7/$(basename "$fixture")"
+
+    # new_hook_sandbox 재사용: TEST_TMP_FILE 등록을 통해 EXIT trap이 자동 정리한다 (#606 plan).
+    # sandbox 안의 hook copy는 사용하지 않고 stderr.log 보관 + cleanup 등록 컨테이너로만 활용한다.
+    sandbox=$(new_hook_sandbox)
+    stderr_log="$sandbox/pinning-stderr.log"
+
+    case "$(basename "$fixture")" in
+      pinning-claude-*) hook="$hook_claude" ;;
+      pinning-codex-*)  hook="$hook_codex" ;;
+      *) fail "[7] unexpected fixture name: $(basename "$fixture")" ;;
+    esac
+
+    if "$hook" < "$fixture" 2>"$stderr_log"; then
+      exit_code=0
+    else
+      exit_code=$?
+    fi
+    assert_eq "$exit_code" "0" "[7] $(basename "$fixture"): warn-only contract 위반 (exit must be 0)"
+    _assert_pinning_expectation "$fixture" "$stderr_log"
+  done
+}
+
 # ─── 카테고리 5: env propagation live (opt-in) ───
 # codex exec --ephemeral로 임시 dump-env hook을 실행해 CLAUDECODE/CODEX_PROGRAMMATIC propagation
 # 도달을 검증한다. 환경 결함(timeout 부재 / codex 부재 / hang / session 실패)이면 WARN skip.
@@ -825,6 +872,9 @@ run_test "stop-notification timeout unavailable fail-open (6.3)" \
   test_stop_notification_timeout_unavailable_failopen
 run_test "stop-notification helper equivalence (6.4)" \
   test_stop_notification_helper_equivalence
+
+run_test "pinning-alert behavioral (#606)" \
+  test_pinning_alert_behavioral
 
 if [[ "$LIVE_MODE" == "1" ]]; then
   run_test "env propagation live (codex exec --ephemeral)" \
