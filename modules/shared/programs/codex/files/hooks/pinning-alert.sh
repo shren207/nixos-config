@@ -4,7 +4,9 @@
 # 패턴 SSOT: scripts/ai/commit-msg-pinning.sh (PATTERN_A/B/C/D + HASH_MIN/MAX).
 #   ↑ 본 파일은 그 SSOT의 inline 사본이다. commit-msg-pinning.sh 패턴을 갱신할 때 본 파일 +
 #     Claude 사본(modules/shared/programs/claude/files/hooks/pinning-alert.sh)도 함께
-#     갱신해야 한다 (lockstep 갱신 의무, drift 감지 자동화 없음 — 운영 검증으로 대체).
+#     갱신해야 한다. lockstep 동등성은 scripts/ai/verify-ai-compat.sh가 PATTERN_A/B/C/D +
+#     HASH_MIN/MAX 변수 라인 동등성으로 강제한다 (helper/scan/eligibility까지 cover하지는
+#     않으므로 _should_check_path / _scan_file 본문 변경 시 두 사본을 수동 정합 필요).
 # 정책: warn-only — stderr alert + exit 0. permissionDecision 사용 금지.
 #
 # pipefail 안전 모델 (commit-msg-pinning.sh:26-29와 동일 SSOT):

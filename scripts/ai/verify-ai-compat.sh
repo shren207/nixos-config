@@ -653,19 +653,22 @@ _pinning_hooks=(
   "$REPO_ROOT/modules/shared/programs/codex/files/hooks/pinning-alert.sh"
 )
 for _var in PATTERN_A PATTERN_B PATTERN_C PATTERN_D HASH_MIN HASH_MAX; do
-  _ssot_line=$(grep -E "^${_var}=" "$_pinning_ssot" | head -1)
+  # `set -euo pipefail` 아래에서 grep 매치 실패 시 nonzero가 command substitution을
+  # 통해 부모 shell을 종료시켜 drift 보고 자체가 막히므로 `|| true`로 무력화한다.
+  _ssot_line="$(grep -m1 -E "^${_var}=" "$_pinning_ssot" || true)"
   if [ -z "$_ssot_line" ]; then
     fail "SSOT $_var 정의 부재 (scripts/ai/commit-msg-pinning.sh)"
     continue
   fi
   for _hook in "${_pinning_hooks[@]}"; do
     _hook_basename="${_hook#"$REPO_ROOT"/}"
-    _hook_line=$(grep -E "^${_var}=" "$_hook" | head -1)
+    _hook_line="$(grep -m1 -E "^${_var}=" "$_hook" || true)"
     if [ "$_hook_line" = "$_ssot_line" ]; then
       pass "pinning $_var lockstep OK: $_hook_basename"
     else
-      fail "pinning $_var drift: $_hook_basename" \
-        "$(printf '\n    SSOT: %s\n    HOOK: %s' "$_ssot_line" "$_hook_line")"
+      # fail()는 첫 인자만 출력하므로 SSOT/HOOK 세부 비교를 단일 형식 문자열로 결합한다.
+      fail "$(printf 'pinning %s drift: %s\n    SSOT: %s\n    HOOK: %s' \
+        "$_var" "$_hook_basename" "$_ssot_line" "${_hook_line:-<missing>}")"
     fi
   done
 done
