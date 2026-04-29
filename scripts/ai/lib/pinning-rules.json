@@ -76,8 +76,8 @@
       "js_regex": "[A-Za-z0-9._-]+/[A-Za-z0-9._-]+#[0-9]+"
     },
     "closing_refs": {
-      "grep_ere": "(^|[^A-Za-z])([Cc]lose[sd]?|[Ff]ix(e[sd])?|[Rr]esolve[sd]?)[[:space:]]+#[0-9]+",
-      "js_regex": "\\b([Cc]lose[sd]?|[Ff]ix(e[sd])?|[Rr]esolve[sd]?)\\s+#[0-9]+"
+      "grep_ere": "^[[:space:]>*+-]*([Cc]lose[sd]?|[Ff]ix(e[sd])?|[Rr]esolve[sd]?)[[:space:]]+#[0-9]+",
+      "js_regex": "^[\\s>*+-]*([Cc]lose[sd]?|[Ff]ix(e[sd])?|[Rr]esolve[sd]?)\\s+#[0-9]+"
     }
   },
   "markers": {

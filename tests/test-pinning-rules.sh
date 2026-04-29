@@ -158,6 +158,13 @@ EOF
 
   git -C "$repo" reset --hard HEAD >/dev/null 2>&1
   mkdir -p "$repo/src"
+  printf '%s\n' 'This does not fix #600' > "$repo/src/not-closing.md"
+  git -C "$repo" add src/not-closing.md
+  out="$(run_pre_commit_fixture "$repo")"
+  assert_contains "$out" "bare 이슈/PR 번호" "non-leading fix prose must not be treated as closing ref"
+
+  git -C "$repo" reset --hard HEAD >/dev/null 2>&1
+  mkdir -p "$repo/src"
   printf '%s\n' 'same repo #600 <!-- pinning-allow: short -->' > "$repo/src/not-allowed.md"
   git -C "$repo" add src/not-allowed.md
   out="$(run_pre_commit_fixture "$repo")"
@@ -263,8 +270,10 @@ if (foundPartial !== 'deadbee') throw new Error('partial hash scan should contin
 const bare = rules.rules.find((rule) => rule.id === 'bare_issue_ref');
 const bareRe = new RegExp(bare.matchers.js_regex);
 if (bareRe.test(scrub('Closes #600'))) throw new Error('closing refs should be scrubbed');
+if (bareRe.test(scrub('- Fixes #600'))) throw new Error('markdown list closing refs should be scrubbed');
 if (bareRe.test(scrub('see owner/repo#600'))) throw new Error('cross-repo refs should be scrubbed');
-  if (!bareRe.test(scrub('see #600'))) throw new Error('bare same-repo ref should match');
+if (!bareRe.test(scrub('see #600'))) throw new Error('bare same-repo ref should match');
+if (!bareRe.test(scrub('This does not fix #600'))) throw new Error('non-leading fix prose should not be scrubbed');
 NODE
 
   node - "$script_file" "$RULES" <<'NODE'
@@ -273,55 +282,56 @@ const vm = require('vm');
 
 const script = fs.readFileSync(process.argv[2], 'utf8');
 const rules = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
-let commentWriteCount = 0;
-let requestedRef = null;
-const context = {
-  repo: { owner: 'owner', repo: 'repo' },
-  payload: {
-    pull_request: {
-      number: 123,
-      body: 'DA round 2',
-      head: { repo: { full_name: 'fork/repo' } },
-      base: { sha: 'trusted-base-sha', repo: { full_name: 'owner/repo' } },
-    },
-  },
-};
-const core = {
-  failed: null,
-  infos: [],
-  warnings: [],
-  info(message) { this.infos.push(message); },
-  warning(message) { this.warnings.push(message); },
-  setFailed(message) { this.failed = message; },
-};
-const github = {
-  rest: {
-    repos: {
-      getContent: async ({ ref }) => {
-        requestedRef = ref;
-        return {
-          data: {
-            type: 'file',
-            encoding: 'base64',
-            content: Buffer.from(JSON.stringify(rules), 'utf8').toString('base64'),
-          },
-        };
+
+async function runForkBody(body) {
+  let commentWriteCount = 0;
+  let requestedRef = null;
+  const context = {
+    repo: { owner: 'owner', repo: 'repo' },
+    payload: {
+      pull_request: {
+        number: 123,
+        body,
+        head: { repo: { full_name: 'fork/repo' } },
+        base: { sha: 'trusted-base-sha', repo: { full_name: 'owner/repo' } },
       },
     },
-    issues: {
-      updateComment: async () => { commentWriteCount += 1; },
-      createComment: async () => { commentWriteCount += 1; },
-      listComments: async () => ({ data: [] }),
+  };
+  const core = {
+    failed: null,
+    infos: [],
+    warnings: [],
+    info(message) { this.infos.push(message); },
+    warning(message) { this.warnings.push(message); },
+    setFailed(message) { this.failed = message; },
+  };
+  const github = {
+    rest: {
+      repos: {
+        getContent: async ({ ref }) => {
+          requestedRef = ref;
+          return {
+            data: {
+              type: 'file',
+              encoding: 'base64',
+              content: Buffer.from(JSON.stringify(rules), 'utf8').toString('base64'),
+            },
+          };
+        },
+      },
+      issues: {
+        updateComment: async () => { commentWriteCount += 1; },
+        createComment: async () => { commentWriteCount += 1; },
+        listComments: async () => ({ data: [] }),
+      },
     },
-  },
-  paginate: {
-    iterator: async function* iterator() {
-      yield { data: [] };
+    paginate: {
+      iterator: async function* iterator() {
+        yield { data: [] };
+      },
     },
-  },
-};
+  };
 
-(async () => {
   await vm.runInNewContext(`(async () => {\n${script}\n})()`, {
     Buffer,
     context,
@@ -329,14 +339,29 @@ const github = {
     github,
   });
 
-  if (requestedRef !== 'trusted-base-sha') {
-    throw new Error(`fork PR rules must load from trusted base sha, got ${requestedRef}`);
+  return { commentWriteCount, core, requestedRef };
+}
+
+(async () => {
+  let result = await runForkBody('DA round 2');
+  if (result.requestedRef !== 'trusted-base-sha') {
+    throw new Error(`fork PR rules must load from trusted base sha, got ${result.requestedRef}`);
   }
-  if (!core.failed || !core.failed.includes('Pinning findings:')) {
-    throw new Error(`fork PR body findings must hard-fail, got ${core.failed}`);
+  if (!result.core.failed || !result.core.failed.includes('Pinning findings:')) {
+    throw new Error(`fork PR body findings must hard-fail, got ${result.core.failed}`);
   }
-  if (commentWriteCount !== 0) {
-    throw new Error(`fork PR must not write comments, wrote ${commentWriteCount}`);
+  if (result.commentWriteCount !== 0) {
+    throw new Error(`fork PR must not write comments, wrote ${result.commentWriteCount}`);
+  }
+
+  result = await runForkBody('This does not fix #600');
+  if (!result.core.failed || !result.core.failed.includes('Pinning findings:')) {
+    throw new Error(`non-leading fix prose must hard-fail, got ${result.core.failed}`);
+  }
+
+  result = await runForkBody('Closes #600');
+  if (result.core.failed) {
+    throw new Error(`leading closing ref should be allowed, got ${result.core.failed}`);
   }
 })().catch((error) => {
   console.error(error);
