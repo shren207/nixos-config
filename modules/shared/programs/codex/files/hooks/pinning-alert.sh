@@ -39,6 +39,13 @@ command -v jq >/dev/null 2>&1 || exit 0
 INPUT=$(cat)
 TOOL_NAME=$(printf '%s' "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null) || exit 0
 
+# tool_name 사전 분기 — Codex의 PostToolUse는 모든 tool 호출(Bash 포함)에 발화하므로,
+# 검사 대상이 아닌 tool은 SCAN_DIR 생성/cleanup 비용 없이 즉시 종료한다.
+case "$TOOL_NAME" in
+  Edit | Write | NotebookEdit | apply_patch) ;;
+  *) exit 0 ;;
+esac
+
 # Pinning hash 길이 경계 (commit-msg-pinning.sh와 동일)
 HASH_MIN=7
 HASH_MAX=12

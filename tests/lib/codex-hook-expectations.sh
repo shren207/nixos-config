@@ -7,9 +7,10 @@
 #
 # 주의: 본 파일은 test/verifier oracle이며 hook의 runtime source of truth가 아니다.
 # hook command / dispatcher sub-script의 실제 정의는 다음 위치에 있다:
-#   - modules/shared/programs/codex/files/config.toml         ([[hooks.UserPromptSubmit]] / [[hooks.Stop]])
+#   - modules/shared/programs/codex/files/config.toml         ([[hooks.UserPromptSubmit]] / [[hooks.Stop]] / [[hooks.PostToolUse]])
 #   - modules/shared/programs/codex/files/config.darwin.toml  (Darwin 분기)
 #   - modules/shared/programs/codex/files/hooks/_stop-dispatcher.sh (sub-script 호출 ordering)
+#   - modules/shared/programs/codex/files/hooks/pinning-alert.sh (PostToolUse pinning warn-only, issue #603)
 # hook 추가 / rename 시 위 runtime 파일들과 본 oracle을 함께 수정해야 한다.
 # shellcheck disable=SC2034
 # (모든 상수가 source caller 측에서만 소비되므로 SC2034 unused 경고를 비활성화한다.)
