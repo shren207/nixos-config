@@ -116,8 +116,12 @@ run_with_timeout() {
 # 적용 시점: LAST_REPLY 추출 직후 — clip 전 원본에서 한 번 redact한다. clip은 LAST_REPLY를
 # 그대로 자르므로 redact가 clip 후 원본 secret으로 되돌아오지 않는다. (DA for_pr DESIGN-1
 # 반영: 1차 redaction만으로 충분하며 2차는 redundant.)
-# Pattern order rationale: 더 specific한 prefix(sk-ant-, github_pat_)를 먼저 적용한다. ***REDACTED***
-# 토큰 자체는 다른 패턴과 매칭되지 않으므로 후속 패턴에 의해 재치환되지 않는다.
+# Pattern order rationale:
+# - Family 내부에서 prefix가 겹치거나 가까운 패턴은 specific -> generic 순서로 둔다.
+#   Anthropic/OpenAI API keys: `sk-ant-...` before generic `sk-...`.
+#   GitHub tokens: fine-grained PAT `github_pat_...` before classic `gh[opsu]_...`.
+# - Family 간 overlap이 없는 JWT/AWS access key 패턴은 redaction test fixture의 family 순서를 따른다.
+# - Redaction marker 자체는 다른 secret 패턴과 매칭되지 않으므로 후속 패턴에 의해 재치환되지 않는다.
 # jq 부재 시 fallback은 원본 반환 (현재 hook의 jq 의존 정책과 일관).
 # JWT pattern: header/payload base64url segment는 JSON `{` 시작 인코딩이라 첫 두 글자가 `e[wy]`
 # (`eyJ`/`eyA`/`ewo` 등 포함). whitespace JSON header 변형(`{ "...`)도 매칭하도록 prefix를 넓힌다.
