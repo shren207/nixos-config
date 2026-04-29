@@ -250,9 +250,9 @@ run_test() {
 
 # ─── codex-config fixture helpers ───
 # sync-codex-config.py의 sync/check 계약을 fixture 기반으로 고정.
-# tomlkit 의존이 필요하므로 lefthook 밖 직접 실행 시에는 tomlkit import 가능 여부에 따라
-# 조건부로 돌린다. lefthook pre-push는 repo-pinned `nix shell .#pythonWithTomlkit --command`로
-# wrap 되어 항상 가용.
+# tomlkit 의존이 필요하므로 직접 실행 시에는 tomlkit import 가능 여부에 따라 조건부로
+# 돌린다. lefthook pre-push는 tests/run-tomlkit-pre-push-tests.sh가 shared runtime을
+# 먼저 준비하므로 항상 가용하다.
 CODEX_CONFIG_SCRIPT="$REPO_ROOT/modules/shared/programs/codex/files/sync-codex-config.py"
 CODEX_CONFIG_FIXTURE_DIR="$FIXTURE_DIR/codex-config"
 
@@ -1377,5 +1377,5 @@ if codex_config_tomlkit_available; then
   run_test "codex-config bare 2-arg compat" test_codex_config_bare_sync_compat
   run_test "codex-config check fixtures" test_codex_config_check_fixtures
 else
-  echo "==> codex-config fixtures: SKIPPED (tomlkit 미가용; 'nix shell .#pythonWithTomlkit --command bash tests/run-shell-script-tests.sh'로 전건 실행 권장; pre-push hook은 자동 wrap됨)" >&2
+  echo "==> codex-config fixtures: SKIPPED (tomlkit 미가용; 'nix shell .#pythonWithTomlkit --command bash tests/run-shell-script-tests.sh'로 전건 실행 권장; pre-push hook은 shared runtime을 자동 준비함)" >&2
 fi

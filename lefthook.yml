@@ -32,14 +32,10 @@ commit-msg:
 
 pre-push:
   commands:
-    shell-script-tests:
-      # runner가 scripts/ai/lib/tomlkit-bootstrap.sh를 source하여 devShell의
-      # pythonWithTomlkit을 우선 사용하고, 밖에서는 nix shell로 self-wrap한다.
-      run: bash ./tests/run-shell-script-tests.sh
-    codex-hook-fixtures:
-      # pre-commit에 이미 동일 명령이 있지만 push 직전 재검증해 stale state 회귀 차단.
-      # runner self-bootstrap이라 추가 nix shell wrap 불필요. live propagation은 attach하지 않음.
-      run: bash ./tests/test-codex-hook-fixtures.sh --no-live
+    tomlkit-fixtures:
+      # tomlkit runtime을 한 번만 준비한 뒤 shell script fixture와 Codex hook fixture를 실행한다.
+      # 각 개별 runner도 direct/manual 실행을 위해 self-bootstrap을 유지한다.
+      run: bash ./tests/run-tomlkit-pre-push-tests.sh
     pinning-rules:
       run: 'test -f ./tests/test-pinning-rules.sh && bash ./tests/test-pinning-rules.sh'
     flake-check:
