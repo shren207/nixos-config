@@ -56,6 +56,18 @@ in
   };
 
   # macOS 전용 Zsh 초기화
+  programs.zsh.envExtra = lib.mkAfter ''
+    # Codex native subagents + app connectors can briefly consume many file descriptors.
+    # macOS launchctl often gives interactive shells a 256 soft nofile limit even when the
+    # per-process hard limit is much higher; that can make Codex fail to spawn Stop hooks.
+    _codex_nofile_target=4096
+    _codex_nofile_current="$(ulimit -Sn 2>/dev/null || printf '0')"
+    if [[ "$_codex_nofile_current" != "unlimited" && "$_codex_nofile_current" -lt "$_codex_nofile_target" ]]; then
+      ulimit -Sn "$_codex_nofile_target" 2>/dev/null || true
+    fi
+    unset _codex_nofile_target _codex_nofile_current
+  '';
+
   programs.zsh.initContent = lib.mkMerge [
     (lib.mkBefore ''
       # macOS NFD 유니코드 결합 문자 처리

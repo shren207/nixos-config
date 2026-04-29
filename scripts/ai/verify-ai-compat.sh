@@ -145,6 +145,31 @@ else
 fi
 
 echo ""
+echo "=== Codex 런타임 리소스 제한 확인 ==="
+
+_nofile_soft="$(ulimit -Sn 2>/dev/null || echo "unknown")"
+_nofile_hard="$(ulimit -Hn 2>/dev/null || echo "unknown")"
+if [ "$(uname -s)" = "Darwin" ]; then
+  case "$_nofile_soft" in
+    unlimited)
+      pass "nofile soft limit = unlimited"
+      ;;
+    ''|*[!0-9]*)
+      warn "nofile soft limit 확인 불가 (soft=$_nofile_soft hard=$_nofile_hard)"
+      ;;
+    *)
+      if [ "$_nofile_soft" -ge 4096 ]; then
+        pass "nofile soft limit >= 4096 (soft=$_nofile_soft hard=$_nofile_hard)"
+      else
+        fail "nofile soft limit too low (soft=$_nofile_soft hard=$_nofile_hard, expected >=4096) — Codex Stop hook spawn may fail with 'Too many open files'"
+      fi
+      ;;
+  esac
+else
+  pass "nofile soft limit = $_nofile_soft (hard=$_nofile_hard)"
+fi
+
+echo ""
 echo "=== AGENTS.md 심링크 확인 ==="
 
 if [ -L "$REPO_ROOT/AGENTS.md" ]; then
