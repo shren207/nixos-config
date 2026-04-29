@@ -8,6 +8,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC2034  # Read by sourced pinning-common.sh.
 PINNING_WARN_PREFIX="pinning"
 # shellcheck source=scripts/ai/lib/pinning-common.sh
 source "$SCRIPT_DIR/lib/pinning-common.sh"
