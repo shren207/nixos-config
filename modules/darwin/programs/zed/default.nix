@@ -104,10 +104,17 @@ in
 
     skipped=0
     total=0
+    first_failure=""
+    first_failure_err=""
     set_handler() {
       total=$((total + 1))
-      if ! ${pkgs.duti}/bin/duti -s ${zedBundleId} "$1" all 2>/dev/null; then
+      local err
+      if ! err=$(${pkgs.duti}/bin/duti -s ${zedBundleId} "$1" all 2>&1); then
         skipped=$((skipped + 1))
+        if [ -z "$first_failure" ]; then
+          first_failure="$1"
+          first_failure_err="$err"
+        fi
       fi
     }
 
@@ -117,7 +124,7 @@ in
     set_handler public.source-code
 
     if [ "$skipped" -gt 0 ]; then
-      echo "  ⚠️  Skipped $skipped of $total entries rejected by duti (likely no static UTI for some extensions)"
+      echo "  ⚠️  Skipped $skipped of $total entries rejected by duti (first: $first_failure → $first_failure_err)"
     fi
     echo "Zed default settings applied."
   '';
