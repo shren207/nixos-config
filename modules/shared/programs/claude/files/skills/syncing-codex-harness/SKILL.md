@@ -22,13 +22,17 @@ Codex CLI 호환 구조(`.agents/`, `.codex/`)로 프로젝션한다.
 |------|------|
 | 전체 동기화 | `bash "$SYNC_SH" all "$PWD" "${ARGS[@]}"` |
 | 로컬 스킬만 | `bash "$SYNC_SH" project-skills "$PWD/.claude/skills" "$PWD/.agents/skills"` |
-| 프로젝트 MCP 섹션만 | `bash "$SYNC_SH" mcp-config "$PWD" --project-mcp="$PWD/.mcp.json"` |
+| 프로젝트 MCP 섹션만 | `test -f "$PWD/.mcp.json" && bash "$SYNC_SH" mcp-config "$PWD" --project-mcp="$PWD/.mcp.json"` |
 | User-scope MCP 투영 | `bash "$SYNC_SH" mcp-config "$PWD" --user-mcp="$HOME/.claude/mcp.json"` |
 | .gitignore 점검 | `bash "$SYNC_SH" gitignore-check "$PWD"` |
 
 > `mcp-config`는 source 옵션 (`--project-mcp` / `--plugin-mcp` / `--user-mcp`) 중 적어도 하나가
 > 필요하다. source 없이 호출하면 새 MCP TOML이 비어 `replace_mcp_sections`가 기존
 > `[mcp_servers.*]` 섹션을 모두 제거한다 (`references/sync.sh`의 mcp-config 경로 참조).
+> 또한 `--project-mcp=<path>`로 지정한 경로의 파일이 존재하지 않을 때도 동일하게
+> source가 비어 처리되어 기존 `[mcp_servers.*]`가 silent 삭제된다 (`sync.sh`는 source
+> 부재를 오류로 처리하지 않는다). 따라서 빠른 참조의 `test -f` 가드는 필수다.
+> `all` 경로는 인자 조립 시점에 `[ -f .mcp.json ]` 가드를 두어 이 문제를 피한다.
 > `project-skills`는 `<source-skills-dir> <target-skills-dir>` 두 인자를 모두 명시해야 한다.
 > `sync.sh`는 `set -u` 아래에서 동작하므로 한 인자만 넘기면 즉시 `unbound variable`로
 > 실패하고 종료한다 (투영이 0개로 끝나는 게 아니라 실행 자체가 멈춘다).
