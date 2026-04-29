@@ -97,8 +97,11 @@ echo "FO_DIR=$FO_DIR"
    # marker must apply to `codex`, not `cat` (issue #585 / epic #584).
    # CODEX_PROGRAMMATIC=1은 Codex 0.124+ user-level hooks의 early-exit guard 신호.
    EXEC_CWD="$(mktemp -d /tmp/fo-session-demo-cwd.XXXXXX)"
-   cat "/tmp/fo-session-demo/agent-1.md" | env CODEX_PROGRAMMATIC=1 codex exec -C "$EXEC_CWD" --sandbox read-only --ignore-user-config --disable plugins --ephemeral \
+   EXEC_CODEX_HOME="$(mktemp -d /tmp/fo-session-demo-codex-home.XXXXXX)"
+   [ -f "${CODEX_HOME:-$HOME/.codex}/auth.json" ] && cp "${CODEX_HOME:-$HOME/.codex}/auth.json" "$EXEC_CODEX_HOME/auth.json"
+   cat "/tmp/fo-session-demo/agent-1.md" | env CODEX_HOME="$EXEC_CODEX_HOME" CODEX_PROGRAMMATIC=1 codex exec -C "$EXEC_CWD" --skip-git-repo-check --sandbox read-only --ignore-user-config --disable plugins --ephemeral \
      -c approval_policy='"never"' \
+     -c model='"gpt-5.5"' \
      -c model_reasoning_effort="high" \
      -o "/tmp/fo-session-demo/agent-1-result.md" \
      - \
@@ -107,7 +110,7 @@ echo "FO_DIR=$FO_DIR"
    - `run_in_background: true`로 Bash tool을 호출한다.
    - stdin pipe가 EOF를 닫으므로 `< /dev/null`은 불필요하다.
    - `env CODEX_PROGRAMMATIC=1`은 codex 프로세스에 적용되어야 한다 (회피: `CODEX_PROGRAMMATIC=1 cat ...`은 cat에만 적용 — 절대 사용 금지).
-   - scratch cwd + `--ignore-user-config --disable plugins`로 project/user/plugin tool surface와 skill context budget 경고를 피한다.
+   - scratch cwd + scratch `CODEX_HOME` + `--ignore-user-config --disable plugins`로 project/user/plugin tool surface와 skill context budget 경고를 피한다.
 
 4. 모든 background 완료 후, 각 결과 파일을 Read 도구로 수집한다.
 
