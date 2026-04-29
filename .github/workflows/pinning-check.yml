@@ -27,12 +27,14 @@ jobs:
               if (pull) {
                 const headRepo = pull.head && pull.head.repo && pull.head.repo.full_name;
                 const baseRepo = pull.base && pull.base.repo && pull.base.repo.full_name;
+                const isFork = !headRepo || !baseRepo || headRepo !== baseRepo;
                 return {
                   type: 'PR',
                   number: pull.number,
                   body: pull.body || '',
                   ref: pull.base.sha,
-                  isFork: !headRepo || !baseRepo || headRepo !== baseRepo
+                  fallbackRef: isFork ? null : pull.head.sha,
+                  isFork
                 };
               }
               const issue = context.payload.issue;
@@ -41,23 +43,39 @@ jobs:
                 number: issue.number,
                 body: issue.body || '',
                 ref: context.payload.repository.default_branch,
+                fallbackRef: null,
                 isFork: false
               };
             }
 
-            async function loadRules(ref) {
-              const response = await github.rest.repos.getContent({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                path: RULES_PATH,
-                ref
-              });
-              const data = response.data;
-              if (!data || Array.isArray(data) || data.type !== 'file' || !data.content) {
-                throw new Error(`Unable to load ${RULES_PATH} from trusted ref ${ref}`);
+            async function loadRules(target) {
+              const refs = [target.ref];
+              if (target.fallbackRef && target.fallbackRef !== target.ref) {
+                refs.push(target.fallbackRef);
               }
-              const decoded = Buffer.from(data.content, data.encoding || 'base64').toString('utf8');
-              return JSON.parse(decoded);
+              let lastError = null;
+              for (const ref of refs) {
+                try {
+                  const response = await github.rest.repos.getContent({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    path: RULES_PATH,
+                    ref
+                  });
+                  const data = response.data;
+                  if (!data || Array.isArray(data) || data.type !== 'file' || !data.content) {
+                    throw new Error(`Unable to load ${RULES_PATH} from ref ${ref}`);
+                  }
+                  const decoded = Buffer.from(data.content, data.encoding || 'base64').toString('utf8');
+                  return { rules: JSON.parse(decoded), ref };
+                } catch (error) {
+                  lastError = error;
+                  if (error.status !== 404 || ref === refs[refs.length - 1]) {
+                    throw error;
+                  }
+                }
+              }
+              throw lastError || new Error(`Unable to load ${RULES_PATH}`);
             }
 
             function validReason(line, marker, minLength) {
@@ -166,7 +184,7 @@ jobs:
                 '- Keep same-repo closing keywords such as `Closes #N` only on leading closing-keyword lines.',
                 `- For intentional non-reference metadata exceptions, add \`${rules.markers.same_line.shell} <reason ${minLength}+ chars>\` or \`${rules.markers.same_line.markdown} <reason ${minLength}+ chars> -->\`.`,
                 '',
-                `Rules source: \`${RULES_PATH}\` from trusted ref \`${target.ref}\`.`
+                `Rules source: \`${RULES_PATH}\` from ref \`${target.rulesRef || target.ref}\`.`
               ].join('\n');
             }
 
@@ -177,7 +195,7 @@ jobs:
                 '',
                 `${target.type} body no longer contains fragile process metadata patterns.`,
                 '',
-                `Rules source: \`${RULES_PATH}\` from trusted ref \`${target.ref}\`.`
+                `Rules source: \`${RULES_PATH}\` from ref \`${target.rulesRef || target.ref}\`.`
               ].join('\n');
             }
 
@@ -233,7 +251,9 @@ jobs:
               core.warning('Fork pull request detected; scanning body but skipping comment writes.');
             }
 
-            const rules = await loadRules(target.ref);
+            const loadedRules = await loadRules(target);
+            const rules = loadedRules.rules;
+            target.rulesRef = loadedRules.ref;
             const findings = scanText(target.body, rules);
             if (findings.length === 0) {
               if (canComment) {

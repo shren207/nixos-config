@@ -326,16 +326,16 @@ const vm = require('vm');
 const script = fs.readFileSync(process.argv[2], 'utf8');
 const rules = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
 
-async function runForkBody(body, headRepo = { full_name: 'fork/repo' }) {
+async function runForkBody(body, headRepo = { full_name: 'fork/repo' }, options = {}) {
   let commentWriteCount = 0;
-  let requestedRef = null;
+  const requestedRefs = [];
   const context = {
     repo: { owner: 'owner', repo: 'repo' },
     payload: {
       pull_request: {
         number: 123,
         body,
-        head: { repo: headRepo },
+        head: { repo: headRepo, sha: 'trusted-head-sha' },
         base: { sha: 'trusted-base-sha', repo: { full_name: 'owner/repo' } },
       },
     },
@@ -352,7 +352,12 @@ async function runForkBody(body, headRepo = { full_name: 'fork/repo' }) {
     rest: {
       repos: {
         getContent: async ({ ref }) => {
-          requestedRef = ref;
+          requestedRefs.push(ref);
+          if (options.missingBaseRules && ref === 'trusted-base-sha') {
+            const error = new Error('Not Found');
+            error.status = 404;
+            throw error;
+          }
           return {
             data: {
               type: 'file',
@@ -382,14 +387,14 @@ async function runForkBody(body, headRepo = { full_name: 'fork/repo' }) {
     github,
   });
 
-  return { commentWriteCount, core, requestedRef };
+  return { commentWriteCount, core, requestedRefs };
 }
 
 (async () => {
   const bareRef = '#' + '600';
   let result = await runForkBody('DA round 2');
-  if (result.requestedRef !== 'trusted-base-sha') {
-    throw new Error(`fork PR rules must load from trusted base sha, got ${result.requestedRef}`);
+  if (result.requestedRefs[0] !== 'trusted-base-sha') {
+    throw new Error(`fork PR rules must load from trusted base sha, got ${result.requestedRefs.join(',')}`);
   }
   if (!result.core.failed || !result.core.failed.includes('Pinning findings:')) {
     throw new Error(`fork PR body findings must hard-fail, got ${result.core.failed}`);
@@ -404,6 +409,17 @@ async function runForkBody(body, headRepo = { full_name: 'fork/repo' }) {
   }
   if (result.commentWriteCount !== 0) {
     throw new Error(`missing fork head repo must not write comments, wrote ${result.commentWriteCount}`);
+  }
+
+  result = await runForkBody('DA round 2', { full_name: 'owner/repo' }, { missingBaseRules: true });
+  if (result.requestedRefs.join(',') !== 'trusted-base-sha,trusted-head-sha') {
+    throw new Error(`same-repo PR should fall back to head rules only after base miss, got ${result.requestedRefs.join(',')}`);
+  }
+  if (!result.core.failed || !result.core.failed.includes('Pinning findings:')) {
+    throw new Error(`same-repo fallback body findings must hard-fail, got ${result.core.failed}`);
+  }
+  if (result.commentWriteCount !== 1) {
+    throw new Error(`same-repo fallback should write one bot comment, wrote ${result.commentWriteCount}`);
   }
 
   result = await runForkBody(`This does not fix ${bareRef}`);
