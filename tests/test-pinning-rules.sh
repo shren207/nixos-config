@@ -12,10 +12,21 @@ WORKFLOW="$REPO_ROOT/.github/workflows/pinning-check.yml"
 TMP_LIST="$(mktemp "${TMPDIR:-/tmp}/pinning-rules-tests.XXXXXX")"
 
 cleanup() {
-  local path
+  local path path_real root_real
+  root_real="$(cd "$REPO_ROOT" && pwd -P)"
   if [ -f "$TMP_LIST" ]; then
     while IFS= read -r path; do
-      [ -n "$path" ] && rm -rf "$path"
+      if [ -z "$path" ]; then
+        continue
+      fi
+      if [ -d "$path" ]; then
+        path_real="$(cd "$path" && pwd -P)"
+        if [ "$path_real" = "$root_real" ]; then
+          echo "Refusing to clean repository root: $path" >&2
+          continue
+        fi
+      fi
+      rm -rf "$path"
     done < "$TMP_LIST"
     rm -f "$TMP_LIST"
   fi
@@ -44,6 +55,19 @@ new_tmp_dir() {
   printf '%s\n' "$dir"
 }
 
+unset_git_local_env() {
+  local var
+  while IFS= read -r var; do
+    [ -n "$var" ] && unset "$var"
+  done < <(git rev-parse --local-env-vars)
+}
+
+fixture_git() {
+  local repo="$1"
+  shift
+  (unset_git_local_env; git -C "$repo" "$@")
+}
+
 run_commit_hook_text() {
   local text="$1" msg
   msg="$(mktemp "${TMPDIR:-/tmp}/pinning-commit-msg.XXXXXX")"
@@ -53,21 +77,24 @@ run_commit_hook_text() {
 }
 
 setup_git_fixture() {
-  local repo="$1"
+  local repo="$1" repo_real root_real
   mkdir -p "$repo"
-  git -C "$repo" init >/dev/null 2>&1
-  git -C "$repo" branch -M main >/dev/null 2>&1
-  git -C "$repo" config user.name "Pinning Test"
-  git -C "$repo" config user.email "pinning@example.invalid"
-  git -C "$repo" config core.hooksPath /dev/null
+  repo_real="$(cd "$repo" && pwd -P)"
+  root_real="$(cd "$REPO_ROOT" && pwd -P)"
+  [ "$repo_real" != "$root_real" ] || fail "fixture repo resolved to repository root"
+  fixture_git "$repo" init >/dev/null 2>&1
+  fixture_git "$repo" branch -M main >/dev/null 2>&1
+  fixture_git "$repo" config user.name "Pinning Test"
+  fixture_git "$repo" config user.email "pinning@example.invalid"
+  fixture_git "$repo" config core.hooksPath /dev/null
   printf 'base\n' > "$repo/README.md"
-  git -C "$repo" add README.md
-  git -C "$repo" commit -m "initial" >/dev/null 2>&1
+  fixture_git "$repo" add README.md
+  fixture_git "$repo" commit -m "initial" >/dev/null 2>&1
 }
 
 run_pre_commit_fixture() {
   local repo="$1"
-  (cd "$repo" && bash "$PRE_COMMIT_HOOK") 2>&1
+  (unset_git_local_env; cd "$repo" && bash "$PRE_COMMIT_HOOK") 2>&1
 }
 
 extract_workflow_script() {
@@ -131,19 +158,19 @@ test_pre_commit_scanner() {
 
   mkdir -p "$repo/src"
   printf '%s\n' '# DA for_pr DESIGN-1 반영 deadbeef' > "$repo/src/pinned.sh"
-  git -C "$repo" add src/pinned.sh
+  fixture_git "$repo" add src/pinned.sh
   out="$(run_pre_commit_fixture "$repo")"
   assert_contains "$out" "src/pinned.sh:1" "pre-commit should report staged added line"
   assert_contains "$out" "DA/검토 키워드" "pre-commit should report DA keyword"
 
-  git -C "$repo" reset --hard HEAD >/dev/null 2>&1
+  fixture_git "$repo" reset --hard HEAD >/dev/null 2>&1
   mkdir -p "$repo/tests/fixtures"
   printf '%s\n' '# DA for_pr DESIGN-1 반영 deadbeef' > "$repo/tests/fixtures/pinned.txt"
-  git -C "$repo" add tests/fixtures/pinned.txt
+  fixture_git "$repo" add tests/fixtures/pinned.txt
   out="$(run_pre_commit_fixture "$repo")"
   [[ -z "$out" ]] || fail "path exclude should suppress fixture findings, got: $out"
 
-  git -C "$repo" reset --hard HEAD >/dev/null 2>&1
+  fixture_git "$repo" reset --hard HEAD >/dev/null 2>&1
   mkdir -p "$repo/src"
   {
     printf '%s\n' 'ref: https://github.com/karakeep-app/karakeep/issues/1977'
@@ -151,51 +178,51 @@ test_pre_commit_scanner() {
     printf 'Closes %s\n' "$bare_ref"
     printf '%s\n' 'DA for_pr DESIGN-1 <!-- pinning-allow: intentional metadata exception for test -->'
   } > "$repo/src/allowed.md"
-  git -C "$repo" add src/allowed.md
+  fixture_git "$repo" add src/allowed.md
   out="$(run_pre_commit_fixture "$repo")"
   [[ -z "$out" ]] || fail "stable refs, closing refs, and non-reference allowlists should suppress findings, got: $out"
 
-  git -C "$repo" reset --hard HEAD >/dev/null 2>&1
+  fixture_git "$repo" reset --hard HEAD >/dev/null 2>&1
   mkdir -p "$repo/src"
   printf 'This does not fix %s\n' "$bare_ref" > "$repo/src/not-closing.md"
-  git -C "$repo" add src/not-closing.md
+  fixture_git "$repo" add src/not-closing.md
   out="$(run_pre_commit_fixture "$repo")"
   assert_contains "$out" "bare 이슈/PR 번호" "non-leading fix prose must not be treated as closing ref"
 
-  git -C "$repo" reset --hard HEAD >/dev/null 2>&1
+  fixture_git "$repo" reset --hard HEAD >/dev/null 2>&1
   mkdir -p "$repo/src"
   printf 'same repo %s <!-- pinning-allow: intentional local reference for test -->\n' "$bare_ref" > "$repo/src/not-allowed.md"
-  git -C "$repo" add src/not-allowed.md
+  fixture_git "$repo" add src/not-allowed.md
   out="$(run_pre_commit_fixture "$repo")"
   assert_contains "$out" "bare 이슈/PR 번호" "inline allowlist must not suppress same-repo bare refs"
 
-  git -C "$repo" reset --hard HEAD >/dev/null 2>&1
+  fixture_git "$repo" reset --hard HEAD >/dev/null 2>&1
   mkdir -p "$repo/src"
   printf '%s\n' '++ deadbeef' > "$repo/src/plus-prefix.md"
-  git -C "$repo" add src/plus-prefix.md
+  fixture_git "$repo" add src/plus-prefix.md
   out="$(run_pre_commit_fixture "$repo")"
   assert_contains "$out" "src/plus-prefix.md:1" "added content starting with ++ should not be mistaken for diff header"
   assert_contains "$out" "Partial commit hash" "added content starting with ++ should still be scanned"
 
-  git -C "$repo" reset --hard HEAD >/dev/null 2>&1
+  fixture_git "$repo" reset --hard HEAD >/dev/null 2>&1
   mkdir -p "$repo/src"
   printf '%s\n' '++ b/deadbee' > "$repo/src/plus-b-prefix.md"
-  git -C "$repo" add src/plus-b-prefix.md
+  fixture_git "$repo" add src/plus-b-prefix.md
   out="$(run_pre_commit_fixture "$repo")"
   assert_contains "$out" "src/plus-b-prefix.md:1" "added content starting with ++ b/ should keep the real file path"
   assert_contains "$out" "Partial commit hash" "added content starting with ++ b/ should still be scanned"
 
-  git -C "$repo" reset --hard HEAD >/dev/null 2>&1
+  fixture_git "$repo" reset --hard HEAD >/dev/null 2>&1
   mkdir -p "$repo/src"
   printf '%s\n' '# DA for_pr DESIGN-1 already present' > "$repo/src/baseline.sh"
-  git -C "$repo" add src/baseline.sh
-  git -C "$repo" commit -m "add baseline" >/dev/null 2>&1
+  fixture_git "$repo" add src/baseline.sh
+  fixture_git "$repo" commit -m "add baseline" >/dev/null 2>&1
   printf '%s\n' 'ordinary new line' >> "$repo/src/baseline.sh"
-  git -C "$repo" add src/baseline.sh
+  fixture_git "$repo" add src/baseline.sh
   out="$(run_pre_commit_fixture "$repo")"
   [[ -z "$out" ]] || fail "pre-commit should scan added lines only, got: $out"
 
-  git -C "$repo" reset --hard HEAD >/dev/null 2>&1
+  fixture_git "$repo" reset --hard HEAD >/dev/null 2>&1
   mkdir -p "$repo/src"
   {
     for i in $(seq 1 8000); do
@@ -203,7 +230,7 @@ test_pre_commit_scanner() {
     done
     printf 'large diff keeps warning for deadbeef\n'
   } > "$repo/src/large.md"
-  git -C "$repo" add src/large.md
+  fixture_git "$repo" add src/large.md
   out="$(run_pre_commit_fixture "$repo")"
   assert_contains "$out" "src/large.md:8001" "large pre-commit staged diff should still report findings"
   assert_contains "$out" "Partial commit hash" "large pre-commit staged diff should still scan rules"
