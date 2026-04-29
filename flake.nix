@@ -200,6 +200,7 @@
               nixfmt
               lefthook
               gitleaks
+              jq
               shellcheck
               inputs.agenix.packages.${system}.default
             ];

@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "rules": [
+    {
+      "id": "round_counter",
+      "kind": "regex",
+      "message": "라운드 카운터(`Round N`) 박제 감지. 영구 산출물에는 자연어 설명으로 표현하라.",
+      "contexts": ["commit_msg", "staged_line", "github_body"],
+      "matchers": {
+        "grep_ere": "\\b[Rr][Oo][Uu][Nn][Dd] [0-9]+\\b",
+        "js_regex": "\\b[Rr][Oo][Uu][Nn][Dd] [0-9]+\\b"
+      },
+      "post_filters": []
+    },
+    {
+      "id": "finding_id",
+      "kind": "regex",
+      "message": "DA finding ID 박제 감지. 라운드/finding ID는 휘발성 보고에만 사용하고 영구 산출물에는 박지 마라.",
+      "contexts": ["commit_msg", "staged_line", "github_body"],
+      "matchers": {
+        "grep_ere": "\\b(Correctness|CORRECTNESS|Design|DESIGN|Regression|REGRESSION|Maintainability|MAINTAINABILITY|Security|SECURITY|Hallucination|HALLUCINATION|Side_effect|SIDE_EFFECT|Consistency|CONSISTENCY|Readability|READABILITY|Clean_code|CLEAN_CODE|Yagni|YAGNI|Ngmi|NGMI|CORR|MAINT|MNT|REG|CIR)-[0-9][A-Za-z0-9-]*\\b",
+        "js_regex": "\\b(Correctness|CORRECTNESS|Design|DESIGN|Regression|REGRESSION|Maintainability|MAINTAINABILITY|Security|SECURITY|Hallucination|HALLUCINATION|Side_effect|SIDE_EFFECT|Consistency|CONSISTENCY|Readability|READABILITY|Clean_code|CLEAN_CODE|Yagni|YAGNI|Ngmi|NGMI|CORR|MAINT|MNT|REG|CIR)-[0-9][A-Za-z0-9-]*\\b"
+      },
+      "post_filters": []
+    },
+    {
+      "id": "da_keywords",
+      "kind": "regex",
+      "message": "DA/검토 키워드 박제 감지. 검토 라운드/모드 표기는 영구 산출물 대신 PR 코멘트 또는 휘발성 작업 노트에 둬라.",
+      "contexts": ["commit_msg", "staged_line", "github_body"],
+      "matchers": {
+        "grep_ere": "\\bDA (for_pr|for_plan|피드백|[Rr]ound)\\b|\\bAuditor [A-Za-z_]+-[0-9]|\\bparallel-audit (반영|결과|finding)\\b",
+        "js_regex": "\\bDA (for_pr|for_plan|피드백|[Rr]ound)\\b|\\bAuditor [A-Za-z_]+-[0-9]|\\bparallel-audit (반영|결과|finding)\\b"
+      },
+      "post_filters": []
+    },
+    {
+      "id": "partial_hash",
+      "kind": "partial_hash",
+      "message": "Partial commit hash 박제 감지. squash 머지 시 dangling 위험. 안정 식별자(PR 번호, 머지된 SHA)로 대체하라.",
+      "contexts": ["commit_msg", "staged_line", "github_body"],
+      "matchers": {
+        "grep_ere": "\\b[a-f0-9]{7,40}\\b|`[a-f0-9]+`",
+        "js_regex": "\\b[a-f0-9]{7,40}\\b|`[a-f0-9]+`"
+      },
+      "post_filters": [
+        {
+          "type": "partial_hash",
+          "min_length": 7,
+          "max_length": 12,
+          "require_hex_alpha": true,
+          "exclude_full_sha_length": 40,
+          "strip_backticks": true
+        }
+      ]
+    },
+    {
+      "id": "bare_issue_ref",
+      "kind": "bare_issue_ref",
+      "message": "same-repo bare 이슈/PR 번호 인용 감지. URL 또는 owner/repo#N 형태로 대체하거나 inline allowlist로 사유를 명시하라.",
+      "contexts": ["commit_msg", "staged_line", "github_body"],
+      "matchers": {
+        "grep_ere": "(^|[^/A-Za-z0-9._-])(#[0-9]+|[Ii]ssue #[0-9]+|[Pp][Rr] #[0-9]+|[Pp]ull [Rr]equest #[0-9]+|이슈 #[0-9]+)($|[^0-9A-Za-z_-])",
+        "js_regex": "(^|[^/A-Za-z0-9._-])(#[0-9]+|[Ii]ssue #[0-9]+|[Pp][Rr] #[0-9]+|[Pp]ull [Rr]equest #[0-9]+|이슈 #[0-9]+)($|[^0-9A-Za-z_-])"
+      },
+      "post_filters": []
+    }
+  ],
+  "allowlist": {
+    "urls": {
+      "grep_ere": "https?://github[.]com/[^/]+/[^/]+/(issues|pull)/[0-9]+",
+      "js_regex": "https?://github\\.com/[^/]+/[^/]+/(issues|pull)/[0-9]+"
+    },
+    "cross_repo_refs": {
+      "grep_ere": "[A-Za-z0-9._-]+/[A-Za-z0-9._-]+#[0-9]+",
+      "js_regex": "[A-Za-z0-9._-]+/[A-Za-z0-9._-]+#[0-9]+"
+    },
+    "closing_refs": {
+      "grep_ere": "(^|[^A-Za-z])([Cc]lose[sd]?|[Ff]ix(e[sd])?|[Rr]esolve[sd]?)[[:space:]]+#[0-9]+",
+      "js_regex": "\\b([Cc]lose[sd]?|[Ff]ix(e[sd])?|[Rr]esolve[sd]?)\\s+#[0-9]+"
+    }
+  },
+  "markers": {
+    "min_reason_length": 10,
+    "same_line": {
+      "shell": "# pinning-allow:",
+      "markdown": "<!-- pinning-allow:"
+    },
+    "next_line": {
+      "shell": "# pinning-allow-next-line:",
+      "markdown": "<!-- pinning-allow-next-line:"
+    }
+  },
+  "path_excludes": [
+    "tests/fixtures/*",
+    "tests/test-pinning-rules.sh",
+    "scripts/ai/lib/pinning-rules.json"
+  ]
+}

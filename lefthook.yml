@@ -18,6 +18,10 @@ pre-commit:
       # source하여 repo-pinned pythonWithTomlkit으로 self-wrap하므로 lefthook에서 추가 nix shell
       # wrap이 불필요하다. live propagation 검증은 manual/scheduled에 위임.
       run: bash ./tests/test-codex-hook-fixtures.sh --no-live
+    pinning:
+      # warn-only — staged added-lines에서 박제 패턴 검사. SSOT는 scripts/ai/lib/pinning-rules.json.
+      # 워크트리/cherry-pick 시나리오에서 lefthook.yml만 받고 스크립트 미동반 시 silent skip.
+      run: '[ -f ./scripts/ai/pre-commit-pinning.sh ] && bash ./scripts/ai/pre-commit-pinning.sh || true'
 
 commit-msg:
   commands:
@@ -40,5 +44,7 @@ pre-push:
       # pre-commit에 이미 동일 명령이 있지만 push 직전 재검증해 stale state 회귀 차단.
       # runner self-bootstrap이라 추가 nix shell wrap 불필요. live propagation은 attach하지 않음.
       run: bash ./tests/test-codex-hook-fixtures.sh --no-live
+    pinning-rules:
+      run: '[ -f ./tests/test-pinning-rules.sh ] && bash ./tests/test-pinning-rules.sh || true'
     flake-check:
       run: nix flake check --no-build --all-systems

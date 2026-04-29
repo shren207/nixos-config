@@ -23,7 +23,7 @@
 
 - [링크 텍스트](URL) — 한 문장으로 "무엇을 뒷받침하는지"
 - `path/to/file.nix:LINE` 또는 `path/to/file.nix:START-END` — 코드 근거 (단일 라인 또는 라인 범위 허용)
-- `#NNN` (이슈/PR 번호) 또는 머지된 commit SHA — **출처 입증에 불가결한 경우에만**. 단순 색인용 인용 금지 (close/rename 시 stale).
+- URL, `owner/repo#N`, 또는 머지된 commit SHA — **출처 입증에 불가결한 경우에만**. 같은 repo의 bare 번호 인용은 inline allowlist 사유가 있을 때만 사용한다. 단순 색인용 인용 금지 (close/rename 시 stale).
 
 ## PoC / Reproduction (선택)
 
@@ -76,8 +76,8 @@
 
 ### References (필수)
 - 비자명한 주장마다 근거 제공 (체크리스트 B1/B4)
-- 근거 타입 (Source reliability 순위 — 체크리스트 B3): 공식 docs URL > repo 내부 파일(`path/to/file.nix:LINE` 또는 `path:START-END`) > 머지된 commit SHA > 관련 이슈/PR 번호 (`#NNN`) > blog > LLM 기억
-- 관련 이슈/PR 번호 인용은 **출처 입증에 불가결한 경우에만**. 단순 색인용 인용은 close/rename 시 stale 위험.
+- 근거 타입 (Source reliability 순위 — 체크리스트 B3): 공식 docs URL > repo 내부 파일(`path/to/file.nix:LINE` 또는 `path:START-END`) > 머지된 commit SHA > 관련 이슈/PR URL 또는 `owner/repo#N` > blog > LLM 기억
+- 관련 이슈/PR 번호 인용은 **출처 입증에 불가결한 경우에만** URL 또는 `owner/repo#N` 형태로 사용한다. 단순 색인용 인용은 close/rename 시 stale 위험.
 - **근거 존재 시**: 최소 1개 링크 또는 path 참조 필수
 - **근거 부재 시**: 섹션을 비우지 않고 `[UNVERIFIED]` 항목으로 대체
 - **상충 시**: `[CONFLICTING]` + 양측 인용 (체크리스트 E3)
