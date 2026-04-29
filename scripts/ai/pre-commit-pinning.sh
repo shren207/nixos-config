@@ -41,7 +41,7 @@ while IFS= read -r diff_line || [ -n "$diff_line" ]; do
     continue
   fi
 
-  if [[ "$diff_line" == +* && "$diff_line" != +++* ]]; then
+  if [[ "$diff_line" == +* && "$diff_line" != "+++ b/"* && "$diff_line" != "+++ /dev/null" ]]; then
     line="${diff_line#+}"
     if [ -n "$current_file" ] && ! pinning_path_excluded "$current_file"; then
       printf '%s\037%s\037%s\037%s\n' "$current_file" "$new_line" "$hunk_id" "$line" >> "$ADDED_LINES"

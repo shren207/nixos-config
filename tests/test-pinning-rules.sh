@@ -172,6 +172,14 @@ EOF
 
   git -C "$repo" reset --hard HEAD >/dev/null 2>&1
   mkdir -p "$repo/src"
+  printf '%s\n' '++ deadbeef' > "$repo/src/plus-prefix.md"
+  git -C "$repo" add src/plus-prefix.md
+  out="$(run_pre_commit_fixture "$repo")"
+  assert_contains "$out" "src/plus-prefix.md:1" "added content starting with ++ should not be mistaken for diff header"
+  assert_contains "$out" "Partial commit hash" "added content starting with ++ should still be scanned"
+
+  git -C "$repo" reset --hard HEAD >/dev/null 2>&1
+  mkdir -p "$repo/src"
   printf '%s\n' '# DA for_pr DESIGN-1 already present' > "$repo/src/baseline.sh"
   git -C "$repo" add src/baseline.sh
   git -C "$repo" commit -m "add baseline" >/dev/null 2>&1
