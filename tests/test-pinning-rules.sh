@@ -204,6 +204,8 @@ test_workflow_static_and_js() {
   grep -Fq "github-actions[bot]" "$script_file" || fail "workflow must update only its own bot comment"
   grep -q 'github.paginate.iterator' "$script_file" || fail "workflow must stop comment pagination after finding marker"
   grep -q 'await resolveComment(target, renderResolvedComment(target, rules));' "$script_file" || fail "workflow must resolve stale failure comments"
+  grep -q 'test -f ./tests/test-pinning-rules.sh && bash ./tests/test-pinning-rules.sh' "$REPO_ROOT/lefthook.yml" \
+    || fail "pre-push pinning-rules must fail when the test script is missing"
   {
     printf '(async function __pinningWorkflowCheck(){\n'
     cat "$script_file"

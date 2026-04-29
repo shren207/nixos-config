@@ -33,18 +33,14 @@ commit-msg:
 pre-push:
   commands:
     shell-script-tests:
-      # nix shell wrap: codex-config fixture가 tomlkit을 필요로 하므로, repo-pinned
-      # packages.${system}.pythonWithTomlkit(flake.nix)를 PATH에 얹어 실행. devShell은
-      # 건드리지 않아 direnv/bare python3 해석 영향이 없고, nixpkgs# 임시 registry
-      # fetch 대신 flake input에 고정된 store path를 재사용해 오버헤드도 최소화.
-      # `_TOMLKIT_BOOTSTRAP_READY=1` env를 명시적으로 넘겨, `tests/run-shell-script-tests.sh`
-      # 내부의 tomlkit-bootstrap.sh가 중첩 `nix shell ...`을 다시 exec하지 않도록 한다.
-      run: nix shell .#pythonWithTomlkit --command env _TOMLKIT_BOOTSTRAP_READY=1 bash ./tests/run-shell-script-tests.sh
+      # runner가 scripts/ai/lib/tomlkit-bootstrap.sh를 source하여 devShell의
+      # pythonWithTomlkit을 우선 사용하고, 밖에서는 nix shell로 self-wrap한다.
+      run: bash ./tests/run-shell-script-tests.sh
     codex-hook-fixtures:
       # pre-commit에 이미 동일 명령이 있지만 push 직전 재검증해 stale state 회귀 차단.
       # runner self-bootstrap이라 추가 nix shell wrap 불필요. live propagation은 attach하지 않음.
       run: bash ./tests/test-codex-hook-fixtures.sh --no-live
     pinning-rules:
-      run: '[ ! -f ./tests/test-pinning-rules.sh ] || bash ./tests/test-pinning-rules.sh'
+      run: 'test -f ./tests/test-pinning-rules.sh && bash ./tests/test-pinning-rules.sh'
     flake-check:
       run: nix flake check --no-build --all-systems

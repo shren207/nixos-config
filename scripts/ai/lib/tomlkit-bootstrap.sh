@@ -7,10 +7,11 @@
 #
 # 정책:
 #   1) 이미 `_TOMLKIT_BOOTSTRAP_READY=1` 이면 추가 검사 없이 즉시 반환한다.
-#   2) ambient `python3`가 tomlkit을 import할 수 있으면 그대로 사용한다. devShell은
-#      flake-pinned `pythonWithTomlkit`을 PATH에 제공하므로 중첩 `nix shell`을 피한다.
-#   3) tomlkit이 없고 nix가 있으면 repo-pinned `nix shell .#pythonWithTomlkit --command
-#      bash "$0" ...`로 재실행한다.
+#   2) ambient `python3`가 tomlkit과 Python 3.11+ tomllib를 import할 수 있으면 그대로
+#      사용한다. devShell은 flake-pinned `pythonWithTomlkit`을 PATH에 제공하므로 중첩
+#      `nix shell`을 피한다.
+#   3) 준비된 Python이 없고 nix가 있으면 repo-pinned `nix shell .#pythonWithTomlkit
+#      --command bash "$0" ...`로 재실행한다.
 #   4) nix도 없으면 hard fail한다.
 #
 # 사용:
@@ -32,7 +33,7 @@ tomlkit_bootstrap_require() {
     return 0
   fi
 
-  if python3 -c 'import tomlkit' 2>/dev/null; then
+  if python3 -c 'import tomllib, tomlkit' 2>/dev/null; then
     export _TOMLKIT_BOOTSTRAP_READY=1
     return 0
   fi
