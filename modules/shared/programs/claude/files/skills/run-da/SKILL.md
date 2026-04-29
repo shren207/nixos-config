@@ -116,7 +116,13 @@ DA 호출 자체를 생략하지 마라 — run-da를 호출하면
   # 세션 식별 해시 (8자: /tmp 경로 가독성과 충돌 확률의 균형)
   _DA_SID="${CODEX_COMPANION_SESSION_ID:+${CODEX_COMPANION_SESSION_ID:0:8}}"
   # CODEX_COMPANION_SESSION_ID 미노출 환경(headless/CI)에서 디렉토리별 충돌 방지용 결정적 해시
-  [ -z "$_DA_SID" ] && _DA_SID="$(printf '%s' "$PWD" | sha1sum 2>/dev/null | head -c 8 || printf '%s' "$PWD" | shasum | head -c 8)"
+  if [ -z "$_DA_SID" ]; then
+    if command -v sha1sum >/dev/null 2>&1; then
+      _DA_SID="$(printf '%s' "$PWD" | sha1sum | head -c 8)"
+    else
+      _DA_SID="$(printf '%s' "$PWD" | shasum | head -c 8)"
+    fi
+  fi
   ```
   이후 모든 `mktemp -d`와 cleanup glob에서 `$_DA_SID`를 prefix에 포함한다.
 - **모드 시작 시 이전 임시 디렉토리 정리**: for_plan 시작 시 `rm -rf /tmp/da-${_DA_SID}-pr-*(N) /tmp/da-${_DA_SID}-arbiter-*(N) /tmp/da-pr-*(N) /tmp/da-arbiter-*(N)`, for_pr 시작 시 `rm -rf /tmp/da-${_DA_SID}-plan-*(N) /tmp/da-${_DA_SID}-intensity-*(N) /tmp/da-plan-*(N) /tmp/da-intensity-*(N)`. 같은 모드의 이전 라운드는 라운드 교체 시 정리.
