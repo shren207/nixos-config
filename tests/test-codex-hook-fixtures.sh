@@ -3,7 +3,7 @@
 # Codex 0.124+ stable hook 회귀 차단 fixture runner.
 #
 # 7 카테고리:
-#   1. stdin schema baseline 0.124       — fixtures/codex-hooks/stdin/*.json
+#   1. stdin schema baseline 0.124       — fixtures/codex-hooks/stdin/{userpromptsubmit-codex-0.124,stop-codex-0.124,stop-no-last-message}.json
 #   2. dispatcher ordering / failure recovery — runner 내부 mock subscript
 #   3. noise-guard env 변형              — runner 내부 helper (4 env 조합)
 #   4. sync-codex-config.py preservation — fixtures/codex-hooks/sync-preservation/*.toml
