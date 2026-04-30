@@ -22,20 +22,31 @@ Codex CLI 호환 구조(`.agents/`, `.codex/`)로 프로젝션한다.
 |------|------|
 | 전체 동기화 | `bash "$SYNC_SH" all "$PWD" "${ARGS[@]}"` |
 | 로컬 스킬만 | `bash "$SYNC_SH" project-skills "$PWD/.claude/skills" "$PWD/.agents/skills"` |
-| 프로젝트 MCP 섹션만 | `test -f "$PWD/.mcp.json" && bash "$SYNC_SH" mcp-config "$PWD" --project-mcp="$PWD/.mcp.json"` |
-| User-scope MCP 투영 | `test -f "$HOME/.claude/mcp.json" && bash "$SYNC_SH" mcp-config "$PWD" --user-mcp="$HOME/.claude/mcp.json"` |
+| 프로젝트 MCP 섹션만 | 아래 "MCP 섹션 가드 예시" 참조 |
+| User-scope MCP 투영 | 아래 "MCP 섹션 가드 예시" 참조 |
 | .gitignore 점검 | `bash "$SYNC_SH" gitignore-check "$PWD"` |
 
-> `mcp-config`는 source 옵션 (`--project-mcp` / `--plugin-mcp` / `--user-mcp`) 중 적어도 하나가
-> 필요하다. source 없이 호출하면 새 MCP TOML이 비어 `replace_mcp_sections`가 기존
-> `[mcp_servers.*]` 섹션을 모두 제거한다 (`references/sync.sh`의 mcp-config 경로 참조).
-> 또한 `--project-mcp=<path>`로 지정한 경로의 파일이 존재하지 않을 때도 동일하게
-> source가 비어 처리되어 기존 `[mcp_servers.*]`가 silent 삭제된다 (`sync.sh`는 source
-> 부재를 오류로 처리하지 않는다). 따라서 빠른 참조의 `test -f` 가드는 필수다.
-> `all` 경로는 인자 조립 시점에 `[ -f .mcp.json ]` 가드를 두어 이 문제를 피한다.
-> `project-skills`는 `<source-skills-dir> <target-skills-dir>` 두 인자를 모두 명시해야 한다.
-> `sync.sh`는 `set -u` 아래에서 동작하므로 한 인자만 넘기면 즉시 `unbound variable`로
-> 실패하고 종료한다 (투영이 0개로 끝나는 게 아니라 실행 자체가 멈춘다).
+### MCP 섹션 가드 예시
+
+`mcp-config`는 source 파일 부재 시 기존 `[mcp_servers.*]`를 silent 삭제하므로 호출 전 존재 가드가 필수다. 가드는 `if [ -f X ]; then ...; fi` 형태로 작성한다 — `set -e` 환경에서도 안전하다.
+
+```bash
+# 프로젝트 MCP 섹션만
+if [ -f "$PWD/.mcp.json" ]; then
+  bash "$SYNC_SH" mcp-config "$PWD" --project-mcp="$PWD/.mcp.json"
+fi
+
+# User-scope MCP 투영
+if [ -f "$HOME/.claude/mcp.json" ]; then
+  bash "$SYNC_SH" mcp-config "$PWD" --user-mcp="$HOME/.claude/mcp.json"
+fi
+```
+
+> 추가 동작 노트:
+> - `mcp-config`는 source 옵션 (`--project-mcp` / `--plugin-mcp` / `--user-mcp`) 중 적어도 하나가 필요하다. source 없이 호출하거나 `--project-mcp=<path>`의 path 파일이 없으면 새 MCP TOML이 비어 `replace_mcp_sections`가 기존 `[mcp_servers.*]` 섹션을 모두 제거한다 (`references/sync.sh`의 mcp-config 경로 참조). `sync.sh`는 source 부재를 오류로 처리하지 않으므로 호출자(또는 위 가드)가 책임진다.
+> - `all` 경로는 인자 조립 시점에 `[ -f .mcp.json ]` 가드를 두어 이 문제를 피한다.
+> - `project-skills`는 `<source-skills-dir> <target-skills-dir>` 두 인자를 모두 명시해야 한다. `sync.sh`는 `set -u` 아래에서 동작하므로 한 인자만 넘기면 즉시 `unbound variable`로 실패하고 종료한다 (투영이 0개로 끝나는 게 아니라 실행 자체가 멈춘다).
+> - **`set -e` 가드 패턴 (단일 SoT)**: 위 if 가드 형태가 본 SKILL의 표준이다. 이전 `test -f X && cmd` 형태는 standalone statement 위치(함수/스크립트 마지막 또는 단독 실행)에서 false 평가 시 exit 1을 propagate해 `set -e` caller를 abort시킨다. `if` 조건 *내부*의 `[ ... ] && [ ... ]`은 단일 평가식이므로 안전하며 본 가이드의 금지 대상이 아니다.
 
 `sync.sh` 스크립트 경로: 현재 SKILL.md가 위치한 디렉토리의 `references/sync.sh`를 사용하라.
 예: 이 SKILL.md의 실제 경로가 `~/.claude/skills/syncing-codex-harness/SKILL.md`이면
@@ -157,7 +168,9 @@ SYNC_SH="<SKILL.md가 위치한 디렉토리>/references/sync.sh"
 ARGS=()
 
 # 로컬 스킬이 있으면 (Case A, C)
-[ -d ".claude/skills" ] && ARGS+=(--local-skills-dir=.claude/skills)
+if [ -d ".claude/skills" ]; then
+  ARGS+=(--local-skills-dir=.claude/skills)
+fi
 
 # 각 플러그인마다 (Case B, C)
 # INSTALL_PATH: Step 2에서 해석한 installPath
@@ -165,13 +178,15 @@ ARGS=()
 ARGS+=(--plugin-install-path="$INSTALL_PATH:$PLUGIN_NAME")
 
 # user-scope MCP까지 함께 투영하고 싶을 때 (선택)
-# 빠른 참조와 동일하게 source 파일 존재 가드를 둔다 — sync.sh는 source 부재 시
-# 빈 MCP TOML로 진행해 ~/.codex/config.toml의 기존 [mcp_servers.*]를 silent 삭제한다.
-[ -f "$HOME/.claude/mcp.json" ] && ARGS+=(--user-mcp="$HOME/.claude/mcp.json")
+# 빠른 참조의 "MCP 섹션 가드 예시"와 동일한 source 파일 존재 가드 정책 적용.
+if [ -f "$HOME/.claude/mcp.json" ]; then
+  ARGS+=(--user-mcp="$HOME/.claude/mcp.json")
+fi
 
 # 프로젝트에 CLAUDE.md가 없고, 플러그인이 CLAUDE.md를 제공하는 경우
-[ ! -e "CLAUDE.md" ] && [ -f "$INSTALL_PATH/CLAUDE.md" ] && \
+if [ ! -e "CLAUDE.md" ] && [ -f "$INSTALL_PATH/CLAUDE.md" ]; then
   ARGS+=(--plugin-claude-md="$INSTALL_PATH/CLAUDE.md")
+fi
 ```
 
 ### 실행
@@ -206,18 +221,20 @@ bash "$SYNC_SH" all "$PWD" "${ARGS[@]}"
 
 ```bash
 # ~/.claude/mcp.json -> ~/.codex/config.toml
-test -f "$HOME/.claude/mcp.json" && bash "$SYNC_SH" mcp-config "$PWD" \
-  --user-mcp="$HOME/.claude/mcp.json"
+if [ -f "$HOME/.claude/mcp.json" ]; then
+  bash "$SYNC_SH" mcp-config "$PWD" \
+    --user-mcp="$HOME/.claude/mcp.json"
+fi
 
 # target 경로를 명시적으로 지정할 수도 있음
-test -f "$HOME/.claude/mcp.json" && bash "$SYNC_SH" mcp-config "$PWD" \
-  --user-mcp="$HOME/.claude/mcp.json" \
-  --user-codex-config="$HOME/.codex/config.toml"
+if [ -f "$HOME/.claude/mcp.json" ]; then
+  bash "$SYNC_SH" mcp-config "$PWD" \
+    --user-mcp="$HOME/.claude/mcp.json" \
+    --user-codex-config="$HOME/.codex/config.toml"
+fi
 ```
 
-> 두 예시 모두 `test -f` 가드는 필수다. source 파일 부재 시 `sync.sh`가 빈 MCP TOML로
-> 진행해 `~/.codex/config.toml`의 기존 `[mcp_servers.*]`를 silent 삭제한다 (위 빠른 참조
-> 노트의 source 부재 silent 삭제 동작과 동일).
+> source 파일 존재 가드 정책의 단일 진실 원천은 위 "빠른 참조 > MCP 섹션 가드 예시"다. 두 예시 모두 같은 `if [ -f ]; then ... fi` 패턴을 따른다.
 
 포맷 호환:
 - Claude user-scope 형식: `{"mcpServers": {...}}`
