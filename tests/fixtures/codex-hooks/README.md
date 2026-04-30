@@ -7,7 +7,7 @@ runner: `tests/test-codex-hook-fixtures.sh`.
 
 | 경로 | 의도 | 소비처 |
 |------|------|--------|
-| `stdin/` | Codex 0.124+ stdin payload (실측 schema). `record-prompt-submit.sh`, `record-last-stop.sh`, `stop-notification.sh` 등 hook이 stdin으로 받는 JSON. | `test_stdin_payloads_create_expected_hook_artifacts_codex_0_124`, `test_stop_notification_codex_transcript_fallback`, `test_stop_notification_secret_redaction` |
+| `stdin/` | hook stdin fixture 공용 디렉터리. Codex 0.124+ payload(`record-prompt-submit.sh`/`record-last-stop.sh`/`stop-notification.sh` 등)와 pinning-alert behavioral fixture(Claude+Codex hook 입력/출력 박제, `*.expected` sidecar 포함)가 함께 위치. 카테고리별 파일 표는 아래 카테고리 6/7 절 참조. | `test_stdin_payloads_create_expected_hook_artifacts_codex_0_124`, `test_stop_notification_codex_transcript_fallback`, `test_stop_notification_secret_redaction`, `test_pinning_alert_behavioral` |
 | `sync-preservation/` | `sync-codex-config.py`가 `~/.codex/config.toml`을 merge할 때 user-owned 영역을 어떻게 보존/덮어쓰는지 검증할 user 측 입력 TOML. | `test_sync_preservation_scenarios` |
 | `transcripts/` | Codex 0.124+ session JSONL transcript 샘플. stop-notification.sh의 `extract_last_assistant_text` fallback 경로 검증용. | `test_stop_notification_codex_transcript_fallback` (6.1) |
 

@@ -190,6 +190,19 @@ _run_hook_in_sandbox_core() {
   local sandbox="$1"; shift
   local env_pairs_string="$1"; shift
   local hook="$1"; shift
+  _exec_with_sandbox_env "$sandbox" "$env_pairs_string" \
+    "$sandbox/home/.codex/hooks/$hook" "$@"
+}
+
+# Wrapper 공용: sandbox 격리 env를 적용한 뒤 caller 명령을 실행한다.
+# 격리 계약: CLAUDECODE / CODEX_PROGRAMMATIC unset, sandbox bin-stubs를 PATH 앞에 prepend(host PATH는
+# 뒤에 보존하여 jq 등 시스템 도구 접근 유지), HOME / XDG_DATA_HOME / XDG_CONFIG_HOME / CODEX_HOME은
+# sandbox로 강제. _run_hook_in_sandbox_core(sandbox 내부 hook copy)와 카테고리 7 pinning-alert
+# 외부 절대경로 hook 실행이 이 helper 한 곳을 공유한다.
+# 첫 인자는 sandbox, 두 번째는 추가 env_pairs_string("" 또는 "K=V K=V"), 이후는 실행 명령 + 인자들.
+_exec_with_sandbox_env() {
+  local sandbox="$1"; shift
+  local env_pairs_string="$1"; shift
   local env_array=()
   if [[ -n "$env_pairs_string" ]]; then
     read -ra env_array <<<"$env_pairs_string"
@@ -200,7 +213,7 @@ _run_hook_in_sandbox_core() {
       XDG_DATA_HOME="$sandbox/xdg-data" \
       XDG_CONFIG_HOME="$sandbox/xdg-config" \
       CODEX_HOME="$sandbox/codex-home" \
-      "$sandbox/home/.codex/hooks/$hook" "$@"
+      "$@"
 }
 
 # 카테고리 6 (stop-notification reliability/security) 공용: Pushover credential + curl mock 설치.
@@ -717,8 +730,10 @@ _assert_pinning_expectation() {
   local fixture="$1" stderr_log="$2"
   local expected="${fixture%.json}.expected"
   if ! diff -u "$expected" "$stderr_log" >/dev/null 2>&1; then
+    # diff 비매치 + head pipeline은 nonzero를 반환하므로 set -euo pipefail 환경에서 assignment 자체가
+    # 중단되지 않도록 diff 캡처만 성공 처리한다 (`|| true`). 실제 실패 보고는 바로 아래 `fail`이 담당 (#606).
     local diff_out
-    diff_out=$(diff -u "$expected" "$stderr_log" 2>&1 | head -40)
+    diff_out=$(diff -u "$expected" "$stderr_log" 2>&1 | head -40 || true)
     fail "[7] $(basename "$fixture") stderr expectation drift:
 $diff_out"
   fi
@@ -732,8 +747,11 @@ test_pinning_alert_behavioral() {
   for fixture in "$FIXTURE_DIR"/stdin/pinning-*.json; do
     assert_file_exists "${fixture%.json}.expected" "7/$(basename "$fixture")"
 
-    # new_hook_sandbox 재사용: TEST_TMP_FILE 등록을 통해 EXIT trap이 자동 정리한다 (#606 plan).
-    # sandbox 안의 hook copy는 사용하지 않고 stderr.log 보관 + cleanup 등록 컨테이너로만 활용한다.
+    # new_hook_sandbox 재사용: TEST_TMP_FILE 등록을 통해 EXIT trap이 자동 정리한다. hook 실행은
+    # _exec_with_sandbox_env로 sandbox 격리 env(CLAUDECODE/CODEX_PROGRAMMATIC unset, sandbox
+    # bin-stubs PATH prepend, HOME/XDG/CODEX_HOME sandbox 강제)를 적용해 host 상태 누수를 차단한다.
+    # pinning-alert.sh는 sandbox 내부 hook copy가 아닌 repo root path를 직접 호출하지만 env 격리
+    # 계약은 카테고리 6 helper와 단일 source를 공유한다.
     sandbox=$(new_hook_sandbox)
     stderr_log="$sandbox/pinning-stderr.log"
 
@@ -743,7 +761,7 @@ test_pinning_alert_behavioral() {
       *) fail "[7] unexpected fixture name: $(basename "$fixture")" ;;
     esac
 
-    if "$hook" < "$fixture" 2>"$stderr_log"; then
+    if _exec_with_sandbox_env "$sandbox" "" "$hook" < "$fixture" 2>"$stderr_log"; then
       exit_code=0
     else
       exit_code=$?
