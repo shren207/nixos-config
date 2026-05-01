@@ -51,13 +51,13 @@ fan-in 결과에서 미해결 항목(블랙박스 제로 원칙의 "블랙박스
 
 ## Step I-6: 후속 모드 전환 제안 [일반 모드]
 
-이슈 생성 완료 후, 질문 도구로 사용자에게 묻는다 (메시지·옵션은 [`../references/output-templates.md`](../references/output-templates.md#for_issue-step-i-6-전환-제안-메시지) 참조). 입력 시점의 **자연어 trigger 카테고리**에 따라 transition 권장이 달라진다:
+이슈 생성 완료 후, 질문 도구로 사용자에게 묻는다 (메시지·옵션은 [`../references/output-templates.md`](../references/output-templates.md#for_issue-step-i-6-전환-제안-메시지) 참조). 입력 시점의 **자연어 trigger 카테고리**에 따라 첫 옵션의 권장 모드가 달라진다 (이슈 본문에 별도 marker는 추가하지 않는다 — 모드 결정은 사용자 입력의 trigger 카테고리만으로 충분):
 
-- **사용자 입력에 PRD 의도 trigger** (`PRD 작성`, `Living PRD`, `phase 계획`, `기능 스펙 정리`, `Discovery Gate 있는 계획서`, `PRD 업데이트`) **포함** → 권장: 생성된 이슈 URL로 **for_action 진입 + 이슈 본문에 "Phase ≥4 가능성" 명시** (for_action Step 1-2에서 우선순위 5 자동 PRD 후보 알림 트리거). 사용자가 즉시 PRD 작성을 원하면 `for_prd <ISSUE_URL>` 직접 호출도 가능.
-- **사용자 입력에 review-impl 의도 trigger** (`구현 감사`, `문서 대비 구현 리뷰`, `스펙 대비 감사`, `overbuilt 검사`, `PRD phase 완료 확인`) **포함** → 권장: 생성된 이슈 URL로 **for_action 진입** (Post-Implementation 5번 Final review 단계에서 [`../references/review-impl/requirement-status.md`](../references/review-impl/requirement-status.md) 6-classification + 9-pass review-only 적용).
-- **위 카테고리 매칭 없음** → 표준 옵션:
+- **PRD 작성 의도** (`PRD 작성`, `Living PRD`, `phase 계획`, `기능 스펙 정리`, `Discovery Gate 있는 계획서`, `PRD 업데이트`) → 권장: **for_prd 직접 진입** (생성된 이슈 URL + PRD 의도 결합). 또는 for_action 진입 후 Step 1-2 baseline에서 Phase ≥4 감지 시 자동 for_prd 후보 알림.
+- **review-impl 의도** (`구현 감사`, `문서 대비 구현 리뷰`, `스펙 대비 감사`, `overbuilt 검사`, `PRD phase 완료 확인`) → 권장: **for_action 진입** (Post-Implementation 5번 Final review에서 [`../references/review-impl/requirement-status.md`](../references/review-impl/requirement-status.md) 6-classification + 9-pass review-only 적용).
+- **위 카테고리 매칭 없음** → 표준 for_action transition 또는 write-handoff/종료.
 
 옵션:
-- **Yes** → 생성된 이슈 URL(`/create-issue` Step 5의 `ISSUE_URL`)로 for_action 모드를 시작한다 (PRD trigger 포함 시 Phase ≥4 가능성 명시).
+- **Yes** → trigger 카테고리에 따라 자동 권장 모드(`for_prd <ISSUE_URL>` 또는 `for_action <ISSUE_URL>`)로 진입.
 - **No (write-handoff로 마무리)** → 생성된 **이슈 URL(`ISSUE_URL`)** 을 인자로 `/write-handoff` 스킬을 실행하여 LLM 이행 가이드를 작성한 뒤 종료한다 (bare 번호 대신 URL을 전달해 write-handoff 헬퍼의 cwd 의존성을 회피).
 - **No (여기서 종료)** → 생성된 이슈 URL을 반환하고 종료한다.
