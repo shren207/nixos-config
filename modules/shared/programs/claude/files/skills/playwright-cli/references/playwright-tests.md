@@ -1,16 +1,12 @@
 # Running Playwright Tests
 
-> **Permission/cache-only consistency note** — These `npx playwright test` commands invoke the `playwright` test runner (a separate npm package from `@playwright/cli` — which provides the agent's `playwright-cli` browser automation bin documented in [SKILL.md](../SKILL.md)). They presume `playwright` is already installed as a project dev-dependency (`node_modules/.bin/playwright` is what `npx` resolves to). For agent sessions, prefer running through `npm run <script>` (which the project owner has wired to its installed dependency) so that registry fetch is structurally avoided. If `playwright` is *not* present locally, the user must install it as a project dep first (`npm install --save-dev playwright`) — agents should not auto-bootstrap via `npx --yes`.
->
-> The skill's frontmatter `allowed-tools: Bash(playwright-cli:*) Bash(npx:*)` permits `npx` invocation, but the cache-only / user-managed-bootstrap split documented in the SKILL.md Installation section applies analogously to the `playwright` test runner.
-
-To run Playwright tests, use `npx --offline playwright test` (cache-only — resolves to project's `node_modules/.bin/playwright`, fails fast if not installed locally) or a package manager script. To avoid opening the interactive html report, use `PLAYWRIGHT_HTML_OPEN=never` environment variable.
+To run Playwright tests, use the `npx playwright test` command, or a package manager script. To avoid opening the interactive html report, use `PLAYWRIGHT_HTML_OPEN=never` environment variable.
 
 ```bash
-# Run all tests (assumes `playwright` is installed as a project dev-dep — npx resolves to node_modules/.bin/playwright)
-PLAYWRIGHT_HTML_OPEN=never npx --offline playwright test
+# Run all tests
+PLAYWRIGHT_HTML_OPEN=never npx playwright test
 
-# Run all tests through a custom npm script (recommended — registry fetch structurally avoided)
+# Run all tests through a custom npm script
 PLAYWRIGHT_HTML_OPEN=never npm run special-test-command
 ```
 
@@ -24,7 +20,7 @@ Once instructions containing a session name are printed, use `playwright-cli` to
 
 ```bash
 # Run the test
-PLAYWRIGHT_HTML_OPEN=never npx --offline playwright test --debug=cli
+PLAYWRIGHT_HTML_OPEN=never npx playwright test --debug=cli
 # ...
 # ... debugging instructions for "tw-abcdef" session ...
 # ...
