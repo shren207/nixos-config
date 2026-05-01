@@ -36,7 +36,7 @@ Codex 측 skill exposure SoT를 갱신한다 — `codex/default.nix:38-51`의 `e
 ### In Scope
 
 - codex/default.nix:38-51 두 entry 제거.
-- verify-ai-compat.sh:349-357 두 entry 제거.
+- verify-ai-compat.sh:349-357 두 entry 제거 (prd=line 356, review-implementation=line 357).
 - plan-with-questions/SKILL.md description, 빠른 참조 표, 모드 판별 표 갱신.
 - plan-with-questions/evals/queries.json positive 8-12 + negative 4-6 + ambiguous 2-3 추가, "Living PRD 작성" false→true.
 - plan-with-questions/modes/for_prd.md 본문에 PRD 갱신·review-only 자연어 가이드 추가.
@@ -52,7 +52,7 @@ Codex 측 skill exposure SoT를 갱신한다 — `codex/default.nix:38-51`의 `e
 ## Implementation Checklist
 
 - [ ] `modules/shared/programs/codex/default.nix:38-51` Edit — `exposedCodexSkills` list에서 `"prd"` (line 45), `"review-implementation"` (line 46) 두 줄 제거.
-- [ ] `scripts/ai/verify-ai-compat.sh:349-357` Edit — `EXPECTED_EXPOSED` 배열에서 `prd`, `review-implementation` 두 entry 제거.
+- [ ] `scripts/ai/verify-ai-compat.sh:349-357` Edit — `EXPECTED_EXPOSED` 배열에서 `prd` (line 356) + `review-implementation` (line 357) 두 entry 제거. (sub-range 349-357 = 배열 시작 ~ review-implementation entry까지; 정확한 Edit 단위는 두 line.)
 - [ ] `plan-with-questions/SKILL.md` **description frontmatter Edit (link는 Phase 2에서 이미 갱신, 본 phase는 description/표만)**: 흡수 trigger 추가 (PRD 작성, 구현 감사, 스펙 대비 감사, overbuilt 검사, Living PRD, phase 계획, PRD 업데이트, 문서 대비 구현 리뷰 등 12개).
 - [ ] `plan-with-questions/SKILL.md` 모드 판별 표 — for_prd 트리거 키워드 보강 (PRD 작성·구현 감사 등 자연어 입력 자동 매칭).
 - [ ] `plan-with-questions/SKILL.md` 빠른 참조 표 / 차용 reference 표 — Phase 2에서 link는 갱신됨. 본 phase에서는 표 헤더/본문 정합만 확인 (link 재변경 없음).
