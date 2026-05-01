@@ -69,3 +69,15 @@
 ```
 
 Evidence 라벨은 별개 축이다 (상세: [체크리스트 라벨 체계](../../../write-handoff/references/llm-friendly-checklist.md#라벨-체계-anti-hallucination)). 6분류(requirement status)와 evidence 라벨은 함께 쓴다 — 예: `partial [INFERRED]` = "부분 충족으로 보이나 증거가 근접 추론 수준이다".
+
+## Final review overlay 적용 범위 (DL-20)
+
+본 reference는 PRD Final 10-pass([`../prd/multi-pass-review.md`](../prd/multi-pass-review.md))에 얹는 review-impl overlay다. 모든 finding에 라벨을 강제하지 않는다 — 적용 범위는 다음으로 제한:
+
+- **6-classification 라벨 부여 대상**: PRD 10-pass의 1번 Requirements coverage finding과 8번 Validation finding 중 requirement-linked 항목. 즉 "이 요구사항이 satisfied/partial/missing/conflicting/deferred"로 매핑 가능한 finding만.
+- **`overbuilt` 우선 라벨 부여 대상**: PRD 10-pass의 4번 Simplicity / 5번 Cleanup finding 중 "문서가 요구하지 않는 기능·추상화·상태·의존성"이 보이는 항목. Classification 룰 6번 (Overbuilt 우선 판정)에 따라 `partial`/`satisfied`와 `overbuilt` 모두 후보면 `overbuilt`로.
+- **라벨 미부여 finding**: 보안/성능/문서/cross-phase integration/PRD closeout 등 requirement 매핑이 자연스럽지 않은 finding은 라벨 없이 PRD 10-pass 출력 그대로 둔다 (overlay 과적용 방지).
+
+## main-agent-only 경계
+
+본 reference (6-classification + overbuilt overlay)는 read-only다. 라벨링·우선 분류 결과는 보고만 산출하며, 구현 추가/제거/체크박스 전환/PRD 정정 같은 tracked write는 메인 에이전트가 사용자 승인된 remediation 단계에서 수행한다. 상세 경계는 [`../../../run-da/SKILL.md`](../../../run-da/SKILL.md) `Codex 세션 하드닝 계약` SSOT를 따른다.

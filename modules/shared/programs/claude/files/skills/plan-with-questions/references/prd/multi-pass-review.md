@@ -2,7 +2,7 @@
 
 모든 phase가 완료된 직후, 다음 항목을 **순서대로** 완료한다. 개별 phase의 `Phase-End Multi-Pass Review`(별도 문서)는 phase 종료마다 수행하고, 본 리스트는 프로젝트 마감 직전에 한 번 수행한다.
 
-본 체크리스트는 sibling skill에서도 재사용된다 — 예: `plan-with-questions` Post-Implementation step 5 ("Final 10-pass Multi-Pass Review")는 이 파일을 canonical 참조로 링크한다.
+본 체크리스트는 `plan-with-questions` 내부 reference이며, for_prd 모드와 for_action 모드의 Post-Implementation Step 5 ("Final 10-pass Multi-Pass Review")가 canonical 참조로 링크한다.
 
 ## 체크리스트
 

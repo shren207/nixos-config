@@ -31,9 +31,10 @@
 
 ## 자연어 입력 처리
 
-자연어로 PRD 갱신·review-only 작업을 요청하면 다음 흐름. trigger 키워드 정의는 [`../SKILL.md`](../SKILL.md#모드-판별) "자연어 trigger → transition 매핑" SSOT 표 참조 (본 섹션은 mode-specific 동작만 명시):
+자연어로 PRD 작성·갱신·review-only 작업을 요청하면 다음 흐름. trigger 키워드 정의는 [`../SKILL.md`](../SKILL.md#모드-판별) "자연어 trigger → transition 매핑" SSOT 표 참조 (본 섹션은 mode-specific 동작만 명시):
 
-- **PRD 작성 의도 카테고리** → for_prd 모드가 `.claude/prds/prd-<feature>.md` 기존 PRD를 read한 뒤 갱신 흐름 (Discovery 결과로 영향받는 phase/section만 수정, 완료 체크박스 + 사용자 수정 보존).
+- **PRD 작성 의도 카테고리 — 신규 PRD**: 기존 `.claude/prds/prd-<feature>.md` 부재 시 본 모드 Step 1-8 전체 흐름 (인터뷰·자문·DA → 사용자 승인 → Step 8에서 신규 PRD 작성).
+- **PRD 작성 의도 카테고리 — 기존 PRD 갱신**: `.claude/prds/prd-<feature>.md` 존재 시 기존 파일을 read한 뒤 갱신 흐름 (Discovery 결과로 영향받는 phase/section만 수정, 완료 체크박스 + 사용자 수정 보존).
 - **review-impl 의도 카테고리** → for_action 모드 진입(이슈 ref 있을 시) 또는 for_issue 모드 진입(텍스트 설명만), Post-Implementation 5번 Final review 단계에서 [`../references/prd/multi-pass-review.md`](../references/prd/multi-pass-review.md)의 PRD 10-pass + [`../references/review-impl/implementation-review.md`](../references/review-impl/implementation-review.md) overlay(6-classification 라벨링 + overbuilt 우선 분류) 적용 (auto-fix 미사용, NG-2). 또는 for_prd phase-end review에서 phase-template의 10-pass와 통합 적용.
 
 ## 흐름
