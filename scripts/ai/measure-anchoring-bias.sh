@@ -11,7 +11,9 @@
 #   4. redesign resistance
 #
 # Output: per-host candidate session counts + intersection metrics.
-# Hardcoded numbers are forbidden in skill docs — this script is the SSOT.
+# Hardcoded measurement numbers are forbidden in skill docs — this script
+# is the canonical source. The doc table is illustrative; PAT_* arrays here
+# are authoritative.
 #
 # Usage:
 #   ./scripts/ai/measure-anchoring-bias.sh             # default mtime=-60
@@ -20,122 +22,315 @@
 #   ./scripts/ai/measure-anchoring-bias.sh --json      # JSON output
 #
 # Exit 0 always (best-effort metric collection).
+# Per-host failure surfaces as a structured object in --json or
+# `host|status=fail|<reason>` in plain text — never plain text inside a
+# JSON array.
 
 set -uo pipefail
 
-# Defaults
+# ---------------------------------------------------------------------------
+# CLI parsing with input validation (avoid shell injection via remote eval)
+# ---------------------------------------------------------------------------
+
 DAYS="60"
 SKIP_SSH=0
 JSON=0
 SSH_HOST="minipc"
 
+usage() {
+    grep '^#' "$0" | sed 's/^# \{0,1\}//'
+    exit 0
+}
+
+validate_days() {
+    case "$1" in
+        ''|*[!0-9]*)
+            echo "error: --days must be a positive integer (got: $1)" >&2
+            exit 2
+            ;;
+    esac
+}
+
+validate_host() {
+    # Permit alphanumeric, dot, hyphen, underscore; rejects shell metacharacters.
+    case "$1" in
+        ''|*[!A-Za-z0-9._-]*)
+            echo "error: --ssh-host contains unsafe characters (got: $1)" >&2
+            exit 2
+            ;;
+    esac
+}
+
 while [ $# -gt 0 ]; do
     case "$1" in
-        -d|--days) DAYS="$2"; shift 2 ;;
+        -d|--days)
+            validate_days "${2:-}"
+            DAYS="$2"
+            shift 2
+            ;;
         --skip-ssh) SKIP_SSH=1; shift ;;
         --json) JSON=1; shift ;;
-        --ssh-host) SSH_HOST="$2"; shift 2 ;;
-        -h|--help)
-            grep '^#' "$0" | sed 's/^# \{0,1\}//'
-            exit 0
+        --ssh-host)
+            validate_host "${2:-}"
+            SSH_HOST="$2"
+            shift 2
             ;;
+        -h|--help) usage ;;
         *) echo "Unknown arg: $1" >&2; exit 2 ;;
     esac
 done
 
-# 4-axis grep patterns (read from plan-with-questions/references/bias-measurement.md SSOT)
-PAT_CHOICE='사용자 결정|사용자 확인 완료|선호|선택|추천|A 방식|B 방식|어느 쪽|AskUserQuestion|충분|인지'
-PAT_FRAMING='추천|권장|기본값|best|Recommended|강력히'
-PAT_DEFECT='DA Round|CONFIRMED_ISSUE|NEEDS_MORE_INFO|YAGNI|NGMI|REGRESSION|overbuilt|missing|conflicting|parallel-audit|review-implementation'
-PAT_RESISTANCE='사용자 결정에 따라|현상 유지|기각|생략|그래도|재설계.*거부|redesign.*reject|추천대로'
+# ---------------------------------------------------------------------------
+# 4-axis grep patterns (canonical — doc table mirrors these for human ref)
+# ---------------------------------------------------------------------------
 
-# Per-host measurement
-measure_host() {
-    local host_label="$1"
-    local exec_prefix="$2"  # empty for local, "ssh $SSH_HOST" for remote
+PAT_choice='사용자 결정|사용자 확인 완료|선호|선택|추천|A 방식|B 방식|어느 쪽|AskUserQuestion|충분|인지'
+PAT_framing='추천|권장|기본값|best|Recommended|강력히'
+PAT_defect='DA Round|CONFIRMED_ISSUE|NEEDS_MORE_INFO|YAGNI|NGMI|REGRESSION|overbuilt|missing|conflicting|parallel-audit|review-implementation'
+PAT_resistance='사용자 결정에 따라|현상 유지|기각|생략|그래도|재설계.*거부|redesign.*reject|추천대로'
 
-    local total
-    if [ -z "$exec_prefix" ]; then
-        total=$(find "$HOME/.claude/projects" -name '*.jsonl' -mtime "-${DAYS}" 2>/dev/null | wc -l | tr -d ' ')
-    else
-        total=$($exec_prefix "find ~/.claude/projects -name '*.jsonl' -mtime -${DAYS} 2>/dev/null | wc -l" 2>/dev/null | tr -d ' ')
-    fi
+# Lookup helper since bash doesn't support indirect array reference uniformly.
+pattern_for() {
+    case "$1" in
+        choice) printf '%s' "$PAT_choice" ;;
+        framing) printf '%s' "$PAT_framing" ;;
+        defect) printf '%s' "$PAT_defect" ;;
+        resistance) printf '%s' "$PAT_resistance" ;;
+        *) return 1 ;;
+    esac
+}
 
-    if [ -z "$total" ] || [ "$total" = "0" ]; then
-        echo "${host_label}|total=0|skip"
+# ---------------------------------------------------------------------------
+# Counting helpers — guard empty input list to prevent rg from scanning cwd
+# ---------------------------------------------------------------------------
+
+# count_matching <list-file> <pattern>
+# Empty list emits 0; never invokes rg without explicit file operands.
+count_matching() {
+    local list="$1" pat="$2"
+    if [ ! -s "$list" ]; then
+        echo 0
         return
     fi
+    tr '\n' '\0' < "$list" | xargs -0 rg -l -e "$pat" 2>/dev/null | wc -l | tr -d ' '
+}
 
-    # Count files matching each axis
-    local count_choice count_framing count_defect count_resistance
-    local count_choice_and_defect count_anchoring_candidate
-
-    if [ -z "$exec_prefix" ]; then
-        count_choice=$(find "$HOME/.claude/projects" -name '*.jsonl' -mtime "-${DAYS}" -print0 2>/dev/null | xargs -0 rg -l -e "$PAT_CHOICE" 2>/dev/null | wc -l | tr -d ' ')
-        count_framing=$(find "$HOME/.claude/projects" -name '*.jsonl' -mtime "-${DAYS}" -print0 2>/dev/null | xargs -0 rg -l -e "$PAT_FRAMING" 2>/dev/null | wc -l | tr -d ' ')
-        count_defect=$(find "$HOME/.claude/projects" -name '*.jsonl' -mtime "-${DAYS}" -print0 2>/dev/null | xargs -0 rg -l -e "$PAT_DEFECT" 2>/dev/null | wc -l | tr -d ' ')
-        count_resistance=$(find "$HOME/.claude/projects" -name '*.jsonl' -mtime "-${DAYS}" -print0 2>/dev/null | xargs -0 rg -l -e "$PAT_RESISTANCE" 2>/dev/null | wc -l | tr -d ' ')
-        # intersection: files matching both choice AND defect (rg -l prints newline-separated paths; second xargs reads them — we accept legacy line-based pipe here since rg -l output for jsonl fixture paths has no whitespace)
-        count_choice_and_defect=$(find "$HOME/.claude/projects" -name '*.jsonl' -mtime "-${DAYS}" -print0 2>/dev/null | xargs -0 rg -l -e "$PAT_CHOICE" 2>/dev/null | tr '\n' '\0' | xargs -0 rg -l -e "$PAT_DEFECT" 2>/dev/null | wc -l | tr -d ' ')
-        # full anchoring candidate: choice + framing + defect + resistance
-        count_anchoring_candidate=$(find "$HOME/.claude/projects" -name '*.jsonl' -mtime "-${DAYS}" -print0 2>/dev/null | xargs -0 rg -l -e "$PAT_CHOICE" 2>/dev/null | tr '\n' '\0' | xargs -0 rg -l -e "$PAT_FRAMING" 2>/dev/null | tr '\n' '\0' | xargs -0 rg -l -e "$PAT_DEFECT" 2>/dev/null | tr '\n' '\0' | xargs -0 rg -l -e "$PAT_RESISTANCE" 2>/dev/null | wc -l | tr -d ' ')
-    else
-        # Remote execution — pass patterns via env
-        local remote_cmd
-        remote_cmd="cd ~/.claude/projects && \
-            CHOICE=\$(find . -name '*.jsonl' -mtime -${DAYS} -print0 2>/dev/null | xargs -0 rg -l -e \"$PAT_CHOICE\" 2>/dev/null | wc -l | tr -d ' ') && \
-            FRAMING=\$(find . -name '*.jsonl' -mtime -${DAYS} -print0 2>/dev/null | xargs -0 rg -l -e \"$PAT_FRAMING\" 2>/dev/null | wc -l | tr -d ' ') && \
-            DEFECT=\$(find . -name '*.jsonl' -mtime -${DAYS} -print0 2>/dev/null | xargs -0 rg -l -e \"$PAT_DEFECT\" 2>/dev/null | wc -l | tr -d ' ') && \
-            RESIST=\$(find . -name '*.jsonl' -mtime -${DAYS} -print0 2>/dev/null | xargs -0 rg -l -e \"$PAT_RESISTANCE\" 2>/dev/null | wc -l | tr -d ' ') && \
-            CHOICE_AND_DEFECT=\$(find . -name '*.jsonl' -mtime -${DAYS} -print0 2>/dev/null | xargs -0 rg -l -e \"$PAT_CHOICE\" 2>/dev/null | tr '\n' '\0' | xargs -0 rg -l -e \"$PAT_DEFECT\" 2>/dev/null | wc -l | tr -d ' ') && \
-            ANCHOR=\$(find . -name '*.jsonl' -mtime -${DAYS} -print0 2>/dev/null | xargs -0 rg -l -e \"$PAT_CHOICE\" 2>/dev/null | tr '\n' '\0' | xargs -0 rg -l -e \"$PAT_FRAMING\" 2>/dev/null | tr '\n' '\0' | xargs -0 rg -l -e \"$PAT_DEFECT\" 2>/dev/null | tr '\n' '\0' | xargs -0 rg -l -e \"$PAT_RESISTANCE\" 2>/dev/null | wc -l | tr -d ' ') && \
-            echo \"\$CHOICE \$FRAMING \$DEFECT \$RESIST \$CHOICE_AND_DEFECT \$ANCHOR\""
-        local result
-        result=$(eval "$exec_prefix \"$remote_cmd\"" 2>/dev/null)
-        if [ -z "$result" ]; then
-            echo "${host_label}|total=${total}|ssh-failed"
-            return
-        fi
-        read -r count_choice count_framing count_defect count_resistance count_choice_and_defect count_anchoring_candidate <<< "$result"
+# filter_matching <input-list> <pattern> <output-list>
+# Empty input → empty output; same guard as count_matching.
+filter_matching() {
+    local in="$1" pat="$2" out="$3"
+    if [ ! -s "$in" ]; then
+        : > "$out"
+        return
     fi
+    tr '\n' '\0' < "$in" | xargs -0 rg -l -e "$pat" 2>/dev/null > "$out"
+}
 
-    if [ $JSON -eq 1 ]; then
-        printf '{"host":"%s","days":%s,"total":%s,"choice":%s,"framing":%s,"defect":%s,"resistance":%s,"choice_and_defect":%s,"anchoring_candidate":%s}\n' \
-            "$host_label" "$DAYS" "$total" "$count_choice" "$count_framing" "$count_defect" "$count_resistance" "$count_choice_and_defect" "$count_anchoring_candidate"
+# ---------------------------------------------------------------------------
+# Output emitters — JSON-aware, never bleed plain text into JSON array
+# ---------------------------------------------------------------------------
+
+# escape_json <string> — minimal JSON string escape using python3
+escape_json() {
+    python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()), end="")' <<<"$1"
+}
+
+emit_skip() {
+    local label="$1" total="$2"
+    if [ "$JSON" -eq 1 ]; then
+        printf '{"host":"%s","days":%s,"total":%s,"status":"skip"}' "$label" "$DAYS" "$total"
     else
-        echo "${host_label} (mtime=-${DAYS}d)"
-        echo "  total transcripts:           ${total}"
-        echo "  axis-1 choice:               ${count_choice}"
-        echo "  axis-2 recommendation:       ${count_framing}"
-        echo "  axis-3 post-hoc defect:      ${count_defect}"
-        echo "  axis-4 redesign resistance:  ${count_resistance}"
-        echo "  intersect choice ∩ defect:   ${count_choice_and_defect}"
-        echo "  full anchoring candidate:    ${count_anchoring_candidate}"
-        if [ "$total" -gt 0 ]; then
+        echo "$label|status=skip|total=$total"
+    fi
+}
+
+emit_fail() {
+    local label="$1" reason="$2"
+    if [ "$JSON" -eq 1 ]; then
+        local esc
+        esc=$(escape_json "$reason")
+        printf '{"host":"%s","days":%s,"status":"fail","reason":%s}' "$label" "$DAYS" "$esc"
+    else
+        echo "$label|status=fail|reason=$reason"
+    fi
+}
+
+emit_metrics() {
+    local label="$1" total="$2" c="$3" f="$4" d="$5" r="$6" cd="$7" anchor="$8"
+    if [ "$JSON" -eq 1 ]; then
+        printf '{"host":"%s","days":%s,"status":"ok","total":%s,"choice":%s,"framing":%s,"defect":%s,"resistance":%s,"choice_and_defect":%s,"anchoring_candidate":%s}' \
+            "$label" "$DAYS" "$total" "$c" "$f" "$d" "$r" "$cd" "$anchor"
+    else
+        echo "$label (mtime=-${DAYS}d)"
+        echo "  total transcripts:           $total"
+        echo "  axis-1 choice:               $c"
+        echo "  axis-2 recommendation:       $f"
+        echo "  axis-3 post-hoc defect:      $d"
+        echo "  axis-4 redesign resistance:  $r"
+        echo "  intersect choice ∩ defect:   $cd"
+        echo "  full anchoring candidate:    $anchor"
+        if [ "$total" -gt 0 ] && [ "$cd" -le "$total" ]; then
             local pct
-            pct=$(awk "BEGIN { printf \"%.1f\", ($count_choice_and_defect / $total) * 100 }")
+            pct=$(awk "BEGIN { printf \"%.1f\", ($cd / $total) * 100 }")
             echo "  choice_then_defect_rate:     ${pct}%"
         fi
     fi
 }
 
-if [ $JSON -eq 1 ]; then
-    echo "["
-    measure_host "mac" ""
-    if [ $SKIP_SSH -eq 0 ]; then
-        echo ","
-        measure_host "${SSH_HOST}" "ssh ${SSH_HOST}"
+# ---------------------------------------------------------------------------
+# Local measurement
+# ---------------------------------------------------------------------------
+
+measure_host_local() {
+    local label="$1"
+    local scratch
+    scratch=$(mktemp -d)
+    # Cleanup on function exit. Intentional expansion at trap-setup time so $scratch is fixed.
+    # shellcheck disable=SC2064
+    trap "rm -rf '$scratch'" RETURN
+
+    find "$HOME/.claude/projects" -name '*.jsonl' -mtime "-${DAYS}" 2>/dev/null > "$scratch/all.txt"
+    local total
+    total=$(wc -l < "$scratch/all.txt" | tr -d ' ')
+
+    if [ "$total" = "0" ]; then
+        emit_skip "$label" "$total"
+        return
     fi
-    echo "]"
+
+    # Per-axis counts
+    local c f d r
+    c=$(count_matching "$scratch/all.txt" "$(pattern_for choice)")
+    f=$(count_matching "$scratch/all.txt" "$(pattern_for framing)")
+    d=$(count_matching "$scratch/all.txt" "$(pattern_for defect)")
+    r=$(count_matching "$scratch/all.txt" "$(pattern_for resistance)")
+
+    # Intersection: choice ∩ defect
+    filter_matching "$scratch/all.txt" "$(pattern_for choice)" "$scratch/c.txt"
+    local cd
+    cd=$(count_matching "$scratch/c.txt" "$(pattern_for defect)")
+
+    # Full anchoring candidate: choice ∩ framing ∩ defect ∩ resistance
+    filter_matching "$scratch/c.txt" "$(pattern_for framing)" "$scratch/cf.txt"
+    filter_matching "$scratch/cf.txt" "$(pattern_for defect)" "$scratch/cfd.txt"
+    local anchor
+    anchor=$(count_matching "$scratch/cfd.txt" "$(pattern_for resistance)")
+
+    emit_metrics "$label" "$total" "$c" "$f" "$d" "$r" "$cd" "$anchor"
+}
+
+# ---------------------------------------------------------------------------
+# Remote measurement — ssh argv-safe, no eval, remote script via stdin
+# ---------------------------------------------------------------------------
+
+measure_host_remote() {
+    local label="$1" host="$2"
+
+    # Build a single quoted heredoc remote script. Patterns and DAYS are
+    # interpolated once into the heredoc body; remote bash receives a static
+    # script with no further parsing of host-side variables. Quoting model:
+    # 'EOF' terminator → no expansion. We deliberately use unquoted
+    # interpolation for the values we want substituted, and \$ for remote
+    # variable references.
+    #
+    # Note: DAYS and patterns contain characters within validate_days/AXES
+    # constraints. eval is never invoked.
+    local remote_script
+    remote_script=$(cat <<RSCRIPT
+set -uo pipefail
+TMP=\$(mktemp -d)
+trap "rm -rf '\$TMP'" EXIT
+
+find "\$HOME/.claude/projects" -name '*.jsonl' -mtime "-${DAYS}" 2>/dev/null > "\$TMP/all.txt"
+total=\$(wc -l < "\$TMP/all.txt" | tr -d ' ')
+if [ "\$total" = "0" ]; then
+    echo "SKIP \$total"
+    exit 0
+fi
+
+count_in() {
+    local list="\$1" pat="\$2"
+    [ ! -s "\$list" ] && { echo 0; return; }
+    tr '\n' '\0' < "\$list" | xargs -0 rg -l -e "\$pat" 2>/dev/null | wc -l | tr -d ' '
+}
+filter_in() {
+    local in="\$1" pat="\$2" out="\$3"
+    [ ! -s "\$in" ] && { : > "\$out"; return; }
+    tr '\n' '\0' < "\$in" | xargs -0 rg -l -e "\$pat" 2>/dev/null > "\$out"
+}
+
+P_C='${PAT_choice}'
+P_F='${PAT_framing}'
+P_D='${PAT_defect}'
+P_R='${PAT_resistance}'
+
+c=\$(count_in "\$TMP/all.txt" "\$P_C")
+f=\$(count_in "\$TMP/all.txt" "\$P_F")
+d=\$(count_in "\$TMP/all.txt" "\$P_D")
+r=\$(count_in "\$TMP/all.txt" "\$P_R")
+
+filter_in "\$TMP/all.txt" "\$P_C" "\$TMP/c.txt"
+cd=\$(count_in "\$TMP/c.txt" "\$P_D")
+
+filter_in "\$TMP/c.txt" "\$P_F" "\$TMP/cf.txt"
+filter_in "\$TMP/cf.txt" "\$P_D" "\$TMP/cfd.txt"
+anchor=\$(count_in "\$TMP/cfd.txt" "\$P_R")
+
+echo "OK \$total \$c \$f \$d \$r \$cd \$anchor"
+RSCRIPT
+)
+
+    # Argv-safe ssh; remote bash reads script from stdin (no eval, no shell expansion of script body).
+    local result
+    if ! result=$(ssh -- "$host" 'bash -s' <<<"$remote_script" 2>/dev/null); then
+        emit_fail "$label" "ssh exec failed"
+        return
+    fi
+    if [ -z "$result" ]; then
+        emit_fail "$label" "ssh returned empty"
+        return
+    fi
+
+    local marker rest
+    marker=$(printf '%s' "$result" | awk 'NR==1{print $1; exit}')
+    rest=$(printf '%s' "$result" | awk 'NR==1{$1=""; sub(/^ /,""); print; exit}')
+
+    case "$marker" in
+        SKIP)
+            emit_skip "$label" "$rest"
+            ;;
+        OK)
+            local total c f d r cd anchor
+            read -r total c f d r cd anchor <<<"$rest"
+            emit_metrics "$label" "$total" "$c" "$f" "$d" "$r" "$cd" "$anchor"
+            ;;
+        *)
+            emit_fail "$label" "unexpected marker: $marker"
+            ;;
+    esac
+}
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+if [ "$JSON" -eq 1 ]; then
+    echo "["
+    measure_host_local "mac"
+    if [ "$SKIP_SSH" -eq 0 ]; then
+        printf ',\n'
+        measure_host_remote "$SSH_HOST" "$SSH_HOST"
+    fi
+    printf '\n]\n'
 else
     echo "=== Anchoring-bias signal measurement ==="
-    echo ""
-    measure_host "mac" ""
-    if [ $SKIP_SSH -eq 0 ]; then
-        echo ""
-        measure_host "${SSH_HOST}" "ssh ${SSH_HOST}"
+    echo
+    measure_host_local "mac"
+    if [ "$SKIP_SSH" -eq 0 ]; then
+        echo
+        measure_host_remote "$SSH_HOST" "$SSH_HOST"
     fi
-    echo ""
+    echo
     echo "Notes:"
     echo "  - Counts are file-level (any line match within a transcript)."
     echo "  - 'anchoring candidate' requires all 4 axes in the same file —"
