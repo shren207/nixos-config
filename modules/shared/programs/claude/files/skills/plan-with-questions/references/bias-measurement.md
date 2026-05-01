@@ -1,58 +1,85 @@
 # Bias Measurement
 
-**Status**: stub (Phase 5에서 본문 채움)
+plan-with-questions에 도입된 anti-anchoring 메커니즘(Step 3.5 외부 자문 + 4규칙)이 실제로 anchoring-bias 사례를 줄이는지 측정하기 위한 baseline + 재측정 절차. codex:rescue 메타 자문(2026-05-01)이 권고한 4축 grep + 4 metric을 기반으로 한다.
 
-이 reference는 plan-with-questions 개편의 Phase 5(`bias-measurement + 검증 + 문서화`) 산출물이다.
+## 측정 방법: 스크립트가 SSOT
 
-## Baseline 수치 — 동적 확인 명령
-
-baseline은 본 파일에 하드코딩하지 않는다. Phase 5 진입 시 다음 명령으로 산출:
+**baseline 수치는 본 reference에 하드코딩하지 않는다.** 스크립트 실행이 단일 진실 원천이다.
 
 ```bash
-# main 세션 plan-with-questions 호출 건수 (최근 N일)
-find ~/.claude/projects -name '*.jsonl' -mtime -N | xargs rg -l '/plan-with-questions' 2>/dev/null | wc -l
+# Mac local + MiniPC 양쪽
+./scripts/ai/measure-anchoring-bias.sh --days 60
 
-# DA correction 신호 동반 세션
-find ~/.claude/projects -name '*.jsonl' -mtime -N | xargs rg -l 'CONFIRMED_ISSUE|재설계|기각' 2>/dev/null | wc -l
+# Mac만
+./scripts/ai/measure-anchoring-bias.sh --skip-ssh
 
-# MiniPC 보조 데이터 가용성
-ssh minipc "find ~/.claude/projects -name '*.jsonl' -mtime -N | wc -l"
+# JSON 출력 (자동화 통합용)
+./scripts/ai/measure-anchoring-bias.sh --json
 ```
 
-`-mtime -N`의 N은 측정 시점에 결정한다 (Phase 5 schedule 절차).
+결과는 `.claude/metrics/anchoring-baseline-YYYY-MM-DD.txt`(gitignored)에 저장한다. plan 파일에는 절대 수치 대신 측정 명령과 결과 파일 경로를 적는다.
 
-## Phase 5에서 채울 내용
+## 4축 grep 패턴
 
-### 4축 grep 패턴
+스크립트 [`scripts/ai/measure-anchoring-bias.sh`](../../../../../../../scripts/ai/measure-anchoring-bias.sh)의 `PAT_*` 변수가 정본:
 
-```bash
-# 1. 사용자 선택 포착
-rg "사용자 결정|사용자 확인 완료|선호|선택|추천|A 방식|B 방식|어느 쪽|AskUserQuestion|충분|인지"
+| 축 | 의미 | 예시 키워드 |
+|----|------|------------|
+| 1. choice | 사용자가 옵션을 선택한 흔적 | `사용자 결정`, `선호`, `A 방식`, `AskUserQuestion` |
+| 2. framing | 메인 LLM이 추천 프레이밍을 제시한 흔적 | `추천`, `권장`, `Recommended`, `기본값` |
+| 3. defect | 사후에 결함이 발견된 흔적 | `CONFIRMED_ISSUE`, `YAGNI`, `overbuilt`, `parallel-audit` |
+| 4. resistance | 결함을 보고도 저항한 흔적 | `사용자 결정에 따라`, `현상 유지`, `기각`, `재설계.*거부` |
 
-# 2. 추천 프레이밍
-rg "추천|권장|기본값|best|Recommended|강력히"
+키워드 갱신 시 이 표 + 스크립트 둘 다 동기화한다.
 
-# 3. 사후 결함
-rg "DA Round|CONFIRMED_ISSUE|NEEDS_MORE_INFO|YAGNI|NGMI|REGRESSION|overbuilt|missing|conflicting|parallel-audit|review-implementation"
+## 4 metric
 
-# 4. 재설계 저항
-rg "사용자 결정에 따라|현상 유지|기각|생략|그래도|재설계.*거부|redesign.*reject|추천대로"
+| Metric | 의미 | 계산 |
+|--------|------|------|
+| `choice_then_defect_rate` | 같은 transcript에서 choice + defect 신호 동반 비율 | `(choice ∩ defect) / total` |
+| `leading_question_ratio` | 선택 부근 추천 표현 빈도 (line-window 분석 필요) | follow-up — 스크립트 v2에서 awk/jq |
+| `defect_after_user_choice_severity` | choice 이후 등장한 결함의 심각도 분포 | follow-up — `CONFIRMED_ISSUE`/`YAGNI`/`overbuilt` 카운트 |
+| `redesign_resistance_rate` | 결함 + 저항 동반 비율 | `(defect ∩ resistance) / defect` |
+
+현재 v1 스크립트는 file-level intersection만 측정한다 (line-ordering은 follow-up).
+
+**해석 주의**: file-level intersection은 lower-bound 추정이다 — 같은 transcript에 4축 신호가 모두 있어도 실제 anchoring case가 아닐 수 있고(legitimate plan workflow), 반대로 line-ordering 없이는 인과 단정 불가. metric 변화 추이를 candidate 식별 위주로 본다 (codex 권고).
+
+## 측정 schedule
+
+| 시점 | 동작 |
+|------|------|
+| Phase 5 commit 후 (T+0) | baseline 측정 → `.claude/metrics/anchoring-baseline-<date>.txt` |
+| Step 3.5 도입 후 1주 (T+1w) | 재측정 → `.claude/metrics/anchoring-T1w-<date>.txt` |
+| Step 3.5 도입 후 1개월 (T+1m) | 재측정 → `.claude/metrics/anchoring-T1m-<date>.txt` |
+
+각 측정 후 metric 변화를 `Decision Log` DL 항목으로 추가:
+
+```markdown
+### DL-N: Anchoring metric T+1w retest
+
+- Status: accepted
+- Context: Step 3.5 도입 후 1주 경과. baseline vs 재측정 비교.
+- Decision: <변화 추이 + 후속 조치>
+- Consequences: <metric이 줄었는지/늘었는지/변화 없음 + 가설 검증 결과>
 ```
 
-### 핵심 metric
+## 인과 추정 한계
 
-- **`choice_then_defect_rate`**: 같은 파일에서 선택 라인이 결함 라인보다 앞서는 경우만 집계.
-- **`leading_question_ratio`**: 선택 라인 부근 추천/권장/기본값 표현 비율 (window 크기는 측정 시 결정).
-- **`defect_after_user_choice_severity`**: 이후 `CONFIRMED_ISSUE`, `YAGNI`, `overbuilt` 건수.
-- **`redesign_resistance_rate`**: 결함 이후 `현상 유지|기각|생략|사용자 결정에 따라` 출현 비율.
+본 measurement는 **bias candidate 식별** 도구이지 **인과 증명** 도구가 아니다.
 
-### 측정 schedule
+- file-level intersection은 같은 transcript 내 동반 등장만 보여준다. line-ordering(choice가 defect보다 앞에 있는지)은 v2에서 추가.
+- 외부 변수(이슈 복잡도 변화, 사용자 학습, 다른 스킬 개선)가 metric에 동시 영향. Step 3.5의 단독 효과 분리 불가.
+- 절대 수치 변화를 효과 증명으로 쓰지 않는다 — 추세 + 정성 사례(`#490` 같은 transcript 발췌) 병행.
 
-- Phase 5 구현 직후 baseline 산출.
-- 새 구조 도입 후 측정 (간격은 Phase 5 schedule 절차에서 결정).
-- metric 변화 추이 기록 (Decision Log DL 추가).
-- 인과 단정 금지 — bias candidate 식별 위주 (codex 권고).
+## v2 follow-up
 
-## Phase 1 단계 임시 적용
+스크립트 v1 한계를 보완할 v2 작업 (별도 follow-up issue):
 
-baseline metric 산출은 Phase 5에서 수행. 현재는 Phase 1 commit + Phase 2-4 구현 우선.
+- **line-ordering 분석**: choice 라인이 defect 라인보다 앞서는 file만 집계 (정밀 anchoring case 식별).
+- **MiniPC ssh remote escape 수정**: 현재 v1은 remote command escape 이슈로 ssh 측정 실패. POSIX shell quoting 정밀화 필요.
+- **leading_question_ratio**: 선택 라인 부근 N줄 윈도우에서 framing 키워드 비율 계산.
+- **severity 분포**: `defect` 신호를 P0/P1/P2로 분류 (현재는 단순 count).
+- **CSV/JSON 시계열**: `.claude/metrics/`에 시계열 누적 → spreadsheet/노트북 분석 가능.
+
+v2는 `scripts/ai/measure-anchoring-bias.sh` 자체를 수정하거나 `measure-anchoring-bias-v2.sh`로 분리. 결정은 Phase 5 측정 결과 + 사용자 follow-up 우선순위에 따른다.
