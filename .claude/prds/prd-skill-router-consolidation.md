@@ -104,7 +104,7 @@ PR #612(머지 완료, f7c818b)는 plan-with-questions 자체 개편(progressive
 
 - A-1: PR #612가 main에 머지된 상태에서 작업 시작. 추가 stack 불필요.
 - A-2: 사용자가 익숙한 `/prd` 직접 호출이 unknown command가 되어도 silently breaking으로 간주하지 않음 (DL-7). announcement-only fallback이며 PR 본문에서 안내.
-- A-3: `home.activation.syncCodexConfig`가 SKILL.md 부재 디렉토리에 대해 .agents/skills/ orphan symlink를 자동 정리한다 (codex/default.nix:220-230).
+- A-3: `home.activation.syncCodexConfig`(codex/default.nix:166-228)는 (a) SKILL.md 있는 디렉토리만 `.agents/skills/`에 symlink로 추가하고(line 192 `[ -f "$source_skill_dir/SKILL.md" ] || continue`), (b) 이미 만들어졌던 symlink가 SOURCE 디렉토리 부재 시 orphan으로 자동 정리한다(line 220-230). 따라서 standalone SKILL.md 삭제 후 `.agents/skills/{prd,review-implementation}` symlink는 (i) 처음부터 부재였으면 그대로 부재 유지, (ii) 존재했었으면 orphan removal로 정리. 두 경로 모두 사용자 추가 작업 불필요. (현재 ls 결과에서 부재 확인 — Phase 1 Discovery Gate에서 baseline 재확인.)
 - A-4: 외부 의존자 없음 (rg 검증으로 repo 외부 `/prd`, `/review-implementation` 직접 차용 발견되지 않음 — 단 추가 검증 Phase 5에서).
 
 ## Dependencies / Constraints
@@ -120,7 +120,7 @@ PR #612(머지 완료, f7c818b)는 plan-with-questions 자체 개편(progressive
 - 외부 LLM이 학습 데이터에서 `/prd`, `/review-implementation`을 standalone으로 학습한 가능성 → description trigger 추가 + dogfooding으로 보정.
 - run-da → plan-with-questions/references cross-skill 의존 방향 어색 → DL-16 일부 평면 위치로 완화. NGMI 우려는 인정.
 - review-implementation/SKILL.md의 `../prd/references/validation-paths.md` link → SKILL.md 자체 삭제로 자동 소멸.
-- `.agents/skills/{prd,review-implementation}` orphan symlink → home.activation 자동 정리.
+- `.agents/skills/{prd,review-implementation}` symlink 상태 → A-3 두 경로 모두 자동 처리 (부재 유지 또는 orphan removal). Phase 1 Discovery Gate에서 baseline 재확인.
 
 ## Execution Rules
 
@@ -139,7 +139,7 @@ PR #612(머지 완료, f7c818b)는 plan-with-questions 자체 개편(progressive
 
 | Phase | Status | Objective | Validation Focus | File |
 |---|---|---|---|---|
-| Phase 1: Design Lock-in | Not Started | DL-1~16 SSOT lock + 변경 대상 파일 목록 확정 + Discovery Gate | static rg, plan-with-questions Invariants 검토 | [phase-01-design-lockin.md](./prd-skill-router-consolidation/phase-01-design-lockin.md) |
+| Phase 1: Design Lock-in | Not Started | DL-1~17 SSOT lock + 변경 대상 파일 목록 확정 + Discovery Gate | static rg, plan-with-questions Invariants 검토 | [phase-01-design-lockin.md](./prd-skill-router-consolidation/phase-01-design-lockin.md) |
 | Phase 2: References Move | Not Started | references 6 파일 git mv + plan-with-questions 본인 link 갱신 (9 파일) | static rg 확장 패턴, link 무결성 | [phase-02-references-move.md](./prd-skill-router-consolidation/phase-02-references-move.md) |
 | Phase 3: Standalone Removal + Claude SoT | Not Started | standalone SKILL.md/evals/디렉토리 제거 + claude/default.nix declaration 제거 | nrs build, ~/.claude/skills/{prd,review-implementation} 부재 | [phase-03-standalone-removal.md](./prd-skill-router-consolidation/phase-03-standalone-removal.md) |
 | Phase 4: Codex SoT + Trigger Absorption | Not Started | codex/default.nix + verify-ai-compat.sh 갱신 + plan-with-questions trigger 흡수 | run-eval.sh, verify-ai-compat.sh, ~/.codex/skills 부재 | [phase-04-codex-sot-trigger.md](./prd-skill-router-consolidation/phase-04-codex-sot-trigger.md) |
@@ -253,6 +253,12 @@ PR #612(머지 완료, f7c818b)는 plan-with-questions 자체 개편(progressive
 - **Context**: DA Round 1에서 shared reference NGMI 우려 (validation-paths.md가 plan-with-questions 하위로 굳으면 run-da 의존 방향 어색). round 3 응답 = 일부만 _shared.
 - **Decision**: `validation-paths.md`만 `plan-with-questions/references/validation-paths.md` (prd/ 하위 아닌 평면). 나머지 5 references는 `prd/` 하위, requirement-status는 `review-impl/` 하위. `prd/` 라벨 부재로 cross-skill "공용성" 표현.
 - **Consequences**: run-da/SKILL.md:75 link도 `../plan-with-questions/references/validation-paths.md`로 갱신. NGMI 우려는 인정하되 _shared 영역 도입의 기술 비용 회피.
+
+### DL-17: Commit 5 검증 전용 분리 (DA F17 반영, stop-time review 보강)
+- **Status**: accepted
+- **Context**: DA Round 1 F17은 `Commit 5: 검증 통과 (코드 변경 없음, eval-tests 포함 커밋)` 본문이 "필요 시 evals 미세 조정"을 함께 명시해 commit 의도가 모순됨을 지적. handoff seed plan에서 DL-17로 가집계됐으나 본 PRD master에는 누락(stop-time review 적발).
+- **Decision**: Commit 5는 **검증 전용**(코드 변경 없음). 검증 중 evals 미세 조정이 필요하면 Commit 3을 `git commit --amend`로 수정 + Commit 5 재실행. **검증 통과 후 코드 변경이 없으면 빈 commit을 만들지 않고 Commit 4가 마지막 commit**이 된다. eval 미세 조정 amend 외에는 Commit 5 위치에서 새 코드 변경을 만들지 않는다.
+- **Consequences**: bisect granularity 보존. Phase 5 Implementation Checklist는 Commit 5 conditional 명시. Commit 4 단독 종료 경로도 유효.
 
 ## Change Log
 

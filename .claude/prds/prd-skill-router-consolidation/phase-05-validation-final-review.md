@@ -64,8 +64,8 @@ cross-skill link를 갱신한다 — `run-da/SKILL.md:75`의 `validation-paths.m
   - [ ] `/parallel-audit` 실행 후 SAFE 결과.
   - [ ] Final 10-pass (`plan-with-questions/references/prd/multi-pass-review.md` 체크리스트) 모든 항목 PASS 또는 N/A skip 근거.
   - [ ] 9-pass review-only (`plan-with-questions/references/review-impl/requirement-status.md` 6-classification — auto-fix 미사용, NG-2) PRD master + 5 phase 파일 대상.
-- [ ] eval 미세 조정 발견 시 Commit 3을 `git commit --amend` (DL-17).
-- [ ] commit 메시지 (Commit 5): `test(skills): validation pass after skill router consolidation (#611)`. body에 검증 결과 요약. **만약 코드 변경 없으면 빈 commit 안 만들고 Commit 4로 끝낼 수도 있음** — 검증 통과 후 결정.
+- [ ] eval 미세 조정 발견 시 Commit 3을 `git commit --amend` (DL-17). amend 후 Commit 5 재검증.
+- [ ] commit 메시지 (Commit 5): `test(skills): validation pass after skill router consolidation (#611)`. body에 검증 결과 요약. **DL-17에 따라 검증 통과 후 코드 변경 없으면 빈 commit 안 만들고 Commit 4가 마지막 commit이 된다** — Commit 5 conditional, eval 미세 조정 amend 외에는 새 코드 변경 만들지 않음.
 
 ## Validation Strategy
 

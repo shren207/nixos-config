@@ -54,7 +54,7 @@ Last Updated: 2026-05-01
 - [ ] `git mv modules/shared/programs/claude/files/skills/prd/references/phase-template.md modules/shared/programs/claude/files/skills/plan-with-questions/references/prd/phase-template.md`.
 - [ ] `git mv modules/shared/programs/claude/files/skills/prd/references/prd-master-template.md modules/shared/programs/claude/files/skills/plan-with-questions/references/prd/prd-master-template.md`.
 - [ ] `git mv modules/shared/programs/claude/files/skills/review-implementation/references/requirement-status.md modules/shared/programs/claude/files/skills/plan-with-questions/references/review-impl/requirement-status.md`.
-- [ ] `plan-with-questions/SKILL.md` link 갱신: `../prd/references/validation-paths.md` → `./references/validation-paths.md`, `../prd/references/{multi-pass-review,prd-master-template,phase-template,file-mode-selection}.md` → `./references/prd/*.md`, `../review-implementation/SKILL.md` 참조 제거.
+- [ ] `plan-with-questions/SKILL.md` **link 갱신만 (description frontmatter 변경은 Phase 4 담당)**: 본문 link + Reference Index/차용 reference 표의 모든 link 갱신 — `../prd/references/validation-paths.md` → `./references/validation-paths.md`, `../prd/references/{multi-pass-review,prd-master-template,phase-template,file-mode-selection}.md` → `./references/prd/*.md`, `../review-implementation/SKILL.md` 참조 제거.
 - [ ] `plan-with-questions/modes/for_prd.md` link 갱신 (handoff 표현도 "/prd 스킬에 위임" → "내부 prd refs로 위임").
 - [ ] `plan-with-questions/modes/for_action.md:98` link 갱신.
 - [ ] `plan-with-questions/references/post-implementation.md:23` link 갱신.
