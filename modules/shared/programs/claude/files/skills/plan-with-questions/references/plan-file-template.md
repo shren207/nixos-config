@@ -16,7 +16,7 @@
 | 필드 | 값 |
 |------|-----|
 | Status | <Status enum> |
-| Mode | for_action | for_prd |
+| Mode | for_action |
 | Source | <이슈 ref 또는 텍스트 설명> |
 | Plan File | <self-referential path> |
 | Resume From | <Resume From enum 값> |
@@ -45,7 +45,7 @@
 
 ### Mode 값
 
-`for_action` | `for_prd` (자동 트리거 시 `for_prd`로 Mode 갱신 + Decision Log 기록).
+`for_action` 전용. `for_prd`는 본 template 미적용 (`/prd` 스킬이 정본 owner) — for_prd 자동 트리거 시 plan-with-questions는 `/prd`로 handoff하고 본 template 산출물을 만들지 않는다.
 
 ### Resume From / Last Completed Step
 
@@ -86,23 +86,7 @@ Step 3.5 자문 결과의 `result.json` 경로 또는 핵심 decision_id list. p
 - 결정: ...
 - 근거: ...
 
-## (for_prd 한정) Phase Plan
-
-### Phase N: <name>
-**Phase Discovery Gate**:
-- [ ] ...
-
-**Implementation Checklist**:
-- [ ] ...
-
-**Validation Strategy**: ...
-
-**Validation Checklist**:
-- [ ] ...
-
-**Exit Criteria**: ...
-
-## (for_action 한정) 변경 대상 파일
+## 변경 대상 파일
 | 파일 | 라인 수 | 수정 범위 |
 |------|--------|-----------|
 
@@ -154,7 +138,7 @@ Step 3.5 자문 결과의 `result.json` 경로 또는 핵심 decision_id list. p
 1. **사용자 선택 번복** — Step 4에서 사용자가 옵션 A를 골랐다가 Step 6 DA 또는 후속 단계에서 옵션 B로 바뀐 경우.
 2. **DA Round 큰 설계 변경** — `CONFIRMED_ISSUE`로 핵심 메커니즘 재설계.
 3. **재개 시 baseline drift 감지** — git HEAD 변경으로 Step 1-2 재실행이 트리거된 경우.
-4. **mode 전환** — `for_action` → `for_prd` 자동 후보 알림 + 사용자 승인 또는 거부.
+4. **mode 전환** — `for_action` → `for_prd` 자동 후보 알림 + 사용자 승인 또는 거부 (승인 시 `/prd`로 handoff하고 본 template 사용 중단).
 5. **Step 3.5 자문 결과로 옵션 변경** — 메인 LLM 1차 후보가 자문 disqualifier로 폐기된 경우.
 
 ### 사용처 (생략 가능)

@@ -49,7 +49,7 @@ description: |
 | 출력 | 사용자 승인을 받은 계획 파일 (`.claude/plans/<slug>.md`) | 등록된 이슈 (+ 선택적 LLM 이행 가이드) | `/prd` 호출로 작성된 Living PRD (`.claude/prds/prd-<feature>.md` 또는 split) — plan-with-questions 자체 산출물 없음 |
 | 단계 흐름 | [`modes/for_action.md`](./modes/for_action.md) | [`modes/for_issue.md`](./modes/for_issue.md) | [`modes/for_prd.md`](./modes/for_prd.md) (handoff wrapper) |
 | DA | for_plan 실행 (Step 5) | 생략 | for_plan + phase별 6-classification + Final 9-pass |
-| Step 3.5 외부 자문 | 무조건 (트레이드오프 있을 때) | 트레이드오프 1+ 항목 시 | 무조건 + phase별 |
+| Step 3.5 외부 자문 | 무조건 (트레이드오프 있을 때) | 트레이드오프 1+ 항목 시 | 트레이드오프 1+ 항목 시 (`/prd` handoff 전 1회) |
 | 계획 추적 도구 | 사용 (Step 7-9) | 미사용 (산출물이 이슈) | 미사용 — `/prd` 스킬에 handoff |
 | 제1원칙 | YAGNI / NGMI | YAGNI / NGMI | YAGNI / NGMI |
 

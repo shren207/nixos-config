@@ -17,7 +17,14 @@ plan-with-questions에 도입된 anti-anchoring 메커니즘(Step 3.5 외부 자
 ./scripts/ai/measure-anchoring-bias.sh --json
 ```
 
-결과는 `.claude/metrics/anchoring-baseline-YYYY-MM-DD.txt`(gitignored)에 저장한다. plan 파일에는 절대 수치 대신 측정 명령과 결과 파일 경로를 적는다.
+스크립트는 stdout(plain 또는 JSON)으로만 출력한다 — 파일 자동 저장은 하지 않는다. baseline을 보존하려면 사용자가 redirect로 명시 저장한다 (`.claude/metrics/`는 `.gitignore`에 등재됨):
+
+```bash
+mkdir -p .claude/metrics
+./scripts/ai/measure-anchoring-bias.sh > .claude/metrics/anchoring-baseline-$(date +%Y-%m-%d).txt
+```
+
+plan 파일에는 절대 수치 대신 측정 명령과 결과 파일 경로를 적는다.
 
 ## 4축 grep 패턴
 
@@ -77,9 +84,8 @@ plan-with-questions에 도입된 anti-anchoring 메커니즘(Step 3.5 외부 자
 스크립트 v1 한계를 보완할 v2 작업 (별도 follow-up issue):
 
 - **line-ordering 분석**: choice 라인이 defect 라인보다 앞서는 file만 집계 (정밀 anchoring case 식별).
-- **MiniPC ssh remote escape 수정**: 현재 v1은 remote command escape 이슈로 ssh 측정 실패. POSIX shell quoting 정밀화 필요.
 - **leading_question_ratio**: 선택 라인 부근 N줄 윈도우에서 framing 키워드 비율 계산.
 - **severity 분포**: `defect` 신호를 P0/P1/P2로 분류 (현재는 단순 count).
 - **CSV/JSON 시계열**: `.claude/metrics/`에 시계열 누적 → spreadsheet/노트북 분석 가능.
 
-v2는 `scripts/ai/measure-anchoring-bias.sh` 자체를 수정하거나 `measure-anchoring-bias-v2.sh`로 분리. 결정은 Phase 5 측정 결과 + 사용자 follow-up 우선순위에 따른다.
+v2는 `scripts/ai/measure-anchoring-bias.sh` 자체를 수정하거나 `measure-anchoring-bias-v2.sh`로 분리. 결정은 측정 결과 + 사용자 follow-up 우선순위에 따른다.

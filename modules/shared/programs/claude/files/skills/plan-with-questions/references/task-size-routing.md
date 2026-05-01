@@ -108,18 +108,16 @@ Discovery가 master 본문에 편하게 들어가는가?    no  → Split
 
 ## review-implementation 통합 시점
 
-| 모드 | 6-classification | 9-pass review | auto-fix |
-|------|------------------|---------------|----------|
-| **for_action** | 미사용 | Post-Impl 5번 Final 10-pass(`prd/multi-pass-review`)와 별도 호출 안 함 | 미사용 |
-| **for_prd** | **각 phase 종료 시** PRD requirement vs 구현 대조 (`requirement-status.md`) | **Final 단계**에서 9-pass review 호출 (`/review-implementation` review-only) | **미사용** (NG-2) |
+| 모드 | Phase-end 10-pass (prd) | Phase-end 6-classification (review-impl) | Final 10-pass + 9-pass | auto-fix |
+|------|--------------------------|-------------------------------------------|--------------------------|----------|
+| **for_action** | 미사용 | 미사용 | Post-Impl 5번 Final 10-pass (prd) — 단독 | 미사용 |
+| **for_prd** | **`/prd` 정본 그대로 수행** | **추가 layer로 수행** (둘 다, 대체 아님) | Post-Impl 5번에서 prd 10-pass + review-impl 9-pass review-only 통합 | **미사용** (NG-2) |
 
-**phase 종료 시 6-classification**: 각 phase의 Phase-end review에 `requirement-status.md` 6분류 체크리스트 적용:
-- requirement → status (`satisfied | partial | missing | conflicting | overbuilt | deferred`) → code evidence (file:line) → gap → action.
-- `overbuilt` 발견 시 `Decision Log` 기록 + 다음 phase 시작 전 제거 (메인 에이전트 직접 수정, auto-fix 미사용).
+**Phase-end 10-pass + 6-classification 동시 수행**: `/prd` 정본 phase template의 Phase-End 10-pass(intent/correctness/simplicity/code quality/cleanup/security/performance/validation/future-phase/PRD sync)를 그대로 수행하고, 추가로 `/review-implementation`의 6-classification(satisfied/partial/missing/conflicting/overbuilt/deferred)을 보조 layer로 적용한다. owner는 모두 `/prd` 정본 — plan-with-questions는 cherry-pick 호출만 위임.
 
 **Final 9-pass**: 모든 phase 완료 후 Post-Impl 5번에서 `/review-implementation` review-only 모드 호출 (input: PRD master 파일 + phase 파일들). 반환된 9-pass 결과를 `prd/multi-pass-review.md` Final 10-pass와 통합 보고.
 
-**Phase-end는 6-classification만**: 이전 버전의 "phase-end 10-pass" (prd/phase-template.md) 차용은 제거됐다. 한 단계에 한 review owner를 두는 원칙 (Design-4 회귀 방지) — phase-end는 6-classification, Final은 10-pass + 9-pass.
+`overbuilt` 발견 시 PRD/phase 파일에 `Decision Log` 기록 + 다음 phase 시작 전 메인 에이전트가 직접 제거 (auto-fix 미사용).
 
 **auto-fix 차용 안 함**: review-implementation의 fix 모드는 호출하지 않는다 (NG-2). 발견된 issue는 Decision Log 기록 후 메인 에이전트가 직접 수정하거나 다음 phase로 deferred.
 

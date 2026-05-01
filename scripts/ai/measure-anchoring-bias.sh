@@ -226,15 +226,16 @@ measure_host_local() {
 measure_host_remote() {
     local label="$1" host="$2"
 
-    # Build a single quoted heredoc remote script. Patterns and DAYS are
-    # interpolated once into the heredoc body; remote bash receives a static
-    # script with no further parsing of host-side variables. Quoting model:
-    # 'EOF' terminator → no expansion. We deliberately use unquoted
-    # interpolation for the values we want substituted, and \$ for remote
-    # variable references.
+    # Build a remote script via UNQUOTED heredoc (`<<RSCRIPT`, no quoting on
+    # the terminator). This is intentional: host-side variables `${DAYS}`,
+    # `${PAT_*}` are expanded once into the script body before transmission,
+    # and remote variable references are escaped as `\$` to defer to the
+    # remote bash. The result is a static script string with patterns and
+    # days inlined as literals — remote bash receives it via stdin and never
+    # re-parses host variables.
     #
-    # Note: DAYS and patterns contain characters within validate_days/AXES
-    # constraints. eval is never invoked.
+    # Safety: validate_days/validate_host gate the inlined values upstream;
+    # eval is never invoked on either side.
     local remote_script
     remote_script=$(cat <<RSCRIPT
 set -uo pipefail

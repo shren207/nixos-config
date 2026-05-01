@@ -54,5 +54,5 @@ fan-in 결과에서 미해결 항목(블랙박스 제로 원칙의 "블랙박스
 이슈 생성 완료 후, 질문 도구로 사용자에게 묻는다 (메시지·옵션은 [`../references/output-templates.md`](../references/output-templates.md#for_issue-step-i-6-전환-제안-메시지) 참조).
 
 - **Yes** → 생성된 이슈 URL(`/create-issue` Step 5의 `ISSUE_URL`)로 for_action 모드를 시작한다.
-- **No (write-handoff로 마무리)** → `/write-handoff` 스킬을 실행하여 LLM 이행 가이드를 작성한 뒤 종료한다.
+- **No (write-handoff로 마무리)** → 생성된 **이슈 URL(`ISSUE_URL`)** 을 인자로 `/write-handoff` 스킬을 실행하여 LLM 이행 가이드를 작성한 뒤 종료한다 (bare 번호 대신 URL을 전달해 write-handoff 헬퍼의 cwd 의존성을 회피).
 - **No (여기서 종료)** → 생성된 이슈 URL을 반환하고 종료한다.
