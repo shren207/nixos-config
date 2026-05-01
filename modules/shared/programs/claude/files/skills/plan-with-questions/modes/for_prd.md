@@ -1,121 +1,93 @@
 # Mode: for_prd
 
-`/prd`의 Living PRD 구조와 Phase Discovery Gate / Phase-end review 패턴을 plan-with-questions 인터뷰 흐름에 통합한 모드. 자동 트리거 또는 사용자 명시 호출(`for_prd` 첫 토큰)로 진입한다.
+`plan-with-questions`의 인터뷰·검증·자동 트리거 흐름을 거친 뒤, **PRD 작성을 `/prd` 스킬에 위임하는 handoff wrapper 모드**다. 자체 PRD 산출물을 만들지 않는다.
+
+핵심 설계: PRD 정본 owner는 `/prd` 스킬과 `.claude/prds/` 디렉토리다. plan-with-questions는 (a) 자동 트리거 + opt-out, (b) Step 1-6 인터뷰·자문·DA, (c) PRD 작성 직전 handoff를 담당한다. `.claude/plans/` 사본을 만들지 않는다 — 두 SSOT 병존 회귀 방지.
 
 ## 진입 조건
 
 1. **자동 트리거**: `for_action` Step 1-2 진행 중 [`../references/task-size-routing.md`](../references/task-size-routing.md) 트리거 알고리즘이 후보로 판정 → 사용자 1회 알림 + opt-out 통과.
 2. **명시 호출**: `$ARGUMENTS` 첫 토큰이 `for_prd`. 트리거 알고리즘 검증 생략, 즉시 진입.
-3. **재개**: plan 파일 `Mode=for_prd` + Resume From이 `for_prd.*` enum이면 그 단계로 점프.
+3. **재개**: 기존 `.claude/prds/prd-<feature>.md` 파일이 있고 사용자가 동일 이슈 ref로 재호출 → `/prd` 스킬의 갱신 흐름으로 위임.
 
-## 차용 reference (직접 복제 금지, 링크만)
+## 차용 reference (직접 복제 금지)
 
 | Reference | 용도 |
 |-----------|------|
-| [`../../prd/references/prd-master-template.md`](../../prd/references/prd-master-template.md) | Document Status 14필드 + Phase Index + 본문 구조의 PRD 측 SSOT (plan-with-questions는 [`../references/plan-file-template.md`](../references/plan-file-template.md)가 정본) |
-| [`../../prd/references/phase-template.md`](../../prd/references/phase-template.md) | Phase Discovery Gate / Implementation Checklist / Validation Strategy / Exit Criteria / Phase-end 10-pass 형식 |
-| [`../../prd/references/file-mode-selection.md`](../../prd/references/file-mode-selection.md) | Single vs Split 자동 판정 (task-size-routing이 차용) |
+| [`../../prd/SKILL.md`](../../prd/SKILL.md) | PRD 작성·갱신·split-file mode·phase 추적 — **정본 owner** |
+| [`../../prd/references/prd-master-template.md`](../../prd/references/prd-master-template.md) | Document Status + Phase Index + 본문 구조 — `/prd`가 적용 |
+| [`../../prd/references/phase-template.md`](../../prd/references/phase-template.md) | Phase Discovery Gate / Implementation / Validation / Exit Criteria — `/prd`가 적용 |
+| [`../../prd/references/file-mode-selection.md`](../../prd/references/file-mode-selection.md) | Single vs Split 자동 판정 |
 | [`../../prd/references/validation-paths.md`](../../prd/references/validation-paths.md) | 10 validation path catalog (모든 모드 공통) |
 | [`../../prd/references/multi-pass-review.md`](../../prd/references/multi-pass-review.md) | Final 10-pass review (Post-Implementation 5번) |
-| [`../../review-implementation/`](../../review-implementation/) | phase 종료 시 6-classification + Final 9-pass (review-only, auto-fix 미사용) |
+| [`../../review-implementation/`](../../review-implementation/) | phase 종료 시 6-classification + Final 9-pass review-only (auto-fix 미사용) |
 
 ## 산출물 경로
 
-[`../references/task-size-routing.md`](../references/task-size-routing.md#prd-모드-산출물-경로-결정) SSOT.
+`/prd` 스킬 규약 그대로 — plan-with-questions가 별도 사본 만들지 않음:
 
-- **Single**: `.claude/plans/<slug>.md` — 14 metadata + Phase Index + 모든 phase inline.
-- **Split**: `.claude/plans/<slug>/` — `master.md` (Document Status + Phase Index + Decision Log + Change Log) + `phase-NN-<name>.md` 분리.
+- **Single**: `.claude/prds/prd-<feature>.md`
+- **Split**: `.claude/prds/prd-<feature>/{master.md, phase-NN-<name>.md}`
 
-자동 판정 플로우는 `file-mode-selection.md` 차용. 사용자 명시 지시 우선.
+자동 판정은 `/prd/references/file-mode-selection.md` 차용 (상세는 [`../references/task-size-routing.md`](../references/task-size-routing.md#single-vs-split-자동-판정)).
 
 ## 흐름
 
-`for_prd`는 `for_action`의 Step 1-9를 거쳐 Step 7 계획 추적 도구 진입 후 Phase Plan 단계로 분기된다. 즉 Step 1-6(이슈 유효성·탐색·질문·자문·DA)은 동일하게 수행하고, Step 8 plan 작성 시 phase 단위 분리 + Phase Discovery Gate / Phase-end review를 추가한다.
+`for_prd`는 `for_action`의 Step 1-6를 그대로 거친 후, Step 7(계획 추적 도구 진입) 시점에서 `/prd` 스킬에 handoff한다.
 
 ### Step 1-6 (for_action 동일)
 
 [`for_action.md`](./for_action.md) Step 1-6 그대로 따른다. 차이점:
-- **Step 1**: tier-1/tier-2 신호 1차 평가 (자동 트리거 가능성 검토).
-- **Step 2**: 트리거 결정 시 사용자에게 알림 + opt-out 확인. 사용자 동의 시 Mode 전환.
+- **Step 1**: tier-1/aux 신호 1차 평가 (자동 트리거 가능성 검토).
+- **Step 2**: 트리거 결정 시 사용자에게 알림 + opt-out 확인. 사용자 동의 시 Mode 전환 (`for_action` → `for_prd`).
+- **Step 3.5**: 자문 입력에 phase 구조 후보를 포함 (PRD는 phase 단위 결정이 핵심).
 - **Step 5 DA**: phase 4+ 복잡 plan은 `/run-da for_plan full`(8 도메인 exhaustive) 권장 — Review Intensity가 자동 판단.
 
-### Step 7-9: Phase Plan 작성
+### Step 7: `/prd` handoff
 
-#### Step 7: 계획 추적 도구 진입
+기존 for_action의 "계획 추적 도구 진입"이 아니라 **`/prd` 스킬 호출**로 분기한다:
 
-`for_action`과 동일하지만 산출물이 split-file일 수 있음 ([`../references/task-size-routing.md`](../references/task-size-routing.md#prd-모드-산출물-경로-결정) 자동 판정).
+1. plan-with-questions가 Step 1-6에서 수집한 정보를 정리한다:
+   - Resolved evidence (Step 2 직접 확인 사실)
+   - 사용자 답변 (Step 4)
+   - Step 3.5 자문 매트릭스 (anti-anchoring 4 규칙 적용된 옵션 평가)
+   - DA findings + Arbiter 판정 (Step 5-6)
+   - 후보 phase 구조 (3-6개)
+2. `/prd` 스킬을 호출하여 위 정보를 입력으로 전달한다.
+3. `/prd`가 `.claude/prds/prd-<feature>.md` (또는 split) 작성을 수행한다.
 
-#### Step 8: Phase Plan 작성
+plan-with-questions는 `/prd` 호출 후 추가 plan 파일을 만들지 않는다. PRD 갱신·phase 진행·Phase Discovery Gate 적용은 모두 `/prd` 스킬 책임.
 
-plan 파일에 phase 단위 분리 + 다음 항목 포함 (각 phase):
+### Post-Implementation 흐름 변형
 
-```markdown
-### Phase N: <name>
+PRD가 작성된 후 구현 단계는 [`../references/post-implementation.md`](../references/post-implementation.md) 7단계를 따르되 다음 추가:
 
-**Phase Discovery Gate** (편집 전 재확인):
-- [ ] 관련 코드/파일: `path`, `path`
-- [ ] 관련 테스트/fixture: `path`, `path`
-- [ ] 관련 docs/spec/외부 참조: `path-or-link`
-- [ ] 관련 command 또는 도구: `command/tool`
-- [ ] Master plan의 assumption이 여전히 유효함
-- [ ] 발견 사항이 이 phase 또는 후속 phase를 바꾸면, 구현 전에 plan 파일을 먼저 갱신
+- **각 phase 종료 시** (Implementation 진행 중): `/review-implementation` 6-classification 호출 (review-only):
+  - requirement → status (`satisfied | partial | missing | conflicting | overbuilt | deferred`) → code evidence → gap → action.
+  - `overbuilt` 발견 시 `/prd` 의 PRD/phase 파일에 Decision Log DL 추가 + 다음 phase 시작 전 메인 에이전트가 직접 제거 (auto-fix 미사용 — NG-2).
+  - **Phase-end는 6-classification만** — 이전 버전의 phase-end 10-pass 차용은 제거됐다. 한 단계에 한 review owner 원칙.
+- **Post-Impl 5번 Final review**: `prd/references/multi-pass-review.md` 10-pass + `/review-implementation` 9-pass review-only를 메인 에이전트가 직접 통합 호출 (fan-out 금지). 결과는 `/prd`의 Final closeout 갱신에 반영.
 
-**Implementation Checklist**:
-- [ ] [대상 파일/컴포넌트/시스템 + 기대 outcome을 포함한 구체적 구현 단계]
+PRD Closeout 조건은 `.claude/prds/`에 작성됐으므로 자동 활성화 (이전 버전의 `.claude/plans/` mismatch는 본 변경으로 해소).
 
-**Validation Strategy**: [risk-appropriate mix — `prd/references/validation-paths.md` catalog 인용]
+## 메타데이터
 
-**Validation Checklist**:
-- [ ] [구체적 검증 명령 / surface]
+PRD 자체 메타데이터는 `/prd/references/prd-master-template.md`의 Document Status 표가 정본 (`/prd`가 적용). plan-with-questions의 [`../references/plan-file-template.md`](../references/plan-file-template.md) 14필드는 `for_action` 모드 전용이며, `for_prd`에는 적용되지 않는다 — 두 SSOT 병존 회피.
 
-**Exit Criteria**:
-- [ ] Phase objective 달성
-- [ ] 모든 Validation Checklist 항목 완료
-- [ ] 다음 phase 시작 blocker 없음
-
-**Phase-end Review** (다음 phase로 이동 전):
-- [ ] 1. **Requirements coverage** (6-classification) — 본 phase의 plan 요구사항을 [`../../review-implementation/references/requirement-status.md`](../../review-implementation/references/requirement-status.md) 6분류로 평가:
-  - `satisfied`: 구현 완료 + evidence
-  - `partial`: 부분 구현, 다음 phase 또는 deferred
-  - `missing`: 누락, 즉시 수정 또는 deferred
-  - `conflicting`: 다른 항목과 충돌, Decision Log 기록 + 해결
-  - `overbuilt`: plan에 없는 기능 추가, **즉시 제거** (NG-2 — auto-fix 미사용 시 메인 에이전트가 직접 제거)
-  - `deferred`: 명시적으로 다음 phase 또는 follow-up으로 이동, Decision Log 기록
-- [ ] 2. Phase-end 10-pass review (`prd/references/phase-template.md`의 10-pass 차용 — intent/correctness/simplicity/code quality/cleanup/security/performance/validation/future-phase/PRD sync)
-- [ ] 3. 발견 사항이 후속 phase에 영향 → 즉시 plan 파일 갱신 + Decision Log 기록
-```
-
-##### overbuilt 처리 (NG-2 — auto-fix 미사용)
-
-`/review-implementation` fix 모드는 차용하지 않는다. `overbuilt` 발견 시:
-1. plan에 `[OVERBUILT: <description>]` 라벨로 finding 기록
-2. Decision Log DL 추가 (`Status: accepted`, `Decision: remove`, `Consequences: <영향>`)
-3. 메인 에이전트가 직접 코드 제거 (single-writer / main-agent-only)
-4. 제거 후 Validation Checklist 재실행
-
-#### Step 9: 사용자 승인 요청
-
-`for_action`과 동일. plan 파일에 phase별 명세 + Phase Index가 모두 포함된 상태로 승인 요청.
-
-## Post-Implementation (for_prd 변형)
-
-[`../references/post-implementation.md`](../references/post-implementation.md) 7단계를 따르되 다음 추가:
-
-- **5번 Final Multi-Pass Review**: `prd/references/multi-pass-review.md` 10-pass + `/review-implementation` 9-pass review-only 통합 호출. 메인 에이전트 직접 수행 (fan-out 금지).
-  - `/review-implementation` 입력: plan 파일 (single) 또는 master + phase 파일들 (split).
-  - `/review-implementation` 호출 시 review-only 모드 (auto-fix 미사용).
-  - 결과 finding을 Final 10-pass와 통합 보고.
-  - `overbuilt` finding은 6번 review-commit 단계에서 메인 에이전트가 직접 제거.
-
-## 메타데이터 + Resume From (for_prd 전용)
-
-[`../references/plan-file-template.md`](../references/plan-file-template.md) 14필드 모두 적용. PRD 전용 필드:
-- `Current Phase`: `Phase N` 형식
-- `Phase Progress`: `<X>/<Y> 완료`
-- `Active Phase File`: split mode일 때 phase 파일 링크
-
-Resume From enum은 `for_prd.phase_NN.<discovery|implementation|validation|review>` 형식 ([`../references/resume-state.md`](../references/resume-state.md#for_prd-phase-4에서-정밀화) SSOT).
+Resume From enum의 `for_prd.*` 항목 ([`../references/resume-state.md`](../references/resume-state.md))은 plan-with-questions가 `/prd` 호출 직전까지 도달한 단계를 기록할 때 사용한다. `/prd` 스킬 진입 후의 phase 진행은 `/prd`가 자체 추적한다.
 
 ## main-agent-only 경계
 
-PRD 모드 plan 파일·phase 파일은 모두 tracked write이므로 메인 에이전트 전용. fan-out·subagent 위임 금지. 6-classification + 9-pass review 수행자도 read-only이며 적용은 메인이 수행. [`../../run-da/SKILL.md`](../../run-da/SKILL.md)의 `Codex 세션 하드닝 계약` SSOT를 따른다.
+PRD 파일·phase 파일은 모두 tracked write이므로 메인 에이전트 전용. fan-out·subagent 위임 금지. 6-classification + 9-pass review 수행자도 read-only이며 적용은 메인이 수행. [`../../run-da/SKILL.md`](../../run-da/SKILL.md)의 `Codex 세션 하드닝 계약` SSOT를 따른다.
+
+## /prd 모드 vs `/prd` 직접 호출 차이
+
+| 항목 | `for_prd` 모드 (plan-with-questions 진입) | `/prd` 직접 호출 |
+|------|-------------------------------------------|------------------|
+| 입력 | 인터뷰 결과 + Step 3.5 자문 + DA 판정 | 사용자 직접 입력 |
+| 자동 트리거 | task-size-routing 알고리즘으로 후보 감지 | 사용자가 명시 호출 |
+| Step 3.5 외부 자문 | 무조건 호출 (트레이드오프 1+ 시) | 자체 흐름에 자문 단계 없음 |
+| DA `/run-da for_plan` | Step 5에서 무조건 호출 | `/prd` 자체에서는 호출 안 함 (사용자 의도) |
+| 산출물 | `.claude/prds/prd-<feature>.md` | `.claude/prds/prd-<feature>.md` (동일) |
+
+→ `for_prd` 모드는 인터뷰·anti-anchoring·DA 검증을 거친 뒤 `/prd`에 handoff하는 **front-door**다. 산출물 형식은 동일.

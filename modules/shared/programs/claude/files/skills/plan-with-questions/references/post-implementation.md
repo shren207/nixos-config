@@ -21,8 +21,8 @@
 3. **`/run-da for_pr`** — 코드 DA 피드백 루프.
 4. **`/parallel-audit`** — 전수조사.
 5. **Final Multi-Pass Review** — [`../../prd/references/multi-pass-review.md`](../../prd/references/multi-pass-review.md) 체크리스트 수행. 메인 에이전트 직접 수행(fan-out 금지; `run-da` 4-bundle과 축 구분 — Cross-Phase Integration, Validation 선택, Documentation, PRD Closeout은 run-da가 커버하지 않는 영역).
-   - **for_prd 모드 추가**: 각 phase 종료 시 `/review-implementation` 6-classification(satisfied/partial/missing/conflicting/overbuilt/deferred) 체크 + Final 단계에서 9-pass review 통합 (auto-fix 모드 미사용).
-   - **PRD Closeout 항목**: 작업 입력 또는 현재 diff에 `.claude/prds/` 파일이 포함된 경우에만 수행. 그 외에는 항목 skip + 스킵 근거 기록.
+   - **for_prd 모드 추가**: 각 phase 종료 시 `/review-implementation` 6-classification(satisfied/partial/missing/conflicting/overbuilt/deferred) 체크 (review-only — auto-fix 미사용, 메인 에이전트가 직접 수정). Final 단계에서 prd 10-pass + `/review-implementation` 9-pass review-only를 메인 에이전트가 통합 호출. **Phase-end 10-pass는 차용하지 않는다** (한 단계에 한 review owner 원칙).
+   - **PRD Closeout 항목**: 작업 입력 또는 현재 diff에 `.claude/prds/` 파일이 포함된 경우에만 수행. **`for_prd` 모드는 산출물 경로가 `.claude/prds/`이므로 PRD Closeout 자동 활성화** — `for_action` 단순 plan 작업에서만 항목 skip + 스킵 근거 기록.
 6. **10-pass 반영 커밋** (수정 발생 시) — 논리 단위로 분할 커밋 허용.
 7. **`/create-pr`** — main 브랜치 대상 PR 생성.
 

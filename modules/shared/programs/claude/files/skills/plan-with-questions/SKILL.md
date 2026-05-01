@@ -46,11 +46,11 @@ description: |
 | 항목 | for_action | for_issue | for_prd |
 |------|-----------|-----------|---------|
 | 입력 | 이슈 레퍼런스 (URL/ID/이슈키) | 텍스트 설명 또는 빈 인자 | for_action 후보 + 사용자 동의 |
-| 출력 | 사용자 승인을 받은 계획 파일 (`.claude/plans/<slug>.md`) | 등록된 이슈 (+ 선택적 LLM 이행 가이드) | Living PRD (`.claude/plans/<slug>.md` 또는 split) |
-| 단계 흐름 | [`modes/for_action.md`](./modes/for_action.md) | [`modes/for_issue.md`](./modes/for_issue.md) | [`modes/for_prd.md`](./modes/for_prd.md) |
-| DA | for_plan 실행 (Step 5) | 생략 | for_plan + phase별 review-impl |
+| 출력 | 사용자 승인을 받은 계획 파일 (`.claude/plans/<slug>.md`) | 등록된 이슈 (+ 선택적 LLM 이행 가이드) | `/prd` 호출로 작성된 Living PRD (`.claude/prds/prd-<feature>.md` 또는 split) — plan-with-questions 자체 산출물 없음 |
+| 단계 흐름 | [`modes/for_action.md`](./modes/for_action.md) | [`modes/for_issue.md`](./modes/for_issue.md) | [`modes/for_prd.md`](./modes/for_prd.md) (handoff wrapper) |
+| DA | for_plan 실행 (Step 5) | 생략 | for_plan + phase별 6-classification + Final 9-pass |
 | Step 3.5 외부 자문 | 무조건 (트레이드오프 있을 때) | 트레이드오프 1+ 항목 시 | 무조건 + phase별 |
-| 계획 추적 도구 | 사용 (Step 7-9) | 미사용 (산출물이 이슈) | 사용 + phase 상태 |
+| 계획 추적 도구 | 사용 (Step 7-9) | 미사용 (산출물이 이슈) | 미사용 — `/prd` 스킬에 handoff |
 | 제1원칙 | YAGNI / NGMI | YAGNI / NGMI | YAGNI / NGMI |
 
 ## 단계 흐름 — 모드별 분리
@@ -59,7 +59,7 @@ description: |
 
 - **for_action**: [`modes/for_action.md`](./modes/for_action.md) — Step 1 (이슈 유효성) → 2 (탐색+재현) → 3 (질문 수집) → **3.5 (외부 자문, background 병렬)** → 4 (사용자 질문) → 5-6 (DA + 반영) → 7 (계획 추적 진입) → 8 (계획 작성) → 9 (승인 요청).
 - **for_issue**: [`modes/for_issue.md`](./modes/for_issue.md) — Step I-1 (fan-out) → I-2 (fan-in) → I-3 (블랙박스 체크리스트) → **I-3.5 (외부 자문, 트레이드오프 있을 시)** → I-4 (스무고개 루프) → I-5 (이슈 생성) → I-6 (for_action 전환 제안).
-- **for_prd**: [`modes/for_prd.md`](./modes/for_prd.md) — `for_action` Step 1-9 위에 Phase Plan(Phase Discovery Gate / Implementation / Validation / Exit / Phase-end review with 6-classification) 추가. Final 단계에서 `/review-implementation` 9-pass review-only 호출.
+- **for_prd**: [`modes/for_prd.md`](./modes/for_prd.md) — `for_action` Step 1-6(인터뷰·자문·DA) 후 Step 7에서 **`/prd` 스킬에 handoff**. plan-with-questions 자체 PRD 사본 만들지 않음 (`/prd`가 정본 owner). Implementation 단계에서 phase 종료 시 6-classification, Final에서 prd 10-pass + review-impl 9-pass review-only 통합.
 
 승인 후 자동 절차는 [`references/post-implementation.md`](./references/post-implementation.md) 1~7번을 따른다 (사용자 stop·하위 스킬 BLOCKED 외에는 자체 생략 금지 — #453/#569 회귀 방지).
 

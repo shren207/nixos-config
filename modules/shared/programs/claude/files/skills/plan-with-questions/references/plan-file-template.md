@@ -1,11 +1,11 @@
 # Plan File Template (`.claude/plans/<slug>.md`)
 
-`for_action` / `for_prd` 모드 산출물의 표준 형식. 14 metadata 필드 + Decision Log + 본문 구조. `/prd` master template의 Document Status를 차용했지만 plan-with-questions 단일 파일에 맞게 압축한다.
+`for_action` 모드 산출물의 표준 형식. 14 metadata 필드 + Decision Log + 본문 구조. `/prd` master template의 Document Status를 차용했지만 plan-with-questions 단일 파일에 맞게 압축한다.
 
 ## 적용 범위
 
 - **for_action**: 14필드 중 PRD 전용 필드(`Current Phase`, `Phase Progress`, `Active Phase File`)는 N/A 또는 생략.
-- **for_prd**: 14필드 모두 + Decision Log + Phase별 inline 또는 split.
+- **for_prd**: 본 template **미적용**. PRD 정본은 `/prd` 스킬이 작성하며 `prd/references/prd-master-template.md`의 Document Status가 정본이다 (두 SSOT 병존 회피). plan-with-questions의 Resume From enum (`for_prd.*`)은 `/prd` 호출 직전까지의 진행 단계 추적 용도로만 쓴다.
 - **for_issue**: 산출물이 이슈이므로 본 template 미적용. plan 파일이 없으므로 Resume From 메커니즘은 issue body에 inline (write-handoff가 처리).
 
 ## 14 Metadata 필드 (plan 상단 — Document Status 표)
