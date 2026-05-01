@@ -48,7 +48,7 @@ description: |
 | 자연어 trigger 카테고리 | Step I-6 transition 권장 |
 |-------------------------|--------------------------|
 | PRD 작성 의도 (`PRD 작성`, `Living PRD`, `phase 계획`, `기능 스펙 정리`, `Discovery Gate 있는 계획서`, `PRD 업데이트`) | **for_prd 직접 진입** (이슈 ref + PRD 의도 결합으로 명확). 또는 for_action 진입 후 Step 1-2 baseline에서 Phase ≥4 감지 시 우선순위 5 자동 PRD 후보 알림 |
-| review-impl 의도 (`구현 감사`, `문서 대비 구현 리뷰`, `스펙 대비 감사`, `overbuilt 검사`, `PRD phase 완료 확인`) | **for_action 진입** (Post-Implementation 5번 Final review에서 6-classification + 9-pass review-only 적용) |
+| review-impl 의도 (`구현 감사`, `문서 대비 구현 리뷰`, `스펙 대비 감사`, `overbuilt 검사`, `PRD phase 완료 확인`) | **for_action 진입** (Post-Implementation 5번 Final review에서 PRD 10-pass + review-impl overlay (6-classification + overbuilt 우선) 적용) |
 | 일반 텍스트 (위 카테고리 매칭 없음) | for_action transition 또는 write-handoff/종료 (Step I-6 표준 옵션) |
 
 이 표는 우선순위 6의 후속 분기를 명시하며 모드 판별 자체는 우선순위 1-5가 담당한다. transition은 사용자 입력 시점의 자연어 trigger 카테고리만으로 결정되며, 이슈 본문에 별도 marker를 추가하지 않는다 (for_action Step 1-2의 Phase ≥4 감지가 baseline 분석 자체로 작동).
@@ -64,7 +64,7 @@ description: |
 | 입력 | 이슈 레퍼런스 (URL/ID/이슈키) | 텍스트 설명 또는 빈 인자 | 이슈 레퍼런스 (`for_action`과 동일 — 자동 후보 또는 명시 호출 모두 ref 전제) |
 | 출력 | 사용자 승인을 받은 계획 파일 (`.claude/plans/<slug>.md`) | 등록된 이슈 (+ 선택적 LLM 이행 가이드) | Living PRD (`.claude/prds/prd-<feature>.md` 또는 split) |
 | 단계 흐름 | [`modes/for_action.md`](./modes/for_action.md) | [`modes/for_issue.md`](./modes/for_issue.md) | [`modes/for_prd.md`](./modes/for_prd.md) |
-| DA | for_plan 실행 (Step 5) | 생략 | for_plan + phase별 6-classification + Final 9-pass |
+| DA | for_plan 실행 (Step 5) | 생략 | for_plan + phase별 6-classification + Final PRD 10-pass + review-impl overlay |
 | Step 3.5 외부 자문 | 트레이드오프 1+ 항목 시 | 트레이드오프 1+ 항목 시 | 트레이드오프 1+ 항목 시 (PRD 작성 전 1회) |
 | 계획 추적 도구 | 사용 (Step 7-9) | 미사용 (산출물이 이슈) | 미사용 — PRD 파일이 추적 |
 | 제1원칙 | YAGNI / NGMI | YAGNI / NGMI | YAGNI / NGMI |
@@ -75,7 +75,7 @@ description: |
 
 - **for_action**: [`modes/for_action.md`](./modes/for_action.md) — Step 1 (이슈 유효성) → 2 (탐색+재현) → 3 (질문 수집) → **3.5 (트레이드오프 1+ 시 외부 자문, background 병렬)** → 4 (사용자 질문) → 5-6 (DA + 반영) → 7 (계획 추적 진입) → 8 (계획 작성) → 9 (승인 요청).
 - **for_issue**: [`modes/for_issue.md`](./modes/for_issue.md) — Step I-1 (fan-out) → I-2 (fan-in) → I-3 (블랙박스 체크리스트) → **I-3.5 (외부 자문, 트레이드오프 있을 시)** → I-4 (스무고개 루프) → I-5 (이슈 생성) → I-6 (for_action 전환 제안).
-- **for_prd**: [`modes/for_prd.md`](./modes/for_prd.md) — `for_action` Step 1-6(인터뷰·자문·DA) 후 Step 7에서 사용자 승인 + Step 8에서 `.claude/prds/`에 PRD 파일 직접 작성. Implementation 단계에서 phase 종료 시 6-classification, Final에서 PRD 10-pass + 9-pass review-only 통합.
+- **for_prd**: [`modes/for_prd.md`](./modes/for_prd.md) — `for_action` Step 1-6(인터뷰·자문·DA) 후 Step 7에서 사용자 승인 + Step 8에서 `.claude/prds/`에 PRD 파일 직접 작성. Implementation 단계에서 phase 종료 시 6-classification, Final에서 PRD 10-pass + review-impl overlay (6-classification + overbuilt 우선).
 
 승인 후 자동 절차는 [`references/post-implementation.md`](./references/post-implementation.md) 1~7번을 따른다 (사용자 stop·하위 스킬 BLOCKED 외에는 자체 생략 금지 — #453/#569 회귀 방지).
 
@@ -104,7 +104,7 @@ PRD / review references (모든 모드 공용 또는 for_prd 전용):
 | [`./references/prd/phase-template.md`](./references/prd/phase-template.md) | for_prd 모드 phase 단위 |
 | [`./references/prd/file-mode-selection.md`](./references/prd/file-mode-selection.md) | for_prd Single vs Split |
 | [`./references/review-impl/requirement-status.md`](./references/review-impl/requirement-status.md) | review-impl 6-classification taxonomy (requirement → 구현 매핑) |
-| [`./references/review-impl/implementation-review.md`](./references/review-impl/implementation-review.md) | review-impl 9-pass review-only 절차 (Post-Impl 5번 Final review, auto-fix 미사용) |
+| [`./references/review-impl/implementation-review.md`](./references/review-impl/implementation-review.md) | review-impl overlay (PRD 10-pass에 얹는 6-classification 라벨링 + overbuilt 우선 분류 delta, auto-fix 미사용) |
 
 ## 주의사항
 

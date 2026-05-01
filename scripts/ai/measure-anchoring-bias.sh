@@ -144,7 +144,7 @@ esac
 # language coexist, which is exactly the anchoring surface we measure.
 PAT_choice='사용자 결정|사용자 확인 완료|선호|선택|추천|A 방식|B 방식|어느 쪽|AskUserQuestion|충분|인지'
 PAT_framing='추천|권장|기본값|best|Recommended|강력히'
-PAT_defect='DA Round|CONFIRMED_ISSUE|NEEDS_MORE_INFO|YAGNI|NGMI|REGRESSION|overbuilt|missing|conflicting|parallel-audit|review-implementation'
+PAT_defect='DA Round|CONFIRMED_ISSUE|NEEDS_MORE_INFO|YAGNI|NGMI|REGRESSION|overbuilt|missing|conflicting|parallel-audit|review-implementation|review-impl'
 PAT_resistance='사용자 결정에 따라|현상 유지|기각|생략|그래도|재설계.*거부|redesign.*reject|추천대로'
 
 # Lookup helper since bash doesn't support indirect array reference uniformly.

@@ -20,7 +20,7 @@
 | [`../references/validation-paths.md`](../references/validation-paths.md) | validation-path catalog (모든 모드 공통, 평면 위치 — path 수는 catalog enumeration 섹션에서 확인) |
 | [`../references/prd/multi-pass-review.md`](../references/prd/multi-pass-review.md) | Final 10-pass review (Post-Implementation 5번) |
 | [`../references/review-impl/requirement-status.md`](../references/review-impl/requirement-status.md) | phase 종료 시 6-classification taxonomy (requirement → 구현 매핑, auto-fix 미사용) |
-| [`../references/review-impl/implementation-review.md`](../references/review-impl/implementation-review.md) | Final review 시 9-pass review-only 절차 (PRD Final 10-pass와 다른 축) |
+| [`../references/review-impl/implementation-review.md`](../references/review-impl/implementation-review.md) | Final review 시 PRD 10-pass에 얹는 review-impl overlay (6-classification 라벨링 + overbuilt 우선 분류 delta) |
 
 ## 산출물 경로
 
@@ -31,10 +31,10 @@
 
 ## 자연어 입력 처리
 
-자연어로 PRD 갱신·review-only 작업을 요청하면 다음 흐름:
+자연어로 PRD 갱신·review-only 작업을 요청하면 다음 흐름. trigger 키워드 정의는 [`../SKILL.md`](../SKILL.md#모드-판별) "자연어 trigger → transition 매핑" SSOT 표 참조 (본 섹션은 mode-specific 동작만 명시):
 
-- **'PRD 업데이트', 'PRD 갱신', '이 PRD 다시 손보자'** → for_prd 모드가 `.claude/prds/prd-<feature>.md` 기존 PRD를 read한 뒤 갱신 흐름 (Discovery 결과로 영향받는 phase/section만 수정, 완료 체크박스 + 사용자 수정 보존).
-- **'구현 감사', '문서 대비 구현 리뷰', '스펙 대비 감사', 'overbuilt 검사', 'PRD phase 완료 확인'** → for_action 모드 진입(이슈 ref 있을 시) 또는 for_issue 모드 진입(텍스트 설명만), Post-Implementation 5번 Final review 단계에서 [`../references/review-impl/requirement-status.md`](../references/review-impl/requirement-status.md)의 6-classification + [`../references/review-impl/implementation-review.md`](../references/review-impl/implementation-review.md)의 9-pass review-only 적용 (auto-fix 미사용, NG-2). 또는 for_prd phase-end review에서 phase-template의 10-pass와 통합 적용.
+- **PRD 작성 의도 카테고리** → for_prd 모드가 `.claude/prds/prd-<feature>.md` 기존 PRD를 read한 뒤 갱신 흐름 (Discovery 결과로 영향받는 phase/section만 수정, 완료 체크박스 + 사용자 수정 보존).
+- **review-impl 의도 카테고리** → for_action 모드 진입(이슈 ref 있을 시) 또는 for_issue 모드 진입(텍스트 설명만), Post-Implementation 5번 Final review 단계에서 [`../references/prd/multi-pass-review.md`](../references/prd/multi-pass-review.md)의 PRD 10-pass + [`../references/review-impl/implementation-review.md`](../references/review-impl/implementation-review.md) overlay(6-classification 라벨링 + overbuilt 우선 분류) 적용 (auto-fix 미사용, NG-2). 또는 for_prd phase-end review에서 phase-template의 10-pass와 통합 적용.
 
 ## 흐름
 
@@ -87,7 +87,7 @@ Resume From enum의 `for_prd.*` 항목 ([`../references/resume-state.md`](../ref
 
 ## main-agent-only 경계
 
-PRD 파일·phase 파일은 모두 tracked write이므로 메인 에이전트 전용. fan-out·subagent 위임 금지. 6-classification + 9-pass review 수행자도 read-only이며 적용은 메인이 수행. [`../../run-da/SKILL.md`](../../run-da/SKILL.md)의 `Codex 세션 하드닝 계약` SSOT를 따른다.
+PRD 파일·phase 파일은 모두 tracked write이므로 메인 에이전트 전용. fan-out·subagent 위임 금지. PRD 10-pass + review-impl overlay 수행자도 read-only이며 적용은 메인이 수행. [`../../run-da/SKILL.md`](../../run-da/SKILL.md)의 `Codex 세션 하드닝 계약` SSOT를 따른다.
 
 ## for_prd 모드 특징
 
