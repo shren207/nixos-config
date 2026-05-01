@@ -79,16 +79,16 @@ description: |
 | [`references/task-size-routing.md`](./references/task-size-routing.md) | for_prd 자동 트리거 알고리즘 + 산출물 경로 + review-impl 통합 시점 |
 | [`references/bias-measurement.md`](./references/bias-measurement.md) | 4축 grep + 4 metric (baseline은 `scripts/ai/measure-anchoring-bias.sh` 실행으로 동적 산출 — script가 SSOT) |
 
-차용 reference (`/prd`, `/review-implementation`):
+흡수된 reference (이전 `/prd`, `/review-implementation` standalone에서 plan-with-questions 하위로 이동, #611):
 
 | 파일 | 사용처 |
 |------|--------|
-| [`../prd/references/validation-paths.md`](../prd/references/validation-paths.md) | 검증 수단 선택 (모든 모드) |
-| [`../prd/references/multi-pass-review.md`](../prd/references/multi-pass-review.md) | Post-Implementation 5번 Final review |
-| [`../prd/references/prd-master-template.md`](../prd/references/prd-master-template.md) | for_prd 모드 차용 (직접 복제 금지, 링크) |
-| [`../prd/references/phase-template.md`](../prd/references/phase-template.md) | for_prd 모드 phase 단위 |
-| [`../prd/references/file-mode-selection.md`](../prd/references/file-mode-selection.md) | for_prd Single vs Split |
-| [`../review-implementation/SKILL.md`](../review-implementation/SKILL.md) | for_prd phase 종료 6-classification + Final 9-pass (auto-fix 미사용) |
+| [`./references/validation-paths.md`](./references/validation-paths.md) | 검증 수단 선택 (모든 모드) |
+| [`./references/prd/multi-pass-review.md`](./references/prd/multi-pass-review.md) | Post-Implementation 5번 Final review |
+| [`./references/prd/prd-master-template.md`](./references/prd/prd-master-template.md) | for_prd 모드 차용 (직접 복제 금지, 링크) |
+| [`./references/prd/phase-template.md`](./references/prd/phase-template.md) | for_prd 모드 phase 단위 |
+| [`./references/prd/file-mode-selection.md`](./references/prd/file-mode-selection.md) | for_prd Single vs Split |
+| [`./references/review-impl/requirement-status.md`](./references/review-impl/requirement-status.md) | for_prd phase 종료 6-classification + Final 9-pass review-only (auto-fix 미사용) |
 
 ## 주의사항
 

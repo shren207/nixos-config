@@ -3,8 +3,8 @@
 ## Document Status
 - Status: In Progress
 - File Mode: Split
-- Current Phase: Phase 2 (Phase 1 Complete)
-- Active Phase File: [Phase 2](./prd-skill-router-consolidation/phase-02-references-move.md)
+- Current Phase: Phase 3 (Phase 1-2 Complete)
+- Active Phase File: [Phase 3](./prd-skill-router-consolidation/phase-03-standalone-removal.md)
 - Last Updated: 2026-05-01
 - PRD File: `.claude/prds/prd-skill-router-consolidation.md`
 - Source: [Issue #611](https://github.com/greenheadHQ/nixos-config/issues/611) (greenheadHQ/nixos-config)
@@ -140,7 +140,7 @@ PR #612(머지 완료, f7c818b)는 plan-with-questions 자체 개편(progressive
 | Phase | Status | Objective | Validation Focus | File |
 |---|---|---|---|---|
 | Phase 1: Design Lock-in | **Complete** | DL-1~17 SSOT lock + 변경 대상 파일 목록 확정 + Discovery Gate | static rg, plan-with-questions Invariants 검토 | [phase-01-design-lockin.md](./prd-skill-router-consolidation/phase-01-design-lockin.md) |
-| Phase 2: References Move | Not Started | references 6 파일 git mv + plan-with-questions 본인 link 갱신 (9 파일) | static rg 확장 패턴, link 무결성 | [phase-02-references-move.md](./prd-skill-router-consolidation/phase-02-references-move.md) |
+| Phase 2: References Move | **Complete** | references 6 파일 git mv + plan-with-questions 본인 link 갱신 (9 파일) | static rg 확장 패턴, link 무결성 | [phase-02-references-move.md](./prd-skill-router-consolidation/phase-02-references-move.md) |
 | Phase 3: Standalone Removal + Claude SoT | Not Started | standalone SKILL.md/evals/디렉토리 제거 + claude/default.nix declaration 제거 | nrs build, ~/.claude/skills/{prd,review-implementation} 부재 | [phase-03-standalone-removal.md](./prd-skill-router-consolidation/phase-03-standalone-removal.md) |
 | Phase 4: Codex SoT + Trigger Absorption | Not Started | codex/default.nix + verify-ai-compat.sh 갱신 + plan-with-questions trigger 흡수 | run-eval.sh, verify-ai-compat.sh, ~/.codex/skills 부재 | [phase-04-codex-sot-trigger.md](./prd-skill-router-consolidation/phase-04-codex-sot-trigger.md) |
 | Phase 5: Cross-Skill Link + Validation + Final Review | Not Started | run-da link 갱신 + lefthook 통과 + dogfooding + parallel-audit + Final 10-pass + 9-pass review-only | lefthook full, parallel-audit, multi-pass review | [phase-05-validation-final-review.md](./prd-skill-router-consolidation/phase-05-validation-final-review.md) |
@@ -266,4 +266,5 @@ PR #612(머지 완료, f7c818b)는 plan-with-questions 자체 개편(progressive
 - 2026-05-01: Stop-time review 보강 round 1 — DL-17 (Commit 5 검증 전용) 추가, A-3 정확화 (syncCodexConfig 두 경로 명시), Phase 2/4 SKILL.md 분담 명확화. **현재 Decision Log: 17 entries (DL-1 ~ DL-17, 본 PRD의 SSOT)**.
 - 2026-05-01: Stop-time review 보강 round 2 — stale lower-bound DL reference (DL-17 추가 전 형식)와 phase-05 Objective의 "두 commit 포함" 단정 표현 정리 (DL-17 conditional Commit 5와 일관화).
 - 2026-05-01: Stop-time review 보강 round 3 — phase-01 Validation Strategy entry counter check를 현재 SSOT(17 entries)에 정합화 (이전 round의 stale lower-bound 잔존 정리).
-- 2026-05-01: **Phase 1 Complete** — Design Lock-in 종료. Discovery Gate 13/13, Implementation Checklist 9/9, Validation Checklist 적용 항목 PASS, Exit Criteria 4/4, Phase-End 10-pass 모두 PASS. baseline sealed (PR #612 MERGED, main HEAD f7c818b, claude/default.nix line 235-240, codex/default.nix line 38-51, verify-ai-compat.sh EXPECTED_EXPOSED line 349-362, plan-with-questions 9 link 정확 매핑, .agents/skills/{prd,review-implementation} 부재 — A-3 (i) 경로 검증). Active Phase File phase-02로 전환.
+- 2026-05-01: **Phase 1 Complete** — Design Lock-in 종료. Discovery Gate 13/13, Implementation Checklist 9/9, Validation Checklist 적용 항목 PASS, Exit Criteria 4/4, Phase-End 10-pass 모두 PASS. baseline sealed (PR #612 MERGED, main HEAD f7c818b, claude/default.nix line 235-240, codex/default.nix line 38-51, verify-ai-compat.sh EXPECTED_EXPOSED line 349-362 (prd=line 356, review-impl=line 357), plan-with-questions 9 link 정확 매핑, .agents/skills/{prd,review-implementation} 부재 — A-3 (i) 경로 검증). Active Phase File phase-02로 전환.
+- 2026-05-01: **Phase 2 Complete** — References Move 종료. 6 git mv (validation-paths.md 평면 + 4 prd 하위 + 1 review-impl 하위) + plan-with-questions 본인 9 파일 link 갱신 (SKILL.md, modes/for_action.md + modes/for_prd.md, references 6개). stale `../prd/` / `../review-implementation` / `/prd 스킬` 잔존 0건 (rg 검증). 잔존 stale은 review-implementation/SKILL.md (Phase 3에서 자동 소멸) + run-da/SKILL.md:75 + run-da/arbiter-prompt.md (Phase 5에서 갱신). Active Phase File phase-03으로 전환.

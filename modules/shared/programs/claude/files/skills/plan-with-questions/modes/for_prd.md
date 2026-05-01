@@ -10,24 +10,23 @@
 2. **명시 호출**: `$ARGUMENTS` 첫 토큰이 `for_prd`이고 두 번째 토큰이 **이슈 ref(URL/번호/이슈키)**. for_action과 동일하게 이슈 resolve 전제 — 텍스트 설명만으로는 진입할 수 없다 (이슈 없는 PRD 작성은 `for_issue`로 이슈 등록 후 transition 또는 `/prd` 직접 호출).
 3. **재개**: 기존 `.claude/prds/prd-<feature>.md` 파일이 있고 사용자가 동일 이슈 ref로 재호출 → `/prd` 스킬의 갱신 흐름으로 위임.
 
-## 차용 reference (직접 복제 금지)
+## 흡수된 reference (직접 복제 금지)
 
 | Reference | 용도 |
 |-----------|------|
-| [`../../prd/SKILL.md`](../../prd/SKILL.md) | PRD 작성·갱신·split-file mode·phase 추적 — **정본 owner** |
-| [`../../prd/references/prd-master-template.md`](../../prd/references/prd-master-template.md) | Document Status + Phase Index + 본문 구조 — `/prd`가 적용 |
-| [`../../prd/references/phase-template.md`](../../prd/references/phase-template.md) | Phase Discovery Gate / Implementation / Validation / Exit Criteria — `/prd`가 적용 |
-| [`../../prd/references/file-mode-selection.md`](../../prd/references/file-mode-selection.md) | Single vs Split 자동 판정 |
-| [`../../prd/references/validation-paths.md`](../../prd/references/validation-paths.md) | 10 validation path catalog (모든 모드 공통) |
-| [`../../prd/references/multi-pass-review.md`](../../prd/references/multi-pass-review.md) | Final 10-pass review (Post-Implementation 5번) |
-| [`../../review-implementation/`](../../review-implementation/) | phase 종료 시 6-classification + Final 9-pass review-only (auto-fix 미사용) |
+| [`../references/prd/prd-master-template.md`](../references/prd/prd-master-template.md) | Document Status + Phase Index + 본문 구조 |
+| [`../references/prd/phase-template.md`](../references/prd/phase-template.md) | Phase Discovery Gate / Implementation / Validation / Exit Criteria |
+| [`../references/prd/file-mode-selection.md`](../references/prd/file-mode-selection.md) | Single vs Split 자동 판정 |
+| [`../references/validation-paths.md`](../references/validation-paths.md) | 10 validation path catalog (모든 모드 공통, 평면 위치) |
+| [`../references/prd/multi-pass-review.md`](../references/prd/multi-pass-review.md) | Final 10-pass review (Post-Implementation 5번) |
+| [`../references/review-impl/requirement-status.md`](../references/review-impl/requirement-status.md) | phase 종료 시 6-classification + Final 9-pass review-only (auto-fix 미사용) |
 
 ## 산출물 경로
 
-`/prd` 스킬 규약 그대로 — plan-with-questions가 별도 사본 만들지 않음:
+흡수된 PRD 규약 그대로 — `.claude/prds/` 정본 owner:
 
 - **Single**: `.claude/prds/prd-<feature>.md`
-- **Split**: master `.claude/prds/prd-<feature>.md` + phase 파일 `.claude/prds/prd-<feature>/phase-NN-<name>.md` (master는 디렉토리 옆에 sibling으로 위치 — `/prd/references/file-mode-selection.md` 정본 그대로)
+- **Split**: master `.claude/prds/prd-<feature>.md` + phase 파일 `.claude/prds/prd-<feature>/phase-NN-<name>.md` (master는 디렉토리 옆에 sibling으로 위치 — `../references/prd/file-mode-selection.md` 정본 그대로)
 
 자동 판정은 `/prd/references/file-mode-selection.md` 차용 (상세는 [`../references/task-size-routing.md`](../references/task-size-routing.md#single-vs-split-자동-판정)).
 

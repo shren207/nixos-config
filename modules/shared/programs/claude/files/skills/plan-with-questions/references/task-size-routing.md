@@ -83,7 +83,7 @@ def should_trigger_prd(step12_result):
 
 ### Single vs Split 자동 판정
 
-자동 판정 플로우와 split 조건은 [`/prd/references/file-mode-selection.md`](../../prd/references/file-mode-selection.md#자동-판정-플로우)가 단일 SSOT다. plan-with-questions는 `/prd` 정본 그대로 따르며 본 reference에 복제하지 않는다 (drift 방지).
+자동 판정 플로우와 split 조건은 [`./prd/file-mode-selection.md`](./prd/file-mode-selection.md#자동-판정-플로우)가 단일 SSOT다 (이전 `/prd/references/file-mode-selection.md`에서 흡수, #611). plan-with-questions가 본 흡수된 reference를 따르며 본 reference에 복제하지 않는다 (drift 방지).
 
 산출물 경로:
 - **Single**: `.claude/prds/prd-<feature>.md`
@@ -91,7 +91,7 @@ def should_trigger_prd(step12_result):
 
 자동 트리거 조건이 `Phase ≥4`이면 보통 split이 자연스럽다. 사용자가 "single로 유지해" 또는 "split으로 나눠줘"라고 명시하면 그 지시를 우선한다.
 
-`/prd` 스킬이 자체 file-mode-selection을 적용하므로, plan-with-questions는 트리거 + Step 1-6(인터뷰·자문·DA) 완료 후 `/prd`에 phase 구조를 handoff한다. plan-with-questions는 `.claude/plans/` 사본을 만들지 않는다.
+흡수된 file-mode-selection 규약을 plan-with-questions가 직접 적용한다 (이전엔 `/prd` 스킬이 별도로 적용했음). 본 모드는 트리거 + Step 1-6(인터뷰·자문·DA) 완료 후 `.claude/prds/` 정본에 직접 작성한다. plan-with-questions는 `.claude/plans/` 사본을 만들지 않는다.
 
 ## review-implementation 통합 시점
 
