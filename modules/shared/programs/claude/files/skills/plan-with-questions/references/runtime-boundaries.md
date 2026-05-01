@@ -7,10 +7,10 @@ plan-with-questions의 런타임 지원·용어·도구 매핑·미지원 대응
 | 런타임 | 지원 여부 |
 |--------|----------|
 | Claude Code 세션 | 완전 지원 |
-| Codex 세션 (Plan/default 공용) | **지원** (codex 0.106+ + `default_mode_request_user_input=true` 가정. 페이로드 한계는 아래 섹션 참조) |
+| Codex 세션 (Plan/default 공용) | **지원** (페이로드 한계는 아래 섹션 참조) |
 | headless 세션 (CI · `claude -p` · `codex exec`) | BLOCKED ("질문 도구 미지원 대응" 섹션) |
 
-이 nixos-config는 자기 환경 한정으로 codex 0.106+ + `default_mode_request_user_input=true`를 단순 가정한다 (config 활성화 위치: `modules/shared/programs/codex/files/config.toml`, `config.darwin.toml`의 `[features]` 섹션). 외부 fork 시 환경이 다르면 호환성 문제 가능.
+codex 환경 가정·활성화 절차는 [`.claude/skills/configuring-codex/SKILL.md`](../../../.claude/skills/configuring-codex/SKILL.md)가 SSOT다.
 
 ### Codex 일반 셸 sandbox 한계 (Step 3.5 관련)
 
@@ -68,6 +68,6 @@ plan-with-questions의 런타임 지원·용어·도구 매핑·미지원 대응
 처리 절차:
 1. 현재 단계(Step 4 / Step I-4 / Step 7 등)와 차단 사유(질문 도구 미지원)를 plain-text로 보고한다 (보고 채널이 없는 headless에서는 silent exit한다).
 2. SKILL 절차를 종료한다.
-3. 사용자가 새 메시지에서 명시 재개("계속 진행" 등)하거나 질문 도구 지원 런타임으로 전환할 때까지 자동 재개하지 않는다. **지원 런타임 전환 방법**: Claude Code 세션 또는 Codex 세션 사용 (codex 0.106+ + `default_mode_request_user_input=true` 가정).
+3. 사용자가 새 메시지에서 명시 재개("계속 진행" 등)하거나 질문 도구 지원 런타임으로 전환할 때까지 자동 재개하지 않는다. **지원 런타임 전환 방법**: Claude Code 세션 또는 Codex 세션 사용.
 
 이 정책은 [run-da의 "질문 도구 미지원 대응"](../../run-da/references/arbiter-scaling.md#질문-도구-미지원-대응) 섹션과 결을 같이 하지만, plan-with-questions 인터뷰 컨텍스트 전용으로 적용 규칙이 다르다 (자동 승격/LITE 승격/5라운드 종료 같은 DA 흐름 규칙은 적용하지 않는다).

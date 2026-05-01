@@ -26,7 +26,7 @@ Phase 기반 이행 가이드를 작성하고, 이슈 코멘트로 게시한다.
 
 | 행동 | Claude Code 세션 | Codex 세션 (Plan/default 공용) |
 |------|------------------|--------------------------------|
-| 사용자에게 질문 | `AskUserQuestion` 도구 | `request_user_input` (codex 0.106+ + `default_mode_request_user_input=true` 가정) |
+| 사용자에게 질문 | `AskUserQuestion` 도구 | `request_user_input` |
 | helper 스크립트 경로 | `~/.claude/scripts/write-handoff-repo-and-issue.sh` | `~/.codex/scripts/write-handoff-repo-and-issue.sh` |
 
 본문의 "질문 도구"는 위 표의 런타임별 질문 도구를 가리킨다. Codex 세션의 default mode 모델은 자동으로 `request_user_input`을 호출하지 않으므로, 사용자 확인이 필요한 단계에서 명시적으로 도구를 사용한다.
