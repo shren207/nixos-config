@@ -83,24 +83,11 @@ def should_trigger_prd(step12_result):
 
 ### Single vs Split 자동 판정
 
-`/prd/references/file-mode-selection.md`의 자동 판정 플로우를 차용한다:
+자동 판정 플로우와 split 조건은 [`/prd/references/file-mode-selection.md`](../../prd/references/file-mode-selection.md#자동-판정-플로우)가 단일 SSOT다. plan-with-questions는 `/prd` 정본 그대로 따르며 본 reference에 복제하지 않는다 (drift 방지).
 
-```
-Phase가 4개 이상인가?                          yes → Split
-  no ↓
-어느 phase의 implementation 항목이 10개 초과?  yes → Split
-  no ↓
-Discovery가 master 본문에 편하게 들어가는가?    no  → Split
-  yes ↓
-여러 도메인이 관여하는가?                      yes → Split
-  no ↓
-구현 중 계획이 크게 바뀔 가능성이 큰가?        yes → Split
-  no ↓
-→ Single
-```
-
+산출물 경로:
 - **Single**: `.claude/prds/prd-<feature>.md`
-- **Split**: `.claude/prds/prd-<feature>/{master.md, phase-NN-<name>.md}`
+- **Split**: master `.claude/prds/prd-<feature>.md` + phase 파일 `.claude/prds/prd-<feature>/phase-NN-<name>.md` (master는 phase 디렉토리 옆 sibling)
 
 자동 트리거 조건이 `Phase ≥4`이면 보통 split이 자연스럽다. 사용자가 "single로 유지해" 또는 "split으로 나눠줘"라고 명시하면 그 지시를 우선한다.
 

@@ -6,8 +6,8 @@
 
 ## 진입 조건
 
-1. **자동 트리거**: `for_action` Step 1-2 진행 중 [`../references/task-size-routing.md`](../references/task-size-routing.md) 트리거 알고리즘이 후보로 판정 → 사용자 1회 알림 + opt-out 통과.
-2. **명시 호출**: `$ARGUMENTS` 첫 토큰이 `for_prd`. 트리거 알고리즘 검증 생략, 즉시 진입.
+1. **자동 트리거**: `for_action` Step 1-2 진행 중 [`../references/task-size-routing.md`](../references/task-size-routing.md) 트리거 알고리즘이 후보로 판정 → 사용자 1회 알림 + opt-out 통과. 이슈 ref가 이미 resolve된 상태에서 진입한다.
+2. **명시 호출**: `$ARGUMENTS` 첫 토큰이 `for_prd`이고 두 번째 토큰이 **이슈 ref(URL/번호/이슈키)**. for_action과 동일하게 이슈 resolve 전제 — 텍스트 설명만으로는 진입할 수 없다 (이슈 없는 PRD 작성은 `for_issue`로 이슈 등록 후 transition 또는 `/prd` 직접 호출).
 3. **재개**: 기존 `.claude/prds/prd-<feature>.md` 파일이 있고 사용자가 동일 이슈 ref로 재호출 → `/prd` 스킬의 갱신 흐름으로 위임.
 
 ## 차용 reference (직접 복제 금지)
@@ -27,7 +27,7 @@
 `/prd` 스킬 규약 그대로 — plan-with-questions가 별도 사본 만들지 않음:
 
 - **Single**: `.claude/prds/prd-<feature>.md`
-- **Split**: `.claude/prds/prd-<feature>/{master.md, phase-NN-<name>.md}`
+- **Split**: master `.claude/prds/prd-<feature>.md` + phase 파일 `.claude/prds/prd-<feature>/phase-NN-<name>.md` (master는 디렉토리 옆에 sibling으로 위치 — `/prd/references/file-mode-selection.md` 정본 그대로)
 
 자동 판정은 `/prd/references/file-mode-selection.md` 차용 (상세는 [`../references/task-size-routing.md`](../references/task-size-routing.md#single-vs-split-자동-판정)).
 

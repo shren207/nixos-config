@@ -21,10 +21,13 @@
 #   ./scripts/ai/measure-anchoring-bias.sh --skip-ssh  # local only
 #   ./scripts/ai/measure-anchoring-bias.sh --json      # JSON output
 #
-# Exit 0 always (best-effort metric collection).
-# Per-host failure surfaces as a structured object in --json or
-# `host|status=fail|<reason>` in plain text — never plain text inside a
-# JSON array.
+# Exit semantics:
+#   - Metric collection failures (ssh down, transcripts absent, etc.):
+#     return 0. Per-host failure surfaces as a structured object in --json
+#     or `host|status=fail|<reason>` in plain text — never plain text inside
+#     a JSON array.
+#   - CLI usage errors (invalid --days digits, unsafe --ssh-host, unknown
+#     flag): return 2 immediately (validation runs before any metric work).
 
 set -uo pipefail
 

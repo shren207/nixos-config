@@ -34,7 +34,7 @@ description: |
 | 2 | URL 패턴 (`https://...`, `http://...`) 포함 | **for_action** |
 | 3 | 이슈 번호 패턴 (`#NNN`, `NNN`만 단독) 포함 | **for_action** |
 | 4 | 이슈키 패턴 (`PREFIX-NNN`, 예: `DEV-123`) 포함 | **for_action** |
-| 5 | for_action 진입 후 Step 1-2에서 Phase ≥4 OR 다중 도메인 감지 | **for_prd 후보** (사용자 1회 알림 + opt-out) |
+| 5 | for_action 진입 후 Step 1-2에서 `Phase ≥4` 단독 OR (`다중 도메인` + 보조 신호 1+) 감지 ([`references/task-size-routing.md`](./references/task-size-routing.md#트리거-알고리즘-의사코드)) | **for_prd 후보** (사용자 1회 알림 + opt-out) |
 | 6 | 위 패턴 없음 (텍스트 설명 또는 빈 인자) | **for_issue** |
 
 **이슈 레퍼런스 resolve**: 특정 이슈 트래커 CLI에 의존하지 않는다. 환경에서 사용 가능한 도구(gh CLI, Linear API/MCP, 웹 검색 등)를 활용한다.
@@ -45,7 +45,7 @@ description: |
 
 | 항목 | for_action | for_issue | for_prd |
 |------|-----------|-----------|---------|
-| 입력 | 이슈 레퍼런스 (URL/ID/이슈키) | 텍스트 설명 또는 빈 인자 | for_action 후보 + 사용자 동의 |
+| 입력 | 이슈 레퍼런스 (URL/ID/이슈키) | 텍스트 설명 또는 빈 인자 | 이슈 레퍼런스 (`for_action`과 동일 — 자동 후보 또는 명시 호출 모두 ref 전제) |
 | 출력 | 사용자 승인을 받은 계획 파일 (`.claude/plans/<slug>.md`) | 등록된 이슈 (+ 선택적 LLM 이행 가이드) | `/prd` 호출로 작성된 Living PRD (`.claude/prds/prd-<feature>.md` 또는 split) — plan-with-questions 자체 산출물 없음 |
 | 단계 흐름 | [`modes/for_action.md`](./modes/for_action.md) | [`modes/for_issue.md`](./modes/for_issue.md) | [`modes/for_prd.md`](./modes/for_prd.md) (handoff wrapper) |
 | DA | for_plan 실행 (Step 5) | 생략 | for_plan + phase별 6-classification + Final 9-pass |

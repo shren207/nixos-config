@@ -25,7 +25,7 @@
 **Step 3.5 외부 자문 결과 표시 시 anti-anchoring 규칙** (필수):
 
 - "(Recommended)" 라벨 금지.
-- 옵션 순서 매 호출마다 셔플 (decision_id seed 기반).
+- 옵션 순서를 `decision_id`로 seed한 stable shuffle (같은 decision_id면 같은 순서, 다른 decision_id면 다른 순서).
 - 각 옵션에 disqualifier ("틀릴 수 있는 조건") 명시.
 - 옵션 보이기 전 "어떤 기준이 가장 중요한가?" 먼저 묻는 judgment-first 패턴.
 - 옵션 description 중립화 — "A는 간단하고 추천" → "A는 변경 표면 작지만 후속 확장 시 재작업 가능".

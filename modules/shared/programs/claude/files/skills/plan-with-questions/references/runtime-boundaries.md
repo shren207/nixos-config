@@ -7,9 +7,18 @@ plan-with-questions의 런타임 지원·용어·도구 매핑·미지원 대응
 | 런타임 | 지원 여부 |
 |--------|----------|
 | Claude Code 세션 | 완전 지원 |
-| Codex Plan mode (`request_user_input` 지원 시) | 완전 지원 |
+| Codex Plan mode (`request_user_input` 지원 시) | **부분 지원** (아래 한계 섹션 참조) |
 | Codex 일반 세션 (Plan mode 미사용) | BLOCKED ("질문 도구 미지원 대응" 섹션) |
 | headless 세션 (CI · `claude -p` · `codex exec`) | BLOCKED ("질문 도구 미지원 대응" 섹션) |
+
+### Codex Plan mode 한계
+
+`request_user_input`은 페이로드 제약이 있다 — 한 번에 최대 3개 질문, 첫 옵션에 `(Recommended)` 라벨 강제. 본 SKILL의 두 정책과 충돌:
+
+1. **for_issue Step I-4의 "라운드당 최대 4개"** — Plan mode에서 호출 시 최대 3개로 자동 축소 (남은 항목은 다음 라운드).
+2. **Step 3.5 anti-anchoring "Recommended 라벨 금지"** — Plan mode `request_user_input`은 첫 옵션에 라벨을 강제 표시한다. 메인 LLM은 첫 옵션 선택을 무작위 셔플로 결정 (decision_id 기반 stable shuffle, [`./consulting-step.md`](./consulting-step.md) 참조)하여 anchoring을 완화한다.
+
+이 두 한계는 Plan mode 페이로드 자체의 제약이며 본 SKILL이 우회할 수 없다. 완전 지원은 Claude Code 세션에서만 보장된다.
 
 ## 용어 정책
 

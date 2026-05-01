@@ -26,30 +26,18 @@
 
 ### for_issue
 
-| Resume From | 진입 조건 |
-|-------------|----------|
-| `for_issue.step_i1_fanout` | fan-out 레퍼런스 수집 |
-| `for_issue.step_i2_fanin` | fan-in 결과 통합 |
-| `for_issue.step_i3_blackbox` | 블랙박스 체크리스트 생성 |
-| `for_issue.step_i3_5_consulting` | Step I-3.5 외부 자문 (트레이드오프 1+) |
-| `for_issue.step_i4_loop` | 스무고개 루프 (라운드별) |
-| `for_issue.step_i5_create_issue` | 이슈 생성 (`/create-issue`) |
-| `for_issue.step_i6_handoff` | for_action 전환 제안 + write-handoff |
-
-(for_issue는 산출물이 이슈이므로 plan file의 Resume From은 사용하지 않지만, 기록용으로 enum은 정의한다.)
+`for_issue`는 산출물이 이슈(plan 파일 없음)라 본 enum은 적용되지 않는다. 진행 상태는 issue body 또는 `/write-handoff` 산출물에 기록된다. for_action 전환 시점부터는 `for_action.*` enum이 사용된다.
 
 ### for_prd
 
+`for_prd`는 plan-with-questions가 Step 1-6까지 거친 뒤 `/prd` 스킬로 handoff한다. handoff 이후의 phase 진행 상태는 `/prd`의 Document Status (PRD master 파일)가 정본이며 본 enum은 사용되지 않는다. plan-with-questions가 추적하는 enum은 handoff 직전까지 한정:
+
 | Resume From | 진입 조건 |
 |-------------|----------|
-| `for_prd.discovery` | for_prd 후보 감지 + 사용자 알림 |
-| `for_prd.phase_NN.discovery` | Phase N의 Discovery Gate |
-| `for_prd.phase_NN.implementation` | Phase N의 Implementation Checklist |
-| `for_prd.phase_NN.validation` | Phase N의 Validation |
-| `for_prd.phase_NN.review` | Phase N의 Phase-end review |
-| `for_prd.final_review` | 모든 phase 완료 후 Final 10-pass |
+| `for_prd.candidate_detected` | task-size-routing 후보 감지 + 사용자 알림 대기 |
+| `for_prd.user_confirmed` | 사용자 동의 후 `/prd` handoff 직전 |
 
-`NN`은 두 자리 숫자 (`01`, `02`, ...).
+handoff 후의 진행은 `/prd` Document Status에서 `Current Phase` / `Active Phase File` / `Status` 필드로 추적한다.
 
 ### Post-Implementation
 

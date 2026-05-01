@@ -113,7 +113,7 @@ if [ -z "$_FO_SID" ]; then
   fi
 fi
 CONSULT_DIR=$(mktemp -d /tmp/consult-${_FO_SID}-XXXXXX)
-echo "CONSULT_DIR=$CONSULT_DIR"
+echo "CONSULT_DIR=$CONSULT_DIR"  # 호출자는 이 값을 다음 셸 호출에서 리터럴로 재사용 (Bash tool 호출 간 변수 비공유 대응)
 
 # 프롬프트 작성 (호출자가 위 입력 schema에 맞게 작성)
 (umask 077; cat > "$CONSULT_DIR/prompt.md" <<'PROMPT'
@@ -148,7 +148,7 @@ cat "$CONSULT_DIR/prompt.md" | env CODEX_PROGRAMMATIC=1 codex exec \
 - **`-o`**: JSON 결과 저장. 출력 schema 강제는 프롬프트 본문에서.
 - **xhigh**: 명시적 심층 자문 요청 시에만 (`model_reasoning_effort="xhigh"`).
 
-호출 후 정리: `rm -rf "/tmp/consult-..."`로 리터럴 경로 제거.
+호출 후 정리: `rm -rf -- "$CONSULT_DIR"` (같은 셸 컨텍스트라면) 또는 stdout으로 echo된 리터럴 경로(`/tmp/consult-<sid>-XXXXXX`)를 다음 셸 호출에서 그대로 재사용한다. **prompt에는 repo evidence가 들어가므로 cleanup 누락 시 외부 자문 입력이 host `/tmp`에 남는다** — Step 3.5 호출 직후 cleanup이 필수다.
 
 ## Background timing
 
@@ -165,7 +165,7 @@ cat "$CONSULT_DIR/prompt.md" | env CODEX_PROGRAMMATIC=1 codex exec \
 자문 결과를 `AskUserQuestion`(또는 등가 도구)으로 제시할 때 다음을 모두 적용:
 
 1. **"(Recommended)" 라벨 금지** — `option.label`에 추천 표시 안 함. 자문 출력에 score/rank가 있어도 무시.
-2. **옵션 순서 셔플** — `decision_id`를 seed로 매 호출마다 옵션 배열 순서를 무작위화. mapping(원본 ↔ 셔플)은 메인 LLM 내부 기록에 보존.
+2. **옵션 순서 셔플 (decision_id 기반 stable)** — `decision_id`를 seed로 옵션 배열 순서를 결정적(deterministic)으로 셔플한다. 같은 `decision_id`를 다시 보여주면 같은 순서가 나온다 (재현성). 다른 `decision_id`이면 다른 순서 (primacy bias 분산). mapping(원본 ↔ 셔플)은 메인 LLM 내부 기록에 보존.
 3. **disqualifier 표시** — 각 `option.description`에 "이 선택이 틀릴 수 있는 조건"을 함께 표기. 자문 출력의 `disqualifiers` 필드를 그대로 사용.
 4. **judgment-first** — 트레이드오프 옵션 제시 직전 별도 질문으로 사용자 기준을 먼저 묻는다 (예: "이 결정에서 가장 중요한 기준은? (a) 구현 속도 (b) 운영 안정성 (c) 되돌리기 용이성 (d) 검증 가능성"). 그 다음 옵션 제시.
 
@@ -188,6 +188,6 @@ cat "$CONSULT_DIR/prompt.md" | env CODEX_PROGRAMMATIC=1 codex exec \
 
 - dummy decision (옵션 A/B 2개) 1개로 Step 3.5 round-trip 1회 성공.
 - 출력 JSON에 "Recommended" / "Best" / "Default" 라벨 부재 확인 (`rg`).
-- 옵션 순서가 동일 입력 2회 호출에 대해 다름 (셔플 동작 확인).
+- 옵션 순서가 다른 `decision_id` 입력 2건에 대해 다름 / 같은 `decision_id` 재호출 시 동일 (decision_id-seeded stable shuffle 검증).
 - 1-3분 내 결과 도착 (`time codex exec ...`).
 - `--sandbox read-only`로 호출했을 때 file write 시도가 sandbox에서 차단됨 (negative test).
