@@ -34,6 +34,20 @@ Codex CLI 호환 레이어와 프로젝트 스킬 발견 문제를 다룹니다.
 4. `codex exec`로 런타임에서 스킬 이름이 보이는지 확인
 5. 권한 프롬프트 이슈는 `approval_policy`, `sandbox_mode` 설정으로 분리 진단
 
+## `request_user_input` Default Mode 활성화
+
+codex 0.106+에서 default (code) collaboration mode에서도 `request_user_input` 도구 사용 가능 (openai/codex#10384, PR openai/codex#12735). 본 nixos-config는 자기 환경 한정으로 활성화 가정.
+
+활성화 절차:
+1. `modules/shared/programs/codex/files/config.toml` 및 `config.darwin.toml`의 `[features]` 섹션에 `default_mode_request_user_input = true` 확인 (commit b94fd06에서 추가됨).
+2. `codex --version`이 0.106+ 인지 확인.
+3. `nrs` 후 `~/.codex/config.toml`에 flag가 반영되었는지 확인.
+
+검증:
+- codex 세션 default mode에서 `use request_user_input to ask me ...`로 invoke 시 tool call이 실제 발생하는지 (plain-text 응답이 아닌지) 관찰.
+- 0.106 release 댓글에 따르면 default mode 모델은 "make assumptions and only stop if blocked" 정책으로 자동 호출하지 않으므로, 인터뷰 기반 스킬 (`plan-with-questions`, `run-da`, `grill-me`) 본문에 명시적 사용 지시가 있어야 한다.
+- 페이로드 한계 (한 번에 max-3 옵션 + 첫 옵션 Recommended 라벨 강제)는 mode와 무관한 schema 제약이다.
+
 ## 핵심 파일
 
 - `modules/shared/programs/codex/default.nix` — 설정 및 스킬 투영
