@@ -138,7 +138,7 @@ cross-skill link를 갱신한다 — `run-da/SKILL.md:75`의 `validation-paths.m
 | `test ! -e ~/.claude/skills/review-implementation` | PASS |
 | `test ! -e ~/.codex/skills/prd` | PASS |
 | `test ! -e ~/.codex/skills/review-implementation` | PASS |
-| Static rg `(/prd 스킬|standalone /prd|흡수된|#611|DL-1[0-9])` under skill 본문 | 0 hits (Phase 4 cleanup으로 해소) |
+| Static rg `(/prd 스킬\|standalone /prd\|흡수된\|#611\|DL-1[0-9])` under skill 본문 | 0 hits (Phase 4 cleanup으로 해소) |
 
 ### Final 10-pass + review-impl overlay (PRD master + 5 phase 대상)
 

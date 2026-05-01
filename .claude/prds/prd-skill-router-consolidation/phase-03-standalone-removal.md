@@ -58,7 +58,7 @@ standalone `/prd`, `/review-implementation` SKILL.md + evals/queries.json + 빈 
 - [x] `rmdir modules/shared/programs/claude/files/skills/review-implementation/evals`.
 - [x] `rmdir modules/shared/programs/claude/files/skills/review-implementation/references`.
 - [x] `rmdir modules/shared/programs/claude/files/skills/review-implementation`.
-- [x] `modules/shared/programs/claude/default.nix` Edit: line 234-240의 `# prd 스킬 ... ` + `.claude/skills/prd ...` + `# review-implementation 스킬` + `.claude/skills/review-implementation ...` declaration 모두 제거 (주석 포함).
+- [x] `modules/shared/programs/claude/default.nix` Edit: line 234-240의 `# prd 스킬 ...` + `.claude/skills/prd ...` + `# review-implementation 스킬` + `.claude/skills/review-implementation ...` declaration 모두 제거 (주석 포함).
 - [x] `git diff modules/shared/programs/claude/default.nix` 확인 — 정확히 declaration 2개만 삭제, 다른 declaration 영향 없음.
 - [x] commit 메시지: `feat(skills): remove standalone prd/review-implementation skills (#611)`. body에 DL-3, DL-7 인용.
 - [x] `nrs` 실행 (메인 에이전트 직접 — main-agent-only command).

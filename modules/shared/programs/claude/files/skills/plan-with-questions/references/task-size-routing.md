@@ -87,7 +87,7 @@ def should_trigger_prd(step12_result):
 
 산출물 경로:
 - **Single**: `.claude/prds/prd-<feature>.md`
-- **Split**: master `.claude/prds/prd-<feature>.md` + phase 파일 `.claude/prds/prd-<feature>/phase-NN-<name>.md` (master는 phase 디렉토리 옆 sibling)
+- **Split**: master `.claude/prds/prd-<feature>.md` + phase 파일 `.claude/prds/prd-<feature>/phase-0N-<name>.md` (master는 phase 디렉토리 옆 sibling)
 
 자동 트리거 조건이 `Phase ≥4`이면 보통 split이 자연스럽다. 사용자가 "single로 유지해" 또는 "split으로 나눠줘"라고 명시하면 그 지시를 우선한다.
 

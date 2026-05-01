@@ -94,7 +94,7 @@ Step 3.5 자문 결과의 `result.json` 경로 또는 핵심 decision_id list. p
 <의존 관계 고려한 작업 순서>
 
 ## Validation Strategy
-<risk-appropriate mix — `./validation-paths.md` catalog 인용>
+<risk-appropriate mix — `~/.claude/skills/plan-with-questions/references/validation-paths.md` catalog 인용>
 
 ## 사이드이펙트 + 대응
 | 영향 | 대응 |
