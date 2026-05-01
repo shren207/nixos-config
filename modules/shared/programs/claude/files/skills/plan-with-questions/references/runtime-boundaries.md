@@ -7,7 +7,7 @@ plan-with-questions의 런타임 지원·용어·도구 매핑·미지원 대응
 | 런타임 | 지원 여부 |
 |--------|----------|
 | Claude Code 세션 | 완전 지원 |
-| Codex 세션 | **지원** (페이로드 한계는 아래 섹션 참조) |
+| Codex 세션 | **지원** (페이로드 가이드는 아래 섹션 참조) |
 | headless 세션 (CI · `claude -p` · `codex exec`) | BLOCKED ("질문 도구 미지원 대응" 섹션) |
 
 codex 환경 가정·활성화 절차는 [`.claude/skills/configuring-codex/SKILL.md`](../../../.claude/skills/configuring-codex/SKILL.md)가 SSOT다.
@@ -21,14 +21,21 @@ codex 환경 가정·활성화 절차는 [`.claude/skills/configuring-codex/SKIL
 
 따라서 Step 3.5 입력에 무엇을 보낼지에 대한 보안 책임은 호출자(메인 에이전트)에 있다 — repo evidence 중에서 sanitized excerpt만 전달하고, 자문 결과는 untrusted output으로 취급해 Step 4 anti-anchoring schema 검증을 거친다.
 
-### `request_user_input` 페이로드 한계
+### `request_user_input` 페이로드 가이드
 
-`request_user_input`은 페이로드 schema 자체의 제약이 있다 — 한 번에 최대 3개 질문, 첫 옵션에 `(Recommended)` 라벨 강제. 이 제약은 collaboration mode와 무관하다 (PR openai/codex#12735는 mode 가용성만 확장하고 tool spec/schema는 미변경). 본 SKILL의 두 정책과 충돌:
+`request_user_input`의 옵션 개수/Recommended 라벨은 **schema/server enforcement가 아니라 codex tool description의 LLM convention**이다. 출처:
 
-1. **for_issue Step I-4의 "라운드당 최대 4개"** — `request_user_input` 호출 시 최대 3개로 자동 축소 (남은 항목은 다음 라운드).
-2. **Step 3.5 anti-anchoring "Recommended 라벨 금지"** — `request_user_input`은 첫 옵션에 라벨을 강제 표시한다. 메인 LLM은 첫 옵션 선택을 무작위 셔플로 결정 (decision_id 기반 stable shuffle, [`./consulting-step.md`](./consulting-step.md) 참조)하여 anchoring을 완화한다.
+- `codex-rs/tools/src/request_user_input_tool.rs`의 JSON Schema description 문자열에 "2-3 choices", "questions ... do not exceed 3", "recommended option first" 가이드라인이 박혀 있다 (LLM이 자발적으로 따름).
+- `codex-rs/core/templates/collaboration_mode/plan.md`는 "**2-4 options + recommended default**"를 요구. `default.md`는 별도 옵션 개수/라벨 지침 없음 — mode별 prompt template 차이 있음.
+- TUI는 첫 옵션을 기본 선택 (커서) 표시하지만 자동 "(Recommended)" 라벨 부여 안 함.
+- JSON schema (`ToolRequestUserInputOption`/`ToolRequestUserInputQuestion`)와 `normalize_request_user_input_args`에는 array-level `maxItems`나 `recommended` property가 없다 (PR #617 fact-check 결과).
 
-이 두 한계는 페이로드 schema 자체의 제약이며 본 SKILL이 우회할 수 없다. Claude Code 세션의 `AskUserQuestion`과 비교하면 raw payload 제약 차이가 있다.
+본 SKILL의 운영 정책:
+
+1. **for_issue Step I-4의 "라운드당 최대 4개"** — `request_user_input` 호출 시 tool description의 "2-3 choices" 가이드 준수 위해 3개로 자동 축소 (남은 항목은 다음 라운드). schema 강제는 아니지만 LLM이 description을 따르려 하므로 사전 축소가 안전.
+2. **Step 3.5 anti-anchoring "Recommended 라벨 금지"** — tool description은 "recommended option first"를 권고하지만 본 SKILL은 anti-anchoring을 우선한다. 메인 LLM은 첫 옵션 선택을 무작위 셔플로 결정 (decision_id 기반 stable shuffle, [`./consulting-step.md`](./consulting-step.md) 참조). 이는 codex tool description LLM convention에 대한 로컬 정책 override다.
+
+PR openai/codex#12735는 collaboration mode 가용성만 확장하고 tool spec/schema는 미변경이므로, 위 가이드는 collaboration mode와 무관하게 schema 차원에서 일관 — 단 prompt template 차원에서는 mode별 차이가 있다 (위 plan.md/default.md 차이).
 
 ## 용어 정책
 
