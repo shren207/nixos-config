@@ -262,4 +262,7 @@ PR #612(머지 완료, f7c818b)는 plan-with-questions 자체 개편(progressive
 
 ## Change Log
 
-- 2026-05-01: Initial PRD created via `/plan-with-questions for_action #611` → for_prd auto-trigger → user-confirmed → /prd handoff. plan-with-questions Step 1-6 (인터뷰·자문·DA) 완료, Step 7 사용자 승인, Step 8 본 PRD 작성. handoff seed: `/tmp/plan-c54b0af3-611-lSbrfj/plan.md`.
+- 2026-05-01: Initial PRD created via `/plan-with-questions for_action #611` → for_prd auto-trigger → user-confirmed → /prd handoff. plan-with-questions Step 1-6 (인터뷰·자문·DA) 완료, Step 7 사용자 승인, Step 8 본 PRD 작성. handoff seed: `/tmp/plan-c54b0af3-611-lSbrfj/plan.md`. 초기 Decision Log entries: DL-1 ~ DL-16.
+- 2026-05-01: Stop-time review 보강 round 1 — DL-17 (Commit 5 검증 전용) 추가, A-3 정확화 (syncCodexConfig 두 경로 명시), Phase 2/4 SKILL.md 분담 명확화. **현재 Decision Log: 17 entries (DL-1 ~ DL-17, 본 PRD의 SSOT)**.
+- 2026-05-01: Stop-time review 보강 round 2 — stale lower-bound DL reference (DL-17 추가 전 형식)와 phase-05 Objective의 "두 commit 포함" 단정 표현 정리 (DL-17 conditional Commit 5와 일관화).
+- 2026-05-01: Stop-time review 보강 round 3 — phase-01 Validation Strategy entry counter check를 현재 SSOT(17 entries)에 정합화 (이전 round의 stale lower-bound 잔존 정리).

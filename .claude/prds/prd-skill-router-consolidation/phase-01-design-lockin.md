@@ -78,7 +78,7 @@ PR #612 머지 상태와 lefthook/eval/codex SoT 인프라 동작을 확인하�
 - [ ] Mobile/app simulator: N/A
 - [ ] Visual/screenshot check: N/A
 - [ ] Observability/logging/audit 동작 확인 (관련 시): N/A
-- [ ] Manual smoke check: 본 PRD master read + Decision Log 16 entry counter check
+- [ ] Manual smoke check: 본 PRD master read + Decision Log 17 entry counter check
 - [ ] 해당 시 error, empty, loading, permission, retry, rollback 상태 검증: N/A
 
 ## Exit Criteria
