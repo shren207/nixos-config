@@ -1,10 +1,10 @@
 # PRD: Skill Router Consolidation (Issue #611)
 
 ## Document Status
-- Status: In Progress
+- Status: Complete
 - File Mode: Split
-- Current Phase: Phase 5 (Phase 1-4 Complete)
-- Active Phase File: [Phase 5](./prd-skill-router-consolidation/phase-05-validation-final-review.md)
+- Current Phase: Complete (Phase 1-5 all done)
+- Active Phase File: N/A (all phases closed)
 - Last Updated: 2026-05-01
 - PRD File: `.claude/prds/prd-skill-router-consolidation.md`
 - Source: [Issue #611](https://github.com/greenheadHQ/nixos-config/issues/611) (greenheadHQ/nixos-config)
@@ -143,7 +143,7 @@ PR #612(머지 완료, f7c818b)는 plan-with-questions 자체 개편(progressive
 | Phase 2: References Move | **Complete** | references 6 파일 git mv + plan-with-questions 본인 link 갱신 (9 파일) | static rg 확장 패턴, link 무결성 | [phase-02-references-move.md](./prd-skill-router-consolidation/phase-02-references-move.md) |
 | Phase 3: Standalone Removal + Claude SoT | **Complete** | standalone SKILL.md/evals/디렉토리 제거 + claude/default.nix declaration 제거 | nrs build, ~/.claude/skills/{prd,review-implementation} 부재 | [phase-03-standalone-removal.md](./prd-skill-router-consolidation/phase-03-standalone-removal.md) |
 | Phase 4: Codex SoT + Trigger Absorption | **Complete** | codex/default.nix + verify-ai-compat.sh 갱신 + plan-with-questions trigger 흡수 + skill 본문 cleanup | run-eval.sh, verify-ai-compat.sh, ~/.codex/skills 부재 | [phase-04-codex-sot-trigger.md](./prd-skill-router-consolidation/phase-04-codex-sot-trigger.md) |
-| Phase 5: Cross-Skill Link + Validation + Final Review | Not Started | run-da link 갱신 + lefthook 통과 + dogfooding + parallel-audit + Final 10-pass + 9-pass review-only | lefthook full, parallel-audit, multi-pass review | [phase-05-validation-final-review.md](./prd-skill-router-consolidation/phase-05-validation-final-review.md) |
+| Phase 5: Cross-Skill Link + Validation + Final Review | **Complete** | run-da link 갱신 + lefthook 통과 + dogfooding + parallel-audit + Final 10-pass + 9-pass review-only | lefthook full, parallel-audit, multi-pass review | [phase-05-validation-final-review.md](./prd-skill-router-consolidation/phase-05-validation-final-review.md) |
 
 ## Final Multi-Pass Review After All Phases
 
@@ -270,3 +270,5 @@ PR #612(머지 완료, f7c818b)는 plan-with-questions 자체 개편(progressive
 - 2026-05-01: **Phase 2 Complete** — References Move 종료. 6 git mv (validation-paths.md 평면 + 4 prd 하위 + 1 review-impl 하위) + plan-with-questions 본인 9 파일 link 갱신 (SKILL.md, modes/for_action.md + modes/for_prd.md, references 6개). stale `../prd/` / `../review-implementation` / `/prd 스킬` 잔존 0건 (rg 검증). 잔존 stale은 review-implementation/SKILL.md (Phase 3에서 자동 소멸) + run-da/SKILL.md:75 + run-da/arbiter-prompt.md (Phase 5에서 갱신). Active Phase File phase-03으로 전환.
 - 2026-05-01: **Phase 3 Complete** — Standalone Removal + Claude SoT 종료. 4 git rm (prd/SKILL.md, prd/evals/queries.json, review-implementation/SKILL.md, review-implementation/evals/queries.json) + 6 빈 디렉토리 자동 정리 (git rm leaf removal) + claude/default.nix:235-240 declaration block 제거. nrs 빌드 31s 성공 (home-manager generation 213). ~/.claude/skills/{prd,review-implementation} 부재 검증 PASS. **stop hook 지적 "exposed skills now point at moved reference files" 해소** (standalone SKILL.md 자체 부재로 깨진 link 사라짐). ~/.codex/skills은 Phase 4에서 정리. Active Phase File phase-04로 전환.
 - 2026-05-01: **Phase 4 Complete** — Codex SoT + Trigger Absorption + Skill 본문 cleanup 종료. codex/default.nix:38-51 + verify-ai-compat.sh:349-362에서 prd, review-implementation 두 entry 제거. plan-with-questions/SKILL.md description에 흡수 trigger 12개 + evals positive/negative/ambiguous 18 entry 추가. modes/for_prd.md 본문을 "직접 작성" 흐름으로 재서술. **사용자 피드백 반영 — skill 본문에서 process metadata (이슈 번호, "흡수", "standalone /prd 폐기" 등 historical narrative) 모두 제거**, 현재 동작만 서술. PRD master + phase 파일은 history 추적 목적이라 그대로. nrs/verify-ai-compat.sh 통과, ~/.codex/skills 부재 검증 PASS. Active Phase File phase-05로 전환.
+- 2026-05-01: **Phase 5 Complete** — Cross-Skill Link + Validation + Final Review 종료. run-da/SKILL.md:75 + run-da/references/arbiter-prompt.md:192-196 갱신 (Commit 4). 종합 검증: lefthook + verify-ai-compat (검증 완전 통과) + run-eval (38/49 PASS, 핵심 12 흡수 trigger 모두 PASS) + nrs + 명시 test 4종 + static rg 모두 PASS. Final 10-pass: requirements coverage / cross-phase integration / correctness / simplicity / cleanup / security / performance / validation / documentation / PRD closeout 모두 PASS. 6-classification 9-pass review-only: FR-1~13 + NFR-1~6 + SC-1~6 모두 satisfied, overbuilt/conflicting/deferred 0건. DL-17에 따라 추가 코드 변경 없이 Commit 4가 본 PR의 마지막 commit (Commit 5 skip).
+- 2026-05-01: **PRD Status: In Progress → Complete**. 모든 phase 종료. follow-up issue 없음. Post-Implementation 7번 PR 생성 단계로 진행 가능.
