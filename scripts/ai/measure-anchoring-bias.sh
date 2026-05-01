@@ -114,6 +114,24 @@ while [ $# -gt 0 ]; do
     esac
 done
 
+# CLAUDE.md SSH-to-self prohibition: explicit alias denylist enforces the policy
+# even when --ssh-host overrides the uname-derived default. uname-only check is
+# necessary but not sufficient — the alias-level check covers the override path.
+case "$LOCAL_LABEL" in
+    mac)
+        if [ "$SSH_HOST" = "mac" ]; then
+            echo "error: ssh to local darwin host alias 'mac' is prohibited (CLAUDE.md policy)" >&2
+            exit 2
+        fi
+        ;;
+    minipc)
+        if [ "$SSH_HOST" = "minipc" ]; then
+            echo "error: ssh to local linux host alias 'minipc' is prohibited (CLAUDE.md policy)" >&2
+            exit 2
+        fi
+        ;;
+esac
+
 # ---------------------------------------------------------------------------
 # 4-axis grep patterns (canonical — doc table mirrors these for human ref)
 # ---------------------------------------------------------------------------

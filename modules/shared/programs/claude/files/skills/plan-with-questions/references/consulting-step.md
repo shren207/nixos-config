@@ -130,8 +130,10 @@ echo "CONSULT_DIR=$CONSULT_DIR"
 
 ```zsh
 # 위 CONSULT_DIR 리터럴 값을 그대로 사용. timeout으로 budget 강제.
-timeout 180 cat /tmp/consult-<sid>-XXXXXX/prompt.md \
-  | env CODEX_PROGRAMMATIC=1 codex exec \
+# pipe 좌측에 timeout을 두면 cat (producer)에만 적용되고 codex exec (consumer)는
+# 무기한 실행되므로, timeout이 codex exec 프로세스 자체에 적용되도록
+# stdin 파일 redirect를 사용한다.
+timeout 180 env CODEX_PROGRAMMATIC=1 codex exec \
     -C /tmp/consult-<sid>-XXXXXX \
     --skip-git-repo-check \
     --ignore-user-config \
@@ -140,6 +142,7 @@ timeout 180 cat /tmp/consult-<sid>-XXXXXX/prompt.md \
     -c model_reasoning_effort="high" \
     -o /tmp/consult-<sid>-XXXXXX/result.json \
     - \
+    < /tmp/consult-<sid>-XXXXXX/prompt.md \
     2>/tmp/consult-<sid>-XXXXXX/stderr.log
 ```
 
