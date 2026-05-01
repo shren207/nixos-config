@@ -39,7 +39,7 @@ description: |
 
 **이슈 레퍼런스 resolve**: 특정 이슈 트래커 CLI에 의존하지 않는다. 환경에서 사용 가능한 도구(gh CLI, Linear API/MCP, 웹 검색 등)를 활용한다.
 
-**자동 PRD 후보 알림 메시지** + opt-out 패턴: [`references/output-templates.md`](./references/output-templates.md#for_prd-모드-자동-트리거-알림-메시지). 트리거 알고리즘 상세는 [`references/task-size-routing.md`](./references/task-size-routing.md) (Phase 4 산출물 — stub 단계에서는 메인 LLM이 직관적으로 판단).
+**자동 PRD 후보 알림 메시지** + opt-out 패턴: [`references/output-templates.md`](./references/output-templates.md#for_prd-모드-자동-트리거-알림-메시지). 트리거 알고리즘(tier-1/tier-2 신호 + 의사코드)·산출물 경로 결정·review-implementation 통합 시점은 [`references/task-size-routing.md`](./references/task-size-routing.md) SSOT.
 
 ## 빠른 참조
 
@@ -59,7 +59,7 @@ description: |
 
 - **for_action**: [`modes/for_action.md`](./modes/for_action.md) — Step 1 (이슈 유효성) → 2 (탐색+재현) → 3 (질문 수집) → **3.5 (외부 자문, background 병렬)** → 4 (사용자 질문) → 5-6 (DA + 반영) → 7 (계획 추적 진입) → 8 (계획 작성) → 9 (승인 요청).
 - **for_issue**: [`modes/for_issue.md`](./modes/for_issue.md) — Step I-1 (fan-out) → I-2 (fan-in) → I-3 (블랙박스 체크리스트) → **I-3.5 (외부 자문, 트레이드오프 있을 시)** → I-4 (스무고개 루프) → I-5 (이슈 생성) → I-6 (for_action 전환 제안).
-- **for_prd**: [`modes/for_prd.md`](./modes/for_prd.md) — Phase 4에서 본문 채움 (현재 stub).
+- **for_prd**: [`modes/for_prd.md`](./modes/for_prd.md) — `for_action` Step 1-9 위에 Phase Plan(Phase Discovery Gate / Implementation / Validation / Exit / Phase-end review with 6-classification) 추가. Final 단계에서 `/review-implementation` 9-pass review-only 호출.
 
 승인 후 자동 절차는 [`references/post-implementation.md`](./references/post-implementation.md) 1~7번을 따른다 (사용자 stop·하위 스킬 BLOCKED 외에는 자체 생략 금지 — #453/#569 회귀 방지).
 
@@ -72,11 +72,11 @@ description: |
 | [`references/da-integration.md`](./references/da-integration.md) | Step 5 호출 계약 + Step 6 결과 반영 상태표 |
 | [`references/post-implementation.md`](./references/post-implementation.md) | 7단계 자동 진행 + 자체 생략 금지 신뢰 경계 |
 | [`references/output-templates.md`](./references/output-templates.md) | 사용자 메시지 / 체크리스트 / 질문 패턴 / anti-anchoring 규칙 |
-| [`references/consulting-step.md`](./references/consulting-step.md) | Step 3.5 입출력 schema + anti-anchoring 4 규칙 (Phase 2) |
-| [`references/plan-file-template.md`](./references/plan-file-template.md) | 14 metadata 필드 + Decision Log + Resume From enum (Phase 3) |
-| [`references/resume-state.md`](./references/resume-state.md) | Resume From enum 카탈로그 + baseline drift 검증 (Phase 3) |
-| [`references/task-size-routing.md`](./references/task-size-routing.md) | for_prd 자동 트리거 알고리즘 (Phase 4) |
-| [`references/bias-measurement.md`](./references/bias-measurement.md) | 4축 grep + 4 metric (Phase 5) |
+| [`references/consulting-step.md`](./references/consulting-step.md) | Step 3.5 입출력 schema + anti-anchoring 4 규칙 |
+| [`references/plan-file-template.md`](./references/plan-file-template.md) | 14 metadata 필드 + Decision Log SSOT |
+| [`references/resume-state.md`](./references/resume-state.md) | Resume From enum 카탈로그 + baseline drift 검증 |
+| [`references/task-size-routing.md`](./references/task-size-routing.md) | for_prd 자동 트리거 알고리즘 + 산출물 경로 + review-impl 통합 시점 |
+| [`references/bias-measurement.md`](./references/bias-measurement.md) | 4축 grep + 4 metric (Phase 5 산출물 — baseline 동적 산출 명령) |
 
 차용 reference (`/prd`, `/review-implementation`):
 
