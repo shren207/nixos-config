@@ -1,6 +1,6 @@
 ---
 name: plan-with-questions
-argument-hint: "[for_action|for_issue|for_prd] [issue-ref | task description]"
+argument-hint: "[for_action|for_issue|for_prd] [issue-ref (for_action/for_prd) | task description (for_issue)]"
 description: |
   Structured planning with requirements clarification via iterative Q&A.
   Three modes: for_action (issue ref → plan), for_issue (idea → issue creation),

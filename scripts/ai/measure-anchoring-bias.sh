@@ -41,7 +41,21 @@ JSON=0
 SSH_HOST="minipc"
 
 usage() {
-    grep '^#' "$0" | sed 's/^# \{0,1\}//'
+    cat <<'USAGE'
+measure-anchoring-bias.sh — measure plan-with-questions anchoring-bias
+signals across Claude Code transcripts (Mac local + MiniPC).
+
+Usage:
+  ./scripts/ai/measure-anchoring-bias.sh             # default mtime=-60
+  ./scripts/ai/measure-anchoring-bias.sh -d 30       # mtime=-30
+  ./scripts/ai/measure-anchoring-bias.sh --skip-ssh  # local only
+  ./scripts/ai/measure-anchoring-bias.sh --json      # JSON output
+  ./scripts/ai/measure-anchoring-bias.sh --ssh-host <host>
+
+Output: per-host candidate session counts + intersection metrics.
+Exit semantics: metric collection failures return 0; CLI usage errors
+return 2. See file header comment for the full contract.
+USAGE
     exit 0
 }
 
@@ -87,6 +101,12 @@ done
 # 4-axis grep patterns (canonical — doc table mirrors these for human ref)
 # ---------------------------------------------------------------------------
 
+# Note: PAT_choice and PAT_framing intentionally overlap on `추천`. choice
+# captures any line where a user selection or recommendation token appears
+# (regardless of who proposed it); framing isolates the LLM-side framing
+# vocabulary. The intersection (choice ∩ framing) is meaningful — it flags
+# transcripts where both user decision context and LLM recommendation
+# language coexist, which is exactly the anchoring surface we measure.
 PAT_choice='사용자 결정|사용자 확인 완료|선호|선택|추천|A 방식|B 방식|어느 쪽|AskUserQuestion|충분|인지'
 PAT_framing='추천|권장|기본값|best|Recommended|강력히'
 PAT_defect='DA Round|CONFIRMED_ISSUE|NEEDS_MORE_INFO|YAGNI|NGMI|REGRESSION|overbuilt|missing|conflicting|parallel-audit|review-implementation'

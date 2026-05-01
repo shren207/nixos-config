@@ -115,6 +115,9 @@ fi
 CONSULT_DIR=$(mktemp -d /tmp/consult-${_FO_SID}-XXXXXX)
 echo "CONSULT_DIR=$CONSULT_DIR"  # 호출자는 이 값을 다음 셸 호출에서 리터럴로 재사용 (Bash tool 호출 간 변수 비공유 대응)
 
+# 단일 셸 컨텍스트라면 trap 기반 자동 정리 사용 — repo evidence가 host /tmp에 남지 않게 강제
+trap 'rm -rf -- "$CONSULT_DIR"' EXIT
+
 # 프롬프트 작성 (호출자가 위 입력 schema에 맞게 작성)
 (umask 077; cat > "$CONSULT_DIR/prompt.md" <<'PROMPT'
 {입력 schema 본문}
@@ -145,7 +148,7 @@ cat "$CONSULT_DIR/prompt.md" | env CODEX_PROGRAMMATIC=1 codex exec \
 - **`--ignore-user-config`**: `$CODEX_HOME/config.toml` 로드 차단. user-level MCP/connector surface도 차단.
 - **`--sandbox read-only`**: 모델 shell 실행이 write를 못 하게 한다. 단 `--sandbox`만으로는 MCP/plugin/connector 로딩을 막지 못하므로 `-C` + `--ignore-user-config`와 함께 사용해야 trust boundary가 완결된다.
 - **`--ephemeral`**: 세션 영속화 안 함.
-- **`-o`**: JSON 결과 저장. 출력 schema 강제는 프롬프트 본문에서.
+- **`-o`**: 마지막 모델 응답을 파일에 저장한다. **JSON 구조 강제는 아니다** — codex의 `-o`는 메시지 캡처 플래그이고, 스키마 강제는 별도 `--output-schema`가 필요하다. 우리 흐름은 호출 후 `jq -e . < "$CONSULT_DIR/result.json"`로 파싱 검증을 하고, 실패 시 fallback (자문 결과 무시 + Step 4에서 메인 LLM이 Step 3 raw 옵션을 anti-anchoring 4 규칙으로 직접 제시) 으로 진행한다.
 - **xhigh**: 명시적 심층 자문 요청 시에만 (`model_reasoning_effort="xhigh"`).
 
 호출 후 정리: `rm -rf -- "$CONSULT_DIR"` (같은 셸 컨텍스트라면) 또는 stdout으로 echo된 리터럴 경로(`/tmp/consult-<sid>-XXXXXX`)를 다음 셸 호출에서 그대로 재사용한다. **prompt에는 repo evidence가 들어가므로 cleanup 누락 시 외부 자문 입력이 host `/tmp`에 남는다** — Step 3.5 호출 직후 cleanup이 필수다.
