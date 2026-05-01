@@ -51,10 +51,12 @@ fan-in 결과에서 미해결 항목(블랙박스 제로 원칙의 "블랙박스
 
 ## Step I-6: 후속 모드 전환 제안 [일반 모드]
 
-이슈 생성 완료 후, 질문 도구로 사용자에게 묻는다 (메시지·옵션은 [`../references/output-templates.md`](../references/output-templates.md#for_issue-step-i-6-전환-제안-메시지) 참조). 입력 시점의 **자연어 trigger 카테고리**에 따라 첫 옵션의 권장 모드가 달라진다 (이슈 본문에 별도 marker는 추가하지 않는다 — 모드 결정은 사용자 입력의 trigger 카테고리만으로 충분):
+이슈 생성 완료 후, 질문 도구로 사용자에게 묻는다 (메시지·옵션은 [`../references/output-templates.md`](../references/output-templates.md#for_issue-step-i-6-전환-제안-메시지) 참조). 입력 시점의 **자연어 trigger 카테고리**에 따라 첫 옵션의 권장 모드가 달라진다 (이슈 본문에 별도 marker는 추가하지 않는다 — 모드 결정은 사용자 입력의 trigger 카테고리만으로 충분).
 
-- **PRD 작성 의도** (`PRD 작성`, `Living PRD`, `phase 계획`, `기능 스펙 정리`, `Discovery Gate 있는 계획서`, `PRD 업데이트`) → 권장: **for_prd 직접 진입** (생성된 이슈 URL + PRD 의도 결합). 또는 for_action 진입 후 Step 1-2 baseline에서 Phase ≥4 감지 시 자동 for_prd 후보 알림.
-- **review-impl 의도** (`구현 감사`, `문서 대비 구현 리뷰`, `스펙 대비 감사`, `overbuilt 검사`, `PRD phase 완료 확인`) → 권장: **for_action 진입** (Post-Implementation 5번 Final review에서 [`../references/review-impl/requirement-status.md`](../references/review-impl/requirement-status.md) 6-classification + 9-pass review-only 적용).
+trigger 카테고리 정의 (키워드 목록 + transition 매핑)는 [`../SKILL.md`](../SKILL.md#모드-판별)의 "자연어 trigger → transition 매핑" 표 (SSOT)를 참조한다. Step I-6은 그 표가 정한 권장 모드를 첫 옵션으로 제시한다:
+
+- **PRD 작성 의도** → 권장: **for_prd 직접 진입** (생성된 이슈 URL + PRD 의도 결합). 또는 for_action 진입 후 Step 1-2 baseline에서 Phase ≥4 감지 시 자동 for_prd 후보 알림.
+- **review-impl 의도** → 권장: **for_action 진입** (Post-Implementation 5번 Final review에서 [`../references/review-impl/requirement-status.md`](../references/review-impl/requirement-status.md) 6-classification + 9-pass review-only 적용).
 - **위 카테고리 매칭 없음** → 표준 for_action transition 또는 write-handoff/종료.
 
 옵션은 모든 카테고리에서 **3개로 통일** (Codex Plan mode `request_user_input` max-3 제약):

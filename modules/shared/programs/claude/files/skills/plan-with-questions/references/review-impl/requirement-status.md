@@ -1,6 +1,6 @@
 # Requirement Status Classification
 
-`review-implementation` 스킬이 문서(PRD/phase/spec)의 각 requirement를 실제 구현 상태와 매핑할 때 사용하는 6분류 정의와 classification 룰.
+`plan-with-questions` for_action Final review (Post-Implementation 5번)와 `for_prd` phase-end 통합 review에서 문서(PRD/phase/spec)의 각 requirement를 실제 구현 상태와 매핑할 때 사용하는 6분류 정의와 classification 룰.
 
 ## 6-분류 정의
 
@@ -38,12 +38,12 @@
 ## `review-pr-feedback` 기각 라벨과의 축 구분
 
 `review-pr-feedback`의 기각 분류는 **리뷰어의 지적이 왜 기각되는가**를 나타낸다.
-정본 taxonomy 7개(`HALLUCINATION`, `STALE_REVIEW`, `WRONG_REFERENCE`, `SCOPE_DEFERRAL`, `VERIFIED_FALSE_POSITIVE`, `DESIGN_TRADEOFF`, `TECHNICAL_DISAGREEMENT`)와 각 카테고리 정의/답글 템플릿은 [review-pr-feedback/references/rejection-taxonomy.md](../../review-pr-feedback/references/rejection-taxonomy.md)를 따른다.
+정본 taxonomy 7개(`HALLUCINATION`, `STALE_REVIEW`, `WRONG_REFERENCE`, `SCOPE_DEFERRAL`, `VERIFIED_FALSE_POSITIVE`, `DESIGN_TRADEOFF`, `TECHNICAL_DISAGREEMENT`)와 각 카테고리 정의/답글 템플릿은 [review-pr-feedback/references/rejection-taxonomy.md](../../../review-pr-feedback/references/rejection-taxonomy.md)를 따른다.
 본 스킬의 6분류는 **requirement가 문서 대비 어떤 상태인가**를 나타낸다.
 
 두 축은 혼용하지 않는다. 동일 이슈가 양쪽에서 보이면:
 
-- `review-implementation`의 출력은 `satisfied/partial/missing/conflicting/overbuilt/deferred` 중 하나.
+- 본 reference의 6분류 출력은 `satisfied/partial/missing/conflicting/overbuilt/deferred` 중 하나.
 - `review-pr-feedback`의 기각 라벨은 리뷰 코멘트 처리 시점에만 사용.
 
 ## `run-da` Design bundle YAGNI와 overbuilt 구분
@@ -51,7 +51,7 @@
 | 축 | 시점 | 입력 | 판정 기준 |
 |---|---|---|---|
 | `run-da` Design bundle YAGNI | **Prospective** (구현 전/중) | 계획, diff | "지금 필요하지 않은 복잡성을 도입하고 있는가?" |
-| `review-implementation` overbuilt | **Retrospective** (구현 후) | 구현 + 문서 | "이미 구현된 것이 문서의 어떤 requirement에도 매핑되지 않는가?" |
+| 본 reference overbuilt 분류 | **Retrospective** (구현 후) | 구현 + 문서 | "이미 구현된 것이 문서의 어떤 requirement에도 매핑되지 않는가?" |
 
 동일 이슈가 양쪽 축에서 포착되면 **overbuilt 우선** (retrospective 증거가 더 구체적). run-da에서 이미 YAGNI로 기각·수정된 항목이 이후 `overbuilt`로 다시 나오면 reconcile 기록 (보통 앞 단계의 기각이 잘못된 경우이므로 재평가).
 
@@ -66,4 +66,4 @@
 - **권장**: CSV export 구현 추가 또는 FR-3 scope 축소 결정
 ```
 
-Evidence 라벨은 별개 축이다 (상세: [체크리스트 라벨 체계](../../write-handoff/references/llm-friendly-checklist.md#라벨-체계-anti-hallucination)). 6분류(requirement status)와 evidence 라벨은 함께 쓴다 — 예: `partial [INFERRED]` = "부분 충족으로 보이나 증거가 근접 추론 수준이다".
+Evidence 라벨은 별개 축이다 (상세: [체크리스트 라벨 체계](../../../write-handoff/references/llm-friendly-checklist.md#라벨-체계-anti-hallucination)). 6분류(requirement status)와 evidence 라벨은 함께 쓴다 — 예: `partial [INFERRED]` = "부분 충족으로 보이나 증거가 근접 추론 수준이다".
