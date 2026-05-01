@@ -25,6 +25,7 @@ description: |
 4. **지연 계획 추적**: for_action 모드에서 Step 1-6은 일반 모드에서 수행한다. 계획 추적 도구 진입은 Step 7에서만. for_issue는 계획 추적 도구 미사용.
 5. **Single-writer / main-agent-only**: tracked write, branch mutation, commit/push, GitHub write, `wt`/`nrs`/rebuild 계열은 reviewer/auditor subagent가 직접 실행하지 않는다. [`run-da/SKILL.md`](../run-da/SKILL.md)의 `Codex 세션 하드닝 계약` SSOT를 따른다.
 6. **Step 3.5 → Step 4 순서**: 트레이드오프 옵션이 1+이면 Step 3.5 외부 자문을 사용자 질문 전에 호출한다. 자문 결과 도착 후 Step 4에서 anti-anchoring 4 규칙(라벨 금지·옵션 셔플·disqualifier 표시·judgment-first)으로 옵션을 제시한다. **codex exec 호출 명령은 [`references/consulting-step.md`](./references/consulting-step.md#codex-exec-호출-명령-템플릿-ssot)가 단일 SSOT**다 — 본문/모드 파일은 명령을 복제하지 않는다.
+7. **Living checkbox 갱신 의무**: 각 단계(Phase Discovery Gate, Implementation Checklist, Validation Checklist, Exit Criteria, Phase-end review) 완료 즉시 plan/PRD 본문의 `- [ ]`를 `- [x]`로 갱신한다. **lazy/end-of-session bulk update 금지** — Status·Resume From·Phase Progress 같은 헤더 메타데이터만 갱신하고 본문 체크박스를 미루는 self-optimization은 `#453` 회귀 패턴이며 dogfooding 추적성을 깬다. 메인 LLM이 "헤더 메타데이터만 갱신해도 충분"이라고 자체 판단하지 않는다. for_prd 모드도 `/prd` handoff 후 동일 의무를 `/prd` 스킬에 전파한다 (PRD master + active phase 파일 체크박스 즉시 갱신).
 
 ## 모드 판별
 
