@@ -189,11 +189,11 @@ for_plan(계획 리뷰)에서는 다음과 같이 해석한다:
 - **판정**: CONFIRMED_ISSUE
 - **신뢰도**: MEDIUM
 - **기준 평가**:
-  - 사실 정확성: PASS — 가상 템플릿이 가리키는 `~/.claude/skills/some-skill` 경로는 현재 환경에 실존. for_plan에서 Portability guardrail로 해석을 cross-env까지 확장했으나, "경로 실존" 자체는 사실로 유지되므로 PASS.
+  - 사실 정확성: PASS — 가상 템플릿이 가리키는 `~/.claude/skills/set-icons` 경로는 현재 환경에 실존(Claude global). for_plan에서 Portability guardrail로 해석을 cross-env까지 확장했으나, "경로 실존" 자체는 사실로 유지되므로 PASS.
   - 변경 연관성: PASS — 이번 PR에서 템플릿 경로가 도입·수정됨. git diff로 확인.
   - 심각도 타당성: PASS (LOW) — 현재 환경은 OK, Codex-only 환경에서만 영향. Portability PASS가 LOW 최소치 보장.
-  - 실행 가능성: PASS — `$HOME/.{claude,codex}/skills/some-skill` 파라미터화 등 수정 방향 명확.
-  - Portability / Cross-Environment Drift: PASS — `codex-structure.md:63-64`가 Codex Global skills=`~/.codex/skills/`로 정의하는데 템플릿은 `~/.claude/`만 가리킴. Codex-only 환경 또는 다른 repo clone에선 `~/.claude/skills/some-skill` 부재 시 경로 drift 발생.
+  - 실행 가능성: PASS — `$HOME/.{claude,codex}/skills/set-icons` 파라미터화 등 수정 방향 명확.
+  - Portability / Cross-Environment Drift: PASS — `codex-structure.md:63-64`가 Codex Global skills=`~/.codex/skills/`로 정의하는데 템플릿은 `~/.claude/`만 가리킴. set-icons는 `intentionallyNotExposed` list 멤버라 Codex global에 노출되지 않으므로 Codex-only 환경 또는 다른 repo clone에선 `~/.claude/skills/set-icons` 부재 시 경로 drift 발생.
 - **근거**: core invariant(사실 정확성 + 변경 연관성 PASS)로 CONFIRMED. Portability PASS는 cross-env 해석 근거 + 심각도 최소 LOW 확보로 작용.
 - **증거**: `modules/shared/programs/claude/files/skills/syncing-codex-harness/references/codex-structure.md:63-64`와 가상 템플릿 경로 diff.
 ```
