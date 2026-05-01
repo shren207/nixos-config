@@ -27,7 +27,7 @@ fan-in 결과에서 미해결 항목(블랙박스 제로 원칙의 "블랙박스
 
 - **호출 시점**: Step I-3 체크리스트 생성 직후 background 병렬. 메인은 Step I-4 라운드 1 질문 후보를 정리한다.
 - **결과 도착 시**: Step I-4 첫 라운드 질문에 anchoring-neutral 옵션을 통합한다.
-- **상세 입출력**: [`../references/consulting-step.md`](../references/consulting-step.md) (Phase 2 산출물).
+- **상세 입출력 schema·codex exec 호출 명령·anti-anchoring 4 규칙**: [`../references/consulting-step.md`](../references/consulting-step.md) (단일 SSOT — 본 파일은 명령을 복제하지 않는다).
 
 트레이드오프 항목이 없으면 Step I-3.5는 skip한다 (단순 요구사항 명료화 위주의 인터뷰).
 

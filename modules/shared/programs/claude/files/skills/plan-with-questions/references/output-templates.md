@@ -30,7 +30,7 @@
 - 옵션 보이기 전 "어떤 기준이 가장 중요한가?" 먼저 묻는 judgment-first 패턴.
 - 옵션 description 중립화 — "A는 간단하고 추천" → "A는 변경 표면 작지만 후속 확장 시 재작업 가능".
 
-상세는 [`consulting-step.md`](./consulting-step.md) 참조 (Phase 2에서 추가 예정).
+상세는 [`consulting-step.md`](./consulting-step.md) 참조.
 
 ## for_issue Step I-6 전환 제안 메시지
 
@@ -55,7 +55,7 @@
 - **PRD 모드로 진행 (default)** → for_prd 모드 진입.
 - **간단한 plan으로** → for_action 모드 fallback.
 
-상세는 [`task-size-routing.md`](./task-size-routing.md) 참조 (Phase 4에서 추가 예정).
+상세는 [`task-size-routing.md`](./task-size-routing.md) 참조.
 
 ## Step 9 승인 요청 시 Post-Implementation 범위 표시
 

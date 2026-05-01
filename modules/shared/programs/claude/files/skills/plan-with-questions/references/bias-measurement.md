@@ -21,7 +21,7 @@ plan-with-questions에 도입된 anti-anchoring 메커니즘(Step 3.5 외부 자
 
 ## 4축 grep 패턴
 
-스크립트 [`scripts/ai/measure-anchoring-bias.sh`](../../../../../../../scripts/ai/measure-anchoring-bias.sh)의 `PAT_*` 변수가 정본:
+스크립트 [`scripts/ai/measure-anchoring-bias.sh`](../../../../../../../../scripts/ai/measure-anchoring-bias.sh)의 `PAT_*` 변수가 정본 (아래 표는 illustrative — 키워드 갱신 시 script가 우선):
 
 | 축 | 의미 | 예시 키워드 |
 |----|------|------------|
@@ -30,7 +30,7 @@ plan-with-questions에 도입된 anti-anchoring 메커니즘(Step 3.5 외부 자
 | 3. defect | 사후에 결함이 발견된 흔적 | `CONFIRMED_ISSUE`, `YAGNI`, `overbuilt`, `parallel-audit` |
 | 4. resistance | 결함을 보고도 저항한 흔적 | `사용자 결정에 따라`, `현상 유지`, `기각`, `재설계.*거부` |
 
-키워드 갱신 시 이 표 + 스크립트 둘 다 동기화한다.
+키워드 갱신은 **script `PAT_*` 변수가 단일 진실 원천**이다. 위 표는 사람 읽기용 illustrative 사본 — script 변경 후 표를 손으로 동기화하면 된다 (반대 방향 금지: 표만 바꾸면 측정 결과는 바뀌지 않는다).
 
 ## 4 metric
 

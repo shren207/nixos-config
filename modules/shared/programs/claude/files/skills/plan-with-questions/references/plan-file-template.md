@@ -45,7 +45,7 @@
 
 ### Mode 값
 
-`for_action` | `for_prd` (Phase 4 산출물에서 자동 트리거 시 `for_prd`로 갱신).
+`for_action` | `for_prd` (자동 트리거 시 `for_prd`로 Mode 갱신 + Decision Log 기록).
 
 ### Resume From / Last Completed Step
 

@@ -24,7 +24,7 @@ description: |
 3. **YAGNI/NGMI 제1원칙**: 계획의 각 단계에서 "이게 정말 필요한가?"를 반복 검증한다. 단, DA 호출 자체는 YAGNI 대상이 아니다.
 4. **지연 계획 추적**: for_action 모드에서 Step 1-6은 일반 모드에서 수행한다. 계획 추적 도구 진입은 Step 7에서만. for_issue는 계획 추적 도구 미사용.
 5. **Single-writer / main-agent-only**: tracked write, branch mutation, commit/push, GitHub write, `wt`/`nrs`/rebuild 계열은 reviewer/auditor subagent가 직접 실행하지 않는다. [`run-da/SKILL.md`](../run-da/SKILL.md)의 `Codex 세션 하드닝 계약` SSOT를 따른다.
-6. **Step 3.5 → Step 4 순서**: 트레이드오프 옵션이 1+이면 Step 3.5 외부 자문(`codex exec --sandbox read-only`)을 사용자 질문 전에 호출한다. 자문 결과 도착 후 Step 4에서 anti-anchoring 4 규칙(라벨 금지·옵션 셔플·disqualifier 표시·judgment-first)으로 옵션을 제시한다. 상세는 [`references/consulting-step.md`](./references/consulting-step.md).
+6. **Step 3.5 → Step 4 순서**: 트레이드오프 옵션이 1+이면 Step 3.5 외부 자문을 사용자 질문 전에 호출한다. 자문 결과 도착 후 Step 4에서 anti-anchoring 4 규칙(라벨 금지·옵션 셔플·disqualifier 표시·judgment-first)으로 옵션을 제시한다. **codex exec 호출 명령은 [`references/consulting-step.md`](./references/consulting-step.md#codex-exec-호출-명령-템플릿-ssot)가 단일 SSOT**다 — 본문/모드 파일은 명령을 복제하지 않는다.
 
 ## 모드 판별
 
@@ -76,7 +76,7 @@ description: |
 | [`references/plan-file-template.md`](./references/plan-file-template.md) | 14 metadata 필드 + Decision Log SSOT |
 | [`references/resume-state.md`](./references/resume-state.md) | Resume From enum 카탈로그 + baseline drift 검증 |
 | [`references/task-size-routing.md`](./references/task-size-routing.md) | for_prd 자동 트리거 알고리즘 + 산출물 경로 + review-impl 통합 시점 |
-| [`references/bias-measurement.md`](./references/bias-measurement.md) | 4축 grep + 4 metric (Phase 5 산출물 — baseline 동적 산출 명령) |
+| [`references/bias-measurement.md`](./references/bias-measurement.md) | 4축 grep + 4 metric (baseline은 `scripts/ai/measure-anchoring-bias.sh` 실행으로 동적 산출 — script가 SSOT) |
 
 차용 reference (`/prd`, `/review-implementation`):
 

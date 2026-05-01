@@ -38,7 +38,7 @@
 
 (for_issue는 산출물이 이슈이므로 plan file의 Resume From은 사용하지 않지만, 기록용으로 enum은 정의한다.)
 
-### for_prd (Phase 4에서 정밀화)
+### for_prd
 
 | Resume From | 진입 조건 |
 |-------------|----------|
@@ -136,7 +136,6 @@ echo "branch=$BRANCH, HEAD=$HEAD, dirty=$DIRTY"
 
 메인 LLM은 plan 파일 상단 `Document Status` 표를 먼저 읽고, Baseline drift 검증 → Resume From 점프 순으로 진행한다.
 
-## Phase 4 / Phase 5 보강 예정
+## Follow-up
 
-- `for_prd` enum 정밀화 (Phase 4에서 phase 자동 트리거 + phase-end review의 enum 확장).
-- baseline drift 자동화 스크립트 (`scripts/check-plan-baseline.sh` 검토 — Phase 5에서 결정).
+- baseline drift 자동화 스크립트 (`scripts/check-plan-baseline.sh`) — 현재는 메인 에이전트가 수동 비교. 자동화 채택 여부는 사용자 follow-up 우선순위에 따른다.

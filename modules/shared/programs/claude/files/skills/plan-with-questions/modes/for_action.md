@@ -25,7 +25,7 @@
 
 **Scope 분해 판단**: 요청이 독립적인 서브시스템(서비스/플랫폼/독립 모듈 단위) 2개 이상을 포함하는 경우, 계획 파일 내 별도 Phase/섹션으로 구분하여 다룬다. 출력은 여전히 단일 계획 파일이며, 별도의 plan-with-questions 사이클로 분리하지 않는다. 분해 여부가 불분명하면 Step 2 코드베이스 탐색 후 판단한다.
 
-**자동 PRD 후보 감지**: Step 1-2 진행 중 Phase ≥4 OR 다중 도메인 신호가 보이면 사용자에게 1회 알림 + opt-out (상세는 [`for_prd.md`](./for_prd.md) — Phase 4에서 채움. 현재는 일반 for_action 흐름 진행).
+**자동 PRD 후보 감지**: Step 1-2 진행 중 [`../references/task-size-routing.md`](../references/task-size-routing.md)의 트리거 신호가 감지되면 사용자에게 1회 알림 + opt-out. 상세 흐름은 [`for_prd.md`](./for_prd.md).
 
 ## Step 2: 코드베이스 탐색 + 로컬 재현 [일반 모드]
 
@@ -57,13 +57,13 @@
 
 ## Step 3.5: 외부 LLM 기술 자문 [일반 모드, background 병렬]
 
-Step 3 완료 즉시, 사용자 질문 전(Step 4 직전)에 외부 LLM(`codex exec`)에 anchoring-neutral 옵션 평가를 위임한다. 이 단계는 #490 같은 anchoring 사례 재발 방지가 목적이다.
+Step 3 완료 즉시, 사용자 질문 전(Step 4 직전)에 외부 LLM에 anchoring-neutral 옵션 평가를 위임한다. 이 단계는 anchoring 사례 재발 방지가 목적이다.
 
 - **호출 시점**: Step 3 종료 직후 background 병렬. 메인은 Discovery Summary 정리·plan draft 초안 등 다른 준비를 진행한다.
 - **결과 도착 시**: Step 4로 진입.
 - **budget**: 1-3분 (high reasoning). xhigh는 명시적 심층 요청 시에만.
-- **호출 도구**: `codex exec --full-auto --ephemeral` (codex-fan-out 패턴 차용 — `--sandbox read-only` 옵션은 codex 0.128.0 가용성 검증 필요. 미가용 시 프롬프트 수준 no-write boundary로 대체).
-- **상세 입출력 schema와 anti-anchoring 규칙**: [`../references/consulting-step.md`](../references/consulting-step.md) (Phase 2 산출물 — 현재 stub 상태이면 Step 3 결과를 직접 사용자에게 제시하되 anti-anchoring 4 규칙은 적용한다: (a) "(Recommended)" 라벨 금지, (b) 옵션 순서 셔플, (c) disqualifier 명시, (d) judgment-first 질문).
+- **호출 명령 SSOT**: [`../references/consulting-step.md`](../references/consulting-step.md#codex-exec-호출-명령-템플릿-ssot) — codex exec 명령은 본 reference만 정본이다 (`-C` scratch cwd + `--ignore-user-config` + `--sandbox read-only` + `--ephemeral`로 trust boundary 완결). 본 파일은 명령을 복제하지 않는다.
+- **입출력 schema·anti-anchoring 4 규칙**: [`../references/consulting-step.md`](../references/consulting-step.md). 자문 단계가 미구현 상태이면 메인 LLM은 Step 3 결과를 직접 사용자에게 제시하되 anti-anchoring 4 규칙(라벨 금지·옵션 셔플·disqualifier 명시·judgment-first)은 즉시 적용한다.
 
 Step 3.5는 DA(Step 5)와 목적이 다르다. 3.5는 사용자에게 옵션 제시 전 de-anchoring 전처리, 5는 plan 결함의 사후 검토.
 
