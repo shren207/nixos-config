@@ -170,11 +170,14 @@ filter_matching() {
 # Output emitters — JSON-aware, never bleed plain text into JSON array
 # ---------------------------------------------------------------------------
 
-# escape_json <string> — minimal JSON string escape using jq (Darwin shared package).
-# python3 isn't in the Darwin baseline; jq is. -Rs reads stdin as a single string and
-# tojson serializes; -j suppresses trailing newline.
+# escape_json <string> — minimal JSON string escape using jq.
+# python3 isn't in the Darwin baseline; jq is.
+# -R reads stdin as a raw string, -s slurps to a single value, `.` returns it as JSON
+# (quoted, escaped). `-j` would strip the surrounding quotes (raw output), which we
+# don't want — we need the quoted JSON string. `tr -d '\n'` strips jq's trailing
+# newline so the result is safely embedded inside a JSON object.
 escape_json() {
-    printf '%s' "$1" | jq -Rs -j .
+    printf '%s' "$1" | jq -Rs . | tr -d '\n'
 }
 
 emit_skip() {
@@ -226,7 +229,12 @@ emit_metrics() {
 measure_host_local() {
     local label="$1"
     local scratch
-    scratch=$(mktemp -d)
+    # mktemp -d failure (e.g., /tmp not writable, disk full) must fail closed via emit_fail
+    # so that --json mode doesn't bleed an empty/garbled payload into the JSON array.
+    if ! scratch=$(mktemp -d 2>/dev/null); then
+        emit_fail "$label" "mktemp -d failed (TMPDIR not writable?)"
+        return
+    fi
     # Cleanup on function exit. Intentional expansion at trap-setup time so $scratch is fixed.
     # shellcheck disable=SC2064
     trap "rm -rf '$scratch'" RETURN
