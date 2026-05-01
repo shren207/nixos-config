@@ -6,7 +6,7 @@ Last Updated: 2026-05-01
 
 ## Objective
 
-cross-skill link를 갱신한다 — `run-da/SKILL.md:75`의 `validation-paths.md` 참조를 새 평면 위치로(`../plan-with-questions/references/validation-paths.md`)(DL-16, FR-11), `run-da/references/arbiter-prompt.md:192-196`의 `~/.claude/skills/prd` example을 갱신 또는 obsolete annotation(FR-12). 이후 lefthook eval-tests + ai-skills-consistency(보조) + verify-ai-compat.sh + run-eval.sh 모두 통과 + 명시 test + dogfooding round-trip 시나리오 검증을 수행한다. 마지막으로 parallel-audit + Final 10-pass + 9-pass review-only(auto-fix 미사용)를 수행한다.
+cross-skill link를 갱신한다 — `run-da/SKILL.md:75`의 `validation-paths.md` 참조를 새 평면 위치로(`../plan-with-questions/references/validation-paths.md`)(DL-16, FR-11), `run-da/references/arbiter-prompt.md:192-196`의 `~/.claude/skills/prd` example을 갱신 또는 obsolete annotation(FR-12). 이후 lefthook eval-tests + ai-skills-consistency(보조) + verify-ai-compat.sh + run-eval.sh 모두 통과 + 명시 test + dogfooding round-trip 시나리오 검증을 수행한다. 마지막으로 parallel-audit + Final 10-pass + review-impl overlay (6-classification 라벨링 + overbuilt 우선 분류, auto-fix 미사용; DL-20)를 수행한다.
 
 본 phase는 cross-skill link 갱신 commit(Commit 4 — 필수)과 **조건부 검증 commit(Commit 5)** 을 포함한다. DL-17에 따라 Commit 5는 검증 전용이며, 검증 중 eval 미세 조정이 필요하면 Commit 3을 `git commit --amend`로 수정한 뒤 Commit 5 재검증한다. **검증 통과 후 코드 변경이 없으면 Commit 5는 만들지 않으며 Commit 4가 본 phase(=본 PR)의 마지막 commit**이 된다.
 
@@ -37,7 +37,7 @@ cross-skill link를 갱신한다 — `run-da/SKILL.md:75`의 `validation-paths.m
 - 명시 test (`test ! -e ~/.claude/skills/prd ...`).
 - dogfooding round-trip 시나리오 수동 검증.
 - parallel-audit (`/parallel-audit`) 실행.
-- Final 10-pass (`prd/multi-pass-review.md` 이동 후 위치, `plan-with-questions/references/prd/multi-pass-review.md`) + 9-pass review-only (`review-implementation/requirement-status.md` 이동 후 위치).
+- Final 10-pass (`plan-with-questions/references/prd/multi-pass-review.md`) + review-impl overlay (`plan-with-questions/references/review-impl/requirement-status.md` — 6-classification 라벨링 + overbuilt 우선 분류; DL-20).
 
 ### Out of Scope
 
@@ -63,7 +63,7 @@ cross-skill link를 갱신한다 — `run-da/SKILL.md:75`의 `validation-paths.m
   - [x] dogfooding round-trip 시나리오: 가상 이슈 ref로 `/plan-with-questions for_prd` 호출 시뮬레이션 → for_prd 모드 진입 → 인터뷰 가능 → /prd handoff 가능 → phase 진행 가능.
   - [x] `/parallel-audit` 실행 후 SAFE 결과.
   - [x] Final 10-pass (`plan-with-questions/references/prd/multi-pass-review.md` 체크리스트) 모든 항목 PASS 또는 N/A skip 근거.
-  - [x] 9-pass review-only (`plan-with-questions/references/review-impl/requirement-status.md` 6-classification — auto-fix 미사용, NG-2) PRD master + 5 phase 파일 대상.
+  - [x] review-impl overlay (`plan-with-questions/references/review-impl/requirement-status.md` — 6-classification 라벨링 + overbuilt 우선 분류; DL-20, auto-fix 미사용, NG-2) PRD master + 5 phase 파일 대상.
 - [x] eval 미세 조정 발견 시 Commit 3을 `git commit --amend` (DL-17). amend 후 Commit 5 재검증.
 - [x] commit 메시지 (Commit 5): `test(skills): validation pass after skill router consolidation (#611)`. body에 검증 결과 요약. **DL-17에 따라 검증 통과 후 코드 변경 없으면 빈 commit 안 만들고 Commit 4가 마지막 commit이 된다** — Commit 5 conditional, eval 미세 조정 amend 외에는 새 코드 변경 만들지 않음.
 
@@ -80,7 +80,7 @@ cross-skill link를 갱신한다 — `run-da/SKILL.md:75`의 `validation-paths.m
 - **dogfooding**: 사용자 비전 (single entry point) 충실 검증.
 - **parallel-audit**: 전수조사 + 사이드이펙트 검증.
 - **Final 10-pass**: requirements coverage, cross-phase integration, correctness, simplicity, cleanup, security, performance, validation, documentation, **PRD closeout**.
-- **9-pass review-only**: 6-classification (satisfied/partial/missing/conflicting/overbuilt/deferred) 통합.
+- **review-impl overlay**: 6-classification (satisfied/partial/missing/conflicting/overbuilt/deferred) 라벨링 + overbuilt 우선 분류 (DL-20 적용 후 별도 9-pass 미수행).
 
 ## Validation Checklist
 
@@ -100,7 +100,7 @@ cross-skill link를 갱신한다 — `run-da/SKILL.md:75`의 `validation-paths.m
 - [x] FR-11, FR-12 구현 완료 (Commit 4).
 - [x] 위 모든 Validation Checklist 통과.
 - [x] PRD master Status `Complete`로 갱신 + Phase Index 5개 phase Status `Complete`.
-- [x] Final 10-pass + 9-pass review-only 통합 보고서 (PRD master 또는 phase-05 본문에 inline).
+- [x] Final 10-pass + review-impl overlay 통합 보고서 (PRD master 또는 phase-05 본문에 inline; DL-20).
 - [x] 다음 phase blocker 없음 (마지막 phase, Post-Implementation 7번 PR 생성으로 이어짐).
 
 ## Phase-End Multi-Pass Review
@@ -140,7 +140,7 @@ cross-skill link를 갱신한다 — `run-da/SKILL.md:75`의 `validation-paths.m
 | `test ! -e ~/.codex/skills/review-implementation` | PASS |
 | Static rg `(/prd 스킬|standalone /prd|흡수된|#611|DL-1[0-9])` under skill 본문 | 0 hits (Phase 4 cleanup으로 해소) |
 
-### Final 10-pass + 9-pass review-only (PRD master + 5 phase 대상)
+### Final 10-pass + review-impl overlay (PRD master + 5 phase 대상)
 
 `prd/multi-pass-review.md` Final 10-pass:
 
@@ -155,7 +155,7 @@ cross-skill link를 갱신한다 — `run-da/SKILL.md:75`의 `validation-paths.m
 9. **Documentation / operability** — PRD master + 5 phase 파일 self-contained handoff guide. skill 본문 process metadata 제거로 미래 사용자/LLM noise 감소.
 10. **PRD closeout** — PRD master Status: In Progress → **Complete**. Phase Index 5/5 Complete. Decision Log DL-1~17 SSOT. Change Log 최신.
 
-`review-impl/requirement-status.md` 6-classification 9-pass review-only (auto-fix 미사용, NG-2):
+`review-impl/requirement-status.md` 6-classification 라벨링 + overbuilt 우선 분류 (DL-20, auto-fix 미사용, NG-2):
 
 | Requirement | Status | 증거 |
 |-------------|--------|------|
@@ -191,4 +191,4 @@ cross-skill link를 갱신한다 — `run-da/SKILL.md:75`의 `validation-paths.m
 ## Phase Change Log
 
 - 2026-05-01: Phase 5 file created via /prd handoff.
-- 2026-05-01: Phase 5 cross-skill link + 종합 검증 + Final review 완료. run-da/SKILL.md:75 + run-da/references/arbiter-prompt.md:192-196 갱신 (Commit 4). lefthook + verify-ai-compat + run-eval + nrs + 명시 test + static rg 모두 PASS. Final 10-pass + 6-classification 9-pass 모두 satisfied. **Status: Not Started → Complete**. DL-17에 따라 추가 코드 변경 없이 Commit 4가 본 PR의 마지막 commit (Commit 5 skip). PRD master Status: In Progress → Complete.
+- 2026-05-01: Phase 5 cross-skill link + 종합 검증 + Final review 완료. run-da/SKILL.md:75 + run-da/references/arbiter-prompt.md:192-196 갱신 (Commit 4). lefthook + verify-ai-compat + run-eval + nrs + 명시 test + static rg 모두 PASS. Final 10-pass + review-impl overlay (6-classification 라벨링 + overbuilt 우선 분류; DL-20 적용 후 표현) 모두 satisfied. **Status: Not Started → Complete**. DL-17에 따라 추가 코드 변경 없이 Commit 4가 본 PR의 마지막 commit (Commit 5 skip). PRD master Status: In Progress → Complete.
