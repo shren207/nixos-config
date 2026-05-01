@@ -5,10 +5,15 @@ description: |
   Structured planning with requirements clarification via iterative Q&A.
   Three modes: for_action (issue ref → plan), for_issue (idea → issue creation),
   for_prd (Living PRD with phase tracking — auto-detect for Phase ≥4 or 다중 도메인 + 보조 신호).
+  Sole user-facing entry for PRD authoring/updates and implementation review.
   Trigger: '계획 수립', '계획 세우기', 'plan', '스무고개', '요구사항 파악', '불명확점 질문',
-  '파악하자', '접근', '같이 정리', '논의', '어떻게 할지', '이슈 분석'.
+  '파악하자', '접근', '같이 정리', '논의', '어떻게 할지', '이슈 분석',
+  'PRD 작성', 'PRD 만들어', 'PRD 업데이트', 'Living PRD', 'phase 계획', '기능 스펙 정리',
+  'Discovery Gate 있는 계획서', '구현 감사', '문서 대비 구현 리뷰', '스펙 대비 감사',
+  'overbuilt 검사', 'PRD phase 완료 확인'.
   NOT for DA (use run-da). NOT for PR 본문 (use create-pr).
   NOT for 산출물 없는 결정 트리 인터뷰 (use grill-me).
+  NOT for PR 코멘트 (use review-pr-feedback). NOT for 전수조사 (use parallel-audit).
 ---
 
 # 스무고개식 계획 수립
@@ -25,7 +30,7 @@ description: |
 4. **지연 계획 추적**: for_action 모드에서 Step 1-6은 일반 모드에서 수행한다. 계획 추적 도구 진입은 Step 7에서만. for_issue는 계획 추적 도구 미사용.
 5. **Single-writer / main-agent-only**: tracked write, branch mutation, commit/push, GitHub write, `wt`/`nrs`/rebuild 계열은 reviewer/auditor subagent가 직접 실행하지 않는다. [`run-da/SKILL.md`](../run-da/SKILL.md)의 `Codex 세션 하드닝 계약` SSOT를 따른다.
 6. **Step 3.5 → Step 4 순서**: 트레이드오프 옵션이 1+이면 Step 3.5 외부 자문을 사용자 질문 전에 호출한다. 자문 결과 도착 후 Step 4에서 anti-anchoring 4 규칙(라벨 금지·옵션 셔플·disqualifier 표시·judgment-first)으로 옵션을 제시한다. **codex exec 호출 명령은 [`references/consulting-step.md`](./references/consulting-step.md#codex-exec-호출-명령-템플릿-ssot)가 단일 SSOT**다 — 본문/모드 파일은 명령을 복제하지 않는다.
-7. **Living checkbox 갱신 의무**: 각 단계(Phase Discovery Gate, Implementation Checklist, Validation Checklist, Exit Criteria, Phase-end review) 완료 즉시 plan/PRD 본문의 `- [ ]`를 `- [x]`로 갱신한다. **lazy/end-of-session bulk update 금지** — Status·Resume From·Phase Progress 같은 헤더 메타데이터만 갱신하고 본문 체크박스를 미루는 self-optimization은 `#453` 회귀 패턴이며 dogfooding 추적성을 깬다. 메인 LLM이 "헤더 메타데이터만 갱신해도 충분"이라고 자체 판단하지 않는다. **for_prd 모드 적용 범위**: plan-with-questions가 자체 PRD 사본을 만들지 않으므로 `/prd` handoff **이전에는** PRD master/phase 파일 체크박스를 건드리지 않는다. handoff 이후 PRD master + active phase 파일 체크박스 즉시 갱신 의무는 `/prd` 스킬이 owner다.
+7. **Living checkbox 갱신 의무**: 각 단계(Phase Discovery Gate, Implementation Checklist, Validation Checklist, Exit Criteria, Phase-end review) 완료 즉시 plan/PRD 본문의 `- [ ]`를 `- [x]`로 갱신한다. **lazy/end-of-session bulk update 금지** — Status·Resume From·Phase Progress 같은 헤더 메타데이터만 갱신하고 본문 체크박스를 미루는 self-optimization은 dogfooding 추적성을 깬다. 메인 LLM이 "헤더 메타데이터만 갱신해도 충분"이라고 자체 판단하지 않는다. for_prd 모드에서 PRD master + active phase 파일의 체크박스는 단계 완료 즉시 본 스킬이 갱신한다.
 
 ## 모드 판별
 
@@ -47,11 +52,11 @@ description: |
 | 항목 | for_action | for_issue | for_prd |
 |------|-----------|-----------|---------|
 | 입력 | 이슈 레퍼런스 (URL/ID/이슈키) | 텍스트 설명 또는 빈 인자 | 이슈 레퍼런스 (`for_action`과 동일 — 자동 후보 또는 명시 호출 모두 ref 전제) |
-| 출력 | 사용자 승인을 받은 계획 파일 (`.claude/plans/<slug>.md`) | 등록된 이슈 (+ 선택적 LLM 이행 가이드) | `/prd` 호출로 작성된 Living PRD (`.claude/prds/prd-<feature>.md` 또는 split) — plan-with-questions 자체 산출물 없음 |
-| 단계 흐름 | [`modes/for_action.md`](./modes/for_action.md) | [`modes/for_issue.md`](./modes/for_issue.md) | [`modes/for_prd.md`](./modes/for_prd.md) (handoff wrapper) |
+| 출력 | 사용자 승인을 받은 계획 파일 (`.claude/plans/<slug>.md`) | 등록된 이슈 (+ 선택적 LLM 이행 가이드) | Living PRD (`.claude/prds/prd-<feature>.md` 또는 split) |
+| 단계 흐름 | [`modes/for_action.md`](./modes/for_action.md) | [`modes/for_issue.md`](./modes/for_issue.md) | [`modes/for_prd.md`](./modes/for_prd.md) |
 | DA | for_plan 실행 (Step 5) | 생략 | for_plan + phase별 6-classification + Final 9-pass |
-| Step 3.5 외부 자문 | 트레이드오프 1+ 항목 시 | 트레이드오프 1+ 항목 시 | 트레이드오프 1+ 항목 시 (`/prd` handoff 전 1회) |
-| 계획 추적 도구 | 사용 (Step 7-9) | 미사용 (산출물이 이슈) | 미사용 — `/prd` 스킬에 handoff |
+| Step 3.5 외부 자문 | 트레이드오프 1+ 항목 시 | 트레이드오프 1+ 항목 시 | 트레이드오프 1+ 항목 시 (PRD 작성 전 1회) |
+| 계획 추적 도구 | 사용 (Step 7-9) | 미사용 (산출물이 이슈) | 미사용 — PRD 파일이 추적 |
 | 제1원칙 | YAGNI / NGMI | YAGNI / NGMI | YAGNI / NGMI |
 
 ## 단계 흐름 — 모드별 분리
@@ -60,7 +65,7 @@ description: |
 
 - **for_action**: [`modes/for_action.md`](./modes/for_action.md) — Step 1 (이슈 유효성) → 2 (탐색+재현) → 3 (질문 수집) → **3.5 (트레이드오프 1+ 시 외부 자문, background 병렬)** → 4 (사용자 질문) → 5-6 (DA + 반영) → 7 (계획 추적 진입) → 8 (계획 작성) → 9 (승인 요청).
 - **for_issue**: [`modes/for_issue.md`](./modes/for_issue.md) — Step I-1 (fan-out) → I-2 (fan-in) → I-3 (블랙박스 체크리스트) → **I-3.5 (외부 자문, 트레이드오프 있을 시)** → I-4 (스무고개 루프) → I-5 (이슈 생성) → I-6 (for_action 전환 제안).
-- **for_prd**: [`modes/for_prd.md`](./modes/for_prd.md) — `for_action` Step 1-6(인터뷰·자문·DA) 후 Step 7에서 **`/prd` 스킬에 handoff**. plan-with-questions 자체 PRD 사본 만들지 않음 (`/prd`가 정본 owner). Implementation 단계에서 phase 종료 시 6-classification, Final에서 prd 10-pass + review-impl 9-pass review-only 통합.
+- **for_prd**: [`modes/for_prd.md`](./modes/for_prd.md) — `for_action` Step 1-6(인터뷰·자문·DA) 후 Step 7에서 사용자 승인 + Step 8에서 `.claude/prds/`에 PRD 파일 직접 작성. Implementation 단계에서 phase 종료 시 6-classification, Final에서 PRD 10-pass + 9-pass review-only 통합.
 
 승인 후 자동 절차는 [`references/post-implementation.md`](./references/post-implementation.md) 1~7번을 따른다 (사용자 stop·하위 스킬 BLOCKED 외에는 자체 생략 금지 — #453/#569 회귀 방지).
 
@@ -79,13 +84,13 @@ description: |
 | [`references/task-size-routing.md`](./references/task-size-routing.md) | for_prd 자동 트리거 알고리즘 + 산출물 경로 + review-impl 통합 시점 |
 | [`references/bias-measurement.md`](./references/bias-measurement.md) | 4축 grep + 4 metric (baseline은 `scripts/ai/measure-anchoring-bias.sh` 실행으로 동적 산출 — script가 SSOT) |
 
-흡수된 reference (이전 `/prd`, `/review-implementation` standalone에서 plan-with-questions 하위로 이동, #611):
+PRD / review references (모든 모드 공용 또는 for_prd 전용):
 
 | 파일 | 사용처 |
 |------|--------|
 | [`./references/validation-paths.md`](./references/validation-paths.md) | 검증 수단 선택 (모든 모드) |
 | [`./references/prd/multi-pass-review.md`](./references/prd/multi-pass-review.md) | Post-Implementation 5번 Final review |
-| [`./references/prd/prd-master-template.md`](./references/prd/prd-master-template.md) | for_prd 모드 차용 (직접 복제 금지, 링크) |
+| [`./references/prd/prd-master-template.md`](./references/prd/prd-master-template.md) | for_prd 모드 PRD master 구조 |
 | [`./references/prd/phase-template.md`](./references/prd/phase-template.md) | for_prd 모드 phase 단위 |
 | [`./references/prd/file-mode-selection.md`](./references/prd/file-mode-selection.md) | for_prd Single vs Split |
 | [`./references/review-impl/requirement-status.md`](./references/review-impl/requirement-status.md) | for_prd phase 종료 6-classification + Final 9-pass review-only (auto-fix 미사용) |
