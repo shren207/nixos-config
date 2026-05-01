@@ -90,9 +90,9 @@ Step 3.5는 DA(Step 5)와 목적이 다르다. 3.5는 사용자에게 옵션 제
 
 ## Step 8: 계획 파일 작성 [계획 추적 상태]
 
-상세 실행 계획을 계획 파일에 작성한다. 파일 형식·메타데이터·Decision Log·재개 필드는 [`../references/plan-file-template.md`](../references/plan-file-template.md) 참조 (Phase 3 산출물 — stub 상태이면 아래 최소 항목만 적용).
+상세 실행 계획을 계획 파일에 작성한다. 파일 형식·14 metadata 필드·Decision Log·Resume From enum은 [`../references/plan-file-template.md`](../references/plan-file-template.md)와 [`../references/resume-state.md`](../references/resume-state.md)가 SSOT다. plan 작성 시 14필드 모두 채운다 (PRD 전용 필드는 N/A 명시).
 
-**최소 포함 내용**:
+**핵심 포함 내용** (template 외 본문):
 - **변경 대상 파일 목록**: 수정/추가/삭제할 파일과 각 파일에서의 변경 내용
 - **실행 순서**: 의존 관계를 고려한 작업 순서
 - **검증 방법**: 변경이 올바르게 적용되었는지 확인하는 방법. 검증 수단 선택 가이드는 [`../../prd/references/validation-paths.md`](../../prd/references/validation-paths.md)를 참조한다 (risk-appropriate mix, hard-coded default 회피).
