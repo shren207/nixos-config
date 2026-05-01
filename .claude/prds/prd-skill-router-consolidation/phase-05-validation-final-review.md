@@ -60,7 +60,7 @@ cross-skill link를 갱신한다 — `run-da/SKILL.md:75`의 `validation-paths.m
   - [x] `bash ~/.claude/scripts/run-eval.sh --skill plan-with-questions --queries modules/shared/programs/claude/files/skills/plan-with-questions/evals/queries.json` 통과 (positive + negative + ambiguous).
   - [x] `nrs` 빌드 성공.
   - [x] 명시 test: `test ! -e ~/.claude/skills/prd && test ! -e ~/.claude/skills/review-implementation && test ! -e ~/.codex/skills/prd && test ! -e ~/.codex/skills/review-implementation` 통과.
-  - [x] dogfooding round-trip 시나리오: 가상 이슈 ref로 `/plan-with-questions for_prd` 호출 시뮬레이션 → for_prd 모드 진입 → 인터뷰 가능 → /prd handoff 가능 → phase 진행 가능.
+  - [x] dogfooding round-trip 시나리오: 가상 이슈 ref로 `/plan-with-questions for_prd` 호출 시뮬레이션 → for_prd 모드 진입 → 인터뷰 가능 → `.claude/prds/`에 PRD 직접 작성 가능 → phase 진행 가능.
   - [x] `/parallel-audit` 실행 후 SAFE 결과.
   - [x] Final 10-pass (`plan-with-questions/references/prd/multi-pass-review.md` 체크리스트) 모든 항목 PASS 또는 N/A skip 근거.
   - [x] review-impl overlay (`plan-with-questions/references/review-impl/requirement-status.md` — 6-classification 라벨링 + overbuilt 우선 분류; DL-20, auto-fix 미사용, NG-2) PRD master + 5 phase 파일 대상.
@@ -153,7 +153,7 @@ cross-skill link를 갱신한다 — `run-da/SKILL.md:75`의 `validation-paths.m
 7. **Performance** — nrs 빌드 시간 baseline 영향 없음 (Phase 3 31s 첫 빌드 외 변경 없음). lefthook hook 실행 시간 변화 없음.
 8. **Validation** — static rg + lefthook + verify-ai-compat + run-eval + 명시 test + nrs build 6 surface 모두 PASS. Validation Strategy의 risk-appropriate mix 충족.
 9. **Documentation / operability** — PRD master + 5 phase 파일 self-contained handoff guide. skill 본문 process metadata 제거로 미래 사용자/LLM noise 감소.
-10. **PRD closeout** — PRD master Status: In Progress → **Complete**. Phase Index 5/5 Complete. Decision Log DL-1~17 SSOT. Change Log 최신.
+10. **PRD closeout** — PRD master Status: In Progress → **Complete**. Phase Index 5/5 Complete. Decision Log DL-1~20 SSOT (DL-19 superseded by DL-20). Change Log 최신.
 
 `review-impl/requirement-status.md` 6-classification 라벨링 + overbuilt 우선 분류 (DL-20, auto-fix 미사용, NG-2):
 

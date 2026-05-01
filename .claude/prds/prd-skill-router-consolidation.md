@@ -49,7 +49,7 @@ PR #612(머지 완료, f7c818b)는 plan-with-questions 자체 개편(progressive
 ### Scenario 1: 사용자가 'PRD 작성해줘' 입력
 - Actor: 사용자 (greenhead)
 - Trigger: chat 입력 'PRD 작성해줘' 또는 동등 자연어
-- Expected outcome: plan-with-questions가 자동 매치 → for_prd 모드 자동 트리거 또는 사용자가 명시 `/plan-with-questions for_prd <ref>` 호출 → for_prd 모드 인터뷰 → /prd 정본으로 PRD 작성. `/prd` 직접 호출은 unknown command.
+- Expected outcome: plan-with-questions가 자동 매치 → for_prd 모드 자동 트리거 또는 사용자가 명시 `/plan-with-questions for_prd <ref>` 호출 → for_prd 모드 인터뷰 → `.claude/prds/`에 PRD 직접 작성. `/prd` 직접 호출은 unknown command.
 
 ### Scenario 2: 사용자가 '구현 감사' 입력
 - Actor: 사용자
@@ -153,8 +153,8 @@ PR #612(머지 완료, f7c818b)는 plan-with-questions 자체 개편(progressive
 
 ## Open Questions
 
-- [ ] 흡수 trigger positive/negative/ambiguous case의 정확한 query 목록 — Phase 4 Discovery Gate에서 evals/queries.json 갱신 시점에 확정.
-- [ ] `run-da/references/arbiter-prompt.md:192-196` example 갱신 vs obsolete annotation — Phase 5 Discovery Gate에서 결정 (단순화로 obsolete annotation 채택 권장).
+- [x] 흡수 trigger positive/negative/ambiguous case의 정확한 query 목록 — Phase 4에서 확정 (evals/queries.json에 18 entry 추가, 12 흡수 trigger 모두 PASS).
+- [x] `run-da/references/arbiter-prompt.md:192-196` example 갱신 vs obsolete annotation — Phase 5에서 갱신 채택 (set-icons 실재 placeholder + 가상 시나리오 명시).
 
 ## Decision Log
 
