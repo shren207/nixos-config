@@ -115,7 +115,7 @@ def should_trigger_prd(step12_result):
 | `for_action.step1_validity` 종료 후 | 강한 신호(Phase ≥4, 명시 PRD 요청) 1차 평가 |
 | `for_action.step2_exploration` 종료 후 | 다중 도메인 + 보조 신호 종합 평가 → 트리거 결정 |
 | 트리거 시 | 사용자 알림(질문 도구) → opt-out 확인 |
-| 사용자 동의 시 | Mode 갱신 (`for_action` → `for_prd`) + Decision Log 기록 + `/prd` 호출 |
+| 사용자 동의 시 | Mode 갱신 (`for_action` → `for_prd`) + Decision Log 기록 → [`../modes/for_prd.md`](../modes/for_prd.md) Step 1-6 진행 → Step 7 명시 승인 게이트 → Step 8 `/prd` 호출 |
 | 사용자 거부 시 | `for_action` 모드 유지 + Decision Log "PRD auto-trigger declined" 기록 |
 
 이후 흐름은 [`../modes/for_prd.md`](../modes/for_prd.md)로 분기.

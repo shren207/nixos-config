@@ -4,7 +4,7 @@ argument-hint: "[for_action|for_issue|for_prd] [issue-ref (for_action/for_prd) |
 description: |
   Structured planning with requirements clarification via iterative Q&A.
   Three modes: for_action (issue ref → plan), for_issue (idea → issue creation),
-  for_prd (Living PRD with phase tracking — auto-detect for Phase ≥4 or 다중 도메인).
+  for_prd (Living PRD with phase tracking — auto-detect for Phase ≥4 or 다중 도메인 + 보조 신호).
   Trigger: '계획 수립', '계획 세우기', 'plan', '스무고개', '요구사항 파악', '불명확점 질문',
   '파악하자', '접근', '같이 정리', '논의', '어떻게 할지', '이슈 분석'.
   NOT for DA (use run-da). NOT for PR 본문 (use create-pr).

@@ -69,8 +69,15 @@ branch=<branch_name>, HEAD=<short_sha7>, dirty=<clean|sha1_of_diff>
 ```bash
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 HEAD=$(git rev-parse --short HEAD)
-DIRTY=$(git diff | sha1sum | head -c 7 2>/dev/null || git diff | shasum | head -c 7)
-[ -z "$(git diff)" ] && DIRTY="clean"
+# dirty hash는 working tree(diff) + staged(diff --cached) + untracked(porcelain)을 모두 포함한다.
+# 이전 버전은 `git diff`만 썼고 staged/untracked 변경을 놓쳤다.
+# git hash-object는 sha1sum/shasum 의존을 제거 (Git 자체가 hash 도구 제공).
+STATUS_PAYLOAD=$( { git diff; git diff --cached; git status --porcelain=v1 --untracked-files=all; } )
+if [ -z "$STATUS_PAYLOAD" ]; then
+    DIRTY="clean"
+else
+    DIRTY=$(printf '%s' "$STATUS_PAYLOAD" | git hash-object --stdin | head -c 7)
+fi
 echo "branch=$BRANCH, HEAD=$HEAD, dirty=$DIRTY"
 ```
 
@@ -89,7 +96,7 @@ echo "branch=$BRANCH, HEAD=$HEAD, dirty=$DIRTY"
      - Status: accepted
      - Context: 재개 시점에 git HEAD가 baseline과 다름. (was=`<old>`, now=`<new>`)
      - Decision: Step 1-2 재실행 후 plan 본문 갱신.
-     - Consequences: Resume From이 `step1_validity`로 reset됨.
+     - Consequences: Resume From이 `for_action.step1_validity`로 reset됨.
      ```
    - **dirty 다름**: working tree 변경이 plan 작성 후 추가됨. 사용자에게 알림 + 추가 변경의 plan 통합 의도 확인.
 

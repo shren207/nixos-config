@@ -38,7 +38,14 @@ set -uo pipefail
 DAYS="60"
 SKIP_SSH=0
 JSON=0
-SSH_HOST="minipc"
+
+# Detect local host kind (Darwin = Mac, Linux = MiniPC) for label + remote default.
+case "$(uname -s)" in
+    Darwin) LOCAL_LABEL="mac"; SSH_HOST_DEFAULT="minipc" ;;
+    Linux)  LOCAL_LABEL="minipc"; SSH_HOST_DEFAULT="mac" ;;
+    *)      LOCAL_LABEL="local"; SSH_HOST_DEFAULT="" ;;
+esac
+SSH_HOST="$SSH_HOST_DEFAULT"
 
 usage() {
     cat <<'USAGE'
@@ -66,6 +73,16 @@ validate_days() {
             exit 2
             ;;
     esac
+    # Reject zero / leading-zero (e.g., 0, 00, 001) since `find -mtime -0` is degenerate
+    # and JSON output would emit a non-canonical integer literal.
+    if [ "$1" -lt 1 ] 2>/dev/null; then
+        echo "error: --days must be >= 1 (got: $1)" >&2
+        exit 2
+    fi
+    if [ "$1" != "$((10#$1))" ]; then
+        echo "error: --days must not have leading zeros (got: $1)" >&2
+        exit 2
+    fi
 }
 
 validate_host() {
@@ -153,9 +170,11 @@ filter_matching() {
 # Output emitters — JSON-aware, never bleed plain text into JSON array
 # ---------------------------------------------------------------------------
 
-# escape_json <string> — minimal JSON string escape using python3
+# escape_json <string> — minimal JSON string escape using jq (Darwin shared package).
+# python3 isn't in the Darwin baseline; jq is. -Rs reads stdin as a single string and
+# tojson serializes; -j suppresses trailing newline.
 escape_json() {
-    python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()), end="")' <<<"$1"
+    printf '%s' "$1" | jq -Rs -j .
 }
 
 emit_skip() {
@@ -306,8 +325,20 @@ RSCRIPT
 
     # Argv-safe ssh; remote bash reads script from stdin (no eval, no shell expansion of script body).
     local result
-    if ! result=$(ssh -- "$host" 'bash -s' <<<"$remote_script" 2>/dev/null); then
-        emit_fail "$label" "ssh exec failed"
+    # Skip remote if host is empty (unknown OS) or matches local hostname (self-ssh).
+    if [ -z "$host" ]; then
+        emit_skip "$label" "0"
+        return
+    fi
+    if [ "$host" = "$(hostname -s 2>/dev/null)" ] || [ "$host" = "$(hostname 2>/dev/null)" ]; then
+        emit_fail "$label" "remote host matches local hostname (would self-ssh)"
+        return
+    fi
+    # Bound failure: BatchMode prevents password prompts, ConnectTimeout/ConnectionAttempts
+    # cap blackhole/Tailscale-down latency at ~5s instead of TCP default ~75s × 3.
+    if ! result=$(ssh -o BatchMode=yes -o ConnectTimeout=5 -o ConnectionAttempts=1 \
+        -- "$host" 'bash -s' <<<"$remote_script" 2>/dev/null); then
+        emit_fail "$label" "ssh exec failed (host=$host)"
         return
     fi
     if [ -z "$result" ]; then
@@ -340,8 +371,8 @@ RSCRIPT
 
 if [ "$JSON" -eq 1 ]; then
     echo "["
-    measure_host_local "mac"
-    if [ "$SKIP_SSH" -eq 0 ]; then
+    measure_host_local "$LOCAL_LABEL"
+    if [ "$SKIP_SSH" -eq 0 ] && [ -n "$SSH_HOST" ]; then
         printf ',\n'
         measure_host_remote "$SSH_HOST" "$SSH_HOST"
     fi
@@ -349,8 +380,8 @@ if [ "$JSON" -eq 1 ]; then
 else
     echo "=== Anchoring-bias signal measurement ==="
     echo
-    measure_host_local "mac"
-    if [ "$SKIP_SSH" -eq 0 ]; then
+    measure_host_local "$LOCAL_LABEL"
+    if [ "$SKIP_SSH" -eq 0 ] && [ -n "$SSH_HOST" ]; then
         echo
         measure_host_remote "$SSH_HOST" "$SSH_HOST"
     fi

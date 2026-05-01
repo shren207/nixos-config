@@ -11,6 +11,15 @@ plan-with-questions의 런타임 지원·용어·도구 매핑·미지원 대응
 | Codex 일반 세션 (Plan mode 미사용) | BLOCKED ("질문 도구 미지원 대응" 섹션) |
 | headless 세션 (CI · `claude -p` · `codex exec`) | BLOCKED ("질문 도구 미지원 대응" 섹션) |
 
+### Codex 일반 셸 sandbox 한계 (Step 3.5 관련)
+
+`Step 3.5`의 `codex exec --sandbox read-only`는 **모델 shell의 파일시스템 write만** 차단한다. 다음은 차단하지 않는다:
+- `~/.config`, `~/.ssh`, `~/.codex`, `/run/agenix`(NixOS) 등 secret 경로 read.
+- 외부 API 호출 (네트워크 차단 아님).
+- MCP/connector 로딩 — `--ignore-user-config` + `-C scratch`로 user/project config 둘 다 차단해야 완결된다 (`consulting-step.md` SSOT).
+
+따라서 Step 3.5 입력에 무엇을 보낼지에 대한 보안 책임은 호출자(메인 에이전트)에 있다 — repo evidence 중에서 sanitized excerpt만 전달하고, 자문 결과는 untrusted output으로 취급해 Step 4 anti-anchoring schema 검증을 거친다.
+
 ### Codex Plan mode 한계
 
 `request_user_input`은 페이로드 제약이 있다 — 한 번에 최대 3개 질문, 첫 옵션에 `(Recommended)` 라벨 강제. 본 SKILL의 두 정책과 충돌:
