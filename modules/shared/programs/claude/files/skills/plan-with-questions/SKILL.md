@@ -41,7 +41,17 @@ description: |
 | 3 | 이슈 번호 패턴 (`#NNN`, `NNN`만 단독) 포함 | **for_action** |
 | 4 | 이슈키 패턴 (`PREFIX-NNN`, 예: `DEV-123`) 포함 | **for_action** |
 | 5 | for_action 진입 후 Step 1-2에서 `Phase ≥4` 단독 OR (`다중 도메인` + 보조 신호 1+) 감지 ([`references/task-size-routing.md`](./references/task-size-routing.md#트리거-알고리즘-의사코드)) | **for_prd 후보** (사용자 1회 알림 + opt-out) |
-| 6 | 위 패턴 없음 (텍스트 설명 또는 빈 인자) | **for_issue** |
+| 6 | 위 패턴 없음 (텍스트 설명 또는 빈 인자) | **for_issue** — 단 자연어 trigger 의도가 명확하면 Step I-6에서 매칭 모드로 transition (아래 표 참조) |
+
+**자연어 trigger → transition 매핑** (우선순위 6에서 for_issue 진입 후 Step I-6 분기):
+
+| 자연어 trigger 카테고리 | Step I-6 transition 권장 |
+|-------------------------|--------------------------|
+| PRD 작성 의도 (`PRD 작성`, `Living PRD`, `phase 계획`, `기능 스펙 정리`, `Discovery Gate 있는 계획서`, `PRD 업데이트`) | for_action으로 transition + 이슈 본문에 "Phase ≥4 가능성" 명시 → for_action Step 1-2에서 우선순위 5 자동 PRD 후보 알림 |
+| review-impl 의도 (`구현 감사`, `문서 대비 구현 리뷰`, `스펙 대비 감사`, `overbuilt 검사`, `PRD phase 완료 확인`) | for_action으로 transition (이슈 ref 확보 후 Post-Implementation 5번 review 흐름) |
+| 일반 텍스트 (위 카테고리 매칭 없음) | for_action transition 또는 write-handoff/종료 (Step I-6 표준 옵션) |
+
+이 표는 우선순위 6의 후속 분기를 명시하며 모드 판별 자체는 우선순위 1-5가 담당한다. PRD/review 자연어 trigger가 issue ref 없이 들어오면 인터뷰를 거쳐 이슈 등록 후 적절한 모드로 자동 transition된다.
 
 **이슈 레퍼런스 resolve**: 특정 이슈 트래커 CLI에 의존하지 않는다. 환경에서 사용 가능한 도구(gh CLI, Linear API/MCP, 웹 검색 등)를 활용한다.
 
