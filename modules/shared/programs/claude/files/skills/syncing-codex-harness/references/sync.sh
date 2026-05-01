@@ -368,6 +368,7 @@ mcp_config() {
     local plugin_mcp_install="${plugin_mcp_rest%%:*}"
     local plugin_mcp_name="${plugin_mcp_rest#*:}"
     if [ "$plugin_mcp_rest" = "$pm" ] || [ "$plugin_mcp_name" = "$plugin_mcp_rest" ] \
+      || [[ "$plugin_mcp_name" == *:* ]] \
       || [ -z "$plugin_mcp_path" ] || [ -z "$plugin_mcp_install" ] || [ -z "$plugin_mcp_name" ]; then
       echo "sync.sh mcp-config: malformed --plugin-mcp source: ${pm:-<empty>} (expected PATH:INSTALL_PATH:NAME)" >&2
       return 1

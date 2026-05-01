@@ -698,6 +698,16 @@ test_sync_sh_mcp_config_failfast() {
 
   _write_existing_mcp_config "$config_file"
   rc=0
+  bash "$SYNC_HARNESS_SH" mcp-config "$project_root" \
+    --plugin-mcp="$project_root/plugin/.mcp.json:$project_root/plugin:plugin-name:extra" \
+    >"$sandbox/malformed-plugin-extra.stdout" 2>"$stderr_log" || rc=$?
+  [[ "$rc" -ne 0 ]] || fail "[malformed-plugin-extra] extra field --plugin-mcp가 non-zero로 실패해야 함"
+  grep -Fq "sync.sh mcp-config: malformed --plugin-mcp source:" "$stderr_log" \
+    || fail "[malformed-plugin-extra] stderr에 malformed plugin source 진단이 있어야 함"
+  _assert_existing_mcp_preserved "$config_file" "malformed-plugin-extra"
+
+  _write_existing_mcp_config "$config_file"
+  rc=0
   bash "$SYNC_HARNESS_SH" mcp-config "$project_root" >"$sandbox/no-source.stdout" 2>"$stderr_log" || rc=$?
   [[ "$rc" -ne 0 ]] || fail "[no-source] source 옵션 없는 mcp-config가 non-zero로 실패해야 함"
   grep -Fq "at least one source option" "$stderr_log" \
