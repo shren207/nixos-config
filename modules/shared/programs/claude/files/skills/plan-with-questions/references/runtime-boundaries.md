@@ -7,7 +7,7 @@ plan-with-questions의 런타임 지원·용어·도구 매핑·미지원 대응
 | 런타임 | 지원 여부 |
 |--------|----------|
 | Claude Code 세션 | 완전 지원 |
-| Codex 세션 (Plan/default 공용) | **지원** (페이로드 한계는 아래 섹션 참조) |
+| Codex 세션 | **지원** (페이로드 한계는 아래 섹션 참조) |
 | headless 세션 (CI · `claude -p` · `codex exec`) | BLOCKED ("질문 도구 미지원 대응" 섹션) |
 
 codex 환경 가정·활성화 절차는 [`.claude/skills/configuring-codex/SKILL.md`](../../../.claude/skills/configuring-codex/SKILL.md)가 SSOT다.
@@ -47,7 +47,7 @@ codex 환경 가정·활성화 절차는 [`.claude/skills/configuring-codex/SKIL
 
 **미지원 런타임 처리**: headless 세션은 본 표의 어떤 행에도 도달하지 않는다 (Step 4/Step I-4에서 질문 도구 호출 시점에 BLOCKED). 상세는 위 "지원 런타임" 표와 "질문 도구 미지원 대응" 섹션이 단일 소스다.
 
-| 행동 | Claude Code 세션 | Codex 세션 (Plan/default 공용) |
+| 행동 | Claude Code 세션 | Codex 세션 |
 |------|------------------|--------------------------------|
 | 계획 추적 상태 진입 | `EnterPlanMode` (계획 파일 경로 배정 + write 제한 모드) | `update_plan` (단계별 chat state 추적; 파일 IO 없음) |
 | 계획 파일 작성/편집 | `Write`/`Edit`로 진입 시 배정된 경로에 작성 | `apply_patch`로 `.claude/plans/<slug>.md`에 직접 작성 |

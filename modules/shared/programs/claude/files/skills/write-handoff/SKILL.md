@@ -24,12 +24,12 @@ Phase 기반 이행 가이드를 작성하고, 이슈 코멘트로 게시한다.
 이 스킬은 Claude Code 세션과 direct Codex 세션 모두에서 동작한다.
 아래 행동은 런타임에 해당하는 도구로 수행한다.
 
-| 행동 | Claude Code 세션 | Codex 세션 (Plan/default 공용) |
-|------|------------------|--------------------------------|
+| 행동 | Claude Code 세션 | Codex 세션 |
+|------|------------------|------------|
 | 사용자에게 질문 | `AskUserQuestion` 도구 | `request_user_input` |
 | helper 스크립트 경로 | `~/.claude/scripts/write-handoff-repo-and-issue.sh` | `~/.codex/scripts/write-handoff-repo-and-issue.sh` |
 
-본문의 "질문 도구"는 위 표의 런타임별 질문 도구를 가리킨다. Codex 세션의 default mode 모델은 자동으로 `request_user_input`을 호출하지 않으므로, 사용자 확인이 필요한 단계에서 명시적으로 도구를 사용한다.
+본문의 "질문 도구"는 위 표의 런타임별 질문 도구를 가리킨다.
 helper 스크립트는 양 런타임에서 동일 source를 공유한다 (Home Manager로 각 경로에 프로비저닝).
 
 **프로비저닝 전제**: 위 helper 경로는 `nrs` (`nixos-rebuild`/`darwin-rebuild` 래퍼)로 Home Manager symlink가 생성된 후에만 유효하다. repo 코드를 `git pull`했지만 `nrs`를 아직 실행하지 않은 환경에서는 새 helper 경로가 존재하지 않을 수 있다. 그 경우 (1) `nrs` 실행 후 재시도하거나, (2) legacy 경로 `~/.{claude,codex}/scripts/write-handoff-repo-slug.sh`(이미 프로비저닝된 shim이 자기완결 fallback 포함)를 임시 호출한다. legacy 경로는 slug 1-line만 반환하므로 ISSUE_NUM은 별도 파싱 필요. **단, 이 임시 경로는 ERR_ 진단 코드 출력을 보장하지 않는다 — 새 helper가 프로비저닝된 환경에서 shim이 새 helper로 위임할 때만 stderr ERR_가 통과하며, 새 helper가 부재할 때 동작하는 legacy의 inline fallback은 stderr를 그대로 버린다. 진단성이 필요하면 `nrs` 실행 후 새 helper 경로로 재시도하라.**
