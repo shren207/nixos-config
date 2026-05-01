@@ -6,12 +6,14 @@
 
 | 라벨 | 정의 | 전형적 증거 | 권장 action |
 |---|---|---|---|
-| **satisfied** | 요구사항이 코드 + evidence로 충족됨 | 파일:줄 인용 + test/실행 증거 | 체크박스 `- [x]`로 전환 (fix 모드, validation 성공 시). 없으면 보고만. |
-| **partial** | 요구사항의 일부가 충족, 일부 누락 | 충족 부분 + 미충족 부분을 각각 파일:줄로 구분 | 누락 부분 구현 또는 sub-requirement 분리 |
-| **missing** | 요구사항에 대응하는 구현이 전혀 없음 | 관련 경로/파일에 해당 로직 부재 | fix 모드: 구현 추가 / review-only: 누락 보고 |
-| **conflicting** | 구현이 문서와 모순 (잘못 동작 또는 반대 동작) | 문서 인용 + 모순되는 코드 인용 | fix 모드: 문서 또는 코드 중 어느 쪽이 정답인지 확인 후 정렬 |
-| **overbuilt** | 문서가 요구하지 않는 기능/추상화/상태/의존성이 존재 | 해당 코드 위치 + "이를 요구하는 문서 섹션 없음" 증명 | fix 모드: 제거 또는 문서에 근거 추가 / review-only: 보고 |
-| **deferred** | 요구사항이 의도적으로 미래 phase로 연기 | 문서에 명시적 "deferred"/"follow-up" 언급 또는 validator 판단 | 상태 유지. `follow-up` 섹션에 기록 |
+| **satisfied** | 요구사항이 코드 + evidence로 충족됨 | 파일:줄 인용 + test/실행 증거 | 보고. 체크박스 `- [x]` 전환은 메인 에이전트가 별도 승인된 remediation 단계에서 수행. |
+| **partial** | 요구사항의 일부가 충족, 일부 누락 | 충족 부분 + 미충족 부분을 각각 파일:줄로 구분 | 누락 부분 보고 + sub-requirement 분리 권장. |
+| **missing** | 요구사항에 대응하는 구현이 전혀 없음 | 관련 경로/파일에 해당 로직 부재 | 누락 보고. |
+| **conflicting** | 구현이 문서와 모순 (잘못 동작 또는 반대 동작) | 문서 인용 + 모순되는 코드 인용 | 모순 보고 + reconcile 방향 권장 (어느 쪽이 정답인지 결정은 메인 에이전트). |
+| **overbuilt** | 문서가 요구하지 않는 기능/추상화/상태/의존성이 존재 | 해당 코드 위치 + "이를 요구하는 문서 섹션 없음" 증명 | 보고. 제거 또는 문서 보강 결정은 메인 에이전트. |
+| **deferred** | 요구사항이 의도적으로 미래 phase로 연기 | 문서에 명시적 "deferred"/"follow-up" 언급 또는 validator 판단 | 상태 유지. `follow-up` 섹션에 기록. |
+
+본 reference는 **review-only**다 (NG-2: auto-fix 미채택). 모든 분류는 보고만 산출하며, 적용·정렬·제거 같은 tracked write는 메인 에이전트가 사용자 승인된 remediation 단계에서 별도로 수행한다.
 
 ## Classification 룰
 
@@ -19,7 +21,7 @@
 2. **Satisfied는 엄격하게**: validation(Step 5) 성공 증거가 없으면 `satisfied`로 분류하지 않는다. 최소한 구현 존재 + 테스트 실행 결과 중 하나 필요.
 3. **Partial은 세분화**: `partial`이 많아지면 원본 requirement를 sub-requirement로 쪼개 classification 품질을 높인다.
 4. **Missing vs Deferred**: 문서가 명시적으로 연기를 선언한 경우에만 `deferred`. 그 외 미구현은 `missing`.
-5. **Conflicting은 reconcile 필수**: 코드와 문서 중 무엇이 진실인지 결정 없이 `conflicting`을 남기면 안 된다. fix 모드는 "정답" 쪽으로 정렬하고 reconcile 경로를 report에 기록.
+5. **Conflicting은 reconcile 필수**: 코드와 문서 중 무엇이 진실인지 결정 없이 `conflicting`을 남기면 안 된다. review-only이므로 본 reference는 reconcile 방향(코드 정정 vs 문서 정정)을 report에 권장으로 기록하고, 실제 정렬·적용은 메인 에이전트가 별도 단계에서 수행.
 6. **Overbuilt 우선 판정**: 동일 코드가 `partial`/`satisfied`와 `overbuilt` 모두 후보면 `overbuilt`로 분류한다 (retrospective 증거가 더 구체적).
 
 ## Overbuilt 감지 체크리스트

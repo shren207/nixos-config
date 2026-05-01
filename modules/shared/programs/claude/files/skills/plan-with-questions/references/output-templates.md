@@ -49,7 +49,7 @@ trigger 카테고리 정의 (키워드 목록 + 권장 transition 모드)는 [`.
 
 ### review-impl 의도 trigger 매칭 시
 
-> "이슈 등록이 완료되었습니다. 입력에 구현 감사·문서 대비 리뷰 의도가 포함되어 있어, **for_action 모드로 진입 후 Post-Implementation 5번 Final review**에서 6-classification + 9-pass review-only를 적용합니다. 어떻게 진행할까요?"
+> "이슈 등록이 완료되었습니다. 입력에 구현 감사·문서 대비 리뷰 의도가 포함되어 있어, **for_action 모드로 진입 후 Post-Implementation 5번 Final review**에서 6-classification(`references/review-impl/requirement-status.md`) + 9-pass review-only(`references/review-impl/implementation-review.md`)를 적용합니다. 어떻게 진행할까요?"
 
 옵션 (3개):
 - **Yes (for_action 진입)** → 생성된 이슈 URL로 `for_action <ISSUE_URL>` 진입.

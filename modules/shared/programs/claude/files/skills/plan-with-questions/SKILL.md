@@ -55,7 +55,7 @@ description: |
 
 **이슈 레퍼런스 resolve**: 특정 이슈 트래커 CLI에 의존하지 않는다. 환경에서 사용 가능한 도구(gh CLI, Linear API/MCP, 웹 검색 등)를 활용한다.
 
-**자동 PRD 후보 알림 메시지** + opt-out 패턴: [`references/output-templates.md`](./references/output-templates.md#for_prd-모드-자동-트리거-알림-메시지). 트리거 알고리즘(tier-1/tier-2 신호 + 의사코드)·산출물 경로 결정·review-implementation 통합 시점은 [`references/task-size-routing.md`](./references/task-size-routing.md) SSOT.
+**자동 PRD 후보 알림 메시지** + opt-out 패턴: [`references/output-templates.md`](./references/output-templates.md#for_prd-모드-자동-트리거-알림-메시지). 트리거 알고리즘(tier-1/tier-2 신호 + 의사코드)·산출물 경로 결정·review-impl 통합 시점은 [`references/task-size-routing.md`](./references/task-size-routing.md) SSOT.
 
 ## 빠른 참조
 
@@ -103,7 +103,8 @@ PRD / review references (모든 모드 공용 또는 for_prd 전용):
 | [`./references/prd/prd-master-template.md`](./references/prd/prd-master-template.md) | for_prd 모드 PRD master 구조 |
 | [`./references/prd/phase-template.md`](./references/prd/phase-template.md) | for_prd 모드 phase 단위 |
 | [`./references/prd/file-mode-selection.md`](./references/prd/file-mode-selection.md) | for_prd Single vs Split |
-| [`./references/review-impl/requirement-status.md`](./references/review-impl/requirement-status.md) | for_prd phase 종료 6-classification + Final 9-pass review-only (auto-fix 미사용) |
+| [`./references/review-impl/requirement-status.md`](./references/review-impl/requirement-status.md) | review-impl 6-classification taxonomy (requirement → 구현 매핑) |
+| [`./references/review-impl/implementation-review.md`](./references/review-impl/implementation-review.md) | review-impl 9-pass review-only 절차 (Post-Impl 5번 Final review, auto-fix 미사용) |
 
 ## 주의사항
 

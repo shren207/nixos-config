@@ -56,7 +56,7 @@ fan-in 결과에서 미해결 항목(블랙박스 제로 원칙의 "블랙박스
 trigger 카테고리 정의 (키워드 목록 + transition 매핑)는 [`../SKILL.md`](../SKILL.md#모드-판별)의 "자연어 trigger → transition 매핑" 표 (SSOT)를 참조한다. Step I-6은 그 표가 정한 권장 모드를 첫 옵션으로 제시한다:
 
 - **PRD 작성 의도** → 권장: **for_prd 직접 진입** (생성된 이슈 URL + PRD 의도 결합). 또는 for_action 진입 후 Step 1-2 baseline에서 Phase ≥4 감지 시 자동 for_prd 후보 알림.
-- **review-impl 의도** → 권장: **for_action 진입** (Post-Implementation 5번 Final review에서 [`../references/review-impl/requirement-status.md`](../references/review-impl/requirement-status.md) 6-classification + 9-pass review-only 적용).
+- **review-impl 의도** → 권장: **for_action 진입** (Post-Implementation 5번 Final review에서 [`../references/review-impl/requirement-status.md`](../references/review-impl/requirement-status.md)의 6-classification + [`../references/review-impl/implementation-review.md`](../references/review-impl/implementation-review.md)의 9-pass review-only 적용).
 - **위 카테고리 매칭 없음** → 표준 for_action transition 또는 write-handoff/종료.
 
 옵션은 모든 카테고리에서 **3개로 통일** (Codex Plan mode `request_user_input` max-3 제약):
