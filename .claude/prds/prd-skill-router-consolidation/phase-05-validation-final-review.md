@@ -8,7 +8,7 @@ Last Updated: 2026-05-01
 
 cross-skill link를 갱신한다 — `run-da/SKILL.md:75`의 `validation-paths.md` 참조를 새 평면 위치로(`../plan-with-questions/references/validation-paths.md`)(DL-16, FR-11), `run-da/references/arbiter-prompt.md:192-196`의 `~/.claude/skills/prd` example을 갱신 또는 obsolete annotation(FR-12). 이후 lefthook eval-tests + ai-skills-consistency(보조) + verify-ai-compat.sh + run-eval.sh 모두 통과 + 명시 test + dogfooding round-trip 시나리오 검증을 수행한다. 마지막으로 parallel-audit + Final 10-pass + 9-pass review-only(auto-fix 미사용)를 수행한다.
 
-본 phase는 코드 변경(Commit 4)과 검증 전용(Commit 5) 두 commit을 포함한다(DL-17).
+본 phase는 cross-skill link 갱신 commit(Commit 4 — 필수)과 **조건부 검증 commit(Commit 5)** 을 포함한다. DL-17에 따라 Commit 5는 검증 전용이며, 검증 중 eval 미세 조정이 필요하면 Commit 3을 `git commit --amend`로 수정한 뒤 Commit 5 재검증한다. **검증 통과 후 코드 변경이 없으면 Commit 5는 만들지 않으며 Commit 4가 본 phase(=본 PR)의 마지막 commit**이 된다.
 
 ## Context From Master PRD
 
