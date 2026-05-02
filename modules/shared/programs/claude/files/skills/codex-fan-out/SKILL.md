@@ -96,7 +96,7 @@ echo "FO_DIR=$FO_DIR"
    ```zsh
    # marker must apply to `codex`, not `cat` (issue #585 / epic #584).
    # CODEX_PROGRAMMATIC=1은 Codex 0.124+ user-level hooks의 early-exit guard 신호.
-   cat "/tmp/fo-c4a35fc4-AbCdEf/agent-1.md" | env CODEX_PROGRAMMATIC=1 codex-exec-supervised --sandbox read-only --ignore-user-config --ephemeral \
+   cat "/tmp/fo-c4a35fc4-AbCdEf/agent-1.md" | env CODEX_PROGRAMMATIC=1 codex-exec-supervised --sandbox read-only --ignore-user-config --ignore-rules --ephemeral \
      -c model="gpt-5.5" \
      -c model_reasoning_effort="high" \
      -o "/tmp/fo-c4a35fc4-AbCdEf/agent-1-result.md" \
@@ -156,7 +156,7 @@ codex exec fan-out 패턴은 /codex-fan-out 스킬 참조.
 
 ## 주의사항
 
-- `--full-auto`는 workspace-write 권한을 부여하므로, 반드시 no-write boundary와 stateful-violation 금지 작업 목록(tracked write, branch mutation, commit/push, GitHub write, main-agent-only command, host mutation, wt/nrs/rebuild)을 프롬프트에 명시한다. subprocess가 exit 0으로 종료하더라도 tracked file 수정을 자동 감지하지 않으므로, no-write boundary는 프롬프트 수준 제약이다.
+- 본 SKILL의 fan-out은 `codex-exec-supervised --sandbox read-only --ignore-user-config --ignore-rules --ephemeral` (Layer 1)로 실행되어 코드/계획 write가 read-only sandbox로 구조적으로 차단되고, `--ignore-rules`로 user/project execpolicy `.rules`의 mutation allow rule(예: `git push`)도 차단된다. 그러나 stateful-violation 금지 작업 목록(tracked write, branch mutation, commit/push, GitHub write, main-agent-only command, host mutation, wt/nrs/rebuild)은 프롬프트 수준에서도 명시한다 (sandbox/rules로 막히지 않는 우회 경로 방어). subprocess exit 0이 tracked file 수정을 자동 감지하지 않으므로 프롬프트 수준 제약이 보강 layer로 함께 작동한다.
 - `& + wait` shell-level 병렬을 사용하지 않는다. Bash tool의 `run_in_background`를 사용한다.
 - 인라인 인자 `"$(cat file)"`는 사용하지 않는다. stdin pipe만 사용한다.
 - 정리: fan-out 완료 후 `rm -rf "/tmp/fo-c4a35fc4-AbCdEf"`처럼 리터럴 경로로 임시 디렉토리를 정리한다 (`$FO_DIR` 변수는 다음 호출에서 사용 불가).

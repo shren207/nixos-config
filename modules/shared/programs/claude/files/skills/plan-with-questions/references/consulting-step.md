@@ -136,6 +136,7 @@ CODEX_EXEC_TIMEOUT_SECONDS=180 env CODEX_PROGRAMMATIC=1 codex-exec-supervised \
     -C /tmp/consult-<sid>-XXXXXX \
     --skip-git-repo-check \
     --ignore-user-config \
+    --ignore-rules \
     --sandbox read-only --ephemeral \
     -c model="gpt-5.5" \
     -c model_reasoning_effort="high" \

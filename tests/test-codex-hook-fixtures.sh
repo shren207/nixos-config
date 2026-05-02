@@ -2,12 +2,14 @@
 # tests/test-codex-hook-fixtures.sh
 # Codex 0.124+ stable hook 회귀 차단 fixture runner.
 #
-# 8 카테고리:
+# 9 카테고리 (8 deterministic + 1 live opt-in subset):
 #   1. stdin schema baseline 0.124       — fixtures/codex-hooks/stdin/{userpromptsubmit-codex-0.124,stop-codex-0.124,stop-no-last-message}.json
 #   2. dispatcher ordering / failure recovery — runner 내부 mock subscript
 #   3. noise-guard env 변형              — runner 내부 helper (4 env 조합)
 #   4. sync-codex-config.py preservation — fixtures/codex-hooks/sync-preservation/*.toml
 #   5. env propagation (live opt-in)      — CODEX_HOOK_LIVE=1 / --live
+#   5b. codex exec invocation matrix (live opt-in, must-pass-only) — issue #593 supervised wrapper 회귀 차단
+#       (--live 시 invocation matrix를 env propagation보다 먼저 실행)
 #   6. stop-notification reliability/security — transcripts/ + stdin secret/transcript fixtures
 #   7. pinning-alert behavioral          — fixtures/codex-hooks/stdin/pinning-{claude,codex}-*.json
 #   8. sync.sh mcp-config fail-fast      — missing/no source가 기존 MCP 섹션을 지우지 않음
@@ -30,7 +32,8 @@ for arg in "$@"; do
       cat <<EOF
 Usage: $0 [--live | --no-live]
   default      deterministic fixture만 실행
-  --live       env propagation live fixture까지 실행 (codex exec 호출)
+  --live       live opt-in fixture까지 실행: codex exec invocation matrix(must-pass-only)
+               + env propagation live fixture (실행 순서대로)
   --no-live    deterministic 강제 (default와 동일; verify-ai-compat가 사용)
 ENV: CODEX_HOOK_LIVE=1  (--live와 동등; CLI 인자가 env보다 우선하며 마지막 모드 인자가 이긴다)
 EOF
@@ -1079,7 +1082,7 @@ test_codex_exec_invocation_live_matrix() {
     CODEX_EXEC_TIMEOUT_SECONDS="$INVOCATION_MATRIX_TIMEOUT_SECONDS" \
     CODEX_EXEC_KILL_AFTER_SECONDS="$CODEX_EXEC_KILL_AFTER_SECONDS" \
     "$supervised" \
-      --ephemeral --skip-git-repo-check --sandbox read-only --ignore-user-config \
+      --ephemeral --skip-git-repo-check --sandbox read-only --ignore-user-config --ignore-rules \
       -c model="gpt-5.5" -c model_reasoning_effort="medium" \
       -o "$result1" \
       - >/dev/null 2>"$stderr1" || rc1=$?
@@ -1131,7 +1134,7 @@ EOF
     CODEX_EXEC_TIMEOUT_SECONDS="$INVOCATION_MATRIX_TIMEOUT_SECONDS" \
     CODEX_EXEC_KILL_AFTER_SECONDS="$CODEX_EXEC_KILL_AFTER_SECONDS" \
     "$supervised" \
-      --ephemeral --skip-git-repo-check --sandbox read-only --ignore-user-config \
+      --ephemeral --skip-git-repo-check --sandbox read-only --ignore-user-config --ignore-rules \
       -c model="gpt-5.5" -c model_reasoning_effort="medium" \
       -c "hooks.UserPromptSubmit=$override" \
       -c "hooks.Stop=$override" \
