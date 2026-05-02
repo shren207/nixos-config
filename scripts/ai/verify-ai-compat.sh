@@ -916,12 +916,50 @@ echo ""
 echo "=== Hooks 산출물 확인 ==="
 
 # stale guard: <repo>/.codex/hooks.json 또는 <repo>/.codex/hooks.compatibility.json은
-# 폐기된 패턴이라 잔재 시 fail. 단 user-level ~/.codex/hooks.json은 0.124+ stable inline TOML과
-# 함께 valid source 가능성이 있어 검사 대상 아님.
+# 폐기된 패턴이라 잔재 시 fail. 단 user-level ~/.codex/hooks.json은 공식 hook source라
+# 존재 자체가 아니라 알려진 legacy entry만 검사한다.
 if [ -e "$REPO_ROOT/.codex/hooks.json" ] || [ -e "$REPO_ROOT/.codex/hooks.compatibility.json" ]; then
   fail "stale Codex hook artifacts present (.codex/hooks*.json)"
 else
   pass "repo-local Codex hook artifacts 없음"
+fi
+
+_user_hooks_json="$HOME/.codex/hooks.json"
+_user_hooks_report="$HOME/.codex/hooks.compatibility.json"
+
+if [ -e "$_user_hooks_report" ]; then
+  fail "stale user-level Codex hook artifact present ($_user_hooks_report) — run nrs to remove retired hooks.compatibility.json"
+else
+  pass "user-level Codex hooks.compatibility.json 없음"
+fi
+
+if [ -f "$_user_hooks_json" ]; then
+  if ! command -v jq >/dev/null 2>&1; then
+    fail "jq 없음 — $_user_hooks_json stale entry 검사 불가"
+  else
+    _user_stale_hook_count=""
+    if ! _user_stale_hook_count="$(jq -r '
+      def stale_names: [
+        "session-init-icons.sh",
+        "worktree-path-guard.sh",
+        "fragile-hardcoding-guard.sh",
+        "system-bash-guard.sh"
+      ];
+      def is_stale:
+        (.command? // "") as $cmd
+        | [stale_names[] | . as $name | select($cmd | contains("/.codex/hooks/" + $name))]
+        | length > 0;
+      [(.hooks // {}) | to_entries[]? | .value[]? | .hooks[]? | select(is_stale)] | length
+    ' "$_user_hooks_json")"; then
+      fail "$_user_hooks_json JSON 파싱 실패 — user-level hook 파일을 수동 점검하세요"
+    elif [ "$_user_stale_hook_count" -gt 0 ] 2>/dev/null; then
+      fail "stale user-level Codex hook entries present ($_user_hooks_json count=$_user_stale_hook_count) — run nrs to prune known Claude-era entries"
+    else
+      pass "user-level Codex hooks.json stale legacy entry 없음"
+    fi
+  fi
+else
+  pass "user-level Codex hooks.json 없음"
 fi
 
 echo ""

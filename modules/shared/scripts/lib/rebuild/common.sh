@@ -26,16 +26,98 @@ detect_worktree() {
 
 #───────────────────────────────────────────────────────────────────────────────
 # Retired Codex hooks cleanup: 기존 worktree/checkout에 남은 repo-local hook
-# 산출물을 rebuild 전에 정리하여 verify-ai-compat 경로를 복구한다.
+# 산출물과 알려진 user-level legacy hook entry를 rebuild 전에 정리한다.
 #───────────────────────────────────────────────────────────────────────────────
+_prune_legacy_user_codex_hooks_json() {
+    local hooks_json="$HOME/.codex/hooks.json"
+    [[ -f "$hooks_json" ]] || return 0
+
+    if ! command -v jq >/dev/null 2>&1; then
+        log_error "jq is required to safely inspect $hooks_json"
+        return 1
+    fi
+
+    local stale_count
+    if ! stale_count=$(jq -r '
+        def stale_names: [
+            "session-init-icons.sh",
+            "worktree-path-guard.sh",
+            "fragile-hardcoding-guard.sh",
+            "system-bash-guard.sh"
+        ];
+        def is_stale:
+            (.command? // "") as $cmd
+            | [stale_names[] | . as $name | select($cmd | contains("/.codex/hooks/" + $name))]
+            | length > 0;
+        [(.hooks // {}) | to_entries[]? | .value[]? | .hooks[]? | select(is_stale)] | length
+    ' "$hooks_json"); then
+        log_warn "⚠️  Could not parse $hooks_json; leaving user-owned hook file unchanged."
+        return 0
+    fi
+
+    [[ "$stale_count" =~ ^[0-9]+$ ]] || {
+        log_warn "⚠️  Could not count stale entries in $hooks_json; leaving it unchanged."
+        return 0
+    }
+    (( stale_count > 0 )) || return 0
+
+    local tmp
+    tmp=$(mktemp "${TMPDIR:-/tmp}/codex-hooks-json.XXXXXX")
+    if ! jq '
+        def stale_names: [
+            "session-init-icons.sh",
+            "worktree-path-guard.sh",
+            "fragile-hardcoding-guard.sh",
+            "system-bash-guard.sh"
+        ];
+        def is_stale:
+            (.command? // "") as $cmd
+            | [stale_names[] | . as $name | select($cmd | contains("/.codex/hooks/" + $name))]
+            | length > 0;
+        if (.hooks? | type) == "object" then
+            .hooks |= with_entries(
+                .value = (
+                    .value
+                    | map(
+                        if (.hooks? | type) == "array" then
+                            .hooks = (.hooks | map(select(is_stale | not)))
+                        else
+                            .
+                        end
+                    )
+                    | map(select((.hooks? | type != "array") or ((.hooks | length) > 0)))
+                )
+                | select(.value | length > 0)
+            )
+        else
+            .
+        end
+    ' "$hooks_json" > "$tmp"; then
+        rm -f "$tmp"
+        log_error "Failed to prune stale Codex hook entries from $hooks_json"
+        return 1
+    fi
+
+    mv "$tmp" "$hooks_json"
+    log_info "🧹 Pruned $stale_count stale Codex hook entr$( (( stale_count == 1 )) && printf 'y' || printf 'ies' ) from user-level hooks.json."
+}
+
 _clear_retired_codex_hook_artifacts() {
     local hooks_json="$FLAKE_PATH/.codex/hooks.json"
     local hooks_report="$FLAKE_PATH/.codex/hooks.compatibility.json"
+    local user_hooks_report="$HOME/.codex/hooks.compatibility.json"
 
     if [[ -e "$hooks_json" || -e "$hooks_report" ]]; then
         rm -f "$hooks_json" "$hooks_report"
         log_info "🧹 Removed retired Codex hook artifacts."
     fi
+
+    if [[ -e "$user_hooks_report" ]]; then
+        rm -f "$user_hooks_report"
+        log_info "🧹 Removed retired user-level Codex hooks.compatibility.json."
+    fi
+
+    _prune_legacy_user_codex_hooks_json
 }
 
 #───────────────────────────────────────────────────────────────────────────────

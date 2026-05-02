@@ -26,7 +26,43 @@ install_rebuild_common_compat_shims() {
         "$HOME/.local/bin/nrs-relink" restore || log_warn "⚠️  nrs-relink restore failed (non-fatal)"
     }
     declare -F _clear_retired_codex_hook_artifacts >/dev/null || _clear_retired_codex_hook_artifacts() {
+        local user_hooks_json="$HOME/.codex/hooks.json"
+        local user_hooks_report="$HOME/.codex/hooks.compatibility.json"
         rm -f "$FLAKE_PATH/.codex/hooks.json" "$FLAKE_PATH/.codex/hooks.compatibility.json"
+        if [[ -e "$user_hooks_report" ]]; then
+            rm -f "$user_hooks_report"
+            log_info "🧹 Removed retired user-level Codex hooks.compatibility.json."
+        fi
+        [[ -f "$user_hooks_json" ]] || return 0
+        command -v jq >/dev/null 2>&1 || { log_error "jq is required to safely inspect $user_hooks_json"; return 1; }
+        local stale_count
+        if ! stale_count=$(jq -r '
+            def stale_names: ["session-init-icons.sh", "worktree-path-guard.sh", "fragile-hardcoding-guard.sh", "system-bash-guard.sh"];
+            def is_stale: (.command? // "") as $cmd | [stale_names[] | . as $name | select($cmd | contains("/.codex/hooks/" + $name))] | length > 0;
+            [(.hooks // {}) | to_entries[]? | .value[]? | .hooks[]? | select(is_stale)] | length
+        ' "$user_hooks_json"); then
+            log_warn "⚠️  Could not parse $user_hooks_json; leaving user-owned hook file unchanged."
+            return 0
+        fi
+        [[ "$stale_count" =~ ^[0-9]+$ ]] || return 0
+        (( stale_count > 0 )) || return 0
+        local tmp
+        tmp=$(mktemp "${TMPDIR:-/tmp}/codex-hooks-json.XXXXXX")
+        if ! jq '
+            def stale_names: ["session-init-icons.sh", "worktree-path-guard.sh", "fragile-hardcoding-guard.sh", "system-bash-guard.sh"];
+            def is_stale: (.command? // "") as $cmd | [stale_names[] | . as $name | select($cmd | contains("/.codex/hooks/" + $name))] | length > 0;
+            if (.hooks? | type) == "object" then
+                .hooks |= with_entries(.value = (.value | map(if (.hooks? | type) == "array" then .hooks = (.hooks | map(select(is_stale | not))) else . end) | map(select((.hooks? | type != "array") or ((.hooks | length) > 0)))) | select(.value | length > 0))
+            else
+                .
+            end
+        ' "$user_hooks_json" > "$tmp"; then
+            rm -f "$tmp"
+            log_error "Failed to prune stale Codex hook entries from $user_hooks_json"
+            return 1
+        fi
+        mv "$tmp" "$user_hooks_json"
+        log_info "🧹 Pruned $stale_count stale Codex hook entr$( (( stale_count == 1 )) && printf 'y' || printf 'ies' ) from user-level hooks.json."
     }
     # 구버전 rebuild-common.sh 는 codex helper 가 없어 이 함수도 없다. 그 조합에서는
     # NO_CHANGES 경로가 "command not found"로 죽지 않도록 no-op shim 을 둔다. 사용자가

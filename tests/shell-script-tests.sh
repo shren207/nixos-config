@@ -57,6 +57,66 @@ assert_line_count() {
   [[ "$actual" == "$expected" ]] || fail "expected $path to contain $expected occurrences of: $needle (actual: $actual)"
 }
 
+write_mixed_user_codex_hooks() {
+  local home_dir="$1"
+  mkdir -p "$home_dir/.codex"
+  # session-init-icons.sh is a known stale Claude-era user hook; Codex should prune it, not run it.
+  cat > "$home_dir/.codex/hooks.json" <<'EOF'
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.codex/hooks/session-init-icons.sh"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/tmp/custom-user-hook.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+EOF
+  printf '{}\n' > "$home_dir/.codex/hooks.compatibility.json"
+}
+
+write_malformed_user_codex_hooks() {
+  local home_dir="$1"
+  mkdir -p "$home_dir/.codex"
+  printf '{ not valid json\n' > "$home_dir/.codex/hooks.json"
+  printf '{}\n' > "$home_dir/.codex/hooks.compatibility.json"
+}
+
+assert_user_codex_hooks_pruned() {
+  local home_dir="$1"
+  local hooks_json="$home_dir/.codex/hooks.json"
+  [[ ! -e "$home_dir/.codex/hooks.compatibility.json" ]] || fail "expected user-level hooks.compatibility.json to be removed"
+  [[ -f "$hooks_json" ]] || fail "expected user-level hooks.json with preserved custom entry"
+  local hooks_content
+  hooks_content="$(cat "$hooks_json")"
+  assert_contains "$hooks_content" "/tmp/custom-user-hook.sh"
+  assert_not_contains "$hooks_content" "session-init-icons.sh"
+}
+
+assert_malformed_user_codex_hooks_preserved() {
+  local home_dir="$1"
+  local hooks_json="$home_dir/.codex/hooks.json"
+  [[ ! -e "$home_dir/.codex/hooks.compatibility.json" ]] || fail "expected user-level hooks.compatibility.json to be removed"
+  [[ -f "$hooks_json" ]] || fail "expected malformed user-level hooks.json to remain for manual repair"
+  [[ "$(cat "$hooks_json")" == "{ not valid json" ]] || fail "expected malformed user-level hooks.json content to remain unchanged"
+}
+
 new_sandbox() {
   local dir
   dir=$(mktemp -d "${TMPDIR:-/tmp}/shell-script-tests.XXXXXX")
@@ -1132,6 +1192,7 @@ EOF
   mkdir -p "$repo_root/.codex"
   printf '{}\n' > "$repo_root/.codex/hooks.json"
   printf '{}\n' > "$repo_root/.codex/hooks.compatibility.json"
+  write_mixed_user_codex_hooks "$home_dir"
 
   output=$(
     HOME="$home_dir" \
@@ -1146,8 +1207,45 @@ EOF
 
   assert_contains "$output" "Applying changes (offline)"
   assert_contains "$output" "Done!"
+  assert_contains "$output" "Removed retired user-level Codex hooks.compatibility.json"
+  assert_contains "$output" "Pruned 1 stale Codex hook entry"
   [[ ! -e "$repo_root/.codex/hooks.json" ]] || fail "expected nixos nrs to remove retired hooks.json"
   [[ ! -e "$repo_root/.codex/hooks.compatibility.json" ]] || fail "expected nixos nrs to remove retired hooks.compatibility.json"
+  assert_user_codex_hooks_pruned "$home_dir"
+}
+
+test_clear_retired_codex_hook_artifacts_preserves_malformed_user_hooks() {
+  local sandbox home_dir repo_root output
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  repo_root="$sandbox/repo"
+
+  create_git_fixture_repo "$repo_root"
+  repo_root="$(cd "$repo_root" && pwd -P)"
+  install_deployed_layout "$sandbox" "$repo_root"
+
+  mkdir -p "$repo_root/.codex"
+  printf '{}\n' > "$repo_root/.codex/hooks.json"
+  printf '{}\n' > "$repo_root/.codex/hooks.compatibility.json"
+  write_malformed_user_codex_hooks "$home_dir"
+
+  output=$(
+    HOME="$home_dir" \
+    bash -c '
+      set -euo pipefail
+      cd "'"$repo_root"'"
+      REBUILD_CMD="nixos-rebuild"
+      source "'"$home_dir/.local/lib/rebuild-common.sh"'"
+      _clear_retired_codex_hook_artifacts
+    ' 2>&1
+  )
+
+  assert_contains "$output" "Removed retired Codex hook artifacts."
+  assert_contains "$output" "Removed retired user-level Codex hooks.compatibility.json"
+  assert_contains "$output" "Could not parse $home_dir/.codex/hooks.json; leaving user-owned hook file unchanged."
+  [[ ! -e "$repo_root/.codex/hooks.json" ]] || fail "expected repo-local hooks.json to be removed"
+  [[ ! -e "$repo_root/.codex/hooks.compatibility.json" ]] || fail "expected repo-local hooks.compatibility.json to be removed"
+  assert_malformed_user_codex_hooks_preserved "$home_dir"
 }
 
 test_darwin_nrs_offline_force_smoke() {
@@ -1241,6 +1339,7 @@ EOF
   mkdir -p "$repo_root/.codex"
   printf '{}\n' > "$repo_root/.codex/hooks.json"
   printf '{}\n' > "$repo_root/.codex/hooks.compatibility.json"
+  write_mixed_user_codex_hooks "$home_dir"
 
   output=$(
     HOME="$home_dir" \
@@ -1256,8 +1355,11 @@ EOF
 
   assert_contains "$output" "Applying changes (offline)"
   assert_contains "$output" "Done!"
+  assert_contains "$output" "Removed retired user-level Codex hooks.compatibility.json"
+  assert_contains "$output" "Pruned 1 stale Codex hook entry"
   [[ ! -e "$repo_root/.codex/hooks.json" ]] || fail "expected darwin nrs to remove retired hooks.json"
   [[ ! -e "$repo_root/.codex/hooks.compatibility.json" ]] || fail "expected darwin nrs to remove retired hooks.compatibility.json"
+  assert_user_codex_hooks_pruned "$home_dir"
 }
 
 test_darwin_nrs_no_changes_releases_worktree_lock() {
@@ -1281,6 +1383,7 @@ test_darwin_nrs_no_changes_releases_worktree_lock() {
   mkdir -p "$worktree_root/.codex"
   printf '{}\n' > "$worktree_root/.codex/hooks.json"
   printf '{}\n' > "$worktree_root/.codex/hooks.compatibility.json"
+  write_mixed_user_codex_hooks "$home_dir"
 
   cat > "$stub_dir/sudo" <<'EOF'
 #!/usr/bin/env bash
@@ -1343,9 +1446,12 @@ EOF
   assert_contains "$output" "Lock acquired"
   assert_contains "$output" "No changes to apply"
   assert_contains "$output" "Lock released"
+  assert_contains "$output" "Removed retired user-level Codex hooks.compatibility.json"
+  assert_contains "$output" "Pruned 1 stale Codex hook entry"
   [[ ! -e "$lock_file" ]] || fail "expected sandbox nrs lock file to be removed after no-change early return"
   [[ ! -e "$worktree_root/.codex/hooks.json" ]] || fail "expected no-change darwin nrs to remove retired hooks.json"
   [[ ! -e "$worktree_root/.codex/hooks.compatibility.json" ]] || fail "expected no-change darwin nrs to remove retired hooks.compatibility.json"
+  assert_user_codex_hooks_pruned "$home_dir"
 }
 
 run_test "wt help uses deployed helper layout" test_wt_help_from_deployed_layout
@@ -1365,6 +1471,7 @@ run_test "wt cleanup auto skips merged branch reuse" test_wt_cleanup_auto_skips_
 run_test "missing managed helpers fail closed" test_missing_managed_helpers_fail_closed
 run_test "fixture git setup ignores host global hooks" test_fixture_git_is_hermetic_against_global_hooks
 run_test "nixos nrs offline force smoke" test_nixos_nrs_offline_force_smoke
+run_test "retired hook cleanup preserves malformed user hooks" test_clear_retired_codex_hook_artifacts_preserves_malformed_user_hooks
 run_test "darwin nrs offline force smoke" test_darwin_nrs_offline_force_smoke
 run_test "darwin nrs no-change releases worktree lock" test_darwin_nrs_no_changes_releases_worktree_lock
 
