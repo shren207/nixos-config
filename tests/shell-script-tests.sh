@@ -242,6 +242,25 @@ install_deployed_layout() {
   assert_line_count "$shell_nix" '    recursive = true;' 2
 }
 
+install_repo_local_only_codex_cleanup_helper() {
+  local home_dir="$1"
+  local helper="$home_dir/.local/lib/rebuild/common.sh"
+  rm -f "$helper"
+  cp "$REPO_ROOT/modules/shared/scripts/lib/rebuild/common.sh" "$helper"
+  cat >> "$helper" <<'EOF'
+
+_clear_retired_codex_hook_artifacts() {
+    local hooks_json="$FLAKE_PATH/.codex/hooks.json"
+    local hooks_report="$FLAKE_PATH/.codex/hooks.compatibility.json"
+
+    if [[ -e "$hooks_json" || -e "$hooks_report" ]]; then
+        rm -f "$hooks_json" "$hooks_report"
+        log_info "🧹 Removed retired Codex hook artifacts."
+    fi
+}
+EOF
+}
+
 install_platform_nrs_entrypoint() {
   local sandbox="$1" platform="$2"
   local home_dir="$sandbox/home"
@@ -1152,6 +1171,7 @@ test_nixos_nrs_offline_force_smoke() {
   repo_root="$(cd "$repo_root" && pwd -P)"
   install_deployed_layout "$sandbox" "$repo_root"
   install_platform_nrs_entrypoint "$sandbox" nixos
+  install_repo_local_only_codex_cleanup_helper "$home_dir"
 
   mkdir -p "$stub_dir" "$home_dir/.local/bin"
   cat > "$stub_dir/sudo" <<'EOF'
@@ -1374,6 +1394,7 @@ test_darwin_nrs_no_changes_releases_worktree_lock() {
   worktree_root="$repo_root/.claude/worktrees/feature_one"
   install_deployed_layout "$sandbox" "$repo_root"
   install_platform_nrs_entrypoint "$sandbox" darwin
+  install_repo_local_only_codex_cleanup_helper "$home_dir"
 
   mkdir -p "$stub_dir" "$home_dir/.local/bin" "$home_dir/Library/LaunchAgents"
   current_target="$sandbox/current-system"

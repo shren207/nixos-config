@@ -81,7 +81,12 @@ Combine static checks, shell tests, deterministic hook fixtures, and activation-
 - D-3: After `nrs`, `./scripts/ai/verify-ai-compat.sh` reported complete success, including no repo-local hook artifacts, no user-level `hooks.compatibility.json`, and no user-level `hooks.json`.
 - D-4: `./tests/shell-script-tests.sh` passed; codex-config fixture subtests were skipped outside tomlkit shell as expected by the test harness.
 - D-5: `./tests/test-codex-hook-fixtures.sh --no-live` passed through tomlkit bootstrap.
+- D-6: `/run-da for_pr` Round 1 intensity was FULL. Arbiter confirmed four issues: old deployed cleanup function shadowing the new mixed-version shim, verifier repair contract regression, duplicated shim jq design, and duplicated stale matcher maintainability.
+- D-7: Round 1 fixes centralized stale hook jq filters and cleanup in `modules/shared/scripts/lib/rebuild/codex-legacy-hooks.sh`, made Darwin/NixOS shims source the shared helper and override old cleanup, and added old-helper fixture coverage.
+- D-8: After staging the new helper, `nrs` deployed `/Users/green/.local/lib/rebuild/codex-legacy-hooks.sh`; post-`nrs` `verify-ai-compat.sh` passed.
+- D-9: `codex-exec-supervised --check` still reports `codex` binary absent in this shell, so DA/audit execution uses native Codex subagents instead of `codex exec` fallback.
 
 ## Phase Change Log
 - 2026-05-02: Phase file created.
 - 2026-05-02: Phase validation completed through `nrs` and post-`nrs` verifier; commit/DA/audit/PR remain.
+- 2026-05-02: DA for_pr Round 1 findings fixed and revalidated through shell tests, hook fixtures, `nrs`, and post-`nrs` verifier.

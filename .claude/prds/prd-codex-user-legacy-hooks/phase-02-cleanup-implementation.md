@@ -79,8 +79,9 @@ Phase 2 validation is local shell-level behavior using sandboxed HOME fixtures, 
 - D-1: `~/.codex/hooks.json` remains a valid user-owned Codex hook source; cleanup prunes only known stale commands under `/.codex/hooks/`.
 - D-2: When all handlers under an event are pruned, the implementation leaves a valid rewritten JSON object with empty event groups removed rather than deleting the whole file.
 - D-3: Malformed user-level `hooks.json` is left unchanged and reported for manual repair; verifier fails that state later.
-- D-4: Darwin/NixOS entrypoint shims intentionally duplicate the cleanup so mixed-version deployments can self-heal before the new shared helper is active.
+- D-4: Cleanup logic is centralized in `modules/shared/scripts/lib/rebuild/codex-legacy-hooks.sh`; Darwin/NixOS entrypoint shims source that helper and override old repo-local-only cleanup functions so mixed-version deployments still self-heal.
 
 ## Phase Change Log
 - 2026-05-02: Phase file created.
 - 2026-05-02: Phase completed with safe user-level legacy cleanup in common helper and Darwin/NixOS shims.
+- 2026-05-02: DA for_pr Round 1 replaced duplicated shim jq with shared helper-backed cleanup.

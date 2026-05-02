@@ -130,3 +130,4 @@ Use `plan-with-questions/references/prd/multi-pass-review.md` as the canonical c
 - 2026-05-02: Phase 2 cleanup implemented for repo-local retired artifacts, user-level `hooks.compatibility.json`, and known stale user hook entries while preserving user hooks.
 - 2026-05-02: Phase 3 verifier/tests completed, including mixed user-hook preservation and malformed user `hooks.json` preservation.
 - 2026-05-02: Phase 4 validation started; `nrs` and post-`nrs` `verify-ai-compat.sh` passed on this machine.
+- 2026-05-02: DA for_pr Round 1 confirmed mixed-version shim and duplicated jq matcher issues; fixed with shared `codex-legacy-hooks.sh`, old-helper fixture coverage, `nrs`, and post-`nrs` verifier pass.

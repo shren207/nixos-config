@@ -11,6 +11,9 @@ TARGET_SKILLS_DIR="$REPO_ROOT/.agents/skills"
 SHARED_SKILLS_DIR="$REPO_ROOT/modules/shared/programs/claude/files/skills"
 CODEX_GLOBAL_SKILLS_DIR="$HOME/.codex/skills"
 
+# shellcheck source=/dev/null
+. "$REPO_ROOT/modules/shared/scripts/lib/rebuild/codex-legacy-hooks.sh"
+
 # Nix SoT(default.nix)와 독립된 감사 오라클.
 # 두 리스트는 서로 교집합이 없어야 하며, shared 디렉토리의 모든 스킬이 둘 중 하나에 속해야 한다.
 EXPECTED_EXPOSED=(
@@ -938,19 +941,7 @@ if [ -f "$_user_hooks_json" ]; then
     fail "jq 없음 — $_user_hooks_json stale entry 검사 불가"
   else
     _user_stale_hook_count=""
-    if ! _user_stale_hook_count="$(jq -r '
-      def stale_names: [
-        "session-init-icons.sh",
-        "worktree-path-guard.sh",
-        "fragile-hardcoding-guard.sh",
-        "system-bash-guard.sh"
-      ];
-      def is_stale:
-        (.command? // "") as $cmd
-        | [stale_names[] | . as $name | select($cmd | contains("/.codex/hooks/" + $name))]
-        | length > 0;
-      [(.hooks // {}) | to_entries[]? | .value[]? | .hooks[]? | select(is_stale)] | length
-    ' "$_user_hooks_json")"; then
+    if ! _user_stale_hook_count="$(jq -r "$(codex_legacy_user_hook_count_jq_filter)" "$_user_hooks_json")"; then
       fail "$_user_hooks_json JSON 파싱 실패 — user-level hook 파일을 수동 점검하세요"
     elif [ "$_user_stale_hook_count" -gt 0 ] 2>/dev/null; then
       fail "stale user-level Codex hook entries present ($_user_hooks_json count=$_user_stale_hook_count) — run nrs to prune known Claude-era entries"
