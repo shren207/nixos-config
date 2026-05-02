@@ -1,9 +1,9 @@
 # PRD: Codex User Legacy Hooks
 
 ## Document Status
-- Status: In Progress
+- Status: Complete
 - File Mode: Split
-- Current Phase: Phase 4
+- Current Phase: Complete
 - Active Phase File: [Phase 4](./prd-codex-user-legacy-hooks/phase-04-validation-handoff.md)
 - Last Updated: 2026-05-02
 - PRD File: `.claude/prds/prd-codex-user-legacy-hooks.md`
@@ -116,7 +116,7 @@ DA for_plan corrected an important boundary: `~/.codex/hooks.json` is still an o
 | Phase 1: Scope Lock | Complete | Resolve issue evidence, PRD routing, DA findings, and scope boundary | PRD/DA consistency | [phase-01-scope-lock.md](./prd-codex-user-legacy-hooks/phase-01-scope-lock.md) |
 | Phase 2: Cleanup Implementation | Complete | Implement safe user-level stale cleanup without deleting valid hooks | Shell behavior, parser safety | [phase-02-cleanup-implementation.md](./prd-codex-user-legacy-hooks/phase-02-cleanup-implementation.md) |
 | Phase 3: Verifier And Tests | Complete | Add verifier stale guard and regression tests | Sandbox HOME tests, verifier messages | [phase-03-verifier-tests.md](./prd-codex-user-legacy-hooks/phase-03-verifier-tests.md) |
-| Phase 4: Validation And Handoff | In Progress | Run validation, update PRD closeout, and prepare PR handoff | nrs/verify/DA/audit evidence | [phase-04-validation-handoff.md](./prd-codex-user-legacy-hooks/phase-04-validation-handoff.md) |
+| Phase 4: Validation And Handoff | Complete | Run validation, update PRD closeout, and prepare PR handoff | nrs/verify/DA/audit evidence | [phase-04-validation-handoff.md](./prd-codex-user-legacy-hooks/phase-04-validation-handoff.md) |
 
 ## Final Multi-Pass Review After All Phases
 Use `plan-with-questions/references/prd/multi-pass-review.md` as the canonical checklist, with review-impl overlay where applicable.
@@ -134,3 +134,4 @@ Use `plan-with-questions/references/prd/multi-pass-review.md` as the canonical c
 - 2026-05-02: DA for_pr Round 2 confirmed symlinked user `hooks.json` clobber risk; fixed by leaving symlinks unchanged, making verifier fail for manual inspection, and adding symlink preservation coverage.
 - 2026-05-02: DA for_pr Round 3 confirmed verifier over-failed valid symlinked `hooks.json`; fixed verifier to inspect symlink targets and fail only malformed/stale cases.
 - 2026-05-02: parallel-audit found stale matcher substring false positives and master PRD symlink repair wording drift; fixed matcher to exact direct hook commands and documented symlink manual-repair carveout.
+- 2026-05-02: Phase 4 completed after final `nrs`, post-activation verifier, and multi-pass review; PR handoff is ready.

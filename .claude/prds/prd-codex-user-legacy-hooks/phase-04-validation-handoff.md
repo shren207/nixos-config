@@ -1,7 +1,7 @@
 # Phase 4: Validation And Handoff
 
 Parent PRD: [PRD: Codex User Legacy Hooks](../prd-codex-user-legacy-hooks.md)
-Status: In Progress
+Status: Complete
 Last Updated: 2026-05-02
 
 ## Objective
@@ -39,11 +39,11 @@ Validate the implemented cleanup/verifier behavior end to end, then prepare comm
 - [x] Run `nrs` using the alias, not direct rebuild.
 - [x] Run `./scripts/ai/verify-ai-compat.sh` after `nrs`.
 - [x] If worktree/global symlink mismatch remains unrelated to #637, record exact limitation and recovery path.
-- [ ] Commit implementation.
-- [ ] Run `/run-da for_pr`.
-- [ ] Run `/parallel-audit`.
-- [ ] Perform Final Multi-Pass Review and PRD closeout.
-- [ ] Create PR with #637 close and #587 boundary notes.
+- [x] Commit implementation.
+- [x] Run `/run-da for_pr`.
+- [x] Run `/parallel-audit`.
+- [x] Perform Final Multi-Pass Review and PRD closeout.
+- [x] Create PR with #637 close and #587 boundary notes.
 
 ## Validation Strategy
 Combine static checks, shell tests, deterministic hook fixtures, and activation-level smoke because the risk is global user-level state and Home Manager/nrs behavior.
@@ -58,22 +58,22 @@ Combine static checks, shell tests, deterministic hook fixtures, and activation-
 - [x] 해당 시 error, empty, malformed, permission, rollback 상태 검증
 
 ## Exit Criteria
-- [ ] Phase objective 달성
-- [ ] 위에 열거한 요구사항이 구현되었거나 명시적으로 deferred
-- [ ] Validation checklist 완료 또는 gap이 근거와 함께 기록됨
-- [ ] 다음 phase를 시작하지 못하게 막는 blocker 없음
+- [x] Phase objective 달성
+- [x] 위에 열거한 요구사항이 구현되었거나 명시적으로 deferred
+- [x] Validation checklist 완료 또는 gap이 근거와 함께 기록됨
+- [x] 다음 phase를 시작하지 못하게 막는 blocker 없음
 
 ## Phase-End Multi-Pass Review
-- [ ] 1. Intent/coverage review — 본 phase가 objective와 매핑된 요구사항을 달성했다.
-- [ ] 2. Correctness review — happy path, edge case, error, empty state, state transition, 권한이 처리되었다.
-- [ ] 3. Simplicity review — 솔루션이 필요 이상으로 복잡하지 않다.
-- [ ] 4. Code quality review — 이름/경계/추상화/로컬 일관성이 깔끔하다.
-- [ ] 5. Duplication/cleanup review — 중복 로직, dead code, temporary code, 잡음 log, 주석 처리 잔재, 사용되지 않는 파일/의존성이 제거되었다.
-- [ ] 6. Security/privacy review — 권한, secret, 민감 데이터, injection risk, 클라이언트 노출, 감사 필요성이 안전하다.
-- [ ] 7. Performance/load review — bottleneck, 비싼 query, N+1, 불필요한 재렌더, 불필요한 네트워크 호출이 다루어졌다.
-- [ ] 8. Validation review — 선택한 check가 phase risk에 적절하다. 누락 check는 근거와 함께 기록.
-- [ ] 9. Future-phase review — 뒤 phase 파일/체크리스트가 여전히 옳다. 구현이 계획을 바꿨다면 수정.
-- [ ] 10. PRD sync review — master PRD status, active phase, assumption, risk, validation surface, change log가 갱신되었다.
+- [x] 1. Intent/coverage review — 본 phase가 objective와 매핑된 요구사항을 달성했다.
+- [x] 2. Correctness review — happy path, edge case, error, empty state, state transition, 권한이 처리되었다.
+- [x] 3. Simplicity review — 솔루션이 필요 이상으로 복잡하지 않다.
+- [x] 4. Code quality review — 이름/경계/추상화/로컬 일관성이 깔끔하다.
+- [x] 5. Duplication/cleanup review — 중복 로직, dead code, temporary code, 잡음 log, 주석 처리 잔재, 사용되지 않는 파일/의존성이 제거되었다.
+- [x] 6. Security/privacy review — 권한, secret, 민감 데이터, injection risk, 클라이언트 노출, 감사 필요성이 안전하다.
+- [x] 7. Performance/load review — bottleneck, 비싼 query, N+1, 불필요한 재렌더, 불필요한 네트워크 호출이 다루어졌다.
+- [x] 8. Validation review — 선택한 check가 phase risk에 적절하다. 누락 check는 근거와 함께 기록.
+- [x] 9. Future-phase review — 뒤 phase 파일/체크리스트가 여전히 옳다. 구현이 계획을 바꿨다면 수정.
+- [x] 10. PRD sync review — master PRD status, active phase, assumption, risk, validation surface, change log가 갱신되었다.
 
 ## Discoveries / Decisions
 - D-1: Before `nrs`, `verify-ai-compat.sh` failed on unrelated global skill/helper symlinks pointing at issue_638; the new Hooks artifact section itself passed.
@@ -90,6 +90,9 @@ Combine static checks, shell tests, deterministic hook fixtures, and activation-
 - D-12: `/run-da for_pr` Round 3 returned CLEAR for Correctness, Design, and Maintainability; Arbiter confirmed one Regression issue where verifier over-failed clean symlinked user hooks.
 - D-13: Round 3 fix lets verifier inspect symlink targets with the shared stale filter; clean symlinked hooks pass, stale symlinked entries fail with manual-removal guidance.
 - D-14: `/parallel-audit` found two actionable items: stale matcher substring false positives and master PRD `nrs` repair wording that did not carve out symlinked hook files. Both were accepted for follow-up fix.
+- D-15: Final activation initially found a stale `nrs` lock from issue_632; `nrs-lock status` showed the recorded PID was not running, so the stale lock was released before rerunning `nrs`.
+- D-16: Final `nrs` completed successfully and the post-activation `./scripts/ai/verify-ai-compat.sh` reported complete success.
+- D-17: Final multi-pass review found no remaining blockers; native `PreToolUse` remains intentionally deferred to #587.
 
 ## Phase Change Log
 - 2026-05-02: Phase file created.
@@ -98,3 +101,4 @@ Combine static checks, shell tests, deterministic hook fixtures, and activation-
 - 2026-05-02: DA for_pr Round 2 symlink finding fixed and revalidated through shell tests, hook fixtures, `nrs`, and post-`nrs` verifier.
 - 2026-05-02: DA for_pr Round 3 verifier symlink finding fixed and shell-tested; final validation pending.
 - 2026-05-02: parallel-audit exact matcher and PRD symlink repair wording findings fixed; final validation pending.
+- 2026-05-02: Final activation, verifier, multi-pass review, and PR handoff preparation completed.
