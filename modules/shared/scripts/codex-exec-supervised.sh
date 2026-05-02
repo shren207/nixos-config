@@ -17,9 +17,12 @@
 # stdin 처리 책임: 호출자가 명시적으로 처리 (`cat prompt.md | codex-exec-supervised ... -` 또는
 # `codex-exec-supervised ... < /dev/null`). 본 wrapper는 stdin을 inherit한다.
 #
-# 사용:
-#   cat prompt.md | codex-exec-supervised --full-auto --ephemeral -o result.md -
-#   codex-exec-supervised --ephemeral 'noop' < /dev/null
+# 사용 (Layer 1 supervised contract — programmatic 호출의 canonical pattern):
+#   cat prompt.md | codex-exec-supervised --sandbox read-only --ignore-user-config --ignore-rules --ephemeral \
+#     -c model="gpt-5.5" -c model_reasoning_effort="medium" -o result.md -
+#
+# wrapper 자체 capability probe (사전점검용 — codex exec를 호출하지 않고 의존성만 검증):
+#   codex-exec-supervised --check  # 모든 dependency(setsid/timeout/codex) 가용 시 exit 0, 부재 시 127
 #
 # 환경 변수 (override 가능):
 #   CODEX_EXEC_TIMEOUT_SECONDS    overall timeout, default 600 (10분)
@@ -102,6 +105,15 @@ fi
 if ! command -v codex >/dev/null 2>&1; then
   printf 'codex-exec-supervised: codex 바이너리 부재 — exit 127\n' >&2
   exit 127
+fi
+
+# wrapper-level capability probe (사전점검용 — codex exec를 호출하지 않고 의존성만 검증).
+# 모든 dependency(setsid/timeout/codex) resolution이 위에서 통과했으므로 여기서 exit 0이면 OK 신호다.
+# 사전점검 callsite (parallel-audit/codex-fan-out preflight)는 `codex-exec-supervised --check`로 호출한다.
+if [[ "${1:-}" == "--check" ]]; then
+  printf 'codex-exec-supervised: dependencies OK (timeout=%s setsid=%s codex=%s)\n' \
+    "$TIMEOUT_BIN" "$SETSID_BIN" "$(command -v codex)" >&2
+  exit 0
 fi
 
 # Execute with supervisor.

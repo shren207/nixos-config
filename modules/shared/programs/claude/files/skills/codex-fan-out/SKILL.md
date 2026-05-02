@@ -44,9 +44,10 @@ run-da의 3-way contract와 동일한 구조를 따른다 ([`../run-da/reference
 ```zsh
 command -v codex >/dev/null \
   && command -v codex-exec-supervised >/dev/null \
-  && codex --version >/dev/null 2>&1 \
-  && codex-exec-supervised --version >/dev/null 2>&1
+  && codex-exec-supervised --check >/dev/null 2>&1
 ```
+
+`codex-exec-supervised --check`는 wrapper 자체 capability probe 분기로, setsid/timeout/codex 의존성을 검증하고 OK 시 exit 0, 부재 시 exit 127을 반환한다 (codex exec를 호출하지 않으므로 비용이 작다).
 
 - 성공 → Layer 1 supervised wrapper 실행 (raw `codex exec`는 사용하지 않음)
 - 실패 (`codex` 또는 wrapper 부재, 또는 wrapper rc=127 capability probe 실패) + Claude Code 세션 → Agent tool fallback (`run_in_background: true`)
