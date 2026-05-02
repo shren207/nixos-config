@@ -87,9 +87,12 @@ Combine static checks, shell tests, deterministic hook fixtures, and activation-
 - D-9: `codex-exec-supervised --check` still reports `codex` binary absent in this shell, so DA/audit execution uses native Codex subagents instead of `codex exec` fallback.
 - D-10: `/run-da for_pr` Round 2 returned CLEAR for Design, Regression, and Maintainability; Arbiter confirmed one Correctness issue for symlinked user `hooks.json` clobber risk.
 - D-11: Round 2 fix leaves symlinked user `hooks.json` unchanged, makes verifier fail that state for manual inspection, and revalidated through shell tests, hook fixtures, `nrs`, and post-`nrs` verifier.
+- D-12: `/run-da for_pr` Round 3 returned CLEAR for Correctness, Design, and Maintainability; Arbiter confirmed one Regression issue where verifier over-failed clean symlinked user hooks.
+- D-13: Round 3 fix lets verifier inspect symlink targets with the shared stale filter; clean symlinked hooks pass, stale symlinked entries fail with manual-removal guidance.
 
 ## Phase Change Log
 - 2026-05-02: Phase file created.
 - 2026-05-02: Phase validation completed through `nrs` and post-`nrs` verifier; commit/DA/audit/PR remain.
 - 2026-05-02: DA for_pr Round 1 findings fixed and revalidated through shell tests, hook fixtures, `nrs`, and post-`nrs` verifier.
 - 2026-05-02: DA for_pr Round 2 symlink finding fixed and revalidated through shell tests, hook fixtures, `nrs`, and post-`nrs` verifier.
+- 2026-05-02: DA for_pr Round 3 verifier symlink finding fixed and shell-tested; final validation pending.

@@ -937,16 +937,18 @@ else
 fi
 
 if [ -f "$_user_hooks_json" ]; then
-  if [ -L "$_user_hooks_json" ]; then
-    fail "$_user_hooks_json is a symlink — user-level hook file requires manual stale-entry inspection to avoid clobbering dotfile-managed state"
-  elif ! command -v jq >/dev/null 2>&1; then
+  if ! command -v jq >/dev/null 2>&1; then
     fail "jq 없음 — $_user_hooks_json stale entry 검사 불가"
   else
     _user_stale_hook_count=""
     if ! _user_stale_hook_count="$(jq -r "$(codex_legacy_user_hook_count_jq_filter)" "$_user_hooks_json")"; then
       fail "$_user_hooks_json JSON 파싱 실패 — user-level hook 파일을 수동 점검하세요"
     elif [ "$_user_stale_hook_count" -gt 0 ] 2>/dev/null; then
-      fail "stale user-level Codex hook entries present ($_user_hooks_json count=$_user_stale_hook_count) — run nrs to prune known Claude-era entries"
+      if [ -L "$_user_hooks_json" ]; then
+        fail "stale user-level Codex hook entries present ($_user_hooks_json count=$_user_stale_hook_count) — symlinked hook files are preserved by nrs; remove known Claude-era entries manually"
+      else
+        fail "stale user-level Codex hook entries present ($_user_hooks_json count=$_user_stale_hook_count) — run nrs to prune known Claude-era entries"
+      fi
     else
       pass "user-level Codex hooks.json stale legacy entry 없음"
     fi

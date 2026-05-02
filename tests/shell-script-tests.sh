@@ -121,6 +121,28 @@ EOF
   printf '{}\n' > "$home_dir/.codex/hooks.compatibility.json"
 }
 
+write_clean_symlinked_user_codex_hooks() {
+  local home_dir="$1"
+  mkdir -p "$home_dir/.codex" "$home_dir/dotfiles/codex"
+  cat > "$home_dir/dotfiles/codex/hooks.json" <<'EOF'
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/tmp/custom-user-hook.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+EOF
+  ln -s "$home_dir/dotfiles/codex/hooks.json" "$home_dir/.codex/hooks.json"
+}
+
 assert_user_codex_hooks_pruned() {
   local home_dir="$1"
   local hooks_json="$home_dir/.codex/hooks.json"
@@ -147,6 +169,28 @@ assert_symlinked_user_codex_hooks_preserved() {
   [[ -L "$hooks_json" ]] || fail "expected user-level hooks.json symlink to remain intact"
   [[ "$(readlink "$hooks_json")" == "$home_dir/dotfiles/codex/hooks.json" ]] || fail "expected user-level hooks.json symlink target to remain unchanged"
   assert_contains "$(cat "$home_dir/dotfiles/codex/hooks.json")" "session-init-icons.sh"
+}
+
+test_user_hooks_stale_filter_supports_clean_symlink_target() {
+  local sandbox home_dir count
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  write_clean_symlinked_user_codex_hooks "$home_dir"
+
+  source "$REPO_ROOT/modules/shared/scripts/lib/rebuild/codex-legacy-hooks.sh"
+  count="$(jq -r "$(codex_legacy_user_hook_count_jq_filter)" "$home_dir/.codex/hooks.json")"
+  [[ "$count" == "0" ]] || fail "expected clean symlinked user hooks.json stale count 0, got: $count"
+}
+
+test_user_hooks_stale_filter_detects_symlink_target_stale_entries() {
+  local sandbox home_dir count
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  write_symlinked_user_codex_hooks "$home_dir"
+
+  source "$REPO_ROOT/modules/shared/scripts/lib/rebuild/codex-legacy-hooks.sh"
+  count="$(jq -r "$(codex_legacy_user_hook_count_jq_filter)" "$home_dir/.codex/hooks.json")"
+  [[ "$count" == "1" ]] || fail "expected symlinked user hooks.json stale count 1, got: $count"
 }
 
 new_sandbox() {
@@ -1558,6 +1602,8 @@ run_test "wt cleanup auto skips merged branch reuse" test_wt_cleanup_auto_skips_
 run_test "missing managed helpers fail closed" test_missing_managed_helpers_fail_closed
 run_test "fixture git setup ignores host global hooks" test_fixture_git_is_hermetic_against_global_hooks
 run_test "nixos nrs offline force smoke" test_nixos_nrs_offline_force_smoke
+run_test "stale filter supports clean symlinked user hooks" test_user_hooks_stale_filter_supports_clean_symlink_target
+run_test "stale filter detects symlinked stale user hooks" test_user_hooks_stale_filter_detects_symlink_target_stale_entries
 run_test "retired hook cleanup preserves malformed user hooks" test_clear_retired_codex_hook_artifacts_preserves_malformed_user_hooks
 run_test "retired hook cleanup preserves symlinked user hooks" test_clear_retired_codex_hook_artifacts_preserves_symlinked_user_hooks
 run_test "darwin nrs offline force smoke" test_darwin_nrs_offline_force_smoke

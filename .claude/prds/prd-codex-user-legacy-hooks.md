@@ -132,3 +132,4 @@ Use `plan-with-questions/references/prd/multi-pass-review.md` as the canonical c
 - 2026-05-02: Phase 4 validation started; `nrs` and post-`nrs` `verify-ai-compat.sh` passed on this machine.
 - 2026-05-02: DA for_pr Round 1 confirmed mixed-version shim and duplicated jq matcher issues; fixed with shared `codex-legacy-hooks.sh`, old-helper fixture coverage, `nrs`, and post-`nrs` verifier pass.
 - 2026-05-02: DA for_pr Round 2 confirmed symlinked user `hooks.json` clobber risk; fixed by leaving symlinks unchanged, making verifier fail for manual inspection, and adding symlink preservation coverage.
+- 2026-05-02: DA for_pr Round 3 confirmed verifier over-failed valid symlinked `hooks.json`; fixed verifier to inspect symlink targets and fail only malformed/stale cases.
