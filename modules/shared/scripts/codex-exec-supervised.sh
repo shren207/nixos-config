@@ -8,9 +8,11 @@
 # 단순 `timeout` 호출만으로는 wrapper PID만 죽고 native binary가 잔존할 수 있다.
 #
 # 본 wrapper는 setsid + timeout 조합으로 process group kill을 보장한다. mac BSD coreutils에는
-# timeout이 없고 setsid도 없으므로, Nix wrapper가 빌드 시 두 binary의 absolute store path를
-# placeholder로 substitute한다 (replaceVars). 이로써 wrapper subprocess의 PATH가 GNU coreutils로
-# 오염되지 않고, codex exec 자식 shell도 원래 user PATH(BSD coreutils 우선)를 보존한다.
+# timeout이 없고 setsid도 없으므로, Nix wrapper(modules/shared/programs/shell/default.nix의
+# home.file + pkgs.writeShellScript)가 두 binary의 absolute store path를 CODEX_EXEC_TIMEOUT_BIN과
+# CODEX_EXEC_SETSID_BIN env 변수에 export한 뒤 본 raw script를 exec한다. 이로써 wrapper subprocess의
+# PATH가 GNU coreutils로 오염되지 않고, codex exec 자식 shell도 원래 user PATH(BSD coreutils 우선)를
+# 보존한다.
 #
 # stdin 처리 책임: 호출자가 명시적으로 처리 (`cat prompt.md | codex-exec-supervised ... -` 또는
 # `codex-exec-supervised ... < /dev/null`). 본 wrapper는 stdin을 inherit한다.
@@ -35,9 +37,9 @@
 #                                 Nix wrapper가 ${pkgs.coreutils}/bin/timeout으로 set한다.
 #   CODEX_EXEC_SETSID_BIN         setsid binary absolute path. 미설정 시 PATH 검색 후 부재면 BLOCKED.
 #                                 부재 fail-closed (process group kill 보장이 본 wrapper의 핵심 경계).
+#                                 진단용 timeout-only 실행이 필요하면 본 wrapper를 우회해 timeout/codex를
+#                                 직접 호출한다 (보장 약화는 wrapper 인터페이스 안에 흡수하지 않는다).
 #                                 Nix wrapper가 ${pkgs.util-linux}/bin/setsid로 set한다.
-#                                 진단용 timeout-only 실행이 필요하면 CODEX_EXEC_ALLOW_TIMEOUT_ONLY=1
-#                                 명시 opt-in으로 분리 (보안 경계 약화에 대한 의도 표명).
 #
 # Exit code:
 #   0          정상
@@ -85,22 +87,15 @@ if [[ ! -x "$TIMEOUT_BIN" ]]; then
 fi
 
 # setsid binary resolution: env var(absolute path) 우선, fallback PATH 검색.
-# 부재 시 fail-closed (보안 경계: process group kill 보장 필수).
-# 진단용 timeout-only 실행은 CODEX_EXEC_ALLOW_TIMEOUT_ONLY=1 명시 opt-in.
+# 부재 시 fail-closed (보안 경계: process group kill 보장이 본 wrapper의 핵심).
+# 진단 목적의 timeout-only 실행은 본 wrapper를 우회해 직접 timeout/codex를 호출한다.
 SETSID_BIN="${CODEX_EXEC_SETSID_BIN:-}"
-if [[ -z "$SETSID_BIN" ]]; then
-  if command -v setsid >/dev/null 2>&1; then
-    SETSID_BIN="$(command -v setsid)"
-  fi
+if [[ -z "$SETSID_BIN" ]] && command -v setsid >/dev/null 2>&1; then
+  SETSID_BIN="$(command -v setsid)"
 fi
 if [[ -z "$SETSID_BIN" ]] || [[ ! -x "$SETSID_BIN" ]]; then
-  if [[ "${CODEX_EXEC_ALLOW_TIMEOUT_ONLY:-0}" == "1" ]]; then
-    printf 'codex-exec-supervised: setsid 부재 — CODEX_EXEC_ALLOW_TIMEOUT_ONLY=1 opt-in으로 timeout-only 진행 (process group kill 불가, 진단 모드)\n' >&2
-    SETSID_BIN=""
-  else
-    printf 'codex-exec-supervised: setsid 부재 (CODEX_EXEC_SETSID_BIN 미설정) — BLOCKED, exit 127. 진단용 timeout-only는 CODEX_EXEC_ALLOW_TIMEOUT_ONLY=1로 명시\n' >&2
-    exit 127
-  fi
+  printf 'codex-exec-supervised: setsid 부재 (CODEX_EXEC_SETSID_BIN 미설정) — BLOCKED, exit 127\n' >&2
+  exit 127
 fi
 
 # codex 가용성 점검
@@ -113,15 +108,10 @@ fi
 # stdin은 caller가 처리한다 (pipe 또는 redirect). 본 wrapper는 inherit.
 # 핵심: PATH는 변경하지 않는다. timeout/setsid는 absolute path로 직접 호출하여 codex exec child shell
 # 의 user PATH(BSD coreutils 우선)를 보존한다.
-if [[ -n "$SETSID_BIN" ]]; then
-  exec "$SETSID_BIN" "$TIMEOUT_BIN" \
-    --kill-after="$CODEX_EXEC_KILL_AFTER_SECONDS" \
-    "$CODEX_EXEC_TIMEOUT_SECONDS" \
-    codex exec "$@"
-else
-  # CODEX_EXEC_ALLOW_TIMEOUT_ONLY=1 진단 모드: process group kill 보장 없음.
-  exec "$TIMEOUT_BIN" \
-    --kill-after="$CODEX_EXEC_KILL_AFTER_SECONDS" \
-    "$CODEX_EXEC_TIMEOUT_SECONDS" \
-    codex exec "$@"
-fi
+# `setsid --wait`: setsid가 fork 경로(호출 프로세스가 process group leader인 경우)를 타면 자식 종료를
+# 기다려 자식의 exit status를 반환한다. 옵션이 없으면 timeout이 발생시킨 124/137이 wrapper 종료
+# status로 전달되지 않을 수 있다 (util-linux setsid(1) -w 참조).
+exec "$SETSID_BIN" --wait "$TIMEOUT_BIN" \
+  --kill-after="$CODEX_EXEC_KILL_AFTER_SECONDS" \
+  "$CODEX_EXEC_TIMEOUT_SECONDS" \
+  codex exec "$@"

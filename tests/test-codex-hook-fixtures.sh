@@ -1048,7 +1048,8 @@ test_codex_exec_invocation_live_matrix() {
     return 0
   fi
 
-  # codex-exec-supervised는 nrs activation 후 PATH에 노출된다 (writeShellApplication).
+  # codex-exec-supervised는 nrs activation 후 ~/.local/bin/에 노출된다
+  # (modules/shared/programs/shell/default.nix의 home.file + pkgs.writeShellScript wrapper).
   # 미설치 환경(test 직접 실행 등)에서는 repo absolute path fallback.
   local supervised
   if command -v codex-exec-supervised >/dev/null 2>&1; then

@@ -482,9 +482,11 @@ cat "$DIR/prompt.md" | env CODEX_PROGRAMMATIC=1 codex-exec-supervised \
 ```
 
 **capability probe 동작** ([`modules/shared/scripts/codex-exec-supervised.sh`](../../../../../../scripts/codex-exec-supervised.sh)):
-- `setsid` 부재 → `timeout`만 사용 (process group kill 불가, wrapper-only 종료에 의존). WARN 후 진행.
-- `timeout`/`gtimeout` 부재 → BLOCKED, exit 127. Mac BSD에는 둘 다 없음 → nix-darwin이 `pkgs.writeShellApplication`으로 wrapper를 build하면서 `runtimeInputs = [coreutils util-linux]`로 wrapper 내부 PATH에만 의존성을 노출한다 (사용자 PATH에 GNU coreutils가 prepend되는 부작용 회피, [`modules/shared/programs/shell/darwin.nix`](../../../../../shell/darwin.nix)).
+- `setsid` 부재 → BLOCKED, exit 127 (process group kill 보장이 wrapper 핵심 경계이므로 fail-closed). 진단 목적 timeout-only는 wrapper를 우회해 `timeout` + `codex`를 직접 호출한다.
+- `timeout`/`gtimeout` 부재 → BLOCKED, exit 127. Mac BSD에는 둘 다 없으므로 Nix wrapper가 binary 가용성을 보장한다.
 - `codex` 부재 → exit 127.
+
+**Nix wiring** ([`modules/shared/programs/shell/default.nix`](../../../../../shell/default.nix)): home.file로 `~/.local/bin/codex-exec-supervised`를 `pkgs.writeShellScript` wrapper에 link한다. wrapper가 `CODEX_EXEC_TIMEOUT_BIN`/`CODEX_EXEC_SETSID_BIN`에 `pkgs.coreutils`/`pkgs.util-linux`의 absolute store path를 export한 뒤 raw script(`modules/shared/scripts/codex-exec-supervised.sh`)를 exec한다. wrapper는 PATH를 변경하지 않으므로 사용자 PATH의 BSD coreutils가 보존된다 (mac `stat -f %m` 같은 BSD 호출 의미 보존).
 
 **오케스트레이션 vs 자문 (Layer 2 — `-C scratch` 추가)**: consult 전용 호출(예: [`plan-with-questions/references/consulting-step.md`](../../plan-with-questions/references/consulting-step.md))은 Layer 1 위에 `-C <non-repo-scratch-dir>` + `--skip-git-repo-check`를 추가한다. reviewer/auditor (run-da/parallel-audit/codex-fan-out)는 repo cwd가 필요하므로 Layer 2를 적용하지 않는다.
 

@@ -326,7 +326,7 @@ BUG/REGRESSION/EDGECASE가 있으면 요약 테이블 아래에 상세를 추가
    - **cross-workspace mutation 미감지**: branch/remote/GitHub/host/main-agent-only command mutation은 `git status`로 감지 불가이므로 self-report 누락 또는 의심 시 fail-closed `BLOCKED` 처리한다.
    - **baseline 파일 무결성**: `BASELINE_FILE`은 `/tmp` (workspace-write 모드에서 auditor 접근 가능)에 저장되므로 tampering/삭제 가능성이 있다. Step 4는 누락/빈 파일/사전 기록 내용 불일치를 `STATEFUL VIOLATION (baseline tampered or missing)`으로 fail-closed 처리한다.
 
-2. **auditor 기본 실행 경로의 read-only sandbox 적용 (issue #593 Layer 1)**: Claude Code 세션과 headless 세션의 기본 경로는 `codex-exec-supervised --sandbox read-only --ignore-user-config --ephemeral`이다. supervised wrapper(setsid + timeout, [`using-codex-exec/references/known-issues.md`](../using-codex-exec/references/known-issues.md) §15)가 process-group kill을 보장하고, read-only sandbox + `--ignore-user-config`가 audit 의도(read-only)를 구조적으로 강제한다. PoC가 필요한 경로는 `mktemp -d` 기반 out-of-repo scratch (sandbox 외부 write 영역).
+2. **auditor 기본 실행 경로의 read-only sandbox 적용 (issue #593 Layer 1)**: Claude Code 세션과 headless 세션의 기본 경로는 `codex-exec-supervised --sandbox read-only --ignore-user-config --ephemeral`이다. supervised wrapper(setsid + timeout, [`using-codex-exec/references/known-issues.md`](../using-codex-exec/references/known-issues.md) §15)가 process-group kill을 보장하고, read-only sandbox + `--ignore-user-config`가 audit 의도(read-only)를 구조적으로 강제한다. **auditor는 scratch PoC를 수행하지 않는다** ([`run-da/references/hardening-contract.md`](../run-da/references/hardening-contract.md) "역할별 경계" — Auditor는 모든 write/scratch PoC 금지). 파일·문서 증거 기반 검증만 가능하며, scratch PoC 권한은 `run-da` DA reviewer 역할에만 적용된다.
 
 ## 주의사항
 
