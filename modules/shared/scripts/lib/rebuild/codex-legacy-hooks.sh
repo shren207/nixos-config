@@ -49,6 +49,10 @@ EOF
 codex_prune_legacy_user_hooks_json() {
     local hooks_json="$1"
     [[ -f "$hooks_json" ]] || return 0
+    if [[ -L "$hooks_json" ]]; then
+        log_warn "⚠️  $hooks_json is a symlink; leaving user-owned hook file unchanged. Remove stale Codex legacy entries manually."
+        return 0
+    fi
 
     if ! command -v jq >/dev/null 2>&1; then
         log_error "jq is required to safely inspect $hooks_json"

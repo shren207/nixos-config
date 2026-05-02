@@ -98,6 +98,29 @@ write_malformed_user_codex_hooks() {
   printf '{}\n' > "$home_dir/.codex/hooks.compatibility.json"
 }
 
+write_symlinked_user_codex_hooks() {
+  local home_dir="$1"
+  mkdir -p "$home_dir/.codex" "$home_dir/dotfiles/codex"
+  cat > "$home_dir/dotfiles/codex/hooks.json" <<'EOF'
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.codex/hooks/session-init-icons.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+EOF
+  ln -s "$home_dir/dotfiles/codex/hooks.json" "$home_dir/.codex/hooks.json"
+  printf '{}\n' > "$home_dir/.codex/hooks.compatibility.json"
+}
+
 assert_user_codex_hooks_pruned() {
   local home_dir="$1"
   local hooks_json="$home_dir/.codex/hooks.json"
@@ -115,6 +138,15 @@ assert_malformed_user_codex_hooks_preserved() {
   [[ ! -e "$home_dir/.codex/hooks.compatibility.json" ]] || fail "expected user-level hooks.compatibility.json to be removed"
   [[ -f "$hooks_json" ]] || fail "expected malformed user-level hooks.json to remain for manual repair"
   [[ "$(cat "$hooks_json")" == "{ not valid json" ]] || fail "expected malformed user-level hooks.json content to remain unchanged"
+}
+
+assert_symlinked_user_codex_hooks_preserved() {
+  local home_dir="$1"
+  local hooks_json="$home_dir/.codex/hooks.json"
+  [[ ! -e "$home_dir/.codex/hooks.compatibility.json" ]] || fail "expected user-level hooks.compatibility.json to be removed"
+  [[ -L "$hooks_json" ]] || fail "expected user-level hooks.json symlink to remain intact"
+  [[ "$(readlink "$hooks_json")" == "$home_dir/dotfiles/codex/hooks.json" ]] || fail "expected user-level hooks.json symlink target to remain unchanged"
+  assert_contains "$(cat "$home_dir/dotfiles/codex/hooks.json")" "session-init-icons.sh"
 }
 
 new_sandbox() {
@@ -1268,6 +1300,40 @@ test_clear_retired_codex_hook_artifacts_preserves_malformed_user_hooks() {
   assert_malformed_user_codex_hooks_preserved "$home_dir"
 }
 
+test_clear_retired_codex_hook_artifacts_preserves_symlinked_user_hooks() {
+  local sandbox home_dir repo_root output
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  repo_root="$sandbox/repo"
+
+  create_git_fixture_repo "$repo_root"
+  repo_root="$(cd "$repo_root" && pwd -P)"
+  install_deployed_layout "$sandbox" "$repo_root"
+
+  mkdir -p "$repo_root/.codex"
+  printf '{}\n' > "$repo_root/.codex/hooks.json"
+  printf '{}\n' > "$repo_root/.codex/hooks.compatibility.json"
+  write_symlinked_user_codex_hooks "$home_dir"
+
+  output=$(
+    HOME="$home_dir" \
+    bash -c '
+      set -euo pipefail
+      cd "'"$repo_root"'"
+      REBUILD_CMD="nixos-rebuild"
+      source "'"$home_dir/.local/lib/rebuild-common.sh"'"
+      _clear_retired_codex_hook_artifacts
+    ' 2>&1
+  )
+
+  assert_contains "$output" "Removed retired Codex hook artifacts."
+  assert_contains "$output" "Removed retired user-level Codex hooks.compatibility.json"
+  assert_contains "$output" "$home_dir/.codex/hooks.json is a symlink; leaving user-owned hook file unchanged"
+  [[ ! -e "$repo_root/.codex/hooks.json" ]] || fail "expected repo-local hooks.json to be removed"
+  [[ ! -e "$repo_root/.codex/hooks.compatibility.json" ]] || fail "expected repo-local hooks.compatibility.json to be removed"
+  assert_symlinked_user_codex_hooks_preserved "$home_dir"
+}
+
 test_darwin_nrs_offline_force_smoke() {
   local sandbox home_dir repo_root stub_dir output result_target current_target
   sandbox=$(new_sandbox)
@@ -1493,6 +1559,7 @@ run_test "missing managed helpers fail closed" test_missing_managed_helpers_fail
 run_test "fixture git setup ignores host global hooks" test_fixture_git_is_hermetic_against_global_hooks
 run_test "nixos nrs offline force smoke" test_nixos_nrs_offline_force_smoke
 run_test "retired hook cleanup preserves malformed user hooks" test_clear_retired_codex_hook_artifacts_preserves_malformed_user_hooks
+run_test "retired hook cleanup preserves symlinked user hooks" test_clear_retired_codex_hook_artifacts_preserves_symlinked_user_hooks
 run_test "darwin nrs offline force smoke" test_darwin_nrs_offline_force_smoke
 run_test "darwin nrs no-change releases worktree lock" test_darwin_nrs_no_changes_releases_worktree_lock
 

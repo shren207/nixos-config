@@ -85,8 +85,11 @@ Combine static checks, shell tests, deterministic hook fixtures, and activation-
 - D-7: Round 1 fixes centralized stale hook jq filters and cleanup in `modules/shared/scripts/lib/rebuild/codex-legacy-hooks.sh`, made Darwin/NixOS shims source the shared helper and override old cleanup, and added old-helper fixture coverage.
 - D-8: After staging the new helper, `nrs` deployed `/Users/green/.local/lib/rebuild/codex-legacy-hooks.sh`; post-`nrs` `verify-ai-compat.sh` passed.
 - D-9: `codex-exec-supervised --check` still reports `codex` binary absent in this shell, so DA/audit execution uses native Codex subagents instead of `codex exec` fallback.
+- D-10: `/run-da for_pr` Round 2 returned CLEAR for Design, Regression, and Maintainability; Arbiter confirmed one Correctness issue for symlinked user `hooks.json` clobber risk.
+- D-11: Round 2 fix leaves symlinked user `hooks.json` unchanged, makes verifier fail that state for manual inspection, and revalidated through shell tests, hook fixtures, `nrs`, and post-`nrs` verifier.
 
 ## Phase Change Log
 - 2026-05-02: Phase file created.
 - 2026-05-02: Phase validation completed through `nrs` and post-`nrs` verifier; commit/DA/audit/PR remain.
 - 2026-05-02: DA for_pr Round 1 findings fixed and revalidated through shell tests, hook fixtures, `nrs`, and post-`nrs` verifier.
+- 2026-05-02: DA for_pr Round 2 symlink finding fixed and revalidated through shell tests, hook fixtures, `nrs`, and post-`nrs` verifier.

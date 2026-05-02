@@ -78,8 +78,10 @@ Use deterministic shell fixtures with sandboxed HOME. The verifier must be teste
 - D-2: Shell tests cover mixed user-level hook preservation in NixOS force, Darwin force, and Darwin no-change paths, including old deployed repo-local-only cleanup helper coverage for NixOS force and Darwin no-change.
 - D-3: A malformed user-level `hooks.json` is not rewritten by cleanup and is left for verifier/manual repair.
 - D-4: `tests/test-codex-hook-fixtures.sh --no-live` remains unchanged because #637 does not add managed native `PreToolUse` fixtures.
+- D-5: Shell tests cover symlinked user-level `hooks.json` preservation so cleanup cannot clobber dotfile-managed hook state.
 
 ## Phase Change Log
 - 2026-05-02: Phase file created.
 - 2026-05-02: Phase completed with verifier stale guards and sandboxed cleanup regression tests.
 - 2026-05-02: DA for_pr Round 1 added mixed-version old-helper regression coverage.
+- 2026-05-02: DA for_pr Round 2 added symlink preservation regression coverage.

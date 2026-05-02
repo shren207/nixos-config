@@ -937,7 +937,9 @@ else
 fi
 
 if [ -f "$_user_hooks_json" ]; then
-  if ! command -v jq >/dev/null 2>&1; then
+  if [ -L "$_user_hooks_json" ]; then
+    fail "$_user_hooks_json is a symlink — user-level hook file requires manual stale-entry inspection to avoid clobbering dotfile-managed state"
+  elif ! command -v jq >/dev/null 2>&1; then
     fail "jq 없음 — $_user_hooks_json stale entry 검사 불가"
   else
     _user_stale_hook_count=""
