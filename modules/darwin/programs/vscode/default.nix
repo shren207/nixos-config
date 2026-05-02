@@ -6,8 +6,8 @@
 #
 # 1) 설정 관리: profiles.default.userSettings(Nix store 읽기전용)는 mkOutOfStoreSymlink과
 #    충돌하므로 사용하지 않음. settings/keybindings만 mkOutOfStoreSymlink으로 양방향 편집 보장.
-# 2) 확장 소스: open-vsx 우선, 미등록 4개만 vscode-marketplace. Cursor는 전부
-#    vscode-marketplace였으나 VSCode는 open-vsx 호환이므로 오픈소스 소스 선호.
+# 2) 확장 소스: open-vsx 우선, open-vsx 미등록 확장만 vscode-marketplace.
+#    Cursor는 전부 vscode-marketplace였으나 VSCode는 open-vsx 호환이므로 오픈소스 소스 선호.
 # 3) 스니펫: Cursor의 별도 JSON 4개를 languageSnippets로 통합 (DRY).
 # 4) 설치 방식: Nix 단독 (Homebrew Cask 미사용). Cursor는 Cask+Nix 병행 시
 #    Spotlight 중복 문제가 있었음 (homebrew.nix 주석 참조).
@@ -23,8 +23,10 @@
 #    의존), Markdown viewer 미감.
 # 7) Claude Code 통합: 공식 `anthropic.claude-code` VSCode 확장 사용. Marketplace itemName과
 #    Nix attr 모두 lowercase. 통합 단축키:
-#    - Cmd+Esc: editor↔Claude panel focus toggle.
-#    - Option+K: 에디터 선택 영역을 `@file#Lx-Ly` @mention으로 Claude 프롬프트에 삽입.
+#    - Cmd+Esc: editor↔Claude panel focus toggle (vendor default).
+#    - @mention 삽입 (`claude-code.insertAtMentioned`): vendor default는 `Option+K`(=Alt+Cmd+K).
+#      본 repo는 keybindings.json에서 `Ctrl+Alt+Cmd+K`로 override + vendor default 비활성화.
+#      Cursor/JetBrains 키맵과의 충돌 회피 및 한 손 수행 chord 선호. 사용자 customization 보존.
 #    - 외부 터미널 `claude --ide` (또는 in-CLI `/ide`): 실행 중 VSCode 자동 인식하여
 #      파일/라인 참조 가능 (Zed의 ACP 패널 미지원이던 path).
 # 8) duti activation: 동적 UTI(.mdx/.nix/.toml 등)는 macOS LaunchServices에 정적 UTI가 없어

@@ -78,7 +78,7 @@ mdls -name kMDItemCFBundleIdentifier ~/Applications/Home\ Manager\ Apps/Visual\ 
 ```
 Activating setVSCodeAsDefaultEditor
 Setting VSCode as default editor for code files...
-VSCode default settings applied successfully.
+VSCode default settings applied.
 Activating setupLaunchAgents
 ← 여기서 멈춤
 ```
