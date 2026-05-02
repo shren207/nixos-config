@@ -42,11 +42,14 @@ run-da의 3-way contract와 동일한 구조를 따른다 ([`../run-da/reference
 ### 사전점검
 
 ```zsh
-command -v codex >/dev/null && codex --version >/dev/null 2>&1
+command -v codex >/dev/null \
+  && command -v codex-exec-supervised >/dev/null \
+  && codex --version >/dev/null 2>&1 \
+  && codex-exec-supervised --version >/dev/null 2>&1
 ```
 
-- 성공 → codex exec 실행
-- 실패 + Claude Code 세션 → Agent tool fallback (`run_in_background: true`)
+- 성공 → Layer 1 supervised wrapper 실행 (raw `codex exec`는 사용하지 않음)
+- 실패 (`codex` 또는 wrapper 부재, 또는 wrapper rc=127 capability probe 실패) + Claude Code 세션 → Agent tool fallback (`run_in_background: true`)
 - 실패 + headless 세션 → 에러 보고 후 중단
 
 ## 실행 패턴

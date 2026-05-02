@@ -20,7 +20,7 @@ description: |
 | open thread cap | current session의 `agents.max_threads` (unset 기본 6) |
 | `$ARGUMENTS` | 에이전트 수 (정수). 비어있으면 기본값 6 사용 (Claude Code 하네스의 인자 치환 메타문법. Codex에서는 호출 래퍼 또는 메인 에이전트가 사용자 입력에서 정수를 파싱한다.) |
 | exhaustive override | `parallel-audit 10` |
-| 에이전트 권한 | 읽기 전용. codex exec 경로(Claude Code/headless)는 Layer 1(`codex-exec-supervised --sandbox read-only --ignore-user-config`)으로 구조적 강제. Codex 세션(`spawn_agent`)은 정책 + 프롬프트 + self-report로 운영 (Non-goals 참조) |
+| 에이전트 권한 | 읽기 전용. codex exec 경로(Claude Code/headless)는 Layer 1(`codex-exec-supervised --sandbox read-only --ignore-user-config --ignore-rules`)으로 구조적 강제. Codex 세션(`spawn_agent`)은 정책 + 프롬프트 + self-report로 운영 (Non-goals 참조) |
 
 ## 용어 정책
 
@@ -41,7 +41,7 @@ description: |
 | 경로 | 조건 |
 |------|------|
 | **Codex 세션** | Codex CLI가 호스트 — native subagent fan-out (delegation 허용 시). delegation-denied fallback은 run-da의 "Delegation fallback" 참조 |
-| **Claude Code 세션** | Claude Code가 호스트 — codex exec 기본 (사전점검 `command -v codex >/dev/null && codex --version >/dev/null 2>&1`). codex 미가용 시 Claude Code fallback (아래 Step 3c) |
+| **Claude Code 세션** | Claude Code가 호스트 — codex exec 기본 (사전점검: `command -v codex` + `command -v codex-exec-supervised` + `codex --version` + `codex-exec-supervised --version` 모두 성공해야 한다. wrapper rc=127은 capability probe 실패로 fallback). codex 또는 wrapper 미가용/capability probe 실패 시 Claude Code fallback (아래 Step 3c) |
 | **headless 세션** | CI, `claude -p`, `codex exec` subprocess |
 
 `CODEX_CI=1`만으로 세션 유형을 구분하지 않는다.
@@ -326,11 +326,11 @@ BUG/REGRESSION/EDGECASE가 있으면 요약 테이블 아래에 상세를 추가
    - **cross-workspace mutation 미감지**: branch/remote/GitHub/host/main-agent-only command mutation은 `git status`로 감지 불가이므로 self-report 누락 또는 의심 시 fail-closed `BLOCKED` 처리한다.
    - **baseline 파일 무결성**: `BASELINE_FILE`은 `/tmp` (workspace-write 모드에서 auditor 접근 가능)에 저장되므로 tampering/삭제 가능성이 있다. Step 4는 누락/빈 파일/사전 기록 내용 불일치를 `STATEFUL VIOLATION (baseline tampered or missing)`으로 fail-closed 처리한다.
 
-2. **auditor 기본 실행 경로의 read-only sandbox 적용 (issue #593 Layer 1)**: Claude Code 세션과 headless 세션의 기본 경로는 `codex-exec-supervised --sandbox read-only --ignore-user-config --ephemeral`이다. supervised wrapper(setsid + timeout, [`using-codex-exec/references/known-issues.md`](../using-codex-exec/references/known-issues.md) §15)가 process-group kill을 보장하고, read-only sandbox + `--ignore-user-config`가 audit 의도(read-only)를 구조적으로 강제한다. **auditor는 scratch PoC를 수행하지 않는다** ([`run-da/references/hardening-contract.md`](../run-da/references/hardening-contract.md) "역할별 경계" — Auditor는 모든 write/scratch PoC 금지). 파일·문서 증거 기반 검증만 가능하며, scratch PoC 권한은 `run-da` DA reviewer 역할에만 적용된다.
+2. **auditor 기본 실행 경로의 read-only sandbox 적용 (issue #593 Layer 1)**: Claude Code 세션과 headless 세션의 기본 경로는 `codex-exec-supervised --sandbox read-only --ignore-user-config --ignore-rules --ephemeral`이다. supervised wrapper(setsid + timeout, [`using-codex-exec/references/known-issues.md`](../using-codex-exec/references/known-issues.md) §15)가 process-group kill을 보장하고, read-only sandbox + `--ignore-user-config` + `--ignore-rules`가 audit 의도(read-only + execpolicy mutation 차단)를 구조적으로 강제한다. **auditor는 scratch PoC를 수행하지 않는다** ([`run-da/references/hardening-contract.md`](../run-da/references/hardening-contract.md) "역할별 경계" — Auditor는 모든 write/scratch PoC 금지). 파일·문서 증거 기반 검증만 가능하며, scratch PoC 권한은 `run-da` DA reviewer 역할에만 적용된다.
 
 ## 주의사항
 
-- 에이전트는 읽기 전용이다. 코드/tracked workspace 수정을 금지한다. codex exec 경로(Claude Code/headless)는 Layer 1(supervised wrapper + `--sandbox read-only` + `--ignore-user-config`)으로 구조적 강제, Codex 세션(`spawn_agent`)은 정책 + 프롬프트 + self-report로 운영한다 (한계는 Non-goals 참조).
+- 에이전트는 읽기 전용이다. 코드/tracked workspace 수정을 금지한다. codex exec 경로(Claude Code/headless)는 Layer 1(supervised wrapper + `--sandbox read-only` + `--ignore-user-config` + `--ignore-rules`)으로 구조적 강제, Codex 세션(`spawn_agent`)은 정책 + 프롬프트 + self-report로 운영한다 (한계는 Non-goals 참조).
 - 조사 결과를 사용자에게 먼저 제시하고, 수정은 사용자 승인 후 진행한다.
 - 변경 범위가 극소한 경우 에이전트 수를 줄여 효율을 높인다.
 - 기본값은 6이며, `parallel-audit 10`만 exhaustive override다. 10은 기본값이 아니다.
