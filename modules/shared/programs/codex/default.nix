@@ -31,9 +31,6 @@ let
     (import ../../../../libraries/python-runtimes.nix { inherit pkgs; }).pythonWithTomlkit;
   # Claude 파일 경로 (공유 소스)
   claudeFilesPath = "${nixosConfigPath}/modules/shared/programs/claude/files";
-  # Homebrew uses /opt/homebrew on Apple Silicon and /usr/local on Intel macOS.
-  homebrewCodexPrefix =
-    if pkgs.stdenv.hostPlatform.system == "x86_64-darwin" then "/usr/local" else "/opt/homebrew";
 
   # ─── Shared skill 노출 정책 (direct Codex 글로벌, #486) ───
   # SoT: 아래 두 리스트. 독립 감사는 scripts/ai/verify-ai-compat.sh가 수행한다.
@@ -101,7 +98,7 @@ in
     # unrelated command resolution such as notification hook `timeout` behavior.
     ".local/bin/codex" = lib.mkIf (pkgs.stdenv.isDarwin && hostType == "personal") {
       source = pkgs.writeShellScript "codex-homebrew-wrapper" ''
-        exec ${homebrewCodexPrefix}/bin/codex "$@"
+        exec /opt/homebrew/bin/codex "$@"
       '';
       executable = true;
     };
