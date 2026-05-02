@@ -397,6 +397,26 @@ _clear_retired_codex_hook_artifacts() {
 EOF
 }
 
+install_partial_deployed_codex_legacy_hooks_helper() {
+  local home_dir="$1"
+  local helper="$home_dir/.local/lib/rebuild/codex-legacy-hooks.sh"
+  mkdir -p "$(dirname "$helper")"
+  rm -f "$helper"
+  cat > "$helper" <<'EOF'
+# Partial old deployed helper fixture: readable, but missing codex_clear_retired_hook_artifacts.
+codex_partial_legacy_hooks_helper_loaded() {
+    return 0
+}
+EOF
+}
+
+install_repo_fallback_codex_legacy_hooks_helper() {
+  local repo_root="$1"
+  local helper="$repo_root/modules/shared/scripts/lib/rebuild/codex-legacy-hooks.sh"
+  mkdir -p "$(dirname "$helper")"
+  cp "$REPO_ROOT/modules/shared/scripts/lib/rebuild/codex-legacy-hooks.sh" "$helper"
+}
+
 install_platform_nrs_entrypoint() {
   local sandbox="$1" platform="$2"
   local home_dir="$sandbox/home"
@@ -1308,6 +1328,8 @@ test_nixos_nrs_offline_force_smoke() {
   install_deployed_layout "$sandbox" "$repo_root"
   install_platform_nrs_entrypoint "$sandbox" nixos
   install_repo_local_only_codex_cleanup_helper "$home_dir"
+  install_partial_deployed_codex_legacy_hooks_helper "$home_dir"
+  install_repo_fallback_codex_legacy_hooks_helper "$repo_root"
 
   mkdir -p "$stub_dir" "$home_dir/.local/bin"
   cat > "$stub_dir/sudo" <<'EOF'
@@ -1438,6 +1460,40 @@ test_clear_retired_codex_hook_artifacts_preserves_symlinked_user_hooks() {
   assert_symlinked_user_codex_hooks_preserved "$home_dir"
 }
 
+test_clear_retired_codex_hook_artifacts_removes_dangling_artifact_symlinks() {
+  local sandbox home_dir repo_root output
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  repo_root="$sandbox/repo"
+
+  create_git_fixture_repo "$repo_root"
+  repo_root="$(cd "$repo_root" && pwd -P)"
+  install_deployed_layout "$sandbox" "$repo_root"
+
+  mkdir -p "$repo_root/.codex" "$home_dir/.codex"
+  rm -f "$repo_root/.codex/hooks.json" "$repo_root/.codex/hooks.compatibility.json" "$home_dir/.codex/hooks.compatibility.json"
+  ln -s "$repo_root/.codex/missing-hooks.json" "$repo_root/.codex/hooks.json"
+  ln -s "$repo_root/.codex/missing-hooks.compatibility.json" "$repo_root/.codex/hooks.compatibility.json"
+  ln -s "$home_dir/.codex/missing-hooks.compatibility.json" "$home_dir/.codex/hooks.compatibility.json"
+
+  output=$(
+    HOME="$home_dir" \
+    bash -c '
+      set -euo pipefail
+      cd "'"$repo_root"'"
+      REBUILD_CMD="nixos-rebuild"
+      source "'"$home_dir/.local/lib/rebuild-common.sh"'"
+      _clear_retired_codex_hook_artifacts
+    ' 2>&1
+  )
+
+  assert_contains "$output" "Removed retired Codex hook artifacts."
+  assert_contains "$output" "Removed retired user-level Codex hooks.compatibility.json"
+  [[ ! -L "$repo_root/.codex/hooks.json" ]] || fail "expected dangling repo-local hooks.json symlink to be removed"
+  [[ ! -L "$repo_root/.codex/hooks.compatibility.json" ]] || fail "expected dangling repo-local hooks.compatibility.json symlink to be removed"
+  [[ ! -L "$home_dir/.codex/hooks.compatibility.json" ]] || fail "expected dangling user-level hooks.compatibility.json symlink to be removed"
+}
+
 test_darwin_nrs_offline_force_smoke() {
   local sandbox home_dir repo_root stub_dir output result_target current_target
   sandbox=$(new_sandbox)
@@ -1565,6 +1621,8 @@ test_darwin_nrs_no_changes_releases_worktree_lock() {
   install_deployed_layout "$sandbox" "$repo_root"
   install_platform_nrs_entrypoint "$sandbox" darwin
   install_repo_local_only_codex_cleanup_helper "$home_dir"
+  install_partial_deployed_codex_legacy_hooks_helper "$home_dir"
+  install_repo_fallback_codex_legacy_hooks_helper "$worktree_root"
 
   mkdir -p "$stub_dir" "$home_dir/.local/bin" "$home_dir/Library/LaunchAgents"
   current_target="$sandbox/current-system"
@@ -1668,6 +1726,7 @@ run_test "stale filter ignores stale path mentions" test_user_hooks_stale_filter
 run_test "stale filter detects exact HOME hook path" test_user_hooks_stale_filter_detects_exact_home_path
 run_test "retired hook cleanup preserves malformed user hooks" test_clear_retired_codex_hook_artifacts_preserves_malformed_user_hooks
 run_test "retired hook cleanup preserves symlinked user hooks" test_clear_retired_codex_hook_artifacts_preserves_symlinked_user_hooks
+run_test "retired hook cleanup removes dangling artifact symlinks" test_clear_retired_codex_hook_artifacts_removes_dangling_artifact_symlinks
 run_test "darwin nrs offline force smoke" test_darwin_nrs_offline_force_smoke
 run_test "darwin nrs no-change releases worktree lock" test_darwin_nrs_no_changes_releases_worktree_lock
 

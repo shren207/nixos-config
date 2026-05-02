@@ -921,7 +921,8 @@ echo "=== Hooks 산출물 확인 ==="
 # stale guard: <repo>/.codex/hooks.json 또는 <repo>/.codex/hooks.compatibility.json은
 # 폐기된 패턴이라 잔재 시 fail. 단 user-level ~/.codex/hooks.json은 공식 hook source라
 # 존재 자체가 아니라 알려진 legacy entry만 검사한다.
-if [ -e "$REPO_ROOT/.codex/hooks.json" ] || [ -e "$REPO_ROOT/.codex/hooks.compatibility.json" ]; then
+if [ -e "$REPO_ROOT/.codex/hooks.json" ] || [ -L "$REPO_ROOT/.codex/hooks.json" ] || \
+   [ -e "$REPO_ROOT/.codex/hooks.compatibility.json" ] || [ -L "$REPO_ROOT/.codex/hooks.compatibility.json" ]; then
   fail "stale Codex hook artifacts present (.codex/hooks*.json)"
 else
   pass "repo-local Codex hook artifacts 없음"
@@ -930,13 +931,15 @@ fi
 _user_hooks_json="$HOME/.codex/hooks.json"
 _user_hooks_report="$HOME/.codex/hooks.compatibility.json"
 
-if [ -e "$_user_hooks_report" ]; then
+if [ -e "$_user_hooks_report" ] || [ -L "$_user_hooks_report" ]; then
   fail "stale user-level Codex hook artifact present ($_user_hooks_report) — run nrs to remove retired hooks.compatibility.json"
 else
   pass "user-level Codex hooks.compatibility.json 없음"
 fi
 
-if [ -f "$_user_hooks_json" ]; then
+if [ -L "$_user_hooks_json" ] && [ ! -e "$_user_hooks_json" ]; then
+  fail "$_user_hooks_json dangling symlink — user-level hook file must be repaired manually"
+elif [ -f "$_user_hooks_json" ]; then
   if ! command -v jq >/dev/null 2>&1; then
     fail "jq 없음 — $_user_hooks_json stale entry 검사 불가"
   else

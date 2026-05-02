@@ -32,9 +32,13 @@ _source_codex_legacy_hooks_helper() {
     declare -F codex_clear_retired_hook_artifacts >/dev/null && return 0
 
     local helper
-    for helper in \
-        "${REBUILD_COMMON_LIB_DIR:-}/codex-legacy-hooks.sh" \
-        "$FLAKE_PATH/modules/shared/scripts/lib/rebuild/codex-legacy-hooks.sh"; do
+    local -a candidates=()
+    if [[ -n "${REBUILD_COMMON_LIB_DIR:-}" ]]; then
+        candidates+=("$REBUILD_COMMON_LIB_DIR/codex-legacy-hooks.sh")
+    fi
+    candidates+=("$FLAKE_PATH/modules/shared/scripts/lib/rebuild/codex-legacy-hooks.sh")
+
+    for helper in "${candidates[@]}"; do
         [[ -n "$helper" && -f "$helper" ]] || continue
         # shellcheck source=/dev/null
         source "$helper"

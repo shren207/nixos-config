@@ -111,6 +111,7 @@ DA for_plan corrected an important boundary: `~/.codex/hooks.json` is still an o
 - Post-Implementation 1~7 자동 수행 (default): 구현, 구현 커밋, `/run-da for_pr`, `/parallel-audit`, Final Multi-Pass Review, 반영 커밋, `/create-pr`.
 
 ## Phase Index
+
 | Phase | Status | Objective | Validation Focus | File |
 |---|---|---|---|---|
 | Phase 1: Scope Lock | Complete | Resolve issue evidence, PRD routing, DA findings, and scope boundary | PRD/DA consistency | [phase-01-scope-lock.md](./prd-codex-user-legacy-hooks/phase-01-scope-lock.md) |

@@ -26,13 +26,17 @@ install_rebuild_common_compat_shims() {
         "$HOME/.local/bin/nrs-relink" restore || log_warn "⚠️  nrs-relink restore failed (non-fatal)"
     }
     local codex_legacy_hooks_helper
-    for codex_legacy_hooks_helper in \
-        "${REBUILD_COMMON_LIB_DIR:-}/codex-legacy-hooks.sh" \
-        "$FLAKE_PATH/modules/shared/scripts/lib/rebuild/codex-legacy-hooks.sh"; do
+    local -a codex_legacy_hooks_candidates=()
+    if [[ -n "${REBUILD_COMMON_LIB_DIR:-}" ]]; then
+        codex_legacy_hooks_candidates+=("$REBUILD_COMMON_LIB_DIR/codex-legacy-hooks.sh")
+    fi
+    codex_legacy_hooks_candidates+=("$FLAKE_PATH/modules/shared/scripts/lib/rebuild/codex-legacy-hooks.sh")
+
+    for codex_legacy_hooks_helper in "${codex_legacy_hooks_candidates[@]}"; do
         [[ -n "$codex_legacy_hooks_helper" && -f "$codex_legacy_hooks_helper" ]] || continue
         # shellcheck source=/dev/null
         source "$codex_legacy_hooks_helper"
-        break
+        declare -F codex_clear_retired_hook_artifacts >/dev/null && break
     done
     declare -F codex_clear_retired_hook_artifacts >/dev/null && _clear_retired_codex_hook_artifacts() {
         codex_clear_retired_hook_artifacts "$FLAKE_PATH" "$HOME"

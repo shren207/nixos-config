@@ -86,8 +86,9 @@ codex_prune_legacy_user_hooks_json() {
     }
     (( stale_count > 0 )) || return 0
 
-    local tmp prune_filter
-    tmp=$(mktemp "${TMPDIR:-/tmp}/codex-hooks-json.XXXXXX")
+    local tmp prune_filter hooks_dir
+    hooks_dir="$(dirname "$hooks_json")"
+    tmp=$(mktemp "$hooks_dir/.codex-hooks-json.XXXXXX")
     prune_filter="$(codex_legacy_user_hook_prune_jq_filter)"
     if ! jq "$prune_filter" "$hooks_json" > "$tmp"; then
         rm -f "$tmp"
@@ -95,7 +96,11 @@ codex_prune_legacy_user_hooks_json() {
         return 1
     fi
 
-    mv "$tmp" "$hooks_json"
+    if ! mv "$tmp" "$hooks_json"; then
+        rm -f "$tmp"
+        log_error "Failed to replace $hooks_json after pruning stale Codex hook entries"
+        return 1
+    fi
     log_info "🧹 Pruned $stale_count stale Codex hook entr$( (( stale_count == 1 )) && printf 'y' || printf 'ies' ) from user-level hooks.json."
 }
 
@@ -106,12 +111,12 @@ codex_clear_retired_hook_artifacts() {
     local hooks_report="$flake_path/.codex/hooks.compatibility.json"
     local user_hooks_report="$home_dir/.codex/hooks.compatibility.json"
 
-    if [[ -e "$hooks_json" || -e "$hooks_report" ]]; then
+    if [[ -e "$hooks_json" || -L "$hooks_json" || -e "$hooks_report" || -L "$hooks_report" ]]; then
         rm -f "$hooks_json" "$hooks_report"
         log_info "🧹 Removed retired Codex hook artifacts."
     fi
 
-    if [[ -e "$user_hooks_report" ]]; then
+    if [[ -e "$user_hooks_report" || -L "$user_hooks_report" ]]; then
         rm -f "$user_hooks_report"
         log_info "🧹 Removed retired user-level Codex hooks.compatibility.json."
     fi
