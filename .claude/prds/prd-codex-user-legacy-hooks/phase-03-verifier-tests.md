@@ -80,6 +80,7 @@ Use deterministic shell fixtures with sandboxed HOME. The verifier must be teste
 - D-4: `tests/test-codex-hook-fixtures.sh --no-live` remains unchanged because #637 does not add managed native `PreToolUse` fixtures.
 - D-5: Shell tests cover symlinked user-level `hooks.json` preservation so cleanup cannot clobber dotfile-managed hook state.
 - D-6: Verifier uses the shared jq stale-count filter on symlink targets too: clean symlinked hooks can pass, while symlinked stale entries fail with manual-removal guidance.
+- D-7: Stale matching is exact for direct managed hook commands and ignores path mentions such as `.backup` suffixes or shell snippets that merely reference a stale filename.
 
 ## Phase Change Log
 - 2026-05-02: Phase file created.
@@ -87,3 +88,4 @@ Use deterministic shell fixtures with sandboxed HOME. The verifier must be teste
 - 2026-05-02: DA for_pr Round 1 added mixed-version old-helper regression coverage.
 - 2026-05-02: DA for_pr Round 2 added symlink preservation regression coverage.
 - 2026-05-02: DA for_pr Round 3 added clean/stale symlink target stale-count coverage.
+- 2026-05-02: parallel-audit added exact matcher coverage for stale path mentions and exact `$HOME` paths.

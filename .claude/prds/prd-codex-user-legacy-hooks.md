@@ -31,8 +31,8 @@ DA for_plan corrected an important boundary: `~/.codex/hooks.json` is still an o
 ## Success Criteria
 - SC-1: `nrs` cleanup removes repo-local retired `.codex/hooks*.json` exactly as before.
 - SC-2: `nrs` cleanup removes user-level `~/.codex/hooks.compatibility.json` when present.
-- SC-3: `nrs` cleanup prunes only known stale managed legacy entries from user-level `~/.codex/hooks.json`, preserving unrelated user hooks.
-- SC-4: `verify-ai-compat.sh` fails on stale user-level legacy state and tells the user how to repair it with `nrs`, but does not fail merely because `~/.codex/hooks.json` exists.
+- SC-3: `nrs` cleanup prunes only known stale managed legacy entries from non-symlinked user-level `~/.codex/hooks.json`, preserving unrelated user hooks and symlinked user hook files.
+- SC-4: `verify-ai-compat.sh` fails on stale user-level legacy state and tells the user how to repair it with `nrs` or, for symlinked user-owned hook files, manual stale-entry removal; it does not fail merely because `~/.codex/hooks.json` exists.
 - SC-5: Shell tests prove stale user-level cleanup for NixOS force, Darwin force, and Darwin no-change paths.
 - SC-6: Existing Codex hook fixture tests still pass without adding `PreToolUse` as a managed template event.
 
@@ -69,9 +69,9 @@ DA for_plan corrected an important boundary: `~/.codex/hooks.json` is still an o
 ### Functional Requirements
 - FR-1: Keep existing repo-local retired artifact cleanup unchanged.
 - FR-2: Add user-level cleanup for `~/.codex/hooks.compatibility.json`.
-- FR-3: Add user-level `~/.codex/hooks.json` stale-entry pruning based on known managed legacy script commands, not file existence.
+- FR-3: Add user-level `~/.codex/hooks.json` stale-entry pruning based on exact known managed legacy script commands, not file existence or substring mentions.
 - FR-4: Preserve non-stale entries in user-level `hooks.json`.
-- FR-5: If `hooks.json` is malformed or cannot be safely parsed, do not destructively rewrite it; verifier should fail with manual repair guidance.
+- FR-5: If `hooks.json` is malformed, symlinked, or cannot be safely parsed, do not destructively rewrite it; verifier should inspect readable symlink targets and fail stale/malformed states with manual repair guidance where `nrs` intentionally preserves ownership.
 - FR-6: Add verifier checks for user-level compatibility artifact and stale known legacy entries.
 - FR-7: Add shell tests for cleanup and preservation behavior.
 - FR-8: Document in PR/issue handoff that actual native `PreToolUse` implementation and ownership are delegated to #587.
@@ -133,3 +133,4 @@ Use `plan-with-questions/references/prd/multi-pass-review.md` as the canonical c
 - 2026-05-02: DA for_pr Round 1 confirmed mixed-version shim and duplicated jq matcher issues; fixed with shared `codex-legacy-hooks.sh`, old-helper fixture coverage, `nrs`, and post-`nrs` verifier pass.
 - 2026-05-02: DA for_pr Round 2 confirmed symlinked user `hooks.json` clobber risk; fixed by leaving symlinks unchanged, making verifier fail for manual inspection, and adding symlink preservation coverage.
 - 2026-05-02: DA for_pr Round 3 confirmed verifier over-failed valid symlinked `hooks.json`; fixed verifier to inspect symlink targets and fail only malformed/stale cases.
+- 2026-05-02: parallel-audit found stale matcher substring false positives and master PRD symlink repair wording drift; fixed matcher to exact direct hook commands and documented symlink manual-repair carveout.

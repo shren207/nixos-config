@@ -89,6 +89,7 @@ Combine static checks, shell tests, deterministic hook fixtures, and activation-
 - D-11: Round 2 fix leaves symlinked user `hooks.json` unchanged, makes verifier fail that state for manual inspection, and revalidated through shell tests, hook fixtures, `nrs`, and post-`nrs` verifier.
 - D-12: `/run-da for_pr` Round 3 returned CLEAR for Correctness, Design, and Maintainability; Arbiter confirmed one Regression issue where verifier over-failed clean symlinked user hooks.
 - D-13: Round 3 fix lets verifier inspect symlink targets with the shared stale filter; clean symlinked hooks pass, stale symlinked entries fail with manual-removal guidance.
+- D-14: `/parallel-audit` found two actionable items: stale matcher substring false positives and master PRD `nrs` repair wording that did not carve out symlinked hook files. Both were accepted for follow-up fix.
 
 ## Phase Change Log
 - 2026-05-02: Phase file created.
@@ -96,3 +97,4 @@ Combine static checks, shell tests, deterministic hook fixtures, and activation-
 - 2026-05-02: DA for_pr Round 1 findings fixed and revalidated through shell tests, hook fixtures, `nrs`, and post-`nrs` verifier.
 - 2026-05-02: DA for_pr Round 2 symlink finding fixed and revalidated through shell tests, hook fixtures, `nrs`, and post-`nrs` verifier.
 - 2026-05-02: DA for_pr Round 3 verifier symlink finding fixed and shell-tested; final validation pending.
+- 2026-05-02: parallel-audit exact matcher and PRD symlink repair wording findings fixed; final validation pending.

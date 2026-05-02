@@ -8,9 +8,23 @@ def stale_names: [
     "fragile-hardcoding-guard.sh",
     "system-bash-guard.sh"
 ];
+def normalize_command:
+    gsub("^[[:space:]]+|[[:space:]]+$"; "")
+    | if ((startswith("\"") and endswith("\"")) or (startswith("'") and endswith("'"))) then
+        .[1:-1]
+      else
+        .
+      end;
+def stale_path($name):
+    [
+        "~/.codex/hooks/" + $name,
+        "$HOME/.codex/hooks/" + $name,
+        "${HOME}/.codex/hooks/" + $name,
+        env.HOME + "/.codex/hooks/" + $name
+    ];
 def is_stale:
-    (.command? // "") as $cmd
-    | [stale_names[] | . as $name | select($cmd | contains("/.codex/hooks/" + $name))]
+    ((.command? // "") | normalize_command) as $cmd
+    | [stale_names[] | . as $name | select(stale_path($name) | index($cmd))]
     | length > 0;
 EOF
 }

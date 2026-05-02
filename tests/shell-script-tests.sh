@@ -193,6 +193,66 @@ test_user_hooks_stale_filter_detects_symlink_target_stale_entries() {
   [[ "$count" == "1" ]] || fail "expected symlinked user hooks.json stale count 1, got: $count"
 }
 
+test_user_hooks_stale_filter_ignores_stale_path_mentions() {
+  local sandbox home_dir hooks_json count
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  hooks_json="$home_dir/.codex/hooks.json"
+  mkdir -p "$home_dir/.codex"
+  cat > "$hooks_json" <<'EOF'
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/tmp/foo/.codex/hooks/session-init-icons.sh.backup"
+          },
+          {
+            "type": "command",
+            "command": "bash -lc 'test -e ~/.codex/hooks/session-init-icons.sh'"
+          }
+        ]
+      }
+    ]
+  }
+}
+EOF
+
+  source "$REPO_ROOT/modules/shared/scripts/lib/rebuild/codex-legacy-hooks.sh"
+  count="$(HOME="$home_dir" jq -r "$(codex_legacy_user_hook_count_jq_filter)" "$hooks_json")"
+  [[ "$count" == "0" ]] || fail "expected stale path mentions to be ignored, got stale count: $count"
+}
+
+test_user_hooks_stale_filter_detects_exact_home_path() {
+  local sandbox home_dir hooks_json count
+  sandbox=$(new_sandbox)
+  home_dir="$sandbox/home"
+  hooks_json="$home_dir/.codex/hooks.json"
+  mkdir -p "$home_dir/.codex"
+  cat > "$hooks_json" <<EOF
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$home_dir/.codex/hooks/worktree-path-guard.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+EOF
+
+  source "$REPO_ROOT/modules/shared/scripts/lib/rebuild/codex-legacy-hooks.sh"
+  count="$(HOME="$home_dir" jq -r "$(codex_legacy_user_hook_count_jq_filter)" "$hooks_json")"
+  [[ "$count" == "1" ]] || fail "expected exact HOME path stale count 1, got: $count"
+}
+
 new_sandbox() {
   local dir
   dir=$(mktemp -d "${TMPDIR:-/tmp}/shell-script-tests.XXXXXX")
@@ -1604,6 +1664,8 @@ run_test "fixture git setup ignores host global hooks" test_fixture_git_is_herme
 run_test "nixos nrs offline force smoke" test_nixos_nrs_offline_force_smoke
 run_test "stale filter supports clean symlinked user hooks" test_user_hooks_stale_filter_supports_clean_symlink_target
 run_test "stale filter detects symlinked stale user hooks" test_user_hooks_stale_filter_detects_symlink_target_stale_entries
+run_test "stale filter ignores stale path mentions" test_user_hooks_stale_filter_ignores_stale_path_mentions
+run_test "stale filter detects exact HOME hook path" test_user_hooks_stale_filter_detects_exact_home_path
 run_test "retired hook cleanup preserves malformed user hooks" test_clear_retired_codex_hook_artifacts_preserves_malformed_user_hooks
 run_test "retired hook cleanup preserves symlinked user hooks" test_clear_retired_codex_hook_artifacts_preserves_symlinked_user_hooks
 run_test "darwin nrs offline force smoke" test_darwin_nrs_offline_force_smoke
