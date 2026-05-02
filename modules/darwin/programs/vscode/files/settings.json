@@ -104,7 +104,7 @@
   // 보안 및 업데이트
   // ============================================================================
   "redhat.telemetry.enabled": false, // Red Hat 텔레메트리 비활성화
-  "security.promptForLocalFileProtocolHandling": false, // 로컬 파일 프로토콜 핸들링 프롬프트 비활성화
+  "security.promptForLocalFileProtocolHandling": false, // 로컬 파일 프로토콜 핸들링 프롬프트 비활성화 — 단일 사용자 dotfiles 환경에서 marketplace/문서 링크 클릭 시 prompt 마찰 제거 (보안 trade-off: 신뢰 안 되는 link 클릭 시 자동 처리됨)
   "update.mode": "none", // Nix로 앱 버전 관리하므로 자동 업데이트 비활성화
 
   // ============================================================================
@@ -166,5 +166,8 @@
     // 유틸리티 파일들 - hooks.ts, utils.ts 등이 여러 개일 때 폴더명으로 구분
     "**/{hook,hooks,constant,constants,util,utils,state,states,type,types,style,styles}.{ts,tsx,js,jsx}": "${dirname}/${filename}.${extname}",
   },
+  // 단일 사용자 dotfiles로 외부 워크스페이스 비신뢰 시나리오가 거의 없음.
+  // Workspace Trust 의 untrusted file 처리 prompt를 생략하고 즉시 open한다 (사용자 의도).
+  // 외부 untrusted 코드를 자주 다루게 되면 "prompt"/"newWindow"로 되돌릴 것.
   "security.workspace.trust.untrustedFiles": "open",
 }

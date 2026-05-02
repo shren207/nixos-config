@@ -22,13 +22,14 @@
 #    라인 참조 path 미지원, 체감 속도 개선 부족, 단축키 부적응, 내장 Git 미흡(외부 클라이언트
 #    의존), Markdown viewer 미감.
 # 7) Claude Code 통합: 공식 `anthropic.claude-code` VSCode 확장 사용. Marketplace itemName과
-#    Nix attr 모두 lowercase. 통합 단축키:
-#    - Cmd+Esc: editor↔Claude panel focus toggle (vendor default).
-#    - @mention 삽입 (`claude-code.insertAtMentioned`): vendor default는 `Option+K`(=Alt+Cmd+K).
-#      본 repo는 keybindings.json에서 `Ctrl+Alt+Cmd+K`로 override + vendor default 비활성화.
-#      Cursor/JetBrains 키맵과의 충돌 회피 및 한 손 수행 chord 선호. 사용자 customization 보존.
-#    - 외부 터미널 `claude --ide` (또는 in-CLI `/ide`): 실행 중 VSCode 자동 인식하여
-#      파일/라인 참조 가능 (Zed의 ACP 패널 미지원이던 path).
+#    Nix attr 모두 lowercase. 통합 단축키 (확장 v2.1.x package.json 기준):
+#    - `claude-vscode.focus`: `Cmd+Esc` — editor↔Claude panel focus toggle (vendor default 그대로 사용).
+#    - `claude-vscode.insertAtMention`: `Alt+K` — @mention 삽입 vendor default. 별도 명령으로 active.
+#    - `claude-code.insertAtMentioned`: `Cmd+Alt+K` vendor default. 본 repo는 keybindings.json에서
+#      `Ctrl+Alt+Cmd+K`로 override + vendor `Cmd+Alt+K` 비활성화 (JetBrains keymap 충돌 회피).
+#      `claude-vscode.insertAtMention`(`Alt+K`)는 그대로 두어 `Alt+K` 단축키 자체는 작동.
+#    - 외부 터미널 `claude --ide` (CLI flag, `~/.local/bin/claude --help` 참조) 또는 in-CLI `/ide`:
+#      실행 중 VSCode 자동 인식하여 파일/라인 참조 가능 (Zed의 ACP 패널 미지원이던 path).
 # 8) duti activation: 동적 UTI(.mdx/.nix/.toml 등)는 macOS LaunchServices에 정적 UTI가 없어
 #    duti가 -50을 반환할 수 있다. set -eu 환경에서 첫 실패가 darwin-rebuild를 exit 2로 종료
 #    시키므로, set_handler/register_public_uti helper로 실패를 카운터로 흡수 + public UTI
