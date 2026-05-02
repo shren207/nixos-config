@@ -2,7 +2,7 @@
 
 Split-file mode의 각 phase 파일은 아래 구조를 사용한다. Single-file mode에서는 master PRD의 `Phase Plan` 섹션 안에 동일 구조를 phase별로 인라인한다.
 
-경로: `.claude/prds/prd-[feature-name]/phase-0N-[phase-name].md`
+경로: `.claude/prds/prd-[feature-name]/phase-NN-[phase-name].md`
 
 ```markdown
 # Phase N: [Phase Name]

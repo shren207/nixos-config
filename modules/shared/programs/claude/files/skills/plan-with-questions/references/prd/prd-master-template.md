@@ -2,7 +2,7 @@
 
 Single-file mode에서는 아래 구조 전체를 단일 파일에 둔다. Split-file mode에서는 master PRD에 phase index만 두고, phase 상세는 [`phase-template.md`](./phase-template.md) 기반의 phase 파일에 둔다.
 
-경로: `.claude/prds/prd-[feature-name].md` (split mode의 phase 파일은 `.claude/prds/prd-[feature-name]/phase-0N-[phase-name].md`).
+경로: `.claude/prds/prd-[feature-name].md` (split mode의 phase 파일은 `.claude/prds/prd-[feature-name]/phase-NN-[phase-name].md`).
 
 ```markdown
 # PRD: [Feature Name]
@@ -11,7 +11,7 @@ Single-file mode에서는 아래 구조 전체를 단일 파일에 둔다. Split
 - Status: Draft | In Progress | Complete
 - File Mode: Single | Split
 - Current Phase: Not Started | Phase N | Complete
-- Active Phase File: [Phase N](./prd-[feature-name]/phase-0N-[phase-name].md) <!-- split only -->
+- Active Phase File: [Phase N](./prd-[feature-name]/phase-NN-[phase-name].md) <!-- split only -->
 - Context File: [context.md](./prd-[feature-name]/context.md) <!-- 생성 시에만 -->
 - Last Updated: YYYY-MM-DD
 - PRD File: `.claude/prds/prd-[feature-name].md`

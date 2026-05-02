@@ -17,7 +17,7 @@
 - **타이밍**: 반드시 계획 추적 도구 진입 전에 이 단계를 완료한다 (DA 에이전트가 일반 모드에서 full tool access로 PoC 검증을 수행할 수 있도록).
 - **for_action 입력 계약**: Step 4.5에서 만든 공식 `.claude/plans/<slug>.md` 경로와 파일 내용을 DA 입력 context에 포함한다. `/run-da for_plan` 뒤에 path argument나 modifier를 추가하지 않는다.
 - **for_action fail-closed precondition**: Step 4.5 plan 파일이 없거나 canonical path가 `.claude/plans/` 밖이면 `/run-da for_plan`을 호출하지 않고 BLOCKED 처리한다. slug 재생성 또는 파일 초기화를 먼저 완료한다.
-- **for_action DA State 전이**: DA 시작 직전에 같은 plan 파일의 `DA State`를 `RUNNING`으로 바꾼다. verdict를 수신한 즉시 Step 6 반영 전에 `DA State=APPLYING`, `Resume From=for_action.step6_da_apply`로 갱신하고, DA result path(있으면) 또는 verdict 요약을 `Change Log`에 기록한다.
+- **for_action DA State 전이**: DA 시작 직전에 같은 plan 파일의 `DA State`를 `RUNNING`으로 바꾸고 `Change Log`에 DA Run ID(`da-YYYYMMDD-HHMMSS-<shortsha>-<nonce>`)와 started-at을 기록한다. `<nonce>`는 6자 이상 random/unique suffix(예: mktemp basename, UUID fragment, session id + counter)이며, 같은 plan 파일의 기존 `Change Log` 안에서 중복되면 새 suffix를 생성한다. verdict를 수신한 즉시 Step 6 반영 전에 `DA State=APPLYING`, `Resume From=for_action.step6_da_apply`로 갱신하고, 같은 DA Run ID의 result path(있으면) 또는 verdict 요약을 `Change Log`에 기록한다. Step 6은 최신 DA Run ID와 일치하는 verdict만 반영하며, 나중에 도착한 이전 run verdict는 stale result로 기록하고 무시한다.
 - **for_prd 예외**: `for_prd`는 Step 4.5와 `.claude/plans/` precondition을 적용하지 않는다. Step 5 DA 입력은 PRD draft/context, candidate phase structure, Step 1-4 evidence다.
 
 ## Step 6: DA 결과 반영 [일반 모드]
@@ -36,4 +36,4 @@ DA for_plan의 Arbiter 판정 결과와 selective consistency 집계(해당 시)
 DA 결과 반영 target:
 
 - **for_action**: Step 4.5에서 만든 같은 plan 파일을 편집한다. 중요 변경, confirmed rejection, BLOCKED/NEEDS_USER 전이는 `Decision Log`에 ADR 미니 형식으로 기록한다 (상세는 [`plan-file-template.md`](./plan-file-template.md) Decision Log 섹션). 반영 완료 후 `DA State`를 `CONFIRMED`/`SKIPPED`/`BLOCKED`/`NEEDS_USER` 중 하나로 기록한다.
-- **for_prd**: PRD draft/context와 candidate phase structure에 DA 결과를 반영한다. PRD 파일 작성 후에는 PRD master `Change Log`와, split mode에서 특정 phase가 영향받는 경우 해당 phase의 `Discoveries / Decisions`에 반영 이력을 남기며, `.claude/plans/` 파일을 만들지 않는다.
+- **for_prd**: PRD draft/context와 candidate phase structure에 DA 결과를 반영한다. PRD 파일 작성 후에는 PRD master `Change Log`와, split mode에서 특정 phase가 영향받는 경우 해당 phase의 `Discoveries / Decisions`에 반영 이력을 남기며, `.claude/plans/` 파일을 만들지 않는다. PRD 파일 작성 전 세션이 끊기면 durable DA artifact가 없으므로 `for_prd.step5_da`부터 재실행하고, 이전 transient verdict는 적용하지 않는다.

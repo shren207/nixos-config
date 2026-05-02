@@ -84,8 +84,11 @@ Step 3.5는 DA(Step 5)와 목적이 다르다. 3.5는 사용자에게 옵션 제
 **slug/path 안전 규칙:**
 - slug는 lowercase `[a-z0-9-]+` basename만 허용한다.
 - `.`, `..`, slash(`/`), backslash(`\`), 공백, shell/path metacharacter가 포함된 값은 거부하고 안전한 slug를 다시 생성한다.
-- 최종 경로는 canonicalize 후 반드시 `.claude/plans/` 하위여야 한다.
-- 동일 파일이 이미 있으면 `-2`, `-3` 같은 숫자 suffix를 slug 뒤에 붙여 collision을 해소한다. suffix 적용 후에도 같은 안전 검사를 다시 통과해야 한다.
+- 새 파일 자체가 아직 없을 수 있으므로 repo root와 `.claude/plans/` parent directory처럼 이미 존재해야 하는 경로만 canonicalize한다. 그 parent가 repo 안의 `.claude/plans/`와 일치함을 확인한 뒤 basename slug를 join한다.
+- 최종 path containment는 "canonical parent + safe basename"으로 판정한다. 존재하지 않는 최종 파일을 `realpath`/`readlink -f` 대상으로 요구하지 않는다.
+- 새 slug를 확정하기 전에 `.claude/plans/` 하위의 기존 plan 파일을 읽어 같은 `Source` + self-referential `Plan File` + non-terminal `Status`(`Complete`/`Superseded` 아님)가 있는지 먼저 찾는다. 하나면 그 파일에 bind하고, 여러 개면 임의 선택하지 않고 `NEEDS_USER`로 사용자 판단을 요청한다.
+- 동일 파일이 이미 있으면 먼저 같은 `Source` + self-referential `Plan File`인지 확인한다. 같고 `Status`가 `Complete`/`Superseded`가 아니면 새 파일을 만들지 않고 기존 파일에 bind한 뒤 그 파일의 `Resume From` / `Last Completed Step` / `DA State`로 재개한다.
+- 기존 파일이 unrelated collision이거나 같은 source라도 terminal(`Complete`/`Superseded`) 상태라 새 계획이 필요한 경우 `-2`, `-3` 같은 숫자 suffix를 slug 뒤에 붙여 collision을 해소한다. suffix 적용 후에도 같은 안전 검사를 다시 통과해야 한다.
 
 초기 metadata 14필드와 값은 [`../references/plan-file-template.md`](../references/plan-file-template.md#step-45-초기값-for_action)가 SSOT다. Step 4.5에서는 그 표를 그대로 적용한다.
 
