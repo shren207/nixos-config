@@ -39,7 +39,7 @@ Step 5/6 진행 중에는 [`plan-file-template.md`](./plan-file-template.md#da-s
 
 - `PRE_DA` + `Resume From=for_action.step5_da`: DA를 아직 시작하지 않았으므로 Step 5로 진입한다.
 - `RUNNING`: DA가 시작된 상태다. durable verdict가 plan 파일에 없으면 같은 plan 파일을 입력으로 DA를 재실행하고 Change Log에 재실행 사유를 기록한다.
-- `APPLYING` + `Resume From=for_action.step6_da_apply`: DA verdict를 수신했으므로 Step 6 반영 상태를 점검하고, 반영이 불완전하면 같은 verdict 또는 재실행 verdict를 기준으로 반영을 완료한다.
+- `APPLYING` + `Resume From=for_action.step6_da_apply`: DA verdict를 수신했으므로 `Change Log`의 DA result path 또는 verdict 요약을 읽고 Step 6 반영 상태를 점검한다. 기록이 없으면 같은 plan 파일을 입력으로 DA를 재실행하고 Change Log에 재실행 사유를 기록한 뒤 반영한다.
 - `CONFIRMED`/`SKIPPED`: Step 6 이후의 첫 미완료 blocking step으로 이동한다.
 - `BLOCKED`/`NEEDS_USER`: 질문 도구로 사용자 판단을 요청하거나 하위 스킬 BLOCKED 계약을 따른다.
 

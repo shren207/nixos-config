@@ -193,7 +193,12 @@ rm -rf -- /tmp/consult-<sid>-XXXXXX
 
 ## Decision Log 기록
 
-자문 결과로 사용자 선택이 바뀐 경우 plan 파일 Decision Log에 ADR 미니 기록:
+자문 결과로 사용자 선택이 바뀐 경우 기록 target은 모드별로 다르다:
+
+- **for_action**: plan 파일 `Decision Log`에 ADR 미니 기록.
+- **for_prd**: PRD draft/context에 기록하고, PRD 작성 후 master `Change Log`와 특정 phase가 영향받는 경우 phase `Discoveries / Decisions`에 이관.
+
+for_action 기록 형식:
 
 ```
 ## DL-N: <decision_id>

@@ -118,7 +118,7 @@ Post-Impl 5번 Final Multi-Pass Review는 **모든 모드에서 mandatory**다 (
 | `for_action.step1_validity` 종료 후 | 강한 신호(Phase ≥4, 명시 PRD 요청) 1차 평가 |
 | `for_action.step2_exploration` 종료 후 | 다중 도메인 + 보조 신호 종합 평가 → 트리거 결정 |
 | 트리거 시 | 사용자 알림(질문 도구) → opt-out 확인 |
-| 사용자 동의 시 | Mode 갱신 (`for_action` → `for_prd`) + Decision Log 기록 → [`../modes/for_prd.md`](../modes/for_prd.md) Step 1-4 + Step 5-6 진행 (Step 4.5 skip) → Step 7 명시 승인 게이트 → Step 8 `.claude/prds/`에 PRD 작성 |
+| 사용자 동의 시 | Mode 갱신 (`for_action` → `for_prd`) + 전환 사유를 PRD draft/context에 기록(작성 후 master `Change Log`로 이관) → [`../modes/for_prd.md`](../modes/for_prd.md) Step 1-4 + Step 5-6 진행 (Step 4.5 skip) → Step 7 명시 승인 게이트 → Step 8 `.claude/prds/`에 PRD 작성 |
 | 사용자 거부 시 | `for_action` 모드 유지 + Decision Log "PRD auto-trigger declined" 기록 |
 
 이후 흐름은 [`../modes/for_prd.md`](../modes/for_prd.md)로 분기.

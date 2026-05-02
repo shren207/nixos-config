@@ -17,7 +17,7 @@
 - **타이밍**: 반드시 계획 추적 도구 진입 전에 이 단계를 완료한다 (DA 에이전트가 일반 모드에서 full tool access로 PoC 검증을 수행할 수 있도록).
 - **for_action 입력 계약**: Step 4.5에서 만든 공식 `.claude/plans/<slug>.md` 경로와 파일 내용을 DA 입력 context에 포함한다. `/run-da for_plan` 뒤에 path argument나 modifier를 추가하지 않는다.
 - **for_action fail-closed precondition**: Step 4.5 plan 파일이 없거나 canonical path가 `.claude/plans/` 밖이면 `/run-da for_plan`을 호출하지 않고 BLOCKED 처리한다. slug 재생성 또는 파일 초기화를 먼저 완료한다.
-- **for_action DA State 전이**: DA 시작 직전에 같은 plan 파일의 `DA State`를 `RUNNING`으로 바꾼다. verdict를 수신하고 Step 6 반영을 시작하면 `APPLYING`으로 바꾼다.
+- **for_action DA State 전이**: DA 시작 직전에 같은 plan 파일의 `DA State`를 `RUNNING`으로 바꾼다. verdict를 수신한 즉시 Step 6 반영 전에 `DA State=APPLYING`, `Resume From=for_action.step6_da_apply`로 갱신하고, DA result path(있으면) 또는 verdict 요약을 `Change Log`에 기록한다.
 - **for_prd 예외**: `for_prd`는 Step 4.5와 `.claude/plans/` precondition을 적용하지 않는다. Step 5 DA 입력은 PRD draft/context, candidate phase structure, Step 1-4 evidence다.
 
 ## Step 6: DA 결과 반영 [일반 모드]
