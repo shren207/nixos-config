@@ -17,12 +17,25 @@
 | `for_action.step3_5_awaiting` | Step 3.5 결과 대기 (background 진행 중) |
 | `for_action.step4_user_questions` | 사용자에게 질문 제시 (자문 결과 통합) |
 | `for_action.step4_awaiting_user` | 사용자 답변 대기 |
-| `for_action.step5_da` | `/run-da for_plan` 호출 |
-| `for_action.step6_da_apply` | DA 결과 반영 |
-| `for_action.step7_plan_mode_entry` | 계획 추적 도구 진입 |
-| `for_action.step8_plan_writing` | 계획 파일 작성 |
+| `for_action.step5_da` | Step 4.5에서 만든 공식 plan 파일을 context로 `/run-da for_plan` 호출 |
+| `for_action.step6_da_apply` | Step 4.5에서 만든 같은 plan 파일에 DA 결과 반영 |
+| `for_action.step7_plan_mode_entry` | 계획 추적 도구 진입 + 기존 plan 파일 바인딩 |
+| `for_action.step8_plan_writing` | 기존 plan 파일 review/refine |
 | `for_action.step9_approval` | 승인 요청 도구 호출 |
 | `for_action.step9_awaiting_approval` | 사용자 승인 대기 |
+
+### for_action Step 4.5와 resume
+
+Step 4.5는 별도 `Resume From` enum을 만들지 않는다. 이 단계는 공식 `.claude/plans/<slug>.md` 파일을 atomic하게 초기화하고 즉시 다음 blocking step인 `for_action.step5_da`를 `Resume From`에 기록한다.
+
+초기 plan 파일은 다음 resume 관련 값을 반드시 포함한다:
+
+- `Resume From`: `for_action.step5_da`
+- `Last Completed Step`: `for_action.step4_user_questions`
+- `Baseline`: Step 4.5 파일 생성 시점의 branch/HEAD/dirty 값
+- `DA State`: `PRE_DA`
+
+따라서 세션이 Step 5 직전이나 Step 6 반영 중 끊겨도 메인 LLM은 기존 plan 파일을 읽고 baseline drift 검증 후 `for_action.step5_da` 또는 `for_action.step6_da_apply`로 정확히 복귀한다.
 
 ### for_issue
 
@@ -30,7 +43,7 @@
 
 ### for_prd
 
-`for_prd`는 plan-with-questions가 Step 1-6까지 거친 뒤 PRD 규약을 따라 `.claude/prds/prd-<feature>.md`에 직접 작성한다. PRD 작성 이후의 phase 진행 상태는 PRD master 파일의 Document Status가 정본이며 본 enum은 사용되지 않는다. plan-with-questions가 추적하는 enum은 PRD 작성 직전까지 한정:
+`for_prd`는 plan-with-questions가 Step 1-4와 Step 5-6을 거친 뒤 PRD 규약을 따라 `.claude/prds/prd-<feature>.md`에 직접 작성한다. `for_action` Step 4.5 plan 파일 초기화는 적용하지 않는다. PRD 작성 이후의 phase 진행 상태는 PRD master 파일의 Document Status가 정본이며 본 enum은 사용되지 않는다. plan-with-questions가 추적하는 enum은 PRD 작성 직전까지 한정:
 
 | Resume From | 진입 조건 |
 |-------------|----------|
@@ -53,7 +66,7 @@ PRD 작성 후의 진행은 PRD master Document Status에서 `Current Phase` / `
 
 ## Baseline drift 검증 알고리즘
 
-재개 시점에 plan 파일의 `Baseline` 필드와 현재 git 상태를 비교하여 drift를 감지한다.
+재개 시점에 plan 파일의 `Baseline` 필드와 현재 git 상태를 비교하여 drift를 감지한다. `for_action` plan의 최초 baseline은 Step 4.5 공식 plan 파일 초기화 시점에 기록한다.
 
 ### Baseline 필드 형식
 

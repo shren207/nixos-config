@@ -4,10 +4,10 @@
 
 ## 주의: 즉시 계획 추적 도구 진입 금지
 
-**이 스킬을 호출했다고 해서 즉시 계획 추적 도구로 진입하지 않는다.** 반드시 Step 1-6을 일반 모드에서 완료한 뒤, Step 7에서 계획 추적 도구로 진입한다. 일반 모드에서 빌드/명령 실행/로컬 재현으로 계획 가정을 검증해야 hallucination이 억제된다.
+**이 스킬을 호출했다고 해서 즉시 계획 추적 도구로 진입하지 않는다.** 반드시 Step 1-4 분석/질문을 일반 모드에서 완료하고, Step 4.5에서 공식 plan 파일을 초기화한 뒤, Step 5-6 DA를 거쳐 Step 7에서 계획 추적 도구로 진입한다. 일반 모드에서 빌드/명령 실행/로컬 재현으로 계획 가정을 검증해야 hallucination이 억제된다.
 
 - **Claude Code 세션**: 계획 추적 도구 진입 시점부터 write 작업이 제한되므로 검증은 반드시 진입 전에 완료돼야 한다.
-- **Codex 세션**: chat state 추적은 write 제한을 강제하지 않지만, Step 7 이후는 "검증 단계 종료 + 계획 작성 단계"로 규약되므로 동일하게 Step 1-6에서 검증을 완료한다.
+- **Codex 세션**: chat state 추적은 write 제한을 강제하지 않지만, Step 7 이후는 "검증 단계 종료 + 계획 파일 review/refine 단계"로 규약되므로 동일하게 Step 1-4 탐색/질문과 Step 5-6 DA 검증을 완료한다.
 
 미지원 런타임(headless)은 Step 4에서 이미 BLOCKED 처리되어 이 단계에 도달하지 않는다 ([`../references/runtime-boundaries.md`](../references/runtime-boundaries.md#질문-도구-미지원-대응)).
 
@@ -77,20 +77,48 @@ Step 3.5는 DA(Step 5)와 목적이 다르다. 3.5는 사용자에게 옵션 제
 
 질문 패턴과 anti-anchoring 표시 규칙은 [`../references/output-templates.md`](../references/output-templates.md#step-4--step-i-4-질문-패턴) 참조.
 
+## Step 4.5: 공식 plan 파일 초기화 [일반 모드, for_action 전용]
+
+모든 사용자 질문이 해소되면 Step 5 DA 전에 공식 `.claude/plans/<slug>.md` 파일을 초기화한다. 이 단계는 `for_action` 전용이다. `for_prd`는 이 단계를 건너뛰고 PRD draft/context를 DA 입력으로 사용한다 ([`for_prd.md`](./for_prd.md) 참조).
+
+**slug/path 안전 규칙:**
+- slug는 lowercase `[a-z0-9-]+` basename만 허용한다.
+- `.`, `..`, slash(`/`), backslash(`\`), 공백, shell/path metacharacter가 포함된 값은 거부하고 안전한 slug를 다시 생성한다.
+- 최종 경로는 canonicalize 후 반드시 `.claude/plans/` 하위여야 한다.
+- 동일 파일이 이미 있으면 `-2`, `-3` 같은 숫자 suffix를 slug 뒤에 붙여 collision을 해소한다. suffix 적용 후에도 같은 안전 검사를 다시 통과해야 한다.
+
+**초기 metadata 값:**
+- `Status`: `Draft`
+- `Mode`: `for_action`
+- `Source`: resolve된 이슈 ref 또는 URL
+- `Plan File`: self-referential path (`.claude/plans/<slug>.md`)
+- `Resume From`: `for_action.step5_da`
+- `Last Completed Step`: `for_action.step4_user_questions`
+- `Current Phase`: `N/A`
+- `Phase Progress`: `N/A`
+- `Active Phase File`: `N/A`
+- `Last Updated`: 현재 날짜
+- `Baseline`: [`../references/resume-state.md`](../references/resume-state.md)의 baseline 형식
+- `External Consult`: Step 3.5 결과 path/요약 또는 `N/A`
+- `DA State`: `PRE_DA`
+- `Pending User Questions`: `0`
+
+초기 본문은 Step 1-4에서 확인한 사실과 아직 DA 전이라는 상태를 담는 최소 계획이어도 된다. 단, Step 5 DA가 읽을 수 있도록 문제, 목표, non-goal, 변경 후보 파일, 검증 후보, Open Questions 상태는 비워 두지 않는다.
+
 ## Step 5-6: DA for_plan + 결과 반영
 
-상세는 [`../references/da-integration.md`](../references/da-integration.md) 참조 (Step 5 호출 계약 + Step 6 결과 반영 상태표). DA 결과의 중요 변경은 plan 파일의 Decision Log에 기록한다.
+상세는 [`../references/da-integration.md`](../references/da-integration.md) 참조 (Step 5 호출 계약 + Step 6 결과 반영 상태표). `/run-da for_plan` 명령 자체는 바꾸지 않고, Step 4.5에서 만든 plan 파일 경로와 내용을 context로 전달한다. DA 결과의 중요 변경은 같은 plan 파일의 Decision Log에 기록한다.
 
 ## Step 7: 계획 상태 진입 [전환점]
 
 모든 분석, 질문, DA 검토가 완료되었으므로 계획 추적 도구로 진입한다 (런타임별 실제 도구는 [`../references/runtime-boundaries.md`](../references/runtime-boundaries.md#런타임-도구-매핑-plan-with-questions-고유) 참조). headless 세션은 Step 4에서 이미 BLOCKED 처리되어 이 단계에 도달하지 않는다.
 
-- **Claude Code 세션**: 계획 추적 도구가 계획 파일 경로 배정과 write 제한 모드 전환을 수행한다. Step 8에서 파일 편집 도구로 해당 경로에 계획 파일을 작성한다.
-- **Codex 세션**: chat state 추적을 시작한 뒤, Step 8에서 파일 편집 도구로 `.claude/plans/<slug>.md`에 직접 작성한다 (chat state 추적은 상태 표시 전용이며 파일을 생성하지 않는다).
+- **Claude Code 세션**: 계획 추적 도구를 Step 4.5에서 만든 기존 plan 파일 경로에 바인딩하고 write 제한 모드로 전환한다. 새 plan 경로를 배정하지 않는다.
+- **Codex 세션**: `update_plan`으로 chat state 추적을 시작하되 파일 IO는 수행하지 않는다. 추적 대상 plan 파일은 Step 4.5에서 만든 기존 `.claude/plans/<slug>.md`다.
 
-## Step 8: 계획 파일 작성 [계획 추적 상태]
+## Step 8: 계획 파일 review/refine [계획 추적 상태]
 
-상세 실행 계획을 계획 파일에 작성한다. 파일 형식·14 metadata 필드·Decision Log·Resume From enum은 [`../references/plan-file-template.md`](../references/plan-file-template.md)와 [`../references/resume-state.md`](../references/resume-state.md)가 SSOT다. plan 작성 시 14필드 모두 채운다 (PRD 전용 필드는 N/A 명시).
+상세 실행 계획을 Step 4.5에서 만든 기존 plan 파일에서 review/refine한다. 파일 형식·14 metadata 필드·Decision Log·Resume From enum은 [`../references/plan-file-template.md`](../references/plan-file-template.md)와 [`../references/resume-state.md`](../references/resume-state.md)가 SSOT다. Step 8은 두 번째 plan 파일을 만들지 않는다.
 
 **핵심 포함 내용** (template 외 본문):
 - **변경 대상 파일 목록**: 수정/추가/삭제할 파일과 각 파일에서의 변경 내용
@@ -101,7 +129,7 @@ Step 3.5는 DA(Step 5)와 목적이 다르다. 3.5는 사용자에게 옵션 제
 - **Post-Implementation 자동 수행 범위**: [`../references/post-implementation.md`](../references/post-implementation.md) 1~7번 절차 중 생략할 단계가 있으면 명시. 생략 단계가 없으면 "Post-Implementation 1~7 자동 수행 (default)" 한 줄로 표기. 이 항목은 승인 요청 시 사용자에게 노출되어 tracked write·commit·GitHub PR write 포함 자동 진행 범위 동의 근거가 된다.
 
 **Hallucination 방지 원칙:**
-- 계획 파일에는 Step 1-6에서 직접 확인한 사실만 포함한다.
+- 계획 파일에는 Step 1-4에서 직접 확인한 사실과 Step 5-6 DA 판정만 포함한다.
 - "~일 것이다", "~로 추정된다" 등 추측 표현을 금지한다.
 - "추후 결정", "별도 검토 필요", "적절히 처리", "필요에 따라" 등 미결정 표현을 금지한다. 계획의 모든 항목은 구체적 행동으로 서술한다 ("에러 핸들링 추가"가 아니라 "X 함수에서 Y 예외를 catch하여 Z로 처리").
 - 단, `[UNVERIFIED]` 라벨처럼 검증 상태를 명시하는 표기는 허용한다 (라벨 체계 상세는 [`../../write-handoff/references/llm-friendly-checklist.md`](../../write-handoff/references/llm-friendly-checklist.md#라벨-체계-anti-hallucination) 참조).
