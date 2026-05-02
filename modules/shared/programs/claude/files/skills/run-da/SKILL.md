@@ -93,7 +93,7 @@ DA 호출 자체를 생략하지 마라 — run-da를 호출하면
 |------|-----------|------------------|---------------|
 | 사용자에게 질문 (**blocking tool call**) | `request_user_input` | `AskUserQuestion` 도구 | **미지원** (자동 전이 적용) |
 | fan-out 실행 (기본) | `spawn_agent` → `wait_agent` → `close_agent` (delegation 허용 시) | `Bash tool` + `run_in_background: true`로 `codex exec` subprocess 병렬 발사 (codex exec 사전점검 성공 시 기본) | `codex exec` subprocess를 **serial foreground**로 순차 실행 (완료 알림/`&+wait` 없음) |
-| fan-out 실행 (fallback) | codex exec subprocess (아래 "Delegation fallback" + `arbiter-scaling.md` 실행 계약) | `Agent` tool + `run_in_background: true` (codex exec 사전점검 실패 시 — "Claude Code 세션 fallback 세부" 섹션) | — |
+| fan-out 실행 (fallback) | codex exec subprocess (아래 "Delegation fallback" + `arbiter-scaling.md` 실행 계약) | `Agent` tool + `run_in_background: true` (codex exec 사전점검 실패 시 — "Claude Code 세션 fallback 세부 정보" 섹션) | — |
 | 결과 수집 | `wait_agent` 반환값, 또는 `exec_command`로 `cat`/`sed` 셸 읽기 | `Read` 도구 | `cat`/`sed` via shell |
 | 파일 읽기 | `exec_command`로 `cat`/`sed`/`rg` | `Read` 도구 | `cat`/`sed`/`rg` |
 
@@ -126,7 +126,7 @@ DA 호출 자체를 생략하지 마라 — run-da를 호출하면
 - **stdin pipe로 프롬프트 전달**: 모든 codex exec 호출에서 `cat "$DIR/prompt.md" | env CODEX_PROGRAMMATIC=1 codex exec ... -` stdin pipe 패턴을 사용한다. pipe EOF가 stdin을 자동으로 닫아 background 전환 시 stdin hang을 구조적으로 방지한다. `< /dev/null`은 pipe가 대체하므로 불필요. 인라인 인자 `"$(cat file)"`는 사용하지 않는다. **`CODEX_PROGRAMMATIC=1` env assignment는 pipeline 우측 codex 프로세스에 적용되어야 한다 (issue #585).**
 - **Intensity/Arbiter는 foreground 실행** (단일 exec): 결과를 즉시 확인한다. **reviewer만 병렬 실행** (런타임별 병렬 실행 매커니즘은 "런타임 도구 매핑" 표 참조).
 
-## Claude Code 세션 fallback 세부
+## Claude Code 세션 fallback 세부 정보
 
 Claude Code 세션에서 codex exec 사전점검이 실패했을 때 legacy fallback으로 대체하는 경로의 Claude-Code-고유 lifecycle이다. review profile 매핑은 상단 "런타임 도구 매핑" 표 참조.
 
