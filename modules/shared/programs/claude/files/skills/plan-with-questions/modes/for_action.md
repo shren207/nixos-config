@@ -87,21 +87,7 @@ Step 3.5는 DA(Step 5)와 목적이 다르다. 3.5는 사용자에게 옵션 제
 - 최종 경로는 canonicalize 후 반드시 `.claude/plans/` 하위여야 한다.
 - 동일 파일이 이미 있으면 `-2`, `-3` 같은 숫자 suffix를 slug 뒤에 붙여 collision을 해소한다. suffix 적용 후에도 같은 안전 검사를 다시 통과해야 한다.
 
-**초기 metadata 값:**
-- `Status`: `Draft`
-- `Mode`: `for_action`
-- `Source`: resolve된 이슈 ref 또는 URL
-- `Plan File`: self-referential path (`.claude/plans/<slug>.md`)
-- `Resume From`: `for_action.step5_da`
-- `Last Completed Step`: `for_action.step4_user_questions`
-- `Current Phase`: `N/A`
-- `Phase Progress`: `N/A`
-- `Active Phase File`: `N/A`
-- `Last Updated`: 현재 날짜
-- `Baseline`: [`../references/resume-state.md`](../references/resume-state.md)의 baseline 형식
-- `External Consult`: Step 3.5 결과 path/요약 또는 `N/A`
-- `DA State`: `PRE_DA`
-- `Pending User Questions`: `0`
+초기 metadata 14필드와 값은 [`../references/plan-file-template.md`](../references/plan-file-template.md#step-45-초기값-for_action)가 SSOT다. Step 4.5에서는 그 표를 그대로 적용한다.
 
 초기 본문은 Step 1-4에서 확인한 사실과 아직 DA 전이라는 상태를 담는 최소 계획이어도 된다. 단, Step 5 DA가 읽을 수 있도록 문제, 목표, non-goal, 변경 후보 파일, 검증 후보, Open Questions 상태는 비워 두지 않는다.
 
@@ -113,12 +99,12 @@ Step 3.5는 DA(Step 5)와 목적이 다르다. 3.5는 사용자에게 옵션 제
 
 모든 분석, 질문, DA 검토가 완료되었으므로 계획 추적 도구로 진입한다 (런타임별 실제 도구는 [`../references/runtime-boundaries.md`](../references/runtime-boundaries.md#런타임-도구-매핑-plan-with-questions-고유) 참조). headless 세션은 Step 4에서 이미 BLOCKED 처리되어 이 단계에 도달하지 않는다.
 
-- **Claude Code 세션**: 계획 추적 도구를 Step 4.5에서 만든 기존 plan 파일 경로에 바인딩하고 write 제한 모드로 전환한다. 새 plan 경로를 배정하지 않는다.
+- **Claude Code 세션**: 계획 추적 도구로 승인/tracking 상태에 진입한다. canonical plan 파일은 Step 4.5에서 만든 기존 경로이며, 런타임이 별도 transient plan buffer/path를 노출해도 그것을 새 canonical plan으로 승격하지 않는다.
 - **Codex 세션**: `update_plan`으로 chat state 추적을 시작하되 파일 IO는 수행하지 않는다. 추적 대상 plan 파일은 Step 4.5에서 만든 기존 `.claude/plans/<slug>.md`다.
 
 ## Step 8: 계획 파일 review/refine [계획 추적 상태]
 
-상세 실행 계획을 Step 4.5에서 만든 기존 plan 파일에서 review/refine한다. 파일 형식·14 metadata 필드·Decision Log·Resume From enum은 [`../references/plan-file-template.md`](../references/plan-file-template.md)와 [`../references/resume-state.md`](../references/resume-state.md)가 SSOT다. Step 8은 두 번째 plan 파일을 만들지 않는다.
+상세 실행 계획을 Step 4.5에서 만든 기존 plan 파일에서 review/refine한다. 파일 형식·14 metadata 필드·Decision Log·Resume From enum은 [`../references/plan-file-template.md`](../references/plan-file-template.md)와 [`../references/resume-state.md`](../references/resume-state.md)가 SSOT다. Step 8은 두 번째 canonical plan 파일을 만들지 않는다. Claude Code 런타임이 transient plan buffer/path를 제공하면, 승인 전 최종 내용이 Step 4.5 canonical 파일에 반영되어 있는지 확인한다.
 
 **핵심 포함 내용** (template 외 본문):
 - **변경 대상 파일 목록**: 수정/추가/삭제할 파일과 각 파일에서의 변경 내용

@@ -27,7 +27,7 @@
 | Last Updated | YYYY-MM-DD |
 | Baseline | branch=<name>, HEAD=<sha7>, dirty=<clean|hash> |
 | External Consult | <Step 3.5 result.json 경로 또는 요약> |
-| DA State | <PRE_DA | CONFIRMED | SKIPPED | BLOCKED | NEEDS_USER> |
+| DA State | <PRE_DA | RUNNING | APPLYING | CONFIRMED | SKIPPED | BLOCKED | NEEDS_USER> |
 | Pending User Questions | <count> (link to high-impact) |
 ```
 
@@ -79,6 +79,16 @@
 ### External Consult
 
 Step 3.5 자문 결과의 `result.json` 경로 또는 핵심 decision_id list. plan 파일은 자문 raw output을 인라인 복제하지 않는다 (별도 path 또는 git ignored 임시 파일).
+
+### DA State 값
+
+- `PRE_DA`: Step 4.5 초기 상태. 아직 Step 5 DA를 시작하지 않음.
+- `RUNNING`: Step 5 DA를 시작했으나 durable verdict가 plan 파일에 반영되지 않음.
+- `APPLYING`: Step 5 DA verdict를 수신했고 Step 6 반영 중.
+- `CONFIRMED`: Step 6 반영이 완료되고 다음 단계로 진행 가능.
+- `SKIPPED`: run-da Intensity가 SKIP으로 판정했고 사용자 승인 또는 계약상 skip 처리가 완료됨.
+- `BLOCKED`: DA 또는 selective consistency 상태가 BLOCKED.
+- `NEEDS_USER`: DA 결과 반영에 사용자 판단이 필요함.
 
 ## 본문 구조
 
@@ -186,7 +196,7 @@ Step 3.5 자문 결과의 `result.json` 경로 또는 핵심 decision_id list. p
 ## 작성 시점
 
 - **Step 4.5 (공식 plan 파일 초기화)**: 14필드 초기값 + Step 1-4 evidence 기반 최소 본문 + Change Log 첫 줄.
-- **Step 5/6 DA 실행/반영**: 같은 plan 파일의 `DA State`, 본문, `Decision Log`를 갱신한다.
+- **Step 5/6 DA 실행/반영**: 같은 plan 파일의 `DA State`, 본문, `Decision Log`를 갱신한다. DA 시작 직전 `RUNNING`, verdict 수신 후 반영 시작 시 `APPLYING`, 반영 완료 시 `CONFIRMED`/`SKIPPED`/`BLOCKED`/`NEEDS_USER` 중 하나로 기록한다.
 - **Step 7 계획 추적 진입**: Step 4.5의 기존 plan 파일을 추적 상태에 바인딩한다. 새 파일을 만들지 않는다.
 - **Step 8 (계획 파일 review/refine)**: 기존 plan 파일의 본문, Decision Log, Post-Implementation 자동 수행 범위를 승인 가능한 수준으로 정리한다.
 - **Step 9 승인 후**: Status `Approved` → `Implementing`. Last Updated 갱신.

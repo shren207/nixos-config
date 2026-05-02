@@ -17,6 +17,7 @@
 - **타이밍**: 반드시 계획 추적 도구 진입 전에 이 단계를 완료한다 (DA 에이전트가 일반 모드에서 full tool access로 PoC 검증을 수행할 수 있도록).
 - **for_action 입력 계약**: Step 4.5에서 만든 공식 `.claude/plans/<slug>.md` 경로와 파일 내용을 DA 입력 context에 포함한다. `/run-da for_plan` 뒤에 path argument나 modifier를 추가하지 않는다.
 - **for_action fail-closed precondition**: Step 4.5 plan 파일이 없거나 canonical path가 `.claude/plans/` 밖이면 `/run-da for_plan`을 호출하지 않고 BLOCKED 처리한다. slug 재생성 또는 파일 초기화를 먼저 완료한다.
+- **for_action DA State 전이**: DA 시작 직전에 같은 plan 파일의 `DA State`를 `RUNNING`으로 바꾼다. verdict를 수신하고 Step 6 반영을 시작하면 `APPLYING`으로 바꾼다.
 - **for_prd 예외**: `for_prd`는 Step 4.5와 `.claude/plans/` precondition을 적용하지 않는다. Step 5 DA 입력은 PRD draft/context, candidate phase structure, Step 1-4 evidence다.
 
 ## Step 6: DA 결과 반영 [일반 모드]
@@ -34,5 +35,5 @@ DA for_plan의 Arbiter 판정 결과와 selective consistency 집계(해당 시)
 
 DA 결과 반영 target:
 
-- **for_action**: Step 4.5에서 만든 같은 plan 파일을 편집한다. 중요 변경, confirmed rejection, BLOCKED/NEEDS_USER 전이는 `Decision Log`에 ADR 미니 형식으로 기록한다 (상세는 [`plan-file-template.md`](./plan-file-template.md) Decision Log 섹션).
-- **for_prd**: PRD draft/context와 candidate phase structure에 DA 결과를 반영한다. PRD 파일 작성 후에는 PRD master의 Document Status와 decision-log-equivalent 섹션에 반영 이력을 남기며, `.claude/plans/` 파일을 만들지 않는다.
+- **for_action**: Step 4.5에서 만든 같은 plan 파일을 편집한다. 중요 변경, confirmed rejection, BLOCKED/NEEDS_USER 전이는 `Decision Log`에 ADR 미니 형식으로 기록한다 (상세는 [`plan-file-template.md`](./plan-file-template.md) Decision Log 섹션). 반영 완료 후 `DA State`를 `CONFIRMED`/`SKIPPED`/`BLOCKED`/`NEEDS_USER` 중 하나로 기록한다.
+- **for_prd**: PRD draft/context와 candidate phase structure에 DA 결과를 반영한다. PRD 파일 작성 후에는 PRD master `Change Log`와, split mode에서 특정 phase가 영향받는 경우 해당 phase의 `Discoveries / Decisions`에 반영 이력을 남기며, `.claude/plans/` 파일을 만들지 않는다.

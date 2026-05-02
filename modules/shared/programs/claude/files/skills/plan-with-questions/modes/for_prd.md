@@ -49,7 +49,7 @@
 - **Step 3.5**: 자문 입력에 phase 구조 후보를 포함 (PRD는 phase 단위 결정이 핵심).
 - **Step 4.5**: 건너뛴다. `for_prd`는 `.claude/plans/` 파일과 plan-file-template 14 metadata를 만들지 않는다.
 - **Step 5 DA**: 기본은 `/run-da for_plan` 호출 — `run-da`의 독립 Intensity agent가 SKIP/LITE/FULL을 자동 판정한다. DA 입력은 PRD draft/context, candidate phase structure, Step 1-4 evidence이며 plan 파일 path가 아니다. phase 4+ 복잡 plan에서 사용자가 명시적으로 exhaustive review를 원하면 `/run-da for_plan full` 사용 (full modifier는 Intensity 판단을 우회하고 8 도메인 강제). 두 의미는 다르다.
-- **Step 6 DA 반영**: DA 결과는 PRD draft/context와 후보 phase 구조에 반영한다. PRD 작성 후에는 PRD master의 Document Status와 decision-log-equivalent 섹션에 반영 이력을 남긴다.
+- **Step 6 DA 반영**: DA 결과는 PRD draft/context와 후보 phase 구조에 반영한다. PRD 작성 후에는 PRD master `Change Log`와, split mode에서 특정 phase가 영향받는 경우 해당 phase의 `Discoveries / Decisions`에 반영 이력을 남긴다.
 
 ### Step 7: 사용자 승인 게이트
 
@@ -69,8 +69,8 @@
 승인이 통과한 경우에만 PRD 파일 작성으로 분기한다:
 
 1. Step 1-4에서 수집한 정보, Step 5-6 DA 결과, 승인된 후보 phase 구조를 정리한다.
-2. [`../references/prd/prd-master-template.md`](../references/prd/prd-master-template.md)를 따라 `.claude/prds/prd-<feature>.md`에 master PRD 작성.
-3. Split mode이면 [`../references/prd/phase-template.md`](../references/prd/phase-template.md)를 따라 phase 파일들도 동일 실행에서 생성 (`.claude/prds/prd-<feature>/phase-NN-<name>.md`).
+2. [`../references/prd/prd-master-template.md`](../references/prd/prd-master-template.md)를 따라 `.claude/prds/prd-<feature>.md`에 master PRD 작성. `<feature>` slug 안전 규칙은 [`../references/prd/file-mode-selection.md`](../references/prd/file-mode-selection.md#경로-slug-안전-규칙)가 SSOT다.
+3. Split mode이면 [`../references/prd/phase-template.md`](../references/prd/phase-template.md)를 따라 phase 파일들도 동일 실행에서 생성 (`.claude/prds/prd-<feature>/phase-NN-<name>.md`). `<name>` slug 안전 규칙도 [`../references/prd/file-mode-selection.md`](../references/prd/file-mode-selection.md#경로-slug-안전-규칙)를 따른다.
 
 PRD 작성 + 갱신 + phase 진행 + Phase Discovery Gate 적용을 모두 본 모드가 책임진다. 별도 plan 파일 (`.claude/plans/`)은 만들지 않는다.
 
