@@ -10,8 +10,7 @@
 # 본 wrapper는 setsid + timeout 조합으로 process group kill을 보장한다. mac BSD coreutils에는
 # timeout이 없고 setsid도 없으므로, Nix wrapper가 빌드 시 두 binary의 absolute store path를
 # placeholder로 substitute한다 (replaceVars). 이로써 wrapper subprocess의 PATH가 GNU coreutils로
-# 오염되지 않고 (DA Round 2 R2 + parallel-audit Platform-1/Adjacent-1 fix), codex exec 자식 shell도
-# 원래 user PATH(BSD coreutils 우선)를 보존한다.
+# 오염되지 않고, codex exec 자식 shell도 원래 user PATH(BSD coreutils 우선)를 보존한다.
 #
 # stdin 처리 책임: 호출자가 명시적으로 처리 (`cat prompt.md | codex-exec-supervised ... -` 또는
 # `codex-exec-supervised ... < /dev/null`). 본 wrapper는 stdin을 inherit한다.
@@ -27,7 +26,7 @@
 #                                 운영 budget(10분)으로 두고, fixture/검증용 짧은 timeout은 호출자가
 #                                 env로 명시한다 (예: invocation matrix는 INVOCATION_MATRIX_TIMEOUT_SECONDS
 #                                 oracle 상수로 40초 명시).
-#                                 양수 정수만 허용 (parallel-audit Security-3: invalid 값 fail-closed).
+#                                 양수 정수만 허용 (invalid 값은 fail-closed).
 #                                 상한 7200초 (2시간 — 어떤 reasoning level도 cover).
 #   CODEX_EXEC_KILL_AFTER_SECONDS SIGTERM 후 SIGKILL 전환 grace, default 5
 #                                 rationale: npm wrapper SIGTERM forward 후 native 응답 대기.
@@ -35,7 +34,7 @@
 #   CODEX_EXEC_TIMEOUT_BIN        timeout binary absolute path. 미설정 시 PATH 검색 후 부재면 BLOCKED.
 #                                 Nix wrapper가 ${pkgs.coreutils}/bin/timeout으로 set한다.
 #   CODEX_EXEC_SETSID_BIN         setsid binary absolute path. 미설정 시 PATH 검색 후 부재면 BLOCKED.
-#                                 (parallel-audit Security-1: 부재 fail-open → fail-closed로 변경)
+#                                 부재 fail-closed (process group kill 보장이 본 wrapper의 핵심 경계).
 #                                 Nix wrapper가 ${pkgs.util-linux}/bin/setsid로 set한다.
 #                                 진단용 timeout-only 실행이 필요하면 CODEX_EXEC_ALLOW_TIMEOUT_ONLY=1
 #                                 명시 opt-in으로 분리 (보안 경계 약화에 대한 의도 표명).
@@ -113,7 +112,7 @@ fi
 # Execute with supervisor.
 # stdin은 caller가 처리한다 (pipe 또는 redirect). 본 wrapper는 inherit.
 # 핵심: PATH는 변경하지 않는다. timeout/setsid는 absolute path로 직접 호출하여 codex exec child shell
-# 의 user PATH(BSD coreutils 우선)를 보존한다 (parallel-audit Platform-1/Adjacent-1 fix).
+# 의 user PATH(BSD coreutils 우선)를 보존한다.
 if [[ -n "$SETSID_BIN" ]]; then
   exec "$SETSID_BIN" "$TIMEOUT_BIN" \
     --kill-after="$CODEX_EXEC_KILL_AFTER_SECONDS" \

@@ -1030,17 +1030,17 @@ EOF
 }
 
 # ─── 카테고리 5b: codex exec invocation matrix (live opt-in, must-pass-only — issue #593) ───
-# fix 적용 후 PASS가 기대되는 시나리오만 검증한다 (plan SC-2/D-4). vJ (PR #595 fixture pattern hang)는
-# 본 matrix 제외 — known caveat (using-codex-exec/references/known-issues.md §15) + 별도 follow-up (plan NG-5).
+# fix 적용 후 PASS가 기대되는 시나리오만 검증한다. vJ (PR #595 fixture pattern hang)는 본 matrix
+# 제외 — known caveat (using-codex-exec/references/known-issues.md §15) + 별도 follow-up.
 #
 # 시나리오:
 #   1. host_home_no_override_stdin_pipe_supervised_pass — vH 입증 패턴 (Layer 1 + supervisor)
 #   2. raw_override_inline_toml_hang_with_supervisor_pass — issue #593 raw PoC + supervisor 적용
 #      (supervisor가 timeout 안에 SIGTERM/SIGKILL grace로 정리 → 124/137 exit가 정상)
 #
-# 환경 결함 (codex/codex-exec-supervised 부재) 시만 WARN skip (plan SC-5 capability-probe 정책).
-# DA Round 2 C-003/MNT-3: preflight 통과 후에는 timeout/no-result는 fail. timeout_bin 변수 죽은 코드 제거.
-# DA Round 2 C-003: scenario-2는 supervisor 정리 + 잔존 process 부재까지 검증.
+# 환경 결함 (codex/codex-exec-supervised 부재) 시만 WARN skip (capability-probe 정책).
+# preflight 통과 후 timeout/no-result는 fail (must-pass-only 계약).
+# scenario-2는 supervisor 정리 + 잔존 process 부재까지 검증.
 test_codex_exec_invocation_live_matrix() {
   # preflight: codex 가용성 (wrapper가 자체 capability-probe하므로 timeout/setsid 별도 검사 불필요).
   if ! command -v codex >/dev/null 2>&1; then
@@ -1068,8 +1068,8 @@ test_codex_exec_invocation_live_matrix() {
   # host HOME (auth 정상) + no override + stdin pipe + Layer 1 안전 패턴 (supervised + read-only +
   # ignore-user-config + explicit model pin + CODEX_PROGRAMMATIC=1 marker) — supervisor 정상 종료 기대.
   # preflight 통과 후 timeout 또는 빈 result는 회귀로 처리한다 (must-pass-only 계약).
-  # parallel-audit C/D fix: env 격리 시 CODEX_PROGRAMMATIC marker는 유지 (Layer 1 + host hook
-  # early-exit guard). --ignore-user-config 추가로 user config MCP/plugin 표면 차단.
+  # env 격리 시 CODEX_PROGRAMMATIC marker는 유지 (Layer 1 + host hook early-exit guard).
+  # --ignore-user-config 추가로 user config MCP/plugin 표면 차단.
   local result1="$sandbox/scenario-1-result.md"
   local stderr1="$sandbox/scenario-1.stderr"
   local rc1=0
@@ -1083,7 +1083,7 @@ test_codex_exec_invocation_live_matrix() {
       -o "$result1" \
       - >/dev/null 2>"$stderr1" || rc1=$?
 
-  # parallel-audit B fix: rc=127은 supervisor capability-probe 실패 → scenario-2와 동일하게 WARN skip.
+  # rc=127은 supervisor capability-probe 실패 → scenario-2와 동일하게 WARN skip.
   if (( rc1 == 127 )); then
     local stderr_tail1
     stderr_tail1=$(tail -c 400 "$stderr1" 2>/dev/null | tr '\n' ' ' || true)
@@ -1108,7 +1108,7 @@ test_codex_exec_invocation_live_matrix() {
   # ── Scenario 2: raw_override_inline_toml_hang_with_supervisor_pass ──
   # issue #593 raw PoC 패턴(`-c hooks.<event>` override 포함). supervisor 미적용 시 hang 확정.
   # supervisor 적용 시 timeout 안에 SIGTERM/SIGKILL grace로 정리되어 0/124/137 exit 모두 PASS.
-  # DA Round 2 C-003: 잔존 codex 프로세스가 없는지 추가 검증 (process group kill 입증).
+  # 잔존 codex 프로세스가 없는지 추가 검증 (process group kill 입증).
   local hook_log="$sandbox/scenario-2-hook.log"
   local hook_script="$sandbox/scenario-2-dump.sh"
   cat > "$hook_script" <<EOF
@@ -1141,7 +1141,7 @@ EOF
     0|124|137)
       # 0=정상, 124=SIGTERM-by-timeout, 137=SIGKILL-by-timeout — 모두 supervisor가 정리한 PASS.
       # 잔존 codex/timeout 프로세스가 sandbox path로 식별되는지 확인 (process group kill 입증).
-      # parallel-audit A fix: macOS pgrep -fc/-fa 미지원 → portable ps + grep -F (fixed string).
+      # macOS pgrep -fc/-fa 미지원 → portable ps + grep -F (fixed string).
       sleep 1  # SIGKILL grace 후 OS reaper에 시간 부여
       local lingering_pids lingering_count lingering_lines
       lingering_pids=$(ps -axo pid=,command= 2>/dev/null | grep -F -- "$sandbox_path" | grep -v "^[[:space:]]*${self_pid}[[:space:]]" | grep -v 'grep -F -- ' | awk '{print $1}' || true)
@@ -1200,9 +1200,9 @@ run_test "sync.sh mcp-config fail-fast (#609)" \
   test_sync_sh_mcp_config_failfast
 
 if [[ "$LIVE_MODE" == "1" ]]; then
-  # invocation matrix를 env propagation보다 먼저 실행한다 (issue #593 plan D-5/NG-5):
+  # invocation matrix를 env propagation보다 먼저 실행한다 (issue #593):
   # PR #595의 test_env_propagation_live는 mac 0.128에서 hang으로 fail이 관측되어 별도 follow-up
-  # 이슈로 분리됐다 (vJ caveat). 본 plan의 invocation matrix가 먼저 실행되어야 새 fixture가
+  # 이슈로 분리됐다 (vJ caveat). invocation matrix가 먼저 실행되어야 새 fixture가
   # 회귀 차단 신호를 제공할 수 있다.
   run_test "codex exec invocation matrix (supervised wrapper, must-pass-only)" \
     test_codex_exec_invocation_live_matrix
