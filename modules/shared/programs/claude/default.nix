@@ -19,7 +19,9 @@ in
 {
   # Binary Claude Code 설치 (Node.js 버전 의존성 없음)
   # CIR: curl install.sh 방식 유지 — auto-updater가 터미널 CLI를 항상 최신으로 유지하므로 이 방식이 최적.
-  #   Zed는 ACP(Agent Client Protocol) 기반 네이티브 Claude Code 통합 사용 (zed/default.nix CIR 참조)
+  #   VSCode는 공식 anthropic.claude-code 확장(WebSocket MCP 서버 기반)으로 통합:
+  #   외부 터미널 `claude --ide` (또는 `/ide`)로 VSCode 자동 인식, Cmd+Esc로 focus toggle,
+  #   Option+K로 선택 영역을 @file#Lx-Ly @mention 삽입 (vscode/default.nix CIR 참조).
   home.activation.installClaudeCode = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     if [ ! -f "$HOME/.local/bin/claude" ]; then
       echo "Installing Claude Code binary..."
