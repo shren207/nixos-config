@@ -68,7 +68,7 @@ DA 호출 자체를 생략하지 마라 — run-da를 호출하면
 |------|------|
 | Mode for_plan 절차 | [`modes/for_plan.md`](modes/for_plan.md) |
 | Mode for_pr 절차 (for_plan delta) | [`modes/for_pr.md`](modes/for_pr.md) |
-| 런타임 도구 매핑 + codex exec 위생 + Agent fallback | [`references/runtime-mapping.md`](references/runtime-mapping.md) |
+| 런타임 도구 매핑 + codex exec 위생 + fallback 세부 정보 | [`references/runtime-mapping.md`](references/runtime-mapping.md) |
 | Codex 세션 하드닝 계약 (single-writer / 역할별 경계 / VIOLATION / Delegation fallback) | [`references/hardening-contract.md`](references/hardening-contract.md) |
 | Review Intensity 판단 절차 (3단계, SKIP/LITE 절차) | [`references/intensity-procedure.md`](references/intensity-procedure.md) |
 | Review Intensity 판단 알고리즘 규칙 | [`references/intensity-rules.md`](references/intensity-rules.md) |
