@@ -163,7 +163,7 @@ sudo copyparty-update             # 실제 업데이트 (pull → digest 비교 
 - agenix secret: `/run/agenix/copyparty-password`, `/run/agenix/pushover-copyparty`
 - 도메인: `https://copyparty.greenhead.dev`
 - Podman/서비스 의존: `podman-copyparty.service` + `copyparty-config.service` (oneshot, agenix secret 주입)
-- 외부 의존: 없음
+- 외부 의존: GitHub Releases API + Pushover API (`copyparty-update` 버전 체크 + 알림)
 
 ## 레퍼런스
 
