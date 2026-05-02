@@ -1140,6 +1140,13 @@ EOF
   case "$rc2" in
     0|124|137)
       # 0=정상, 124=SIGTERM-by-timeout, 137=SIGKILL-by-timeout — 모두 supervisor가 정리한 PASS.
+      # inline `-c hooks.<event>` override가 실제로 발화했는지 검증한다. UserPromptSubmit hook은
+      # prompt 처리 직전 발화하므로 supervisor SIGTERM/SIGKILL 시점에도 hook_log에 entry가 있어야
+      # 한다. hook_log empty → override 미발화 회귀 (issue #593 PoC가 검증한 핵심 경로).
+      if [[ ! -s "$hook_log" ]]; then
+        fail "invocation matrix scenario-2: -c hooks override 미발화 (hook_log empty) — override 회귀"
+      fi
+
       # 잔존 codex/timeout 프로세스가 sandbox path로 식별되는지 확인 (process group kill 입증).
       # macOS pgrep -fc/-fa 미지원 → portable ps + grep -F (fixed string).
       sleep 1  # SIGKILL grace 후 OS reaper에 시간 부여

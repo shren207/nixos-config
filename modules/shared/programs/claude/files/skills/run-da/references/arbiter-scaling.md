@@ -63,8 +63,8 @@ Claude Code에서 Codex CLI를 subprocess로 호출할 때, 비대화형 automat
 - `-o "$ARBITER_DIR/arbiter-result.md"` 결과 파일
 - `cat "$ARBITER_DIR/arbiter-prompt.md" | env CODEX_PROGRAMMATIC=1 codex-exec-supervised ... -` stdin pipe로 프롬프트 전달 (pipe EOF가 stdin hang 방지; marker는 codex 프로세스에 적용 — issue #585)
 - `2>"$ARBITER_DIR/arbiter-stderr.log"` stderr 분리
-- `-m` 플래그 생략 (config.toml 기본 모델)
-- Arbiter는 strong review profile(high)을 사용한다. config.toml 기본 `model_reasoning_effort`(xhigh)와 다르므로 `-c model_reasoning_effort="high"`를 명시적으로 지정한다.
+- `-c model="gpt-5.5"` 명시 (`--ignore-user-config`로 `$CODEX_HOME/config.toml`의 model이 차단되므로 explicit pin 필수)
+- Arbiter는 strong review profile(`model="gpt-5.5"`, `model_reasoning_effort="high"`)을 사용한다. `--ignore-user-config`로 config.toml의 model과 effort가 모두 차단되므로 둘 다 explicit하게 명시한다.
 - 프롬프트에서 "리뷰만 수행하고 파일을 수정하지 마라" 명시
 - `--ephemeral`로 세션 히스토리 오염 방지
 
@@ -141,9 +141,11 @@ cat > "$ARBITER_DIR/arbiter-prompt.md" <<'PROMPT'
 PROMPT
 
 # 3. codex exec 실행 (foreground)
-# Arbiter는 strong review profile(high) — config.toml 기본값(xhigh)을 오버라이드. model은 -m 생략하여 config.toml 기본값 사용.
+# Arbiter는 strong review profile(model="gpt-5.5", model_reasoning_effort="high") — --ignore-user-config로
+# config.toml의 model과 model_reasoning_effort가 모두 차단되므로 둘 다 explicit하게 명시한다.
 # marker must apply to `codex`, not `cat` (issue #585): Codex 0.124+ user-level hooks의 early-exit 신호.
 cat "$ARBITER_DIR/arbiter-prompt.md" | env CODEX_PROGRAMMATIC=1 codex-exec-supervised --sandbox read-only --ignore-user-config --ephemeral \
+  -c model="gpt-5.5" \
   -c model_reasoning_effort="high" \
   -o "$ARBITER_DIR/arbiter-result.md" \
   - \
