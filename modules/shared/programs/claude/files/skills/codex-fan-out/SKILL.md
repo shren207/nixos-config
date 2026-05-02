@@ -96,7 +96,7 @@ echo "FO_DIR=$FO_DIR"
    ```zsh
    # marker must apply to `codex`, not `cat` (issue #585 / epic #584).
    # CODEX_PROGRAMMATIC=1은 Codex 0.124+ user-level hooks의 early-exit guard 신호.
-   cat "/tmp/fo-c4a35fc4-AbCdEf/agent-1.md" | env CODEX_PROGRAMMATIC=1 codex exec --full-auto --ephemeral \
+   cat "/tmp/fo-c4a35fc4-AbCdEf/agent-1.md" | env CODEX_PROGRAMMATIC=1 codex-exec-supervised --sandbox read-only --ignore-user-config --ephemeral \
      -c model_reasoning_effort="high" \
      -o "/tmp/fo-c4a35fc4-AbCdEf/agent-1-result.md" \
      - \

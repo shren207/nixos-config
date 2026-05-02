@@ -451,3 +451,55 @@ cat "$DIR/prompt.md" | env CODEX_PROGRAMMATIC=1 codex exec --full-auto --ephemer
 **실증**: 다수 codex exec를 `cat file | env CODEX_PROGRAMMATIC=1 codex exec ... - (run_in_background: true)`로 병렬 실행 → 모두 `-o` 결과 파일 정상 생성 (codex v0.120.0, 2026-04-11; marker는 issue #585에서 도입).
 
 **발견 세션**: #443 PR 작업 중 DA for_pr R4 (2026-04-11). Correctness reviewer가 대규모 diff 포함 프롬프트에서 hang.
+
+### 15. `codex-exec-supervised` wrapper로 §14 위에 process group/timeout 한계 보강 (issue #593)
+
+**심각도**: 보강 패턴 — §14 stdin pipe + supervised wrapper로 inline TOML override + npm wrapper detach 부재 한계까지 차단
+
+**배경 (issue #593)**: §14의 stdin pipe 패턴을 따른 호출도 다음 두 추가 요인이 결합되면 silent hang 가능:
+
+1. **`-c hooks.<event>='[...]'` inline TOML override** — Mac codex 0.128 8 PoC variant 중 vH(host HOME + no override + stdin pipe + read-only)만 OK, override 포함 vA-G + vJ 모두 hang. Agent D source 분석은 `-c` parse/merge 정상이지만 override shape가 hook engine MatcherGroup 등록 실패 가능성을 시사 (정밀 위치 [UNVERIFIED]).
+2. **npm wrapper(@openai/codex) detach/process group 부재** — `codex-cli/bin/codex.js`의 `spawn(binaryPath, args, {stdio:"inherit", env})`은 `detached:true`도, process group 생성도 없다. SIGINT/SIGTERM/SIGHUP은 forward되지만 SIGKILL은 forward 불가. `timeout` 단독은 wrapper PID만 죽여 native binary가 잔존할 수 있다.
+
+**외부 evidence (Round-2 fan-out Agent E)**:
+- [gstack#1034](https://github.com/garrytan/gstack/issues/1034) — Claude Code Bash 비대화형 세션에서 argv prompt + 열린 stdin → EOF 대기. macOS, codex v0.121. fix: `</dev/null`.
+- [gstack#1045](https://github.com/garrytan/gstack/issues/1045) — 최소 재현: `codex exec "Reply PONG" -s read-only` hang, `</dev/null` 즉시 반환. codex-cli v0.118. fix: `codex exec/review/resume` 호출에 `</dev/null`.
+- [oh-my-codex#1449](https://github.com/Yeachan-Heo/oh-my-codex/issues/1449) — Codex worker prompt-mode에서 stdin pipe가 열린 채 남으면 EOF 대기. fix: initial prompt write 후 stdin close, non-git cwd는 `--skip-git-repo-check`.
+- [codex_sdk README](https://github.com/nshkrdotcom/codex_sdk) — SDK가 one-shot argv-prompt 실행 시 upstream CLI가 EOF 대기하지 않게 stdin을 닫는다고 명시.
+- 본 repo와 동일 증상 OpenAI upstream issue는 미발견 (정확 매치는 외부 wrapper/skill repo에서만 반복).
+
+**해결**: programmatic codex exec 호출은 supervised wrapper(`codex-exec-supervised`)를 사용한다. wrapper는 absolute store path 우선 + capability-probe fallback으로 `setsid`(process group 생성) + `timeout`/`gtimeout`(SIGTERM/SIGKILL grace)을 적용한다. **stdin EOF는 pipe(`cat file | ... -`) 또는 file redirect(`< file`) 둘 다 허용** — 둘 다 §14의 stdin EOF 보장 패턴이다 (DA Round 2 reviewer Maintainability-1: 통일 용어). Layer 1 호출에서는 pipe 형태가 일반적이고, supervisor에 시간/budget을 거는 호출(예: `consulting-step.md`)에서는 file redirect 형태가 가독성 좋다.
+
+```bash
+# §14 stdin pipe + §15 supervised wrapper 결합 (Layer 1 — 모든 programmatic 호출 공통)
+cat "$DIR/prompt.md" | env CODEX_PROGRAMMATIC=1 codex-exec-supervised \
+  --ephemeral --sandbox read-only --ignore-user-config \
+  -c model="gpt-5.5" \
+  -c model_reasoning_effort="medium" \
+  -o "$DIR/result.md" \
+  - \
+  2>"$DIR/stderr.log"
+```
+
+**capability probe 동작** ([`modules/shared/scripts/codex-exec-supervised.sh`](../../../../../../scripts/codex-exec-supervised.sh)):
+- `setsid` 부재 → `timeout`만 사용 (process group kill 불가, wrapper-only 종료에 의존). WARN 후 진행.
+- `timeout`/`gtimeout` 부재 → BLOCKED, exit 127. Mac BSD에는 둘 다 없음 → nix-darwin이 `pkgs.writeShellApplication`으로 wrapper를 build하면서 `runtimeInputs = [coreutils util-linux]`로 wrapper 내부 PATH에만 의존성을 노출한다 (사용자 PATH에 GNU coreutils가 prepend되는 부작용 회피, [`modules/shared/programs/shell/darwin.nix`](../../../../../shell/darwin.nix)).
+- `codex` 부재 → exit 127.
+
+**오케스트레이션 vs 자문 (Layer 2 — `-C scratch` 추가)**: consult 전용 호출(예: [`plan-with-questions/references/consulting-step.md`](../../plan-with-questions/references/consulting-step.md))은 Layer 1 위에 `-C <non-repo-scratch-dir>` + `--skip-git-repo-check`를 추가한다. reviewer/auditor (run-da/parallel-audit/codex-fan-out)는 repo cwd가 필요하므로 Layer 2를 적용하지 않는다 (issue #593 plan NG-6).
+
+**variant legend (issue #593 PoC 8 variant + 본 wrapper 적용 분류)**:
+
+| variant | HOME | CODEX_HOME | hooks 등록 | sandbox | stdin | 결과 (Mac 0.128, supervised wrapper 미적용) | wrapper 적용 후 기대 |
+|---------|------|-----------|-----------|---------|-------|--------|--------|
+| `host_home_no_override_stdin_pipe_pass` (vH) | host | host | 없음 (host config inline) | read-only | `</dev/null` 또는 pipe | OK 12s, hook fired, "PONG" | OK (wrapper grace 무관 — 이미 정상) |
+| `raw_override_inline_toml_hang` (vA-G) | host/sandbox | host/sandbox | `-c hooks.<event>` override | full-auto/read-only | host inherited 또는 pipe | HANG (timeout 못 죽임) | wrapper의 setsid+kill-after로 timeout 안에 정리되어 PASS (H-10 fix) |
+| `isolated_codex_home_overrideless_known_hang` (vJ) | sandbox | sandbox | ephemeral config.toml | read-only | inherited | HANG (PR #595 fixture pattern) | known caveat — 별도 follow-up 이슈로 분리 (issue #593 plan NG-5) |
+
+**vJ known caveat**: `tests/test-codex-hook-fixtures.sh:940-1030`의 `test_env_propagation_live`(opt-in, `CODEX_HOOK_LIVE=1`)는 `CODEX_HOME=$sandbox/codex-home` + ephemeral config.toml로 hook 등록 + override 없음 + `--sandbox read-only` 패턴이지만 mac 0.128에서 hang이 관측됐다 (issue #593 Post-Impl 1 검증에서 `CLAUDECODE=1 미도달` fail로 입증). lefthook은 `--no-live`만 실행하므로 daily gate에서 검증되지 않은 상태다. fix는 issue #593 scope 외 — **follow-up: [issue #634](https://github.com/greenheadHQ/nixos-config/issues/634)**. 보강 시 supervised wrapper + 추가 진단 필요.
+
+**§14와의 관계**: §14는 stdin EOF 보장을 stdin pipe로 구조적으로 제공한다. §15는 그 위에 process group/SIGKILL grace를 추가해 wrapper PID 종료가 native까지 닿지 않는 H-10 시나리오를 차단한다. 두 패턴은 결합 사용한다.
+
+**실증 (Mac codex 0.128, issue #593 진단 세션)**: 8 PoC variant + Round 1·2 fan-out(6 agent xhigh) + DA 11건 모두 CONFIRMED. Agent D는 `read_prompt_from_stdin(StdinPromptBehavior::OptionalAppend)` source line + npm wrapper spawn 시 detach 부재를 직접 fetch로 [VERIFIED]. Agent E는 외부 4 보고로 stdin EOF fix path를 [VERIFIED]. 상세 진단 결과는 [`.claude/plans/abundant-dazzling-lightning.md`](../../../../../../../../.claude/plans/abundant-dazzling-lightning.md) Decision Log DL-3 참조.
+
+**발견 세션**: PR #588 Phase 4 머지 후 retry hang (issue #593, 2026-04-29 발생).

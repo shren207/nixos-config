@@ -58,10 +58,10 @@ Arbiter/Review Intensity도 이를 기본 경로로 사용한다.
 Claude Code에서 Codex CLI를 subprocess로 호출할 때, 비대화형 automation일 때,
 또는 사용자가 `codex exec`를 명시적으로 요구할 때는 기존 `codex exec` 계약을 따른다.
 
-- `codex exec --full-auto --ephemeral`
+- `codex-exec-supervised --sandbox read-only --ignore-user-config --ephemeral` (issue #593 Layer 1: setsid + timeout capability-probe wrapper, [`../../using-codex-exec/references/known-issues.md`](../../using-codex-exec/references/known-issues.md) §15 SSOT)
 - **foreground 실행** (병렬/background 없음 — 단일 exec이므로 결과를 즉시 확인. 런타임별 매커니즘은 [`runtime-mapping.md`](runtime-mapping.md) "런타임 도구 매핑" 표 참조)
 - `-o "$ARBITER_DIR/arbiter-result.md"` 결과 파일
-- `cat "$ARBITER_DIR/arbiter-prompt.md" | env CODEX_PROGRAMMATIC=1 codex exec ... -` stdin pipe로 프롬프트 전달 (pipe EOF가 stdin hang 방지; marker는 codex 프로세스에 적용 — issue #585)
+- `cat "$ARBITER_DIR/arbiter-prompt.md" | env CODEX_PROGRAMMATIC=1 codex-exec-supervised ... -` stdin pipe로 프롬프트 전달 (pipe EOF가 stdin hang 방지; marker는 codex 프로세스에 적용 — issue #585)
 - `2>"$ARBITER_DIR/arbiter-stderr.log"` stderr 분리
 - `-m` 플래그 생략 (config.toml 기본 모델)
 - Arbiter는 strong review profile(high)을 사용한다. config.toml 기본 `model_reasoning_effort`(xhigh)와 다르므로 `-c model_reasoning_effort="high"`를 명시적으로 지정한다.
@@ -79,7 +79,7 @@ Codex 세션에서 `spawn_agent`가 정책상 거부될 때(예: `multi_agent=fa
 - `--sandbox read-only` + `--ignore-user-config`를 함께 강제한다. `--sandbox read-only`는 model-generated shell command의 파일시스템 쓰기만 막고, user `config.toml`의 MCP server/plugin/connector 로딩은 차단하지 못한다. `--ignore-user-config`는 `$CODEX_HOME/config.toml`의 user MCP/plugin/connector surface를 차단하지만, cwd 기반 project config (`.codex/config.toml`의 `[mcp_servers.*]`)는 차단하지 못한다. 이 project-config 한계는 `run-da/SKILL.md` Non-goals #1이 canonical이다.
 - `--ignore-user-config`는 `$CODEX_HOME/config.toml`의 `model`/`model_reasoning_effort`도 차단하므로 role별 표의 `-c model="gpt-5.5"`·`-c model_reasoning_effort="..."` 명시가 필수다 (defensive explicit pin).
 - `--ephemeral`로 세션 히스토리 오염 방지.
-- `exec_command`를 `cat "$DIR/prompt.md" | env CODEX_PROGRAMMATIC=1 codex exec --sandbox read-only --ignore-user-config --ephemeral ... - 2>stderr.log` 형태로 stdin pipe 전달.
+- `exec_command`를 `cat "$DIR/prompt.md" | env CODEX_PROGRAMMATIC=1 codex-exec-supervised --sandbox read-only --ignore-user-config --ephemeral ... - 2>stderr.log` 형태로 stdin pipe 전달.
 - 각 review unit은 독립 subprocess (fresh 판정 경계는 프로세스 경계로 보존).
 - 사용자 승인 후에만 실행 ([`hardening-contract.md`](hardening-contract.md) "Delegation fallback" 섹션 참조).
 
@@ -89,7 +89,7 @@ Codex 세션에서 `spawn_agent`가 정책상 거부될 때(예: `multi_agent=fa
 
 ```bash
 # marker must apply to `codex`, not `cat` (issue #585): Codex 0.124+ user-level hooks의 early-exit 신호.
-cat "$DA_DIR/{unit}.md" | env CODEX_PROGRAMMATIC=1 codex exec --sandbox read-only --ignore-user-config --ephemeral \
+cat "$DA_DIR/{unit}.md" | env CODEX_PROGRAMMATIC=1 codex-exec-supervised --sandbox read-only --ignore-user-config --ephemeral \
   -c model="gpt-5.5" -c model_reasoning_effort="medium" \
   -o "$DA_DIR/{unit}-result.md" - 2>"$DA_DIR/{unit}-stderr.log"
 ```
@@ -97,7 +97,7 @@ cat "$DA_DIR/{unit}.md" | env CODEX_PROGRAMMATIC=1 codex exec --sandbox read-onl
 **Intensity** (standard profile):
 
 ```bash
-cat "$INTENSITY_DIR/prompt.md" | env CODEX_PROGRAMMATIC=1 codex exec --sandbox read-only --ignore-user-config --ephemeral \
+cat "$INTENSITY_DIR/prompt.md" | env CODEX_PROGRAMMATIC=1 codex-exec-supervised --sandbox read-only --ignore-user-config --ephemeral \
   -c model="gpt-5.5" -c model_reasoning_effort="medium" \
   -o "$INTENSITY_DIR/result.md" - 2>"$INTENSITY_DIR/stderr.log"
 ```
@@ -105,7 +105,7 @@ cat "$INTENSITY_DIR/prompt.md" | env CODEX_PROGRAMMATIC=1 codex exec --sandbox r
 **Arbiter** (strong profile):
 
 ```bash
-cat "$ARBITER_DIR/arbiter-prompt.md" | env CODEX_PROGRAMMATIC=1 codex exec --sandbox read-only --ignore-user-config --ephemeral \
+cat "$ARBITER_DIR/arbiter-prompt.md" | env CODEX_PROGRAMMATIC=1 codex-exec-supervised --sandbox read-only --ignore-user-config --ephemeral \
   -c model="gpt-5.5" -c model_reasoning_effort="high" \
   -o "$ARBITER_DIR/arbiter-result.md" - 2>"$ARBITER_DIR/arbiter-stderr.log"
 ```
@@ -143,7 +143,7 @@ PROMPT
 # 3. codex exec 실행 (foreground)
 # Arbiter는 strong review profile(high) — config.toml 기본값(xhigh)을 오버라이드. model은 -m 생략하여 config.toml 기본값 사용.
 # marker must apply to `codex`, not `cat` (issue #585): Codex 0.124+ user-level hooks의 early-exit 신호.
-cat "$ARBITER_DIR/arbiter-prompt.md" | env CODEX_PROGRAMMATIC=1 codex exec --full-auto --ephemeral \
+cat "$ARBITER_DIR/arbiter-prompt.md" | env CODEX_PROGRAMMATIC=1 codex-exec-supervised --sandbox read-only --ignore-user-config --ephemeral \
   -c model_reasoning_effort="high" \
   -o "$ARBITER_DIR/arbiter-result.md" \
   - \

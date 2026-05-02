@@ -1029,6 +1029,140 @@ EOF
   fail "live env propagation: codex exec 정상 종료했으나 dump_log empty — hook propagation 미도달"
 }
 
+# ─── 카테고리 5b: codex exec invocation matrix (live opt-in, must-pass-only — issue #593) ───
+# fix 적용 후 PASS가 기대되는 시나리오만 검증한다 (plan SC-2/D-4). vJ (PR #595 fixture pattern hang)는
+# 본 matrix 제외 — known caveat (using-codex-exec/references/known-issues.md §15) + 별도 follow-up (plan NG-5).
+#
+# 시나리오:
+#   1. host_home_no_override_stdin_pipe_supervised_pass — vH 입증 패턴 (Layer 1 + supervisor)
+#   2. raw_override_inline_toml_hang_with_supervisor_pass — issue #593 raw PoC + supervisor 적용
+#      (supervisor가 timeout 안에 SIGTERM/SIGKILL grace로 정리 → 124/137 exit가 정상)
+#
+# 환경 결함 (codex/codex-exec-supervised 부재) 시만 WARN skip (plan SC-5 capability-probe 정책).
+# DA Round 2 C-003/MNT-3: preflight 통과 후에는 timeout/no-result는 fail. timeout_bin 변수 죽은 코드 제거.
+# DA Round 2 C-003: scenario-2는 supervisor 정리 + 잔존 process 부재까지 검증.
+test_codex_exec_invocation_live_matrix() {
+  # preflight: codex 가용성 (wrapper가 자체 capability-probe하므로 timeout/setsid 별도 검사 불필요).
+  if ! command -v codex >/dev/null 2>&1; then
+    warn "invocation matrix: codex 바이너리 부재 — skip (환경 결함)"
+    return 0
+  fi
+
+  # codex-exec-supervised는 nrs activation 후 PATH에 노출된다 (writeShellApplication).
+  # 미설치 환경(test 직접 실행 등)에서는 repo absolute path fallback.
+  local supervised
+  if command -v codex-exec-supervised >/dev/null 2>&1; then
+    supervised="codex-exec-supervised"
+  else
+    supervised="$REPO_ROOT/modules/shared/scripts/codex-exec-supervised.sh"
+    if [[ ! -x "$supervised" ]]; then
+      warn "invocation matrix: codex-exec-supervised 미설치 (~/.local/bin 또는 $supervised) — skip (환경 결함)"
+      return 0
+    fi
+  fi
+
+  local sandbox
+  sandbox=$(new_hook_sandbox)
+
+  # ── Scenario 1: host_home_no_override_stdin_pipe_supervised_pass ──
+  # host HOME (auth 정상) + no override + stdin pipe + Layer 1 안전 패턴 (supervised + read-only +
+  # ignore-user-config + explicit model pin + CODEX_PROGRAMMATIC=1 marker) — supervisor 정상 종료 기대.
+  # preflight 통과 후 timeout 또는 빈 result는 회귀로 처리한다 (must-pass-only 계약).
+  # parallel-audit C/D fix: env 격리 시 CODEX_PROGRAMMATIC marker는 유지 (Layer 1 + host hook
+  # early-exit guard). --ignore-user-config 추가로 user config MCP/plugin 표면 차단.
+  local result1="$sandbox/scenario-1-result.md"
+  local stderr1="$sandbox/scenario-1.stderr"
+  local rc1=0
+  printf 'Reply PONG\n' | env -u CLAUDECODE \
+    CODEX_PROGRAMMATIC=1 \
+    CODEX_EXEC_TIMEOUT_SECONDS="$INVOCATION_MATRIX_TIMEOUT_SECONDS" \
+    CODEX_EXEC_KILL_AFTER_SECONDS="$CODEX_EXEC_KILL_AFTER_SECONDS" \
+    "$supervised" \
+      --ephemeral --skip-git-repo-check --sandbox read-only --ignore-user-config \
+      -c model="gpt-5.5" -c model_reasoning_effort="medium" \
+      -o "$result1" \
+      - >/dev/null 2>"$stderr1" || rc1=$?
+
+  # parallel-audit B fix: rc=127은 supervisor capability-probe 실패 → scenario-2와 동일하게 WARN skip.
+  if (( rc1 == 127 )); then
+    local stderr_tail1
+    stderr_tail1=$(tail -c 400 "$stderr1" 2>/dev/null | tr '\n' ' ' || true)
+    warn "invocation matrix scenario-1: supervisor BLOCKED (capability-probe 실패) — skip. stderr_tail: ${stderr_tail1:-<empty>}"
+    return 0
+  fi
+
+  # PASS 우선 분기: codex 정상 종료 + result 정상이면 PASS (stderr 부수 메시지 무관).
+  if (( rc1 == 0 )) && [[ -s "$result1" ]]; then
+    : # PASS — supervisor + Layer 1 패턴 정상 동작
+  else
+    local stderr_tail1
+    stderr_tail1=$(tail -c 400 "$stderr1" 2>/dev/null | tr '\n' ' ' || true)
+    # 명시적 codex auth/network 결함 신호만 좁게 매치 (Slack MCP 등 부수 신호 제외).
+    if grep -qE 'codex login status: Not logged in|ChatCompletionsAPI.*401|connection refused.*api\.openai' "$stderr1" 2>/dev/null; then
+      warn "invocation matrix scenario-1: codex auth/network 결함 — skip. stderr_tail: ${stderr_tail1:-<empty>}"
+      return 0
+    fi
+    fail "invocation matrix scenario-1 (host_home_no_override_supervised_pass): rc=$rc1 + result $(test -s "$result1" && echo present || echo empty) — must-pass 회귀. stderr_tail: ${stderr_tail1:-<empty>}"
+  fi
+
+  # ── Scenario 2: raw_override_inline_toml_hang_with_supervisor_pass ──
+  # issue #593 raw PoC 패턴(`-c hooks.<event>` override 포함). supervisor 미적용 시 hang 확정.
+  # supervisor 적용 시 timeout 안에 SIGTERM/SIGKILL grace로 정리되어 0/124/137 exit 모두 PASS.
+  # DA Round 2 C-003: 잔존 codex 프로세스가 없는지 추가 검증 (process group kill 입증).
+  local hook_log="$sandbox/scenario-2-hook.log"
+  local hook_script="$sandbox/scenario-2-dump.sh"
+  cat > "$hook_script" <<EOF
+#!/usr/bin/env bash
+echo "fired at \$(date +%T)" >> "$hook_log"
+exit 0
+EOF
+  chmod +x "$hook_script"
+  : > "$hook_log"
+
+  local result2="$sandbox/scenario-2-result.md"
+  local stderr2="$sandbox/scenario-2.stderr"
+  local rc2=0
+  local override="[{hooks=[{type=\"command\",command=\"$hook_script\"}]}]"
+  local sandbox_path="$sandbox"
+  local self_pid=$$
+  printf 'Reply PONG\n' | env -u CLAUDECODE \
+    CODEX_PROGRAMMATIC=1 \
+    CODEX_EXEC_TIMEOUT_SECONDS="$INVOCATION_MATRIX_TIMEOUT_SECONDS" \
+    CODEX_EXEC_KILL_AFTER_SECONDS="$CODEX_EXEC_KILL_AFTER_SECONDS" \
+    "$supervised" \
+      --ephemeral --skip-git-repo-check --sandbox read-only --ignore-user-config \
+      -c model="gpt-5.5" -c model_reasoning_effort="medium" \
+      -c "hooks.UserPromptSubmit=$override" \
+      -c "hooks.Stop=$override" \
+      -o "$result2" \
+      - >/dev/null 2>"$stderr2" || rc2=$?
+
+  case "$rc2" in
+    0|124|137)
+      # 0=정상, 124=SIGTERM-by-timeout, 137=SIGKILL-by-timeout — 모두 supervisor가 정리한 PASS.
+      # 잔존 codex/timeout 프로세스가 sandbox path로 식별되는지 확인 (process group kill 입증).
+      # parallel-audit A fix: macOS pgrep -fc/-fa 미지원 → portable ps + grep -F (fixed string).
+      sleep 1  # SIGKILL grace 후 OS reaper에 시간 부여
+      local lingering_pids lingering_count lingering_lines
+      lingering_pids=$(ps -axo pid=,command= 2>/dev/null | grep -F -- "$sandbox_path" | grep -v "^[[:space:]]*${self_pid}[[:space:]]" | grep -v 'grep -F -- ' | awk '{print $1}' || true)
+      if [[ -n "$lingering_pids" ]]; then
+        lingering_count=$(printf '%s\n' "$lingering_pids" | wc -l | tr -d ' ')
+        lingering_lines=$(ps -axo pid=,command= 2>/dev/null | grep -F -- "$sandbox_path" | grep -v "^[[:space:]]*${self_pid}[[:space:]]" | grep -v 'grep -F -- ' | head -5 || true)
+        fail "invocation matrix scenario-2: supervisor 종료 후 sandbox 관련 프로세스 ${lingering_count}개 잔존 — process group kill 회귀. ${lingering_lines}"
+      fi
+      ;;
+    127)
+      warn "invocation matrix scenario-2: supervisor BLOCKED (capability probe 실패) — skip"
+      return 0
+      ;;
+    *)
+      local stderr_tail2
+      stderr_tail2=$(tail -c 400 "$stderr2" 2>/dev/null | tr '\n' ' ' || true)
+      fail "invocation matrix scenario-2 (raw_override_supervised_pass): 비정상 exit($rc2) — supervisor 미정리 회귀. stderr_tail: ${stderr_tail2:-<empty>}"
+      ;;
+  esac
+}
+
 # ─── 실행 진입점 ───
 run_test() {
   local label="$1"; shift
@@ -1066,9 +1200,16 @@ run_test "sync.sh mcp-config fail-fast (#609)" \
   test_sync_sh_mcp_config_failfast
 
 if [[ "$LIVE_MODE" == "1" ]]; then
+  # invocation matrix를 env propagation보다 먼저 실행한다 (issue #593 plan D-5/NG-5):
+  # PR #595의 test_env_propagation_live는 mac 0.128에서 hang으로 fail이 관측되어 별도 follow-up
+  # 이슈로 분리됐다 (vJ caveat). 본 plan의 invocation matrix가 먼저 실행되어야 새 fixture가
+  # 회귀 차단 신호를 제공할 수 있다.
+  run_test "codex exec invocation matrix (supervised wrapper, must-pass-only)" \
+    test_codex_exec_invocation_live_matrix
   run_test "env propagation live (codex exec --ephemeral)" \
     test_env_propagation_live
 else
+  echo "==> codex exec invocation matrix  (skip; --live 또는 CODEX_HOOK_LIVE=1로 활성화)"
   echo "==> env propagation live  (skip; --live 또는 CODEX_HOOK_LIVE=1로 활성화)"
 fi
 
