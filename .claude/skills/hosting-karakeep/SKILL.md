@@ -137,7 +137,7 @@ OpenAI 키가 있으면 inference worker가 자동 태깅/요약을 수행한다
 
 - agenix secret: `/run/agenix/karakeep-nextauth-secret`, `/run/agenix/karakeep-meili-master-key`, `/run/agenix/karakeep-openai-key`, `/run/agenix/pushover-karakeep`
 - 도메인: `https://archive.greenhead.dev`
-- Podman/서비스 의존: `podman-karakeep.service` + `podman-karakeep-chrome.service` + `podman-karakeep-meilisearch.service` (Podman network: `karakeep-network`)
+- Podman/서비스 의존: `podman-karakeep.service` + `podman-karakeep-chrome.service` + `podman-karakeep-meilisearch.service` (Podman network: `karakeep-network`. 선행: `create-karakeep-network.service`, `karakeep-env.service`, `karakeep-openai-env.service` — agenix secret을 컨테이너 환경 파일로 주입)
 - 외부 의존: OpenAI API, GitHub Releases API + Pushover API (`karakeep-update` 버전 체크 + 알림)
 
 ## 참조
