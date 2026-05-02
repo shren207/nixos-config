@@ -1151,6 +1151,12 @@ EOF
         fail "invocation matrix scenario-2: -c hooks override 미발화 (hook_log empty) — override 회귀"
       fi
 
+      # rc=0 (정상 종료)인데 result file이 비어 있으면 codex가 final message를 만들지 않은 것 — success
+      # path 회귀 (124/137은 timeout 정리이므로 result는 비어 있을 수 있다).
+      if (( rc2 == 0 )) && [[ ! -s "$result2" ]]; then
+        fail "invocation matrix scenario-2: rc=0 but result2 empty — final message 누락 회귀"
+      fi
+
       # 잔존 codex/timeout 프로세스가 sandbox path로 식별되는지 확인 (process group kill 입증).
       # macOS pgrep -fc/-fa 미지원 → portable ps + grep -F (fixed string).
       sleep 1  # SIGKILL grace 후 OS reaper에 시간 부여
