@@ -72,7 +72,7 @@ DA 호출 자체를 생략하지 마라 — run-da를 호출하면
 | Codex 세션 하드닝 계약 (single-writer / 역할별 경계 / VIOLATION / Delegation fallback) | [`references/hardening-contract.md`](references/hardening-contract.md) |
 | Review Intensity 판단 절차 (3단계, SKIP/LITE 절차) | [`references/intensity-procedure.md`](references/intensity-procedure.md) |
 | Review Intensity 판단 알고리즘 규칙 | [`references/intensity-rules.md`](references/intensity-rules.md) |
-| 메인 에이전트 의무 (피드백 프로토콜 + 사용자 질문 맥락 + 검증 의무) | [`references/main-agent-obligations.md`](references/main-agent-obligations.md) |
+| 메인 에이전트 의무 (행동 + 사용자 질문 맥락 + 검증) | [`references/main-agent-obligations.md`](references/main-agent-obligations.md) |
 | DA reviewer bundle 상세 + 프롬프트 템플릿 | [`references/da-domains.md`](references/da-domains.md) |
 | DA → Arbiter 상태 흐름 + 합리화 방지 + PR 코멘트 형식 | [`references/protocol.md`](references/protocol.md) |
 | Arbiter 프롬프트 + 5가지 판정 기준 | [`references/arbiter-prompt.md`](references/arbiter-prompt.md) |

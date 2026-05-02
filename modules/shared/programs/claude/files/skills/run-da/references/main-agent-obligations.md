@@ -1,6 +1,6 @@
-# 메인 에이전트 의무 (피드백 프로토콜 + 사용자 질문 맥락 + 검증 의무)
+# 메인 에이전트 의무 (행동 + 사용자 질문 맥락 + 검증)
 
-`run-da` 메인 에이전트의 행동 강제 규칙. DA → Arbiter 상태 흐름은 [`protocol.md`](protocol.md)가 정본이고, 본 파일은 그 흐름에서 **메인 에이전트가 직접 수행해야 하는 행동/금지 항목**을 모은다.
+`run-da` 메인 에이전트가 직접 수행해야 하는 행동·사용자 질문 작성 의무·수정 검증 의무를 모은다. DA → Arbiter 상태 흐름의 정본은 [`protocol.md`](protocol.md), single-writer/role boundary/VIOLATION/Delegation fallback의 정본은 [`hardening-contract.md`](hardening-contract.md)다. 본 파일은 그 정책을 메인 에이전트 행동 관점에서 link로만 참조한다.
 
 ## 메인 에이전트 역할
 
@@ -13,38 +13,25 @@
 | Arbiter 결과 수신 및 보고 | "사용자 지시"로 DA 기각 |
 | 결과 파일 파싱 | 프롬프트 조향 |
 
-## 핵심 원칙
+## 메인 에이전트 직접 수행 행동
 
-- **Arbiter 독립 판정**: DA findings는 독립 Arbiter 에이전트가 판정한다. 메인 에이전트는 판정하지 않는다.
-  메인 에이전트는 CONFIRMED_ISSUE 항목의 수정만 담당한다.
-- **CONFIRMED_ISSUE 자동 반영**: Arbiter가 CONFIRMED_ISSUE로 판정한 항목은 자동으로 반영한다.
-  CRITICAL 심각도는 진행을 차단하고 즉시 수정한다.
-- **사용자 전건 보고**: 모든 Arbiter 판정 결과(CONFIRMED_ISSUE, NOT_AN_ISSUE, NEEDS_MORE_INFO)를 사용자에게 보고한다.
-  NEEDS_MORE_INFO 항목은 질문 도구로 사용자 판단을 요청한다.
-- **Conservative wait**: Codex 세션 경로에서 `wait_agent` timeout이나 단순 지연만으로 reviewer/Arbiter/Intensity를 kill하지 않는다.
-  explicit failure signal, documented violation, 최종 응답 파싱 실패가 없는 한 self-auditing으로 대체하지 않는다.
-- **Single-writer 유지**: tracked workspace write, branch mutation, commit/push, GitHub write, `wt`/`nrs`/rebuild 계열은 메인 에이전트가 수행한다.
-  DA reviewer의 PoC는 repo 밖 scratch에 한정한다.
-- **PoC 의무화**: DA가 위반을 지적하면 구체적 파일:줄 또는 계획 항목 번호를 제시해야 한다.
-  증거 없는 추상적 우려는 Arbiter가 NOT_AN_ISSUE로 판정한다.
-- **Violation 처리**: recoverable violation은 offending unit discard 후 fresh rerun한다.
-  stateful violation은 현재 라운드를 중단하고, offending unit이 이번 라운드에서 만든 산출물만 정리한다. 기존 local 변경은 자동 정리하지 않으며, `BLOCKED` 해소 또는 명시적 rerun 전에는 `CLEAR`로 간주하지 않는다.
-- **Fresh perspective 보장**: 매 라운드마다 새 에이전트를 사용한다.
-  `fresh` modifier 사용 시 이전 라운드 맥락도 완전히 차단한다.
-- **Selective propagation 기본값**: Arbiter/후속 reviewer에게는 unique findings, conflicting findings,
-  high-severity findings, user decision required findings만 전달한다.
-  raw transcript 전체, CLEAR 결과, 중복 low-signal finding의 all-to-all broadcast는 금지한다.
-  `full` modifier는 propagation이 아니라 fan-out만 확장한다.
-- **Selective consistency on ambiguous findings**: first-pass Arbiter 결과가 애매한 경우에만
-  N=3 재판정을 실행한다. 명확한 finding은 first-pass single Arbiter로 종료한다. 정책(trigger/vote-shape/threshold)은
-  [`stability-measurement.md`](stability-measurement.md)가 SSOT,
-  상태 전이는 [`protocol.md`](protocol.md), 실행 계약은 [`arbiter-scaling.md`](arbiter-scaling.md) 참조.
-- **프롬프트 조향 금지**: 후속 라운드 DA/Arbiter 프롬프트에 이전 라운드의 판정 결과를 포함하지 않는다.
-  이전 라운드 결과를 "이미 해결된 사안"으로 프레이밍하는 것도 금지한다.
-- **무한 루프 방지**: 3회 연속 동일 지적(세부 관점 + 위치 기준)이 반복되면 사용자 결정에 위임한다.
-- **탈출 조건**: 선택된 review unit 모두 CLEAR를 반환하면 루프를 종료한다 (`NOT_RUN` 제외).
+이 섹션은 메인 에이전트가 직접 수행할 행동만 다룬다. 정책/계약/상태 흐름은 정본을 link로만 참조한다.
 
-상세 상태 흐름 + Arbiter 판정 프로토콜은 [`protocol.md`](protocol.md) 참조.
+- **Arbiter 독립 판정 보존**: DA findings는 독립 Arbiter 에이전트가 판정한다. 메인 에이전트는 판정하지 않는다. 메인 에이전트는 CONFIRMED_ISSUE 항목의 수정만 담당한다.
+- **CONFIRMED_ISSUE 자동 반영**: Arbiter가 CONFIRMED_ISSUE로 판정한 항목은 자동으로 반영한다. CRITICAL 심각도는 진행을 차단하고 즉시 수정한다. 상태 전이별 행동의 정본은 [`protocol.md`](protocol.md)의 "DA → Arbiter → Main Agent 상태 흐름"이다.
+- **사용자 전건 보고**: 모든 Arbiter 판정 결과(CONFIRMED_ISSUE, NOT_AN_ISSUE, NEEDS_MORE_INFO)를 사용자에게 보고한다. NEEDS_MORE_INFO·`split` 항목은 아래 "사용자 질문 시 맥락 설명 의무"의 5요소를 갖춘 질문 도구 호출로 처리한다.
+- **Conservative wait**: Codex 세션 경로에서 `wait_agent` timeout이나 단순 지연만으로 reviewer/Arbiter/Intensity를 kill하지 않는다. explicit failure signal, documented violation, 최종 응답 파싱 실패가 없는 한 self-auditing으로 대체하지 않는다.
+- **Fresh perspective 보장**: 매 라운드마다 새 reviewer/Arbiter 실행 단위를 사용한다 (Codex 세션: 새 native subagent thread, codex exec 경로: 새 `codex exec` 프로세스). `fresh` modifier 사용 시 이전 라운드 맥락도 완전히 차단한다.
+- **Selective propagation 기본값**: Arbiter/후속 reviewer에게는 unique findings, conflicting findings, high-severity findings, user decision required findings만 전달한다. raw transcript 전체, CLEAR 결과, 중복 low-signal finding의 all-to-all broadcast는 금지한다. `full` modifier는 propagation이 아니라 fan-out만 확장한다.
+- **프롬프트 조향 금지**: 후속 라운드 DA/Arbiter 프롬프트에 이전 라운드의 판정 결과를 포함하지 않는다. 이전 라운드 결과를 "이미 해결된 사안"으로 프레이밍하는 것도 금지한다.
+
+## 정책 / 계약 / 상태 흐름 (link only)
+
+본 파일은 아래 정책의 SSOT가 아니다. 변경은 정본 파일에서 한다.
+
+- **Single-writer / main-agent-only / 역할별 경계 / VIOLATION 처리 / Delegation fallback**: [`hardening-contract.md`](hardening-contract.md) (`Codex 세션 하드닝 계약` SSOT).
+- **PoC 의무화 / Arbiter 판정 프로토콜 / DA → Arbiter 상태 흐름 / 무한 루프 방지(3회 반복) / 탈출 조건(전 unit CLEAR) / PR 코멘트 형식**: [`protocol.md`](protocol.md) (`DA 피드백 프로토콜` SSOT).
+- **Selective consistency trigger / vote-shape / threshold**: [`stability-measurement.md`](stability-measurement.md) SSOT, 상태 전이는 [`protocol.md`](protocol.md), 실행 계약은 [`arbiter-scaling.md`](arbiter-scaling.md).
 
 ## 사용자 질문 시 맥락 설명 의무
 

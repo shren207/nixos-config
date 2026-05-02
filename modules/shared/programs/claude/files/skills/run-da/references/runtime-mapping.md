@@ -2,8 +2,6 @@
 
 `run-da`는 Claude Code 세션과 Codex 세션 양쪽에서 호출된다. 본문은 도구-중립 용어를 쓰고, 런타임별 실제 도구는 이 파일에서 binding한다. 상세 실행 계약(실패 처리, N=3, 질문 도구 미지원 대응, Delegation fallback)의 단일 진실 원천은 [`arbiter-scaling.md`](arbiter-scaling.md)다.
 
-## 런타임 도구 매핑
-
 **"나는 어떤 세션에서 실행되고 있는가?"** 로 경로를 선택한다. 아래 표는 본문에서 쓰는 중립 용어를 세션별 **실제 도구명**으로 binding하는 **glossary**다. 표 자체는 용어 정책의 예외로, literal 도구명을 그대로 명시한다.
 
 | 행동 | Codex 세션 | Claude Code 세션 | headless 세션 |

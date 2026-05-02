@@ -28,7 +28,7 @@
 - **Step 2 본문 (Codex 세션 경로)**: `spawn_agent`/`wait_agent`/`close_agent` lifecycle, batch 규칙, conservative wait, fresh modifier, selective propagation.
 - **Step 2 본문 (codex exec 경로)**: 임시 디렉토리, prompt 파일 패턴, `cat | env CODEX_PROGRAMMATIC=1 codex exec ... -` stdin pipe, `&+wait` 금지, Claude Code 병렬 / headless serial foreground 구분, [`../references/runtime-mapping.md`](../references/runtime-mapping.md) 공통 주의(셸 호출 간 변수 유실).
 - **Step 3 본문**: VIOLATION 처리, 결과 파일 검증, 실패 unit 재실행.
-- **Step 5 (5a~5e)**: Arbiter 호출, selective consistency trigger 검사, N=3 재판정, vote-shape 집계, 상태 전이 적용. 상태 전이별 메인 에이전트 행동(CONFIRMED_ISSUE 자동 반영, NEEDS_MORE_INFO 사용자 판단 요청, fragmented BLOCKED 등) 모두 동일.
+- **Step 5 (5a~5e)**: Arbiter 호출, selective consistency trigger 검사, N=3 재판정, vote-shape 집계, 상태 전이 적용. 상태 전이 구조(N/A·stable·split·fragmented 분기, NEEDS_MORE_INFO 사용자 판단 요청, fragmented BLOCKED)는 for_plan과 동일하되, **CONFIRMED_ISSUE 자동 반영의 적용 대상과 commit 수반 여부는 위 Step 5 자동 반영 delta 행("자동으로 코드에 반영하고 커밋한다")을 따른다** (for_plan은 계획 반영, for_pr은 코드 수정 + commit).
 - **Step 6**: 새 reviewer 실행 단위, 새 `DA_DIR`.
 - **Step 7**: CLEAR 탈출 조건.
 
