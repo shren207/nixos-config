@@ -32,7 +32,10 @@ modifier `full`은 Review Intensity를 건너뛰고 exhaustive 8-domain path로 
    - 프롬프트 파일을 생성한다 (umask 077로 권한 제한):
      ```zsh
      (umask 077; cat > "$INTENSITY_DIR/prompt.md" <<'PROMPT'
-     intensity-rules.md를 직접 읽어 판단 알고리즘 규칙을 적용하라.
+     run-da skill의 references/intensity-rules.md (절대 경로:
+     /Users/green/.claude/skills/run-da/references/intensity-rules.md
+     또는 repo의 modules/shared/programs/claude/files/skills/run-da/references/intensity-rules.md)를
+     직접 읽어 판단 알고리즘 규칙을 적용하라.
      아래 변경 정보를 보고 SKIP/LITE/FULL 중 하나를 판정하라.
      결과의 첫 줄에 판정(SKIP/LITE/FULL), 이후에 근거를 기술하라.
      리뷰만 수행하고 파일을 수정하지 마라.

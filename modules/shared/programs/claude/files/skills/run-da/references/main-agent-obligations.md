@@ -54,22 +54,14 @@
 > - 기각 + CIR: '내부 전용 입력'이라는 근거를 기록하고 넘어감
 > - 보류: 별도 이슈로 등록하고 나중에 판단"
 
-## 검증 의무
+## 검증 의무 (메인 에이전트만)
 
-### DA 에이전트 출력 요건
-
-- 모든 지적에는 반드시 구체적 파일:줄 또는 계획 항목 번호를 제시해야 한다.
-- 코드 스니펫 또는 계획 원문을 직접 인용하여 문제를 증명해야 한다.
-- "~할 수도 있다", "~이 우려된다" 등 증거 없는 추상적 우려는 즉시 기각한다.
-
-### Arbiter 검증 의무
-
-- Arbiter는 각 finding에 대해 5가지 판정 기준(사실 정확성, 변경 연관성, 심각도 타당성, 실행 가능성, Portability / Cross-Environment Drift)으로 독립 검증한다. Portability는 verdict 결정권 없는 guardrail 축이다.
-- NOT_AN_ISSUE 판정에는 직접 확인 + 반증 근거가 필수다 (모드별 증거 요건: [`arbiter-prompt.md`](arbiter-prompt.md) 참조).
-- NEEDS_MORE_INFO는 추가 정보가 필요한 경우에만 사용한다.
-- 상세 판정 기준은 [`arbiter-prompt.md`](arbiter-prompt.md) 참조.
-
-### 메인 에이전트 수정 의무
+본 섹션은 메인 에이전트가 수정 시 직접 수행할 검증만 정의한다.
 
 - CONFIRMED_ISSUE 항목을 수정할 때, 해당 위치(파일:줄 또는 계획 항목)를 확인하는 것은 수정 작업의 일부로 수행한다.
 - 수정 결과가 finding을 해결하는지 확인한다.
+
+DA 에이전트 출력 요건과 Arbiter 검증 의무(5가지 판정 기준 등)는 본 파일이 정본이 아니다:
+
+- DA 에이전트 출력 요건 (구체적 파일:줄·코드 인용·추상적 우려 즉시 기각): [`da-domains.md`](da-domains.md)의 "공통 출력 형식" 섹션이 정본.
+- Arbiter 검증 의무 (5가지 판정 기준 — 사실 정확성, 변경 연관성, 심각도 타당성, 실행 가능성, Portability / Cross-Environment Drift): [`arbiter-prompt.md`](arbiter-prompt.md)의 "5가지 판정 기준" 섹션이 정본. NOT_AN_ISSUE 판정 신뢰도 보고 의무, NEEDS_MORE_INFO 사용 조건도 동일 파일에 정의.

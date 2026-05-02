@@ -18,7 +18,7 @@
 | Step 5 자동 반영 | "자동으로 계획에 반영한다" | **"자동으로 코드에 반영하고 커밋한다"** (CONFIRMED_ISSUE + HIGH/MEDIUM/LOW). 메인 에이전트가 single-writer로 코드 수정 + commit ([`../references/hardening-contract.md`](../references/hardening-contract.md)의 single-writer 정의) |
 | Step 6 | 동일 (새 라운드, 새 `DA_DIR`) | 동일 |
 | Step 7 | CLEAR까지 반복 | CLEAR까지 반복 |
-| **Step 8** | (없음) | **push** — 최종 승인 후 push한다 (네트워크/auth 정책 의존 — `run-da/SKILL.md` "Non-goals" 섹션 참조) |
+| **Step 8** | (없음) | **push** — 최종 승인 후 push한다 (네트워크/auth 정책 의존 — [`../SKILL.md#non-goals`](../SKILL.md#non-goals) 참조) |
 
 ## 공통 절차 (for_plan과 동일)
 
@@ -34,4 +34,4 @@
 
 ## Step 8 상세: push
 
-Arbiter Round N에서 모든 review unit이 CLEAR를 반환하면 최종 승인 후 push한다. 네트워크 가능 환경 + GitHub auth 전제이며, `sandbox_mode=danger-full-access` 또는 GitHub 커넥터 경로에서만 자동 실행한다. 다른 샌드박스 모드에서는 명시적 사용자 승인 후 수행하거나, 메인 에이전트가 사용자에게 위임한다 (run-da/SKILL.md "Non-goals" 섹션 참조).
+Arbiter Round N에서 모든 review unit이 CLEAR를 반환하면 최종 승인 후 push한다. 네트워크 가능 환경 + GitHub auth 전제이며, `sandbox_mode=danger-full-access` 또는 GitHub 커넥터 경로에서만 자동 실행한다. 다른 샌드박스 모드에서는 명시적 사용자 승인 후 수행하거나, 메인 에이전트가 사용자에게 위임한다 ([`../SKILL.md#non-goals`](../SKILL.md#non-goals) 참조).
