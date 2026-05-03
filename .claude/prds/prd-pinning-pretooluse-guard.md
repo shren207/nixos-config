@@ -1,7 +1,7 @@
 # PRD: Pinning PreToolUse Guard
 
 ## Document Status
-- Status: Implementation Complete
+- Status: Complete
 - File Mode: Split
 - Current Phase: Phase 5
 - Active Phase File: [Phase 5](./prd-pinning-pretooluse-guard/phase-05-validation-docs-closeout.md)
@@ -128,7 +128,7 @@ LLM session and review metadata can still enter durable outputs outside the curr
 | Phase 2: Claude Guard | Complete | Add Claude PreToolUse hard-fail for Edit, Write, NotebookEdit, and Bash. | Claude stdin fixtures, deny JSON, coexistence cases. | [phase-02-claude-guard.md](./prd-pinning-pretooluse-guard/phase-02-claude-guard.md) |
 | Phase 3: Codex Guard | Complete | Add managed Codex PreToolUse hard-fail and ownership migration. | apply_patch fixtures, TOML sync preservation, oracle checks. | [phase-03-codex-guard.md](./prd-pinning-pretooluse-guard/phase-03-codex-guard.md) |
 | Phase 4: Verifier Fixtures | Complete | Extend deterministic fixtures, oracles, and verifier coverage. | Full no-live fixture runner, verifier, sync scenarios. | [phase-04-verifier-fixtures.md](./prd-pinning-pretooluse-guard/phase-04-verifier-fixtures.md) |
-| Phase 5: Validation Docs Closeout | Implementation Complete | Document policy, run activation validation, and complete review/PR flow. | docs grep, shellcheck, `nrs`, verifier, live smoke. | [phase-05-validation-docs-closeout.md](./prd-pinning-pretooluse-guard/phase-05-validation-docs-closeout.md) |
+| Phase 5: Validation Docs Closeout | Complete | Document policy, run activation validation, and complete review/PR flow. | docs grep, shellcheck, `nrs`, verifier, live smoke. | [phase-05-validation-docs-closeout.md](./prd-pinning-pretooluse-guard/phase-05-validation-docs-closeout.md) |
 
 ## Final Multi-Pass Review After All Phases
 Run the plan-with-questions PRD final review checklist plus review-implementation overlay. At minimum verify intent coverage, correctness, simplicity, code quality, cleanup, security/privacy, performance/load, validation appropriateness, PRD closeout, and rollout/rollback notes.
@@ -143,3 +143,4 @@ Run the plan-with-questions PRD final review checklist plus review-implementatio
 - 2026-05-03: Phase 3 complete. Codex managed PreToolUse guard added, config templates and provisioning updated, sync-preservation scenario added, direct apply_patch/Bash smoke passed, `nrs` completed, and verifier fully passed after relink.
 - 2026-05-03: Phase 4 complete. Added separate PreToolUse hard-fail fixtures, notebook path eligibility, fixture README updates, Claude guard host verifier check, and shared-lib source verification for all pinning consumers.
 - 2026-05-03: Phase 5 implementation complete. README/user-scope policy docs updated; code review and parallel audit findings were triaged; required fixes were added for durable Bash command variants, missing shared library behavior, Codex alias no-increase edits, repo-relative exclusions, verifier source checks, and stale comments. `nrs --force`, verifier, deterministic fixtures, docs grep, and active hook smoke all passed.
+- 2026-05-03: PR created for final review: https://github.com/greenheadHQ/nixos-config/pull/650

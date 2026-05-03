@@ -1,7 +1,7 @@
 # Phase 5: Validation Docs Closeout
 
 Parent PRD: [PRD: Pinning PreToolUse Guard](../prd-pinning-pretooluse-guard.md)
-Status: Implementation Complete
+Status: Complete
 Last Updated: 2026-05-03
 
 ## Objective
@@ -69,7 +69,7 @@ Combine deterministic checks, activation checks, and live smoke. Do not let live
 - [x] Activation validation passes after `nrs`.
 - [x] Live smoke is passed or explicitly documented as unavailable.
 - [x] PRD master and phase files are updated to Complete.
-- [ ] PR is created or a blocker is documented.
+- [x] PR is created or a blocker is documented: https://github.com/greenheadHQ/nixos-config/pull/650
 
 ## Phase-End Multi-Pass Review
 - [x] 1. Intent/coverage review.
@@ -92,4 +92,4 @@ Combine deterministic checks, activation checks, and live smoke. Do not let live
 
 ## Phase Change Log
 - 2026-05-03: Phase file created.
-- 2026-05-03: Phase implementation complete after docs, review loop, parallel audit, forced activation, verifier, deterministic fixtures, active hook smoke, and docs grep all passed. PR creation remains the publish step after commit.
+- 2026-05-03: Phase complete after docs, review loop, parallel audit, forced activation, verifier, deterministic fixtures, active hook smoke, docs grep, commit, push, and PR creation all passed. PR: https://github.com/greenheadHQ/nixos-config/pull/650
