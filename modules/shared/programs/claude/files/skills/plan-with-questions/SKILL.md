@@ -110,6 +110,6 @@ PRD / review references (모든 모드 공용 또는 for_prd 전용):
 
 - **블랙박스 제로 원칙**: Invariant 2.
 - **자체 생략 금지**: 메인 LLM은 Post-Implementation 1~7 중 어떤 단계도 자체 판단으로 생략하지 않는다. "범위 대비 비용 과도" 같은 메인 LLM 자체 판단은 사용자 stop이 아니다 (#453 회귀 방지).
-- **승인 의미 명확화**: 계획/PRD 승인은 자동 진행 동의로 간주된다. `for_action`은 plan Step 8에 tracked write·commit·PR write 범위를 명시한다. `for_prd`는 Step 7 full PRD approval packet에 승인된 PRD/phase file write와 자동 수행 범위를 명시하고, split PRD의 pending phase는 phase-start materialization gate에서 prior checkpoint, phase file body, master PRD materialization update, phase-scoped PI pipeline을 승인받는다. 모든 split PRD의 final review·follow-up commit은 final review gate에서, PR write는 final diff 고정 후 final PR write gate에서 승인받는다 (#569 회귀 방지).
+- **승인 의미 명확화**: 계획/PRD 승인은 자동 진행 동의로 간주된다. `for_action`은 plan Step 8에 tracked write·commit·PR write 범위를 명시한다. `for_prd`는 Step 7 full PRD approval packet에 승인된 PRD/phase file write와 자동 수행 범위를 명시하고, split PRD의 pending phase는 phase-start materialization gate에서 prior checkpoint, phase file body, master PRD materialization update, phase-scoped `PHASE-*` chain을 승인받는다. 모든 split PRD의 final review·follow-up commit은 final review gate에서, PR write는 final diff 고정 후 final PR write gate에서 승인받는다 (#569 회귀 방지).
 - **기존 패턴 존중**: 코드베이스에 이미 확립된 패턴을 파악하고, 계획이 기존 패턴과 일관되도록 한다.
 - **질문은 빠짐없이 한번에**: "사용자가 귀찮아하지 않을까" 걱정하지 않는다. 단 한번에 모아서 왕복 횟수는 최소화한다 (Step 4) 또는 라운드당 최대 4개 (Step I-4).

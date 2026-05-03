@@ -265,12 +265,14 @@ EOF
 test_create_pr_eval_covers_approved_write_modes() {
   local queries="$REPO_ROOT/modules/shared/programs/claude/files/skills/create-pr/evals/queries.json"
 
-  assert_json_query_present "$queries" "prepare" true
-  assert_json_query_present "$queries" "prepare create" true
-  assert_json_query_present "$queries" "prepare update" true
-  assert_json_query_present "$queries" "apply-approved" true
+  assert_json_query_present "$queries" "새 PR용 prepare create exact title/body 만들어줘" true
+  assert_json_query_present "$queries" "기존 PR 업데이트용 prepare update exact body 만들어줘" true
+  assert_json_query_present "$queries" "PR 본문 prepare 해서 GitHub write 없이 승인 표면만 만들어줘" true
+  assert_json_query_present "$queries" "승인된 PR 본문을 apply-approved로 써" true
   assert_json_query_present "$queries" "apply-approved update title_change=no 승인된 exact body로 PR 본문만 써" true
-  assert_json_query_present "$queries" "apply-approved 실행해. 요약만 있고 exact title/body는 없어" true
+  assert_json_query_present "$queries" "PR apply-approved 실행해. 요약만 있고 exact title/body는 없어" true
+  ! jq -e 'any(.[]; .query == "prepare" or .query == "prepare create" or .query == "prepare update" or .query == "apply-approved")' "$queries" >/dev/null || \
+    fail "create-pr eval must not use bare mode tokens as standalone trigger queries"
 }
 
 test_prd_resume_state_covers_single_file_pi_chain() {
@@ -279,8 +281,8 @@ test_prd_resume_state_covers_single_file_pi_chain() {
 
   grep -Fq 'File Mode: Single`은 `PI-*` 7단계 chain을 사용하고 `PHASE-*` 값을 쓰지 않는다.' "$resume" || \
     fail "expected single-file PRD resume mode guidance in resume-state.md"
-  for step in PI-IMPLEMENT PI-COMMIT PI-RUN-DA PI-PARALLEL-AUDIT; do
-    grep -Fq "| \`$step\` | single-file PRD" "$resume" || \
+  for step in PI-IMPLEMENT PI-COMMIT PI-RUN-DA PI-PARALLEL-AUDIT PI-FINAL-REVIEW PI-FOLLOWUP-COMMIT PI-CREATE-PR; do
+    grep -Fq "| \`$step\` |" "$resume" || \
       fail "expected resume-state.md enum row for $step"
   done
   grep -Fq 'File Mode: Single` + `Next Blocking Step=PI-IMPLEMENT|PI-COMMIT|PI-RUN-DA|PI-PARALLEL-AUDIT|PI-FINAL-REVIEW|PI-FOLLOWUP-COMMIT|PI-CREATE-PR' "$resume" || \
@@ -290,8 +292,11 @@ test_prd_resume_state_covers_single_file_pi_chain() {
 test_phase_remediation_ssot_points_to_resume_state() {
   local routing="$REPO_ROOT/modules/shared/programs/claude/files/skills/plan-with-questions/references/task-size-routing.md"
   local phase_template="$REPO_ROOT/modules/shared/programs/claude/files/skills/plan-with-questions/references/prd/phase-template.md"
+  local output_templates="$REPO_ROOT/modules/shared/programs/claude/files/skills/plan-with-questions/references/output-templates.md"
+  local resume="$REPO_ROOT/modules/shared/programs/claude/files/skills/plan-with-questions/references/resume-state.md"
   local stale='Phase-end remediation 순서와 재승인 규칙은 [`./output-templates.md#phase-remediation-approval-packet`](./output-templates.md#phase-remediation-approval-packet)이 SSOT'
-  local stale_phase_template='phase-end remediation 규칙'
+  local stale_phase_template
+  stale_phase_template="phase-end remediation ""규칙"
 
   grep -Fq 'Phase-end remediation 순서와 재승인 규칙은 [`./resume-state.md#for_prd-prd-작성-후-next-blocking-step`](./resume-state.md#for_prd-prd-작성-후-next-blocking-step)이 SSOT' "$routing" || \
     fail "expected phase remediation execution SSOT to point to resume-state.md"
@@ -300,6 +305,12 @@ test_phase_remediation_ssot_points_to_resume_state() {
     fail "expected phase-template.md to point remediation execution to resume-state.md"
   ! grep -Fq "$stale_phase_template" "$phase_template" || \
     fail "phase-template.md still describes output-template approval packet as remediation rules"
+  grep -Fq 'remediation 실행 계약은 [`resume-state.md`](./resume-state.md#for_prd-prd-작성-후-next-blocking-step)가 SSOT다.' "$output_templates" || \
+    fail "expected output-templates.md to delegate remediation execution contract to resume-state.md"
+  grep -Fq 'Phase-end remediation contract:' "$resume" || \
+    fail "expected resume-state.md to define phase-end remediation contract"
+  grep -Fq 'Implementation-code remediation은 기존 phase-scoped chain을 다시 탄다: `PHASE-IMPLEMENT` remediation -> `PHASE-COMMIT` -> `PHASE-RUN-DA` -> `PHASE-PARALLEL-AUDIT` -> `PHASE-END-PRD-SYNC` -> `PHASE-END-COMMIT`.' "$resume" || \
+    fail "expected resume-state.md to preserve implementation remediation dependency chain"
 }
 
 new_sandbox() {
