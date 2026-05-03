@@ -18,9 +18,9 @@ description: |
 |------|-----|
 | 기본 에이전트 수 | 6 |
 | open thread cap | current session의 `agents.max_threads` (unset 기본 6) |
-| args 첫 토큰 (정수) | 에이전트 수. 비어있으면 기본값 6 사용. 예: `parallel-audit 6` (정수 단독) 또는 `parallel-audit 6 <컨텍스트>` (정수 + 컨텍스트). |
-| args 그 외 (자유 텍스트) | 메인 에이전트가 변경 컨텍스트로 활용 (Step 1 `git diff` 결과와 결합). 정수 없이도 가능: `parallel-audit <컨텍스트>` (기본 6). |
-| exhaustive override | `parallel-audit 10` |
+| args 첫 토큰 (정수) | 에이전트 수. 비어있으면 기본값 6 사용. 예: `parallel-audit 6` (정수 단독) 또는 `parallel-audit 6 <컨텍스트>` (첫 토큰 뒤 나머지 토큰이 컨텍스트). |
+| args 그 외 (자유 텍스트) | 첫 토큰이 정수가 아니면 전체 args를 컨텍스트로 활용 (Step 1 `git diff` 결과와 결합). 예: `parallel-audit <컨텍스트>` (기본 6). |
+| exhaustive override | `parallel-audit 10` 또는 `parallel-audit 10 <컨텍스트>` (10개 세부 관점 강제 + trailing 컨텍스트 보존) |
 | 에이전트 권한 | 읽기 전용. codex exec 경로(Claude Code/headless)는 Layer 1(`codex-exec-supervised --sandbox read-only --ignore-user-config --ignore-rules`)으로 구조적 강제. Codex 세션(`spawn_agent`)은 정책 + 프롬프트 + self-report로 운영 (Non-goals 참조) |
 
 ## 용어 정책
@@ -68,7 +68,7 @@ Codex 세션의 상세 wait/write/violation 계약은 [run-da/references/hardeni
   예: `Platform (macOS + NixOS)`를 `macOS`, `NixOS`로 분할.
 - **에이전트 수 < 조사 bundle 수**: 연관된 bundle을 하나의 에이전트에 통합한다.
   예: `Docs / Consistency`를 `Adjacent Side Effects`와 함께 묶는다.
-- **명시적 exhaustive override**: `parallel-audit 10`은 기본 6 bundle을 다음 10개 세부 관점으로 확장한다.
+- **명시적 exhaustive override**: `parallel-audit 10` 또는 `parallel-audit 10 <컨텍스트>`는 기본 6 bundle을 다음 10개 세부 관점으로 확장한다. `<컨텍스트>`가 있으면 첫 토큰 `10` 뒤 나머지 토큰을 메인 에이전트의 우선순위 판단 컨텍스트로 보존한다.
   `Security`, `API`, `Performance`, `Dependencies`, `Tests`, `Edge Cases`, `macOS`, `NixOS`, `Adjacent Side Effects`, `Docs / Consistency`
 
 ## 절차
@@ -86,7 +86,8 @@ git log --oneline -5     # 최근 커밋 컨텍스트
 ### Step 2: 조사 bundle 분배
 
 에이전트 수(args 첫 토큰이 정수면 그 값, 아니면 기본값 6)에 맞게 위 6개 bundle을 분배한다.
-메인 에이전트는 args의 자유 텍스트(컨텍스트)를 보존하고 Step 1의 `git diff` 결과와 결합하여 bundle 분배 가중치 결정에 활용한다.
+컨텍스트는 정수-first 형식이면 첫 토큰 뒤 나머지 토큰, context-only 형식이면 전체 args다.
+메인 에이전트는 이 컨텍스트를 보존하고 Step 1의 `git diff` 결과와 결합하여 bundle 분배 가중치 결정에 활용한다.
 변경 내용에 따라 관련도가 높은 bundle에 에이전트를 더 배정할 수 있다.
 
 예: Nix 설정 변경이면 `Platform (macOS + NixOS)`와 `Adjacent Side Effects`에 더 많은 비중을 두고,
@@ -364,7 +365,7 @@ BUG/REGRESSION/EDGECASE가 있으면 요약 테이블 아래에 상세를 추가
 - 에이전트는 읽기 전용이다. 코드/tracked workspace 수정을 금지한다. codex exec 경로(Claude Code/headless)는 Layer 1(supervised wrapper + `--sandbox read-only` + `--ignore-user-config` + `--ignore-rules`)으로 구조적 강제, Codex 세션(`spawn_agent`)은 정책 + 프롬프트 + self-report로 운영한다 (한계는 Non-goals 참조).
 - 조사 결과를 사용자에게 먼저 제시하고, 수정은 사용자 승인 후 진행한다.
 - 변경 범위가 극소한 경우 에이전트 수를 줄여 효율을 높인다.
-- 기본값은 6이며, `parallel-audit 10`만 exhaustive override다. 10은 기본값이 아니다.
+- 기본값은 6이며, `parallel-audit 10`/`parallel-audit 10 <컨텍스트>`만 exhaustive override다. 10은 기본값이 아니고, trailing 컨텍스트는 우선순위 판단용으로 보존한다.
 - Codex 세션 경로에서는 completed audit thread를 다음 batch/retry 전에 명시적으로 `close_agent`로 닫는다.
 - `SAFE`는 유효한 auditor 결과가 모두 확보된 뒤에만 반환한다. `RECOVERABLE VIOLATION` 재디스패치 중이거나 `BLOCKED (VIOLATION)` unit이 남아 있으면 완료로 간주하지 않는다.
 - DA 피드백 루프(run-da)와 목적이 다르다: DA는 설계/코드 품질을 반복 개선하고, 전수조사는 변경의 안전성을 일회성으로 검증한다.
