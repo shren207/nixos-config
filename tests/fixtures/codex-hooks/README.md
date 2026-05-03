@@ -30,6 +30,8 @@ runner: `tests/test-codex-hook-fixtures.sh`.
 | `pinning-claude-write-clean.json` | Claude Write | 정상 텍스트 | 빈 파일 (false positive 회피) |
 | `pinning-claude-self-exclude.json` | Claude Edit | path가 `…/scripts/ai/commit-msg-pinning.sh` (self-exclude) | 빈 파일 |
 | `pinning-codex-applypatch-md-positive.json` | Codex apply_patch | 단일 `.md` Update + Round | `apply_patch on …` 헤더 + Round 라인 |
+| `pinning-codex-applypatch-github-attachment-pass.json` | Codex apply_patch | GitHub attachment URL in `/tmp/*body*.md` | 빈 파일 (attachment UUID false positive 회피) |
+| `pinning-codex-applypatch-github-attachment-mixed-positive.json` | Codex apply_patch | GitHub attachment URL + 별도 short hash on same line | `apply_patch on …` 헤더 + partial hash 라인 |
 | `pinning-codex-applypatch-moveto.json` | Codex apply_patch | `*** Move to:` (`.txt` → `.md`) + Round + hash | Move 후 `.md` path로 보고 (R3 분기) |
 | `pinning-codex-applypatch-multifile.json` | Codex apply_patch | `.ts` 정상 + `.md` 박제 | `.md` path만 보고 (multi-file attribution) |
 | `pinning-codex-applypatch-removeonly.json` | Codex apply_patch | 박제 패턴이 `^-` 라인에만 (제거 patch) | 빈 파일 (added line만 검사) |
@@ -59,6 +61,8 @@ Claude/Codex missing shared-library fail-closed 분기를 검증한다.
 | `pretooluse-pinning-guard-claude-bash-git-option-commit.json` | Claude PreToolUse | `git` global-option commit command | deny reason |
 | `pretooluse-pinning-guard-claude-bash-revert-hash-pass.json` | Claude PreToolUse | real `git commit` revert message with short hash | 빈 파일 |
 | `pretooluse-pinning-guard-codex-applypatch-positive.json` | Codex PreToolUse | apply_patch adds volatile metadata to `.md` | deny reason |
+| `pretooluse-pinning-guard-codex-applypatch-github-attachment-pass.json` | Codex PreToolUse | apply_patch adds GitHub attachment URL to `/tmp/*body*.md` | 빈 파일 |
+| `pretooluse-pinning-guard-codex-applypatch-github-attachment-mixed-positive.json` | Codex PreToolUse | GitHub attachment URL + 별도 short hash on same line | deny reason |
 | `pretooluse-pinning-guard-codex-applypatch-multifile.json` | Codex PreToolUse | apply_patch multi-file attribution | deny reason for matched `.md` |
 | `pretooluse-pinning-guard-codex-applypatch-multimatch.json` | Codex PreToolUse | apply_patch has multiple matched eligible files | single deny reason for first matched path |
 | `pretooluse-pinning-guard-codex-applypatch-moveto.json` | Codex PreToolUse | apply_patch `*** Move to:` effective path | deny reason for moved `.md` |

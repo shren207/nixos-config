@@ -20,6 +20,10 @@ PATTERN_C='\bDA (for_pr|for_plan|피드백|[Rr]ound)\b|\bAuditor [A-Za-z_]+-[0-9
 # Pattern D: raw/backtick partial hex tokens. Callers apply HASH_MIN/HASH_MAX.
 PATTERN_D='\b[a-f0-9]{7,40}\b|`[a-f0-9]+`'
 
+# GitHub issue/PR attachment assets are durable media identifiers, not commits.
+# Keep this exact so other URL/path hex tokens remain visible to PATTERN_D.
+PATTERN_GITHUB_ATTACHMENT_ASSET_URL='https://github\.com/user-attachments/assets/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
+
 pinning_should_check_path() {
   local path="$1"
   case "$path" in
@@ -43,9 +47,15 @@ pinning_should_check_path() {
   return 0
 }
 
+pinning_sanitize_partial_hash_input() {
+  local scan_file="$1"
+  sed -E "s#${PATTERN_GITHUB_ATTACHMENT_ASSET_URL}#__GITHUB_ATTACHMENT_ASSET_URL__#g" "$scan_file"
+}
+
 pinning_partial_hash_report() {
   local scan_file="$1"
-  grep -noE "$PATTERN_D" "$scan_file" 2>/dev/null \
+  pinning_sanitize_partial_hash_input "$scan_file" 2>/dev/null \
+    | grep -noE "$PATTERN_D" 2>/dev/null \
     | awk -v min="$HASH_MIN" -v max="$HASH_MAX" '
         { idx = index($0, ":"); lineno = substr($0, 1, idx - 1); tok = substr($0, idx + 1);
           gsub(/`/, "", tok); n = length(tok);
