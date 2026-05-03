@@ -26,7 +26,7 @@ fan-out/fan-in runtime route는 [run-da `runtime-mapping.md`](../../run-da/refer
 
 - **Claude Code 세션**: codex exec 기본. 사전점검은 [`/codex-fan-out` SSOT](../../codex-fan-out/SKILL.md)의 "사전점검" 섹션(`codex` + `codex-exec-supervised` 가용성 + `codex-exec-supervised --check` capability probe)을 그대로 따른다. 사전점검 실패 시 Agent tool fallback (`run_in_background: true`).
 - **headless 세션**: codex exec only.
-- **Codex 세션**: native subagent fan-out. 권한 범위와 fallback boundary는 run-da hardening contract를 따른다.
+- **Codex 세션**: native subagent fan-out. 권한 범위와 `codex-exec-supervised` fallback 승인 경계는 run-da hardening contract를 따른다.
 
 codex exec 실행 시 각 에이전트 프롬프트에 "파일을 수정하지 마라" no-write boundary를 명시한다.
 

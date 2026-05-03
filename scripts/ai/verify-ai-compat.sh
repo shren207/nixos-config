@@ -45,9 +45,6 @@ SKILL_NEUTRAL_LINT_EXCLUDE=(
   codex-fan-out
 )
 
-NATIVE_FANOUT_BULLET='- `$plan-with-questions`, `$run-da`, `$parallel-audit` 등 fan-out 스킬 호출은 해당 스킬이 문서화한 범위의 내부 native subagent fan-out에 대한 explicit delegation으로 본다. `codex-exec-supervised` fallback은 native delegation 거부/미지원 시 별도 사용자 승인 후에만 사용한다.'
-NATIVE_FANOUT_BULLET_SYNC_SH='- \`\$plan-with-questions\`, \`\$run-da\`, \`\$parallel-audit\` 등 fan-out 스킬 호출은 해당 스킬이 문서화한 범위의 내부 native subagent fan-out에 대한 explicit delegation으로 본다. \`codex-exec-supervised\` fallback은 native delegation 거부/미지원 시 별도 사용자 승인 후에만 사용한다.'
-
 errors=0
 warnings=0
 
@@ -708,8 +705,23 @@ require_contract_text \
 
 require_contract_text \
   "modules/shared/programs/claude/files/skills/plan-with-questions/references/fanout-fanin.md" \
-  "fan-out/fan-in runtime route" \
-  "plan-with-questions fan-out route wording"
+  "hardening-contract.md#skill-internal-fan-out-authorization" \
+  "plan-with-questions fanout-fanin authorization pointer"
+
+require_contract_text \
+  "modules/shared/programs/claude/files/skills/plan-with-questions/references/fanout-fanin.md" \
+  '`codex-exec-supervised` fallback 승인 경계' \
+  "plan-with-questions fanout-fanin fallback boundary"
+
+require_contract_text \
+  "modules/shared/programs/claude/files/skills/plan-with-questions/references/runtime-boundaries.md" \
+  "hardening-contract.md#skill-internal-fan-out-authorization" \
+  "plan-with-questions runtime-boundaries authorization pointer"
+
+require_contract_text \
+  "modules/shared/programs/claude/files/skills/plan-with-questions/references/runtime-boundaries.md" \
+  '`codex-exec-supervised` fallback 승인 경계' \
+  "plan-with-questions runtime-boundaries fallback boundary"
 
 require_contract_text \
   "modules/shared/programs/claude/files/skills/parallel-audit/SKILL.md" \
@@ -723,12 +735,57 @@ require_contract_text \
 
 require_contract_text \
   "modules/shared/programs/claude/files/skills/syncing-codex-harness/references/sync.sh" \
-  "$NATIVE_FANOUT_BULLET_SYNC_SH" \
-  "sync.sh generated supplement native fan-out authorization"
+  '\`\$plan-with-questions\`' \
+  "sync.sh generated supplement mentions plan-with-questions"
+
+require_contract_text \
+  "modules/shared/programs/claude/files/skills/syncing-codex-harness/references/sync.sh" \
+  '\`\$run-da\`' \
+  "sync.sh generated supplement mentions run-da"
+
+require_contract_text \
+  "modules/shared/programs/claude/files/skills/syncing-codex-harness/references/sync.sh" \
+  '\`\$parallel-audit\`' \
+  "sync.sh generated supplement mentions parallel-audit"
+
+require_contract_text \
+  "modules/shared/programs/claude/files/skills/syncing-codex-harness/references/sync.sh" \
+  "explicit delegation" \
+  "sync.sh generated supplement explicit delegation anchor"
+
+require_contract_text \
+  "modules/shared/programs/claude/files/skills/syncing-codex-harness/references/sync.sh" \
+  '\`codex-exec-supervised\` fallback' \
+  "sync.sh generated supplement fallback anchor"
+
+require_contract_text \
+  "modules/shared/programs/claude/files/skills/syncing-codex-harness/references/sync.sh" \
+  "별도 사용자 승인" \
+  "sync.sh generated supplement separate approval anchor"
 
 require_agents_override_generated_text \
-  "$NATIVE_FANOUT_BULLET" \
-  "AGENTS.override generated block native fan-out authorization"
+  '$plan-with-questions' \
+  "AGENTS.override generated block mentions plan-with-questions"
+
+require_agents_override_generated_text \
+  '$run-da' \
+  "AGENTS.override generated block mentions run-da"
+
+require_agents_override_generated_text \
+  '$parallel-audit' \
+  "AGENTS.override generated block mentions parallel-audit"
+
+require_agents_override_generated_text \
+  "explicit delegation" \
+  "AGENTS.override generated block explicit delegation anchor"
+
+require_agents_override_generated_text \
+  '`codex-exec-supervised` fallback' \
+  "AGENTS.override generated block fallback anchor"
+
+require_agents_override_generated_text \
+  "별도 사용자 승인" \
+  "AGENTS.override generated block separate approval anchor"
 
 echo ""
 echo "=== 프로젝트 스킬 투영 확인 (디렉토리 심링크) ==="
