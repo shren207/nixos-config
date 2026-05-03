@@ -5,7 +5,7 @@
 **Interactive (터미널)** -- `agenix -e` 사용:
 
 ```bash
-nix run github:ryantm/agenix -- -e secrets/<name>.age
+cd secrets && nix run github:ryantm/agenix -- -e <name>.age
 # 에디터에서 내용 입력 후 저장 → 자동 암호화
 ```
 
