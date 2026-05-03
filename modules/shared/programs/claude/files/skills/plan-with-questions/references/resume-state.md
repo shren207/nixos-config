@@ -62,7 +62,7 @@ Step 5/6 진행 중에는 [`plan-file-template.md`](./plan-file-template.md#da-s
 
 ### for_prd PRD 작성 후 Next Blocking Step
 
-PRD 작성 후의 진행은 PRD master Document Status에서 `Current Phase` / `Active Phase File` / `Status` / `Next Phase Materialization` / `Next Blocking Step` / `Last Completed Step` 필드로 추적한다. `Next Blocking Step`은 첫 미완료 blocking step만 가리키며, 아래 enum만 허용한다:
+PRD 작성 후의 진행은 PRD master Document Status에서 `Current Phase` / `Active Phase File` / `Status` / `Next Phase Materialization` / `Next Blocking Step` / `Last Completed Step` 필드로 추적한다. `Next Blocking Step`은 첫 미완료 blocking step만 가리키며, 아래 enum만 허용한다. `File Mode: Single`은 `PI-*` 7단계 chain을 사용하고 `PHASE-*` 값을 쓰지 않는다. `File Mode: Split`은 phase 구현/감사에 `PHASE-*` 값을 사용하고, 모든 phase checkpoint 이후 final closeout에서만 `PI-FINAL-REVIEW` 이후 값을 사용한다.
 
 | Next Blocking Step | 진입 조건 |
 |---|---|
@@ -74,11 +74,19 @@ PRD 작성 후의 진행은 PRD master Document Status에서 `Current Phase` / `
 | `PHASE-PARALLEL-AUDIT` | active phase diff 기준 `/parallel-audit` 필요 |
 | `PHASE-END-PRD-SYNC` | active phase validation, phase-end review, Finding Disposition, master/phase PRD sync 필요 |
 | `PHASE-END-COMMIT` | phase-end PRD sync 변경 커밋 checkpoint 필요 |
+| `PI-IMPLEMENT` | single-file PRD 승인 범위의 구현 진행 필요 |
+| `PI-COMMIT` | single-file PRD 구현 변경 커밋 필요 |
+| `PI-RUN-DA` | single-file PRD diff 기준 `/run-da for_pr` 필요 |
+| `PI-PARALLEL-AUDIT` | single-file PRD diff 기준 `/parallel-audit` 필요 |
 | `PI-FINAL-REVIEW` | 모든 phase checkpoint 이후 final review gate 승인 또는 Final Multi-Pass Review 필요 |
 | `PI-FOLLOWUP-COMMIT` | final review가 요구한 follow-up 변경 커밋 필요. clean review면 `Last Completed Step=PI-FOLLOWUP-COMMIT`으로 갱신하고 Change Log에 `PI-FOLLOWUP-COMMIT: N/A`를 기록한 뒤 `Next Blocking Step=PI-CREATE-PR`로 이동 |
 | `PI-CREATE-PR` | final PR write gate 승인 또는 승인된 PR title/body GitHub write 필요 |
 
 각 step 시작 전 `Next Blocking Step`을 현재 step으로 확정하고, 완료 즉시 `Last Completed Step`을 현재 step으로 갱신한 뒤 다음 blocking step을 기록한다.
+
+Single-file PRD stable step contract:
+
+Single-file mode의 `PI-*` dependency closure와 자동 수행 범위는 [`./post-implementation.md`](./post-implementation.md)의 7단계 표가 SSOT다. PRD master Document Status에는 같은 stable step ID를 `Next Blocking Step` / `Last Completed Step`에 그대로 기록한다.
 
 Phase-scoped stable step contract (split mode only):
 
@@ -127,11 +135,11 @@ Initial split PRD materialization contract:
 - 승인된 추가 phase 파일을 같은 Step 8에서 함께 materialize했다면 해당 phase는 Phase Index에 materialized link로 기록한다. 아직 본문 전체가 승인되지 않은 미래 phase는 `Pending phase-start approval`로 남긴다.
 - Step 8이 최초 active phase 파일을 생성하지 않는 split PRD는 incomplete approval packet으로 간주하고 Post-Implementation에 진입하지 않는다.
 
-Final gate resume rules (split mode only):
+PRD resume rules:
 - `File Mode: Split` + `Next Blocking Step=PI-FINAL-REVIEW`에서는 같은 active runtime의 `FINAL_REVIEW_GATE_APPROVED` approval record가 있을 때만 승인된 `PI-FINAL-REVIEW` / `PI-FOLLOWUP-COMMIT` 범위를 실행한다. approval record가 없거나 현재 세션에서 확인할 수 없으면 먼저 final review gate를 다시 제시한다.
 - `File Mode: Split` + `Next Blocking Step=PI-CREATE-PR`에서는 같은 active runtime의 최신 `FINAL_PR_WRITE_GATE_APPROVED` approval record와 exact approved title/body packet이 함께 있을 때만 승인된 `/create-pr apply-approved` 경로를 실행한다. approval record가 없거나, exact approved packet이 없거나, 현재 base/head/title tuple이 승인 tuple과 다르면 `/create-pr prepare`를 다시 수행하고 final PR write gate를 다시 제시한다. PRD/plan에 저장된 PR body artifact는 resumable approval marker로 인정하지 않는다. 기본 `/create-pr` 생성 경로로 body를 재생성해 바로 쓰지 않는다.
-- `File Mode: Single` + `Next Blocking Step=PI-CREATE-PR`는 Step 7에서 이미 승인된 Post-Implementation `PI-CREATE-PR` 범위로 재개하며, split final PR write gate를 요구하지 않는다.
-- Runtime approval record 형식은 [`./output-templates.md#final-closeout-gate-packet`](./output-templates.md#final-closeout-gate-packet)의 `Final gate runtime approval record`가 SSOT다.
+- `File Mode: Single` + `Next Blocking Step=PI-IMPLEMENT|PI-COMMIT|PI-RUN-DA|PI-PARALLEL-AUDIT|PI-FINAL-REVIEW|PI-FOLLOWUP-COMMIT|PI-CREATE-PR`는 Step 7에서 이미 승인된 Post-Implementation 자동 수행 범위로 재개하며, split phase-start gate나 split final closeout gate를 요구하지 않는다.
+- split final closeout gate의 runtime approval record 형식은 [`./output-templates.md#final-closeout-gate-packet`](./output-templates.md#final-closeout-gate-packet)의 `Final gate runtime approval record`가 SSOT다.
 
 Final PR write approval record is a runtime-only approval record, not a tracked PRD write and not a resumable marker. Inline chat text, `/tmp` paths, transient tool output, summaries, checksums, paths without the exact title/body, or any tracked PRD/plan artifact must not be treated as PR write approval.
 

@@ -48,6 +48,15 @@ assert_file_contains() {
   grep -Fqx "$needle" "$path" >/dev/null || fail "expected $path to contain exact line: $needle"
 }
 
+assert_json_query_present() {
+  local path="$1"
+  local query="$2"
+  local should_trigger="$3"
+  jq -e --arg query "$query" --arg should_trigger "$should_trigger" \
+    'any(.[]; .query == $query and (.should_trigger | tostring) == $should_trigger)' \
+    "$path" >/dev/null || fail "expected $path to contain query '$query' with should_trigger=$should_trigger"
+}
+
 assert_line_count() {
   local path="$1"
   local needle="$2"
@@ -251,6 +260,40 @@ EOF
   source "$REPO_ROOT/modules/shared/scripts/lib/rebuild/codex-legacy-hooks.sh"
   count="$(HOME="$home_dir" jq -r "$(codex_legacy_user_hook_count_jq_filter)" "$hooks_json")"
   [[ "$count" == "1" ]] || fail "expected exact HOME path stale count 1, got: $count"
+}
+
+test_create_pr_eval_covers_approved_write_modes() {
+  local queries="$REPO_ROOT/modules/shared/programs/claude/files/skills/create-pr/evals/queries.json"
+
+  assert_json_query_present "$queries" "prepare" true
+  assert_json_query_present "$queries" "prepare create" true
+  assert_json_query_present "$queries" "prepare update" true
+  assert_json_query_present "$queries" "apply-approved" true
+  assert_json_query_present "$queries" "apply-approved update title_change=no 승인된 exact body로 PR 본문만 써" true
+  assert_json_query_present "$queries" "apply-approved 실행해. 요약만 있고 exact title/body는 없어" true
+}
+
+test_prd_resume_state_covers_single_file_pi_chain() {
+  local resume="$REPO_ROOT/modules/shared/programs/claude/files/skills/plan-with-questions/references/resume-state.md"
+  local step
+
+  grep -Fq 'File Mode: Single`은 `PI-*` 7단계 chain을 사용하고 `PHASE-*` 값을 쓰지 않는다.' "$resume" || \
+    fail "expected single-file PRD resume mode guidance in resume-state.md"
+  for step in PI-IMPLEMENT PI-COMMIT PI-RUN-DA PI-PARALLEL-AUDIT; do
+    grep -Fq "| \`$step\` | single-file PRD" "$resume" || \
+      fail "expected resume-state.md enum row for $step"
+  done
+  grep -Fq 'File Mode: Single` + `Next Blocking Step=PI-IMPLEMENT|PI-COMMIT|PI-RUN-DA|PI-PARALLEL-AUDIT|PI-FINAL-REVIEW|PI-FOLLOWUP-COMMIT|PI-CREATE-PR' "$resume" || \
+    fail "expected single-file PRD resume rule to cover the full PI chain"
+}
+
+test_phase_remediation_ssot_points_to_resume_state() {
+  local routing="$REPO_ROOT/modules/shared/programs/claude/files/skills/plan-with-questions/references/task-size-routing.md"
+  local stale='Phase-end remediation 순서와 재승인 규칙은 [`./output-templates.md#phase-remediation-approval-packet`](./output-templates.md#phase-remediation-approval-packet)이 SSOT'
+
+  grep -Fq 'Phase-end remediation 순서와 재승인 규칙은 [`./resume-state.md#for_prd-prd-작성-후-next-blocking-step`](./resume-state.md#for_prd-prd-작성-후-next-blocking-step)이 SSOT' "$routing" || \
+    fail "expected phase remediation execution SSOT to point to resume-state.md"
+  ! grep -Fq "$stale" "$routing" || fail "task-size-routing.md still claims output-templates.md owns remediation execution SSOT"
 }
 
 new_sandbox() {
@@ -1704,6 +1747,9 @@ EOF
 }
 
 run_test "wt help uses deployed helper layout" test_wt_help_from_deployed_layout
+run_test "create-pr eval covers approved write modes" test_create_pr_eval_covers_approved_write_modes
+run_test "PRD resume state covers single-file PI chain" test_prd_resume_state_covers_single_file_pi_chain
+run_test "phase remediation SSOT points to resume-state" test_phase_remediation_ssot_points_to_resume_state
 run_test "rebuild-common exports public API" test_rebuild_common_exports_public_api
 run_test "detect_worktree switches to active worktree" test_detect_worktree_uses_current_worktree_path
 run_test "wt cd returns target path by name" test_wt_cd_by_name_returns_target_path
