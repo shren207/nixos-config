@@ -94,7 +94,9 @@ for_prd Step 7의 승인 표면은 아래 순서를 유지한다:
 
 - Target PRD paths: master PRD 경로와 split phase 경로 목록
 - Master PRD draft body: 승인 후 그대로 작성될 master PRD 본문 전체. `Change Log`에는 durable 산출물 이력과 Post-Implementation stable step ID 범위만 기록한다.
-- Phase materialization plan: split mode일 때 생성할 phase 파일 경로, phase title, objective, validation focus, and approved outline. Phase body 전체는 승인 후 즉시 작성할 상세 본문이 있는 phase에만 포함한다.
+- Split phase approval surface: split mode일 때 phase title, objective, validation focus, approved outline을 먼저 제시한다. 이 outline은 master PRD의 Phase Index와 향후 승인 계획만 승인하며, phase 파일 생성을 승인하지 않는다.
+- Phase file draft body: Step 8에서 즉시 생성할 phase 파일은 승인 후 그대로 작성될 본문 전체를 포함한다. 본문 전체가 approval packet에 없는 phase 파일은 생성하지 않는다.
+- Chunked approval fallback: full packet이 너무 커서 한 번에 표시하기 어렵다면 ordered chunk로 나눈다. 각 chunk는 stable chunk ID, target path, 승인 후 그대로 작성될 durable body를 포함해야 한다. 최종 승인 요청은 사용자가 이미 본 chunk ID 목록을 다시 열거한다. 요약·경로·checksum만 있는 chunk는 tracked write·commit·PR write 승인으로 간주하지 않는다.
 - Post-Implementation 자동 수행 범위: 위 stable step ID 표시 형식
 
-승인 후 Step 8은 approval packet 범위 안에서 PRD 파일을 쓴다. Step 7 승인 이후 draft body나 phase materialization plan을 바꿔야 하면 파일을 작성하지 말고 Step 7 승인 요청을 다시 수행한다.
+승인 후 Step 8은 approval packet 또는 승인된 chunk 범위 안에서 PRD 파일을 쓴다. Step 7 승인 이후 draft body, phase materialization plan, chunk body를 바꿔야 하면 파일을 작성하지 말고 Step 7 승인 요청을 다시 수행한다.
