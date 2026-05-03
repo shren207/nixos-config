@@ -26,6 +26,9 @@
 6. **PI-FOLLOWUP-COMMIT: 10-pass 반영 커밋** (수정 발생 시) — 논리 단위로 분할 커밋 허용.
 7. **PI-CREATE-PR: `/create-pr`** — main 브랜치 대상 PR 생성.
 
+Approval-surface stable step ID 전체 목록:
+`PI-IMPLEMENT, PI-COMMIT, PI-RUN-DA, PI-PARALLEL-AUDIT, PI-FINAL-REVIEW, PI-FOLLOWUP-COMMIT, PI-CREATE-PR`
+
 사용자가 명시적으로 특정 단계를 생략하라고 지시한 경우에만 해당 단계를 건너뛴다.
 
 승인 표면의 생략 항목은 의존성을 깨뜨리면 안 된다. 최소 의존성은 다음과 같다: `PI-COMMIT` requires `PI-IMPLEMENT`; `PI-RUN-DA` requires `PI-COMMIT`; `PI-PARALLEL-AUDIT` and `PI-FINAL-REVIEW` require `PI-IMPLEMENT`; `PI-FOLLOWUP-COMMIT` requires `PI-FINAL-REVIEW`; `PI-CREATE-PR` requires `PI-COMMIT`. 생략 요청이 의존성을 깨뜨리면 dependency closure를 적용한 최종 stable step ID 목록을 다시 사용자에게 노출하고 승인받는다.

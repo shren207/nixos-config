@@ -83,7 +83,7 @@ trigger 카테고리 정의 (키워드 목록 + 권장 transition 모드)는 [`.
 
 승인 표면(for_action plan Step 8, for_prd Step 7 gate)에 다음 중 하나를 명시 (사용자에게 노출):
 
-- 생략 단계 없음: "Post-Implementation 자동 수행: PI-IMPLEMENT, PI-COMMIT, PI-RUN-DA, PI-PARALLEL-AUDIT, PI-FINAL-REVIEW, PI-FOLLOWUP-COMMIT, PI-CREATE-PR (default)"
+- 생략 단계 없음: "Post-Implementation 자동 수행: post-implementation.md의 approval-surface stable step ID 전체 (default)"
 - 일부 생략: "Post-Implementation 자동 수행: stable step ID 전체 중 PI-CREATE-PR 생략 — 사용자 명시 요청"
 
 이 항목은 승인 요청 도구 호출 시 사용자에게 노출되어 tracked write·commit·GitHub PR write 포함 자동 진행 범위에 대한 사용자 동의 근거가 된다.
@@ -93,7 +93,7 @@ trigger 카테고리 정의 (키워드 목록 + 권장 transition 모드)는 [`.
 for_prd Step 7의 승인 표면은 아래 순서를 유지한다:
 
 - Target PRD paths: master PRD 경로와 split phase 경로 목록
-- Master PRD draft body: 승인 후 그대로 작성될 master PRD 본문 전체. `Change Log`에는 Step 7 full PRD approval packet이 제시됐음과 승인된 Post-Implementation stable step ID 범위를 기록한 항목을 포함한다.
+- Master PRD draft body: 승인 후 그대로 작성될 master PRD 본문 전체. `Change Log`에는 durable 산출물 이력과 Post-Implementation stable step ID 범위만 기록한다.
 - Phase draft bodies: split mode일 때 승인 후 그대로 작성될 phase 본문 전체
 - Post-Implementation 자동 수행 범위: 위 stable step ID 표시 형식
 
