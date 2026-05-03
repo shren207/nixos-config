@@ -83,8 +83,8 @@ trigger 카테고리 정의 (키워드 목록 + 권장 transition 모드)는 [`.
 
 승인 표면(for_action plan Step 8, for_prd Step 7 gate)에 다음 중 하나를 명시 (사용자에게 노출):
 
-- 생략 단계 없음: "Post-Implementation 자동 수행: post-implementation.md의 7단계 표 전체 (default)"
-- 일부 생략: "Post-Implementation 자동 수행: post-implementation.md의 7단계 표 중 생략 항목 명시 — 사용자 명시 요청"
+- 생략 단계 없음: [`post-implementation.md`](./post-implementation.md)의 "Approval-surface default display string"을 그대로 사용
+- 일부 생략: 위 default display string에서 생략 항목을 stable step ID로 제거/표기하고 사용자 명시 요청 사유를 덧붙임
 
 이 항목은 승인 요청 도구 호출 시 사용자에게 노출되어 tracked write·commit·GitHub PR write 포함 자동 진행 범위에 대한 사용자 동의 근거가 된다.
 

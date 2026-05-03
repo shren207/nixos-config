@@ -21,10 +21,13 @@
 | 1 | PI-IMPLEMENT | 변경 구현 | 없음 |
 | 2 | PI-COMMIT | 구현 커밋 — `/run-da for_pr`의 DA 입력 checkpoint. 기계적 변경(flake.lock 등)이 포함되면 `git diff main...HEAD -- ':!flake.lock'`로 축약 diff 사용. | PI-IMPLEMENT |
 | 3 | PI-RUN-DA | `/run-da for_pr` 코드 DA 피드백 루프 | PI-COMMIT |
-| 4 | PI-PARALLEL-AUDIT | `/parallel-audit` 전수조사 | PI-IMPLEMENT |
-| 5 | PI-FINAL-REVIEW | Final Multi-Pass Review ([`./prd/multi-pass-review.md`](./prd/multi-pass-review.md)) | PI-IMPLEMENT |
+| 4 | PI-PARALLEL-AUDIT | `/parallel-audit` 전수조사 | PI-RUN-DA |
+| 5 | PI-FINAL-REVIEW | Final Multi-Pass Review ([`./prd/multi-pass-review.md`](./prd/multi-pass-review.md)) | PI-PARALLEL-AUDIT |
 | 6 | PI-FOLLOWUP-COMMIT | 10-pass 반영 커밋 (수정 발생 시) | PI-FINAL-REVIEW |
-| 7 | PI-CREATE-PR | `/create-pr` — main 브랜치 대상 PR 생성 | PI-COMMIT |
+| 7 | PI-CREATE-PR | `/create-pr` — main 브랜치 대상 PR 생성 | PI-FINAL-REVIEW; PI-FOLLOWUP-COMMIT when review changes exist |
+
+Approval-surface default display string:
+`Post-Implementation 자동 수행: PI-IMPLEMENT, PI-COMMIT, PI-RUN-DA, PI-PARALLEL-AUDIT, PI-FINAL-REVIEW, PI-FOLLOWUP-COMMIT, PI-CREATE-PR (default)`
 
 Final Multi-Pass Review는 메인 에이전트가 직접 수행한다 (fan-out 금지; `run-da` 4-bundle과 축 구분 — Cross-Phase Integration, Validation 선택, Documentation, PRD Closeout은 run-da가 커버하지 않는 영역).
 
