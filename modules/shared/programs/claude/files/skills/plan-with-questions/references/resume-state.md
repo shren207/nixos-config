@@ -80,11 +80,45 @@ PRD 작성 후의 진행은 PRD master Document Status에서 `Current Phase` / `
 
 각 step 시작 전 `Next Blocking Step`을 현재 step으로 확정하고, 완료 즉시 `Last Completed Step`을 현재 step으로 갱신한 뒤 다음 blocking step을 기록한다.
 
+Phase-scoped stable step contract (split mode only):
+
+| Stable step ID | 수행 내용 |
+|---|---|
+| `PHASE-MATERIALIZE` | 승인된 phase file draft body를 phase 파일로 작성하고 master PRD `Active Phase File` / `Next Phase Materialization`을 갱신 |
+| `PHASE-IMPLEMENT` | 해당 phase 구현 진행 |
+| `PHASE-COMMIT` | 해당 phase 구현 커밋 |
+| `PHASE-RUN-DA` | 해당 phase diff 기준 `/run-da for_pr` |
+| `PHASE-PARALLEL-AUDIT` | 해당 phase diff 기준 `/parallel-audit` |
+| `PHASE-END-PRD-SYNC` | phase validation, phase-end review, Phase-End Finding Disposition 표, phase 파일과 master PRD sync 반영 |
+| `PHASE-END-COMMIT` | phase-end finding disposition이 모두 satisfied 또는 explicitly deferred인 상태에서 `PHASE-END-PRD-SYNC`가 만든 phase/master PRD 변경을 커밋하고 다음 phase-start materialization gate 또는 final closeout gate 전 checkpoint로 고정 |
+
+Phase-scoped dependency closure:
+
+| Stable step ID | Requires |
+|---|---|
+| `PHASE-MATERIALIZE` | 승인된 phase file draft body + 승인된 master PRD materialization update |
+| `PHASE-IMPLEMENT` | `PHASE-MATERIALIZE` |
+| `PHASE-COMMIT` | `PHASE-IMPLEMENT` |
+| `PHASE-RUN-DA` | `PHASE-COMMIT` |
+| `PHASE-PARALLEL-AUDIT` | `PHASE-RUN-DA` |
+| `PHASE-END-PRD-SYNC` | `PHASE-PARALLEL-AUDIT` |
+| `PHASE-END-COMMIT` | `PHASE-END-PRD-SYNC` + phase-end finding disposition table all satisfied/deferred |
+
+Phase-scoped default display string:
+`Phase-scoped 자동 수행: PHASE-MATERIALIZE, PHASE-IMPLEMENT, PHASE-COMMIT, PHASE-RUN-DA, PHASE-PARALLEL-AUDIT, PHASE-END-PRD-SYNC, PHASE-END-COMMIT (default)`
+
+Phase-end remediation contract:
+- Docs/PRD-only remediation이 승인된 phase scope 안에 머물면 `PHASE-END-PRD-SYNC`에 기록하고 `PHASE-END-COMMIT`으로 커밋한다.
+- Implementation-code remediation은 기존 phase-scoped chain을 다시 탄다: `PHASE-IMPLEMENT` remediation -> `PHASE-COMMIT` -> `PHASE-RUN-DA` -> `PHASE-PARALLEL-AUDIT` -> `PHASE-END-PRD-SYNC` -> `PHASE-END-COMMIT`.
+- Remediation 또는 deferred 결정이 승인된 phase scope를 넘으면 [`./output-templates.md#phase-remediation-approval-packet`](./output-templates.md#phase-remediation-approval-packet)으로 dependency-closed remediation/deferred scope와 관련 phase-scoped stable step ID를 다시 승인받는다. 요약·경로·checksum만으로 진행하지 않는다.
+
 Final gate resume rules (split mode only):
 - `File Mode: Split` + `Next Blocking Step=PI-FINAL-REVIEW`에서는 같은 active runtime의 `FINAL_REVIEW_GATE_APPROVED` approval record가 있을 때만 승인된 `PI-FINAL-REVIEW` / `PI-FOLLOWUP-COMMIT` 범위를 실행한다. approval record가 없거나 현재 세션에서 확인할 수 없으면 먼저 final review gate를 다시 제시한다.
 - `File Mode: Split` + `Next Blocking Step=PI-CREATE-PR`에서는 같은 active runtime의 최신 `FINAL_PR_WRITE_GATE_APPROVED` approval record와 exact approved title/body packet이 함께 있을 때만 승인된 `/create-pr apply-approved` 경로를 실행한다. approval record가 없거나, exact approved packet이 없거나, 현재 base/head/title tuple이 승인 tuple과 다르면 `/create-pr prepare`를 다시 수행하고 final PR write gate를 다시 제시한다. PRD/plan에 저장된 PR body artifact는 resumable approval marker로 인정하지 않는다. 기본 `/create-pr` 생성 경로로 body를 재생성해 바로 쓰지 않는다.
 - `File Mode: Single` + `Next Blocking Step=PI-CREATE-PR`는 Step 7에서 이미 승인된 Post-Implementation `PI-CREATE-PR` 범위로 재개하며, split final PR write gate를 요구하지 않는다.
 - Runtime approval record 형식은 [`./output-templates.md#final-closeout-gate-packet`](./output-templates.md#final-closeout-gate-packet)의 `Final gate runtime approval record`가 SSOT다.
+
+Final PR write approval record is a runtime-only approval record, not a tracked PRD write and not a resumable marker. Inline chat text, `/tmp` paths, transient tool output, summaries, checksums, paths without the exact title/body, or any tracked PRD/plan artifact must not be treated as PR write approval.
 
 Split PRD에서 다음 phase가 아직 materialized 되지 않았으면 `Active Phase File` 또는 `Next Phase Materialization`에 `Pending phase-start approval`을 표시하고, Phase Index의 해당 row가 정본 outline이 된다. 재개 시 이 상태를 보면 phase 파일을 추측해서 쓰지 않는다. 현재 master PRD, 완료된 phase 파일, 관련 context, 현재 repo 상태를 다시 읽어 phase file draft body와 master PRD materialization update를 재생성하고, 이전 materialized phase의 `PHASE-END-COMMIT` checkpoint를 확인한 뒤 [`./output-templates.md#phase-start-materialization-gate-packet`](./output-templates.md#phase-start-materialization-gate-packet)을 사용자에게 제시한다. 승인 후 phase 파일을 생성하면 `Active Phase File`을 링크로 교체하고 `Next Phase Materialization`을 다음 pending phase 또는 `N/A`로 갱신한다.
 

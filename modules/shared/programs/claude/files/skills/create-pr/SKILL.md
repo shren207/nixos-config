@@ -60,7 +60,7 @@ PR을 생성하기 전에, 작업 결과의 처리 방향을 결정한다:
 4. **ADR 테이블 구성**: 검토한 대안들을 비교 테이블로 정리한다. 대안이 1개뿐이면 ADR 섹션을 간소화한다.
 5. **8섹션 템플릿 작성**: [references/pr-template.md](references/pr-template.md)의 템플릿에 따라 전체 PR 본문을 작성한다.
 6. **Pre-Merge E2E 가이드 작성**: [references/pre-merge-guide.md](references/pre-merge-guide.md)의 규칙에 따라 Phase 기반 검증 가이드를 포함한다.
-7. **PR 생성**: `gh pr create --title "<제목>" --body "<본문>"`으로 PR을 생성한다. 제목은 70자 미만, conventional commit 형식을 따른다.
+7. **PR 생성**: 본문은 임시 파일에 쓰고, title/base/head/body-file 값을 별도 argv element로 전달해 PR을 생성한다. 제목은 70자 미만, conventional commit 형식을 따른다.
 
 ### PR 본문 준비 (`prepare`)
 
@@ -84,13 +84,13 @@ PR을 생성하기 전에, 작업 결과의 처리 방향을 결정한다:
 
 1. 입력 또는 승인 표면에서 PR write mode(`create`/`update`), full PR body, base repository owner/name, target branch, head branch, approved head repo owner/name, approved head commit SHA를 확인한다. `create` mode는 exact PR title이 필요하고, `update` mode는 PR number/URL과 승인 시점 current title이 필요하며 `title_change=yes`이면 exact approved PR title도 필요하다. 요약이나 `/create-pr prepare` 실행 지시만 있고 필요한 exact field가 없으면 중단한다.
 2. PR 본문이 8섹션을 모두 포함하는지 검증한다. 누락이 있으면 본문을 재생성하지 말고 `prepare`로 돌아가 다시 승인받는다.
-3. GitHub write 직전에 title/body를 재작성하거나 현재 diff로 다시 생성하지 않는다. 승인된 문자열을 그대로 body 파일에 저장한다.
+3. GitHub write 직전에 title/body를 재작성하거나 현재 diff로 다시 생성하지 않는다. 승인된 문자열을 그대로 body 파일에 저장한다. 모든 GitHub write는 argv-safe 방식으로 실행한다: 승인된 title/base/head/body-file 값을 하나의 shell command string에 보간하거나 `eval`하지 말고, 각 값을 별도 argv element로 전달한다. 이 보장을 할 수 없으면 fail closed 처리한다.
 4. `create` mode는 repo-local head만 지원한다. cross-repo/fork head는 `gh pr create --head`가 approved repo name을 직접 고정하지 못하므로 fail closed 처리하고, repo identity를 명시적으로 전달하는 별도 API-backed 절차가 생기기 전에는 `apply-approved create`에서 지원하지 않는다.
 5. `create` mode는 GitHub write 직전 approved base repo와 approved head repo가 현재 repo와 일치하는지 확인하고, approved head branch의 remote ref를 `gh api repos/<approved base owner>/<approved base repo>/git/ref/heads/<approved head branch>` 또는 `git ls-remote`로 조회해 approved head commit SHA와 일치하는지 확인한다.
-6. `create` mode는 검증이 모두 일치할 때만 승인된 repo/branch를 명령에 명시해 `gh pr create --repo "<approved base owner>/<approved base repo>" --base "<approved target branch>" --head "<approved head branch>" --title "<approved title>" --body-file <approved-body-file>`을 실행한다.
+6. `create` mode는 검증이 모두 일치할 때만 승인된 repo/branch/title/body-file을 각각 별도 argv element로 전달해 `gh pr create`를 실행한다. 필수 argv는 `--repo`, approved base `owner/repo`, `--base`, approved target branch, `--head`, approved head branch, `--title`, approved title, `--body-file`, approved body file이다.
 7. `create` mode는 생성 후 생성된 PR의 base/head repo, branch, head SHA가 승인 tuple과 일치하는지 확인한 뒤 성공으로 보고한다.
 8. `update` mode는 GitHub write 전에 `gh api repos/<approved base owner>/<approved base repo>/pulls/<approved number>`로 현재 PR identity를 확인한다. 승인된 PR URL/number, `.base.repo.full_name`, `.base.ref`, `.head.repo.full_name`, `.head.ref`, `.head.sha`, 현재 title이 승인 tuple과 다르면 중단한다.
-9. `update` mode는 승인된 PR number/URL을 대상으로 `gh pr edit <number> --repo "<approved base owner>/<approved base repo>" --body-file <approved-body-file>`을 실행한다. `title_change=yes`로 exact approved PR title이 승인 표면에 명시된 경우에만 `--title "<approved title>"`을 추가하고, `title_change=no`이면 기존 title을 보존한다. approved base 변경이 명시된 경우에만 `--base "<approved target branch>"`를 추가한다. `gh pr edit`는 head 변경을 지원하지 않으므로 head 변경이 필요하면 기존 PR update를 중단하고 새 PR 생성 또는 수동 절차로 분기한다.
+9. `update` mode는 승인된 PR number/URL을 대상으로 PR number, `--repo`, approved base `owner/repo`, `--body-file`, approved body file을 각각 별도 argv element로 전달해 `gh pr edit`를 실행한다. `title_change=yes`로 exact approved PR title이 승인 표면에 명시된 경우에만 `--title`과 approved title을 별도 argv element로 추가하고, `title_change=no`이면 기존 title을 보존한다. `apply-approved update`는 base/head 변경을 지원하지 않는다. base 또는 head 변경이 필요하면 기존 PR update를 중단하고 새 PR 생성 또는 수동 절차로 분기한다.
 10. 승인된 mode/PR number/base repo/head repo/branch/head SHA/title/body와 실제 write 입력이 다르면 GitHub write를 수행하지 않는다.
 
 ### 기존 PR 업데이트 (`update`)
@@ -100,7 +100,7 @@ PR을 생성하기 전에, 작업 결과의 처리 방향을 결정한다:
 1. **현재 PR 확인**: `gh pr view --json body,title,number`로 현재 PR 본문을 가져온다.
 2. **누락 섹션 탐지**: 8섹션 중 빠진 섹션을 식별한다.
 3. **부실 섹션 강화**: 있지만 내용이 부실한 섹션(예: Summary만 있고 CIR 없음)을 보강한다. 커밋 히스토리, 코드 변경, 대화 컨텍스트에서 추가 정보를 수집한다.
-4. **업데이트 적용**: `gh pr edit <number> --body "<새 본문>"`으로 PR 본문을 업데이트한다.
+4. **업데이트 적용**: 새 본문은 임시 파일에 쓰고, PR number/repo/body-file 값을 별도 argv element로 전달해 PR 본문을 업데이트한다.
 
 ## Pre-Merge E2E 테스트 가이드 작성 규칙
 

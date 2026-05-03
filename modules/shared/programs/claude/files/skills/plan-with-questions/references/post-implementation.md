@@ -31,7 +31,7 @@
 Approval-surface default display string:
 `Post-Implementation 자동 수행: PI-IMPLEMENT, PI-COMMIT, PI-RUN-DA, PI-PARALLEL-AUDIT, PI-FINAL-REVIEW, PI-FOLLOWUP-COMMIT, PI-CREATE-PR (default)`
 
-Split-file PRD의 phase-scoped/final closeout stable step ID, dependency closure, remediation chain, default display string은 [`./output-templates.md#phase-start-materialization-gate-packet`](./output-templates.md#phase-start-materialization-gate-packet)과 [`./output-templates.md#final-closeout-gate-packet`](./output-templates.md#final-closeout-gate-packet)이 canonical SSOT다. 이 문서는 공통 7단계 실행 순서와 신뢰 경계만 정의한다.
+Split-file PRD의 phase-scoped/final closeout stable step ID, dependency closure, remediation chain, resume semantics는 [`./resume-state.md#for_prd-prd-작성-후-next-blocking-step`](./resume-state.md#for_prd-prd-작성-후-next-blocking-step)이 canonical SSOT다. 사용자에게 보여줄 승인 packet 형식은 [`./output-templates.md#phase-start-materialization-gate-packet`](./output-templates.md#phase-start-materialization-gate-packet)과 [`./output-templates.md#final-closeout-gate-packet`](./output-templates.md#final-closeout-gate-packet)을 따른다. 이 문서는 공통 7단계 실행 순서와 신뢰 경계만 정의한다.
 
 Final Multi-Pass Review는 메인 에이전트가 직접 수행한다 (fan-out 금지; `run-da` 4-bundle과 축 구분 — Cross-Phase Integration, Validation 선택, Documentation, PRD Closeout은 run-da가 커버하지 않는 영역).
 
