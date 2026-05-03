@@ -115,7 +115,7 @@ Step 3.5는 DA(Step 5)와 목적이 다르다. 3.5는 사용자에게 옵션 제
 - **검증 방법**: 변경이 올바르게 적용되었는지 확인하는 방법. 검증 수단 선택 가이드는 [`../references/validation-paths.md`](../references/validation-paths.md)를 참조한다 (risk-appropriate mix, hard-coded default 회피).
 - **사이드이펙트 대응**: Step 4에서 확인된 사이드이펙트에 대한 처리 방법
 - **롤백 가능성**: 문제 발생 시 되돌리는 방법
-- **Post-Implementation 자동 수행 범위**: [`../references/post-implementation.md`](../references/post-implementation.md) 1~7번 절차 중 생략할 단계가 있으면 명시. 생략 단계가 없으면 "Post-Implementation 1~7 자동 수행 (default)" 한 줄로 표기. 이 항목은 승인 요청 시 사용자에게 노출되어 tracked write·commit·GitHub PR write 포함 자동 진행 범위 동의 근거가 된다.
+- **Post-Implementation 자동 수행 범위**: [`../references/post-implementation.md`](../references/post-implementation.md)의 자동 수행 범위 중 생략할 항목이 있으면 명시. 생략 항목이 없으면 canonical reference 전체 범위가 자동 수행됨을 한 줄로 표기한다. 이 항목은 승인 요청 시 사용자에게 노출되어 tracked write·commit·GitHub PR write 포함 자동 진행 범위 동의 근거가 된다.
 
 **Hallucination 방지 원칙:**
 - 계획 파일에는 Step 1-4에서 직접 확인한 사실과 Step 5-6 DA 판정만 포함한다.
@@ -133,8 +133,10 @@ Step 3.5는 DA(Step 5)와 목적이 다르다. 3.5는 사용자에게 옵션 제
 
 ## Step 9: 사용자 승인 요청
 
-계획이 완성되면 승인 요청 도구로 사용자에게 계획 승인을 요청한다 (런타임별 실제 도구는 [`../references/runtime-boundaries.md`](../references/runtime-boundaries.md#런타임-도구-매핑-plan-with-questions-고유) 참조).
+계획이 완성되면 승인 요청 도구로 사용자에게 계획 승인을 요청한다 (런타임별 실제 도구는 [`../references/runtime-boundaries.md`](../references/runtime-boundaries.md#런타임-도구-매핑-plan-with-questions-고유) 참조). Codex 세션에서는 `request_user_input` 확인 전에 full canonical plan body를 사용자에게 제시해야 한다.
+
+Codex 세션에서 canonical `.claude/plans/<slug>.md` 본문 전체가 보이지 않으면 fail-closed 처리한다. 경로/요약만 보인 확인은 must not be treated as plan approval.
 
 사용자가 수정을 요청하면 계획 파일을 편집한 뒤 승인 요청 도구를 다시 호출한다.
 
-계획이 승인되면 (사용자가 수정 요청을 하지 않으면) 추가 확인 없이 즉시 [`../references/post-implementation.md`](../references/post-implementation.md) 1번부터 진행한다. 1~7번 절차는 본 SKILL의 Post-Implementation reference가 정의한 고정 절차이며, Step 8의 "Post-Implementation 자동 수행 범위" 필수 항목이 plan 파일에 포함되어 사용자에게 노출된다. 따라서 계획 승인은 이 자동 진행 범위(tracked write·commit·GitHub PR write 포함)에 대한 사용자 동의로 간주된다.
+계획이 승인되면 (사용자가 수정 요청을 하지 않으면) 추가 확인 없이 즉시 [`../references/post-implementation.md`](../references/post-implementation.md)의 첫 자동 단계부터 진행한다. 자동 수행 절차는 본 SKILL의 Post-Implementation reference가 정의한 고정 절차이며, Step 8의 "Post-Implementation 자동 수행 범위" 필수 항목이 plan 파일에 포함되어 사용자에게 노출된다. 따라서 계획 승인은 이 자동 진행 범위(tracked write·commit·GitHub PR write 포함)에 대한 사용자 동의로 간주된다.

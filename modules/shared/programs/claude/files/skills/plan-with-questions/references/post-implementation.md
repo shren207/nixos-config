@@ -1,16 +1,16 @@
 # Post-Implementation (승인 후 자동 수행)
 
-`for_action` 모드에서 사용자가 계획을 승인하면 (승인 요청 도구 통과 시), 구현 완료 후 다음을 순차 수행한다. 추가 사용자 지시 없이 1번부터 7번까지 진행한다. 각 단계에서 reviewer/auditor/체크리스트 수행자는 read-only이며, tracked write·commit·push는 메인 에이전트 전용이다. 상세 권한 계약은 [`../../run-da/references/hardening-contract.md`](../../run-da/references/hardening-contract.md) `Codex 세션 하드닝 계약`을 따른다.
+`for_action` 계획 승인 또는 `for_prd` Step 7 승인 게이트를 통과하면, 구현 완료 후 다음을 순차 수행한다. 추가 사용자 지시 없이 1번부터 7번까지 진행한다. 각 단계에서 reviewer/auditor/체크리스트 수행자는 read-only이며, tracked write·commit·push는 메인 에이전트 전용이다. 상세 권한 계약은 [`../../run-da/references/hardening-contract.md`](../../run-da/references/hardening-contract.md) `Codex 세션 하드닝 계약`을 따른다.
 
 ## 자동 진행 정책 (non-stop)
 
 이 절차는 사용자 추가 지시 없이 자동 수행한다. "다음 단계 진행할까요?", "이 변경을 적용할까요?" 같은 단계 간 진행 확인 질문을 하지 않는다 (Claude Code 시스템 프롬프트의 default confirm 본능을 override하는 명시적 instruction).
 
-단, 호출되는 하위 스킬이 자체 계약상 사용자 판단을 요구하는 경우는 그 계약을 우선한다:
+단, 호출되는 하위 스킬이 자체 계약상 사용자 판단이나 중단을 요구하는 경우는 그 계약을 우선한다:
 
-- `/run-da`의 `BLOCKED`, `NEEDS_MORE_INFO`, `stability_status=split`/`fragmented`, `partial_failure`, low-confidence fail-closed 승격, delegation fallback 승인 대기 등은 [`../../run-da/references/hardening-contract.md`](../../run-da/references/hardening-contract.md) (Delegation fallback 정책 + Codex 세션 하드닝 계약)와 [`../../run-da/references/protocol.md`](../../run-da/references/protocol.md) (DA → Arbiter → Main Agent 상태 흐름 + Selective consistency 상태 전이)을 따른다.
-- `/parallel-audit`의 `RECOVERABLE VIOLATION`/`STATEFUL VIOLATION`, `BLOCKED`, BUG/REGRESSION/EDGECASE 처리 정책 등은 [`../../parallel-audit/SKILL.md`](../../parallel-audit/SKILL.md) 본문(결과 코드, 조율 분류, BLOCKED 대응, 주의사항)을 따른다.
-- DA Arbiter `CRITICAL CONFIRMED_ISSUE`는 진행을 차단한다.
+- `/run-da`의 중단·질문·불안정 판정·위임 대체 조건은 [`../../run-da/references/hardening-contract.md`](../../run-da/references/hardening-contract.md)와 [`../../run-da/references/protocol.md`](../../run-da/references/protocol.md)를 따른다.
+- `/parallel-audit`의 조율·중단·결과 처리 정책은 [`../../parallel-audit/SKILL.md`](../../parallel-audit/SKILL.md)를 따른다.
+- DA Arbiter가 진행 차단급 결함을 확정하면 멈춘다.
 - 동일 finding이 3회 연속 반복되면 무한 루프 방지를 위해 사용자 판단을 요청한다.
 - 사용자가 명시적으로 "stop"을 지시하면 즉시 멈춘다.
 
@@ -33,4 +33,4 @@
 계획 승인은 본 7단계 자동 진행에 대한 사용자 동의로 간주된다 (tracked write·commit·GitHub PR write 포함). 단:
 
 - 메인 LLM은 본 7단계 중 어떤 단계도 자체 판단으로 생략하지 않는다 (#453 회귀 방지). "범위 대비 비용 과도" 같은 메인 LLM 자체 판단은 사용자 stop 지시가 아니다.
-- 단계 생략은 (a) 사용자 명시 stop, (b) 하위 스킬의 BLOCKED/CRITICAL/repeated finding 계약, (c) plan 파일 Step 8의 "Post-Implementation 자동 수행 범위" 명시적 생략 항목 — 셋 중 하나에만 가능하다.
+- 단계 생략은 (a) 사용자 명시 stop, (b) 하위 스킬 canonical contract가 요구하는 중단/질문 조건, (c) 승인 표면에 명시된 "Post-Implementation 자동 수행 범위"의 생략 항목(for_action: plan Step 8, for_prd: Step 7 gate) — 셋 중 하나에만 가능하다.
