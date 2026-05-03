@@ -79,11 +79,11 @@ trigger 카테고리 정의 (키워드 목록 + 권장 transition 모드)는 [`.
 
 상세는 [`task-size-routing.md`](./task-size-routing.md) 참조.
 
-## Step 9 승인 요청 시 Post-Implementation 범위 표시
+## for_action Step 9 / for_prd Step 7 승인 시 Post-Implementation 범위 표시
 
-plan 파일 Step 8에 다음 중 하나를 명시 (사용자에게 노출):
+승인 표면(for_action plan Step 8, for_prd Step 7 gate)에 다음 중 하나를 명시 (사용자에게 노출):
 
-- 생략 단계 없음: "Post-Implementation 자동 수행: canonical reference 전체 범위 (default)"
-- 일부 생략: "Post-Implementation 자동 수행: canonical reference 범위 중 PR 생성 생략 — 사용자 명시 요청"
+- 생략 단계 없음: "Post-Implementation 자동 수행: PI-IMPLEMENT, PI-COMMIT, PI-RUN-DA, PI-PARALLEL-AUDIT, PI-FINAL-REVIEW, PI-FOLLOWUP-COMMIT, PI-CREATE-PR (default)"
+- 일부 생략: "Post-Implementation 자동 수행: stable step ID 전체 중 PI-CREATE-PR 생략 — 사용자 명시 요청"
 
 이 항목은 승인 요청 도구 호출 시 사용자에게 노출되어 tracked write·commit·GitHub PR write 포함 자동 진행 범위에 대한 사용자 동의 근거가 된다.

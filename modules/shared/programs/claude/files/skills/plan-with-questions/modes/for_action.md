@@ -115,7 +115,7 @@ Step 3.5는 DA(Step 5)와 목적이 다르다. 3.5는 사용자에게 옵션 제
 - **검증 방법**: 변경이 올바르게 적용되었는지 확인하는 방법. 검증 수단 선택 가이드는 [`../references/validation-paths.md`](../references/validation-paths.md)를 참조한다 (risk-appropriate mix, hard-coded default 회피).
 - **사이드이펙트 대응**: Step 4에서 확인된 사이드이펙트에 대한 처리 방법
 - **롤백 가능성**: 문제 발생 시 되돌리는 방법
-- **Post-Implementation 자동 수행 범위**: [`../references/post-implementation.md`](../references/post-implementation.md)의 자동 수행 범위 중 생략할 항목이 있으면 명시. 생략 항목이 없으면 canonical reference 전체 범위가 자동 수행됨을 한 줄로 표기한다. 이 항목은 승인 요청 시 사용자에게 노출되어 tracked write·commit·GitHub PR write 포함 자동 진행 범위 동의 근거가 된다.
+- **Post-Implementation 자동 수행 범위**: [`../references/post-implementation.md`](../references/post-implementation.md)의 stable step ID 중 생략할 항목이 있으면 명시. 생략 항목이 없으면 stable step ID 전체가 자동 수행됨을 한 줄로 표기한다. 이 항목은 승인 요청 시 사용자에게 노출되어 tracked write·commit·GitHub PR write 포함 자동 진행 범위 동의 근거가 된다.
 
 **Hallucination 방지 원칙:**
 - 계획 파일에는 Step 1-4에서 직접 확인한 사실과 Step 5-6 DA 판정만 포함한다.
