@@ -61,7 +61,7 @@
    - Resolved evidence + 사용자 답변 + Step 3.5 자문 매트릭스 요약
    - DA findings + Arbiter 판정 핵심
    - 후보 phase 구조 (3-6개) + 산출물 경로 (`.claude/prds/...`)
-   - full PRD approval packet: [`../references/output-templates.md`](../references/output-templates.md#full-prd-approval-packet) 형식으로 승인 후 작성될 master/phase PRD draft body 전체. 요약과 후보 phase 구조만 제시한 확인은 구현·commit·PR 자동 수행 동의로 간주하지 않는다.
+   - full PRD approval packet: [`../references/output-templates.md`](../references/output-templates.md#full-prd-approval-packet) 형식으로 승인 후 작성될 master PRD draft body와 split mode phase materialization plan을 제시한다. 요약과 후보 phase 구조만 제시한 확인은 구현·commit·PR 자동 수행 동의로 간주하지 않는다.
    - **Post-Implementation 자동 수행 범위** ([`../references/post-implementation.md`](../references/post-implementation.md)의 stable step ID 전체 또는 승인 게이트에서 명시한 생략 항목).
 2. 승인 요청 도구로 사용자 승인 요청. 사용자가 수정 요청하면 PRD draft/context 또는 후보 phase 구조를 갱신한 뒤 다시 요청.
 3. **승인이 곧 Post-Implementation 자동 수행 동의**다 (tracked write·commit·PR write 포함). plan-with-questions의 신뢰 경계는 [`../references/post-implementation.md#신뢰-경계-569-회귀-방지`](../references/post-implementation.md)에 정의된 것과 동일하게 적용된다.
@@ -72,7 +72,7 @@
 
 1. Step 1-4에서 수집한 정보, Step 5-6 DA 결과, 승인된 후보 phase 구조를 정리한다.
 2. [`../references/prd/prd-master-template.md`](../references/prd/prd-master-template.md)를 따라 `.claude/prds/prd-<feature>.md`에 Step 7에서 승인된 master PRD draft body를 그대로 작성한다. 승인 packet 이후 본문 변경이 필요하면 작성하지 말고 Step 7로 돌아간다. `<feature>` slug 안전 규칙은 [`../references/prd/file-mode-selection.md`](../references/prd/file-mode-selection.md#경로-slug-안전-규칙)가 SSOT다.
-3. Split mode이면 [`../references/prd/phase-template.md`](../references/prd/phase-template.md)를 따라 Step 7에서 승인된 phase draft body를 동일 실행에서 그대로 생성 (`.claude/prds/prd-<feature>/phase-NN-<name>.md`). `<name>` slug 안전 규칙도 [`../references/prd/file-mode-selection.md`](../references/prd/file-mode-selection.md#경로-slug-안전-규칙)를 따른다.
+3. Split mode이면 [`../references/prd/phase-template.md`](../references/prd/phase-template.md)를 따라 Step 7에서 승인된 phase materialization plan 범위 안에서 phase 파일을 생성한다 (`.claude/prds/prd-<feature>/phase-NN-<name>.md`). 승인 packet에 없는 새 요구사항을 phase 본문에 추가해야 하면 작성하지 말고 Step 7로 돌아간다. `<name>` slug 안전 규칙도 [`../references/prd/file-mode-selection.md`](../references/prd/file-mode-selection.md#경로-slug-안전-규칙)를 따른다.
 
 PRD 작성 + 갱신 + phase 진행 + Phase Discovery Gate 적용을 모두 본 모드가 책임진다. 별도 plan 파일 (`.claude/plans/`)은 만들지 않는다.
 
