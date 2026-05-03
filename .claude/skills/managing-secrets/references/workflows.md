@@ -36,4 +36,4 @@ nix shell nixpkgs#age -c age -d -i ~/.ssh/id_ed25519 secrets/<name>.age
 
 1. 해당 머신에서 `cat ~/.ssh/id_ed25519.pub`으로 공개키 확인
 2. `secrets/secrets.nix`에 공개키 등록 및 `allHosts`에 추가
-3. 재암호화: `nix run github:ryantm/agenix -- -r`
+3. 재암호화: `cd secrets && nix run github:ryantm/agenix -- -r`
