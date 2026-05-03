@@ -112,6 +112,21 @@ Phase-end remediation contract:
 - Implementation-code remediation은 기존 phase-scoped chain을 다시 탄다: `PHASE-IMPLEMENT` remediation -> `PHASE-COMMIT` -> `PHASE-RUN-DA` -> `PHASE-PARALLEL-AUDIT` -> `PHASE-END-PRD-SYNC` -> `PHASE-END-COMMIT`.
 - Remediation 또는 deferred 결정이 승인된 phase scope를 넘으면 [`./output-templates.md#phase-remediation-approval-packet`](./output-templates.md#phase-remediation-approval-packet)으로 dependency-closed remediation/deferred scope와 관련 phase-scoped stable step ID를 다시 승인받는다. 요약·경로·checksum만으로 진행하지 않는다.
 
+Split PRD approval gate contract:
+- 모든 tracked write 승인은 승인 후 그대로 작성될 durable body 또는 minimal patch를 포함해야 한다. 요약·경로·checksum만 있는 packet이나 chunk는 tracked write, commit, PR write 승인으로 간주하지 않는다.
+- for_prd Step 7 full PRD approval은 master PRD draft body, 최초 active phase file draft body, 즉시 생성할 추가 phase file draft body, approved automatic execution scope에만 적용된다. 미래 phase outline과 Phase Index row는 phase 구조 승인일 뿐 phase 파일 생성 승인이 아니다.
+- Step 7 split approval은 final `PI-FINAL-REVIEW`, `PI-FOLLOWUP-COMMIT`, `PI-CREATE-PR`로 확장되지 않는다. final closeout은 모든 phase materialization과 `PHASE-END-COMMIT` checkpoint 후 별도 final closeout gates로 승인받는다.
+- phase-start materialization gate는 current PRD state, prior phase checkpoint, phase file draft body, master PRD materialization update, phase-scoped automatic execution scope를 승인 표면에 포함해야 한다. 이 gate는 phase 파일 tracked write와 해당 phase-scoped 진행만 승인하며 final PR write로 확장되지 않는다.
+- phase-remediation approval gate는 current phase state, remediation/deferred scope, target files, approved durable body 또는 minimal patch, approved steps, excluded steps를 표시해야 한다. Approved steps는 dependency-closed stable step ID 전체를 펼쳐 표시한다.
+- final review gate는 final PRD state, final review/follow-up scope, `PI-FINAL-REVIEW`/`PI-FOLLOWUP-COMMIT` 범위만 승인한다. follow-up commit은 final review가 같은 승인 scope 안에서 요구한 변경으로 제한한다.
+- final PR write gate는 final fixed diff state, PR write target, exact PR title/body, `PI-CREATE-PR` 범위만 승인한다. Exact PR body는 PRD/plan 같은 tracked file에 저장하지 않는다.
+
+Initial split PRD materialization contract:
+- for_prd Step 8이 Step 7에서 본문 전체가 승인된 최초 active phase 파일을 생성하면, 그 write는 initial `PHASE-MATERIALIZE` 완료로 간주한다.
+- 이때 master PRD `Document Status`는 `Active Phase File`을 생성된 phase 링크로 설정하고, `Last Completed Step=PHASE-MATERIALIZE`, `Next Blocking Step=PHASE-IMPLEMENT`를 기록한다.
+- 승인된 추가 phase 파일을 같은 Step 8에서 함께 materialize했다면 해당 phase는 Phase Index에 materialized link로 기록한다. 아직 본문 전체가 승인되지 않은 미래 phase는 `Pending phase-start approval`로 남긴다.
+- Step 8이 최초 active phase 파일을 생성하지 않는 split PRD는 incomplete approval packet으로 간주하고 Post-Implementation에 진입하지 않는다.
+
 Final gate resume rules (split mode only):
 - `File Mode: Split` + `Next Blocking Step=PI-FINAL-REVIEW`에서는 같은 active runtime의 `FINAL_REVIEW_GATE_APPROVED` approval record가 있을 때만 승인된 `PI-FINAL-REVIEW` / `PI-FOLLOWUP-COMMIT` 범위를 실행한다. approval record가 없거나 현재 세션에서 확인할 수 없으면 먼저 final review gate를 다시 제시한다.
 - `File Mode: Split` + `Next Blocking Step=PI-CREATE-PR`에서는 같은 active runtime의 최신 `FINAL_PR_WRITE_GATE_APPROVED` approval record와 exact approved title/body packet이 함께 있을 때만 승인된 `/create-pr apply-approved` 경로를 실행한다. approval record가 없거나, exact approved packet이 없거나, 현재 base/head/title tuple이 승인 tuple과 다르면 `/create-pr prepare`를 다시 수행하고 final PR write gate를 다시 제시한다. PRD/plan에 저장된 PR body artifact는 resumable approval marker로 인정하지 않는다. 기본 `/create-pr` 생성 경로로 body를 재생성해 바로 쓰지 않는다.
