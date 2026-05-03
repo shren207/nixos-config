@@ -70,8 +70,15 @@ Last Updated: YYYY-MM-DD
 - [ ] 6. Security/privacy review — 권한, secret, 민감 데이터, injection risk, 클라이언트 노출, 감사 필요성이 안전하다.
 - [ ] 7. Performance/load review — bottleneck, 비싼 query, N+1, 불필요한 재렌더, 불필요한 네트워크 호출이 다루어졌다.
 - [ ] 8. Validation review — 선택한 check가 phase risk에 적절하다. 누락 check는 근거와 함께 기록.
-- [ ] 9. Future-phase review — 뒤 phase 파일/체크리스트가 여전히 옳다. 구현이 계획을 바꿨다면 수정.
+- [ ] 9. Future-phase review — 뒤 phase 파일/체크리스트 또는 아직 materialized 되지 않은 Phase Index/phase-start materialization 입력이 여전히 옳다. 구현이 계획을 바꿨다면 수정.
 - [ ] 10. PRD sync review — master PRD status, active phase, assumption, risk, validation surface, change log가 갱신되었다.
+
+## Phase-End Finding Disposition
+`PHASE-END-PRD-SYNC`는 `PHASE-END-COMMIT` 전에 이 표를 갱신한다. Phase-End review finding은 모두 `satisfied` 또는 `deferred`여야 한다. finding이 없으면 `No findings` row를 남긴다.
+
+| Finding | Pass | Status | Evidence | Decision | Follow-up |
+|---|---|---|---|---|---|
+| No findings | all | satisfied | [command/checklist/link] | Phase may proceed | N/A |
 
 ## Discoveries / Decisions
 - ...
@@ -86,3 +93,4 @@ Last Updated: YYYY-MM-DD
 - Phase Discovery Gate는 모든 phase 파일에 필수다. 편집 전에 다시 읽고 체크한다.
 - Validation Checklist 항목에는 "어떤 command / 어떤 surface / 어떤 시나리오"를 적어 evidence로 만든다.
 - Phase-End 10-pass는 phase 종료마다 수행한다. 프로젝트 마감 시 수행하는 Final 10-pass ([`multi-pass-review.md`](./multi-pass-review.md))와는 다른 축이다 — Phase-End는 future-phase/PRD sync 관점이 있고, Final은 closeout 관점이 있다.
+- Phase-End Finding Disposition 표는 `PHASE-END-COMMIT` 전 필수 기록이다. `partial`, `missing`, `conflicting`, `overbuilt` finding은 [`../output-templates.md#phase-remediation-approval-packet`](../output-templates.md#phase-remediation-approval-packet)의 phase-end remediation 규칙에 따라 satisfied 처리하거나, 명시 근거와 follow-up으로 deferred 처리한 뒤 커밋한다.

@@ -51,7 +51,7 @@ Step 5/6 진행 중에는 [`plan-file-template.md`](./plan-file-template.md#da-s
 
 ### for_prd
 
-`for_prd`는 plan-with-questions가 Step 1-4와 Step 5-6을 거친 뒤 PRD 규약을 따라 `.claude/prds/prd-<feature>.md`에 직접 작성한다. `for_action` Step 4.5 plan 파일 초기화는 적용하지 않는다. PRD 작성 이후의 phase 진행 상태는 PRD master 파일의 Document Status가 정본이며 본 enum은 사용되지 않는다. plan-with-questions가 추적하는 enum은 PRD 작성 직전까지 한정:
+`for_prd`는 plan-with-questions가 Step 1-4와 Step 5-6을 거친 뒤 PRD 규약을 따라 `.claude/prds/prd-<feature>.md`에 직접 작성한다. `for_action` Step 4.5 plan 파일 초기화는 적용하지 않는다. PRD 작성 전에는 아래 `for_prd.*` enum을 사용하고, PRD 작성 후에는 PRD master 파일의 Document Status `Next Blocking Step` / `Last Completed Step`이 정본이다.
 
 | Resume From | 진입 조건 |
 |-------------|----------|
@@ -60,7 +60,33 @@ Step 5/6 진행 중에는 [`plan-file-template.md`](./plan-file-template.md#da-s
 | `for_prd.step6_da_apply` | PRD draft/context와 candidate phase structure에 DA 결과 반영 |
 | `for_prd.user_confirmed` | 사용자 동의 후 PRD 작성 직전 |
 
-PRD 작성 후의 진행은 PRD master Document Status에서 `Current Phase` / `Active Phase File` / `Status` 필드로 추적한다.
+### for_prd PRD 작성 후 Next Blocking Step
+
+PRD 작성 후의 진행은 PRD master Document Status에서 `Current Phase` / `Active Phase File` / `Status` / `Next Phase Materialization` / `Next Blocking Step` / `Last Completed Step` 필드로 추적한다. `Next Blocking Step`은 첫 미완료 blocking step만 가리키며, 아래 enum만 허용한다:
+
+| Next Blocking Step | 진입 조건 |
+|---|---|
+| `N/A` | PRD 작성 전, 또는 모든 phase/final closeout 완료 |
+| `PHASE-MATERIALIZE` | 승인된 phase-start materialization gate에 따라 phase 파일과 master materialization update 작성 필요 |
+| `PI-IMPLEMENT` | active phase 구현 진행 필요 |
+| `PI-COMMIT` | active phase 구현 변경 커밋 필요 |
+| `PI-RUN-DA` | active phase diff 기준 `/run-da for_pr` 필요 |
+| `PI-PARALLEL-AUDIT` | active phase diff 기준 `/parallel-audit` 필요 |
+| `PHASE-END-PRD-SYNC` | active phase validation, phase-end review, Finding Disposition, master/phase PRD sync 필요 |
+| `PHASE-END-COMMIT` | phase-end PRD sync 변경 커밋 checkpoint 필요 |
+| `PI-FINAL-REVIEW` | 모든 phase checkpoint 이후 final review gate 승인 또는 Final Multi-Pass Review 필요 |
+| `PI-FOLLOWUP-COMMIT` | final review가 요구한 follow-up 변경 커밋 필요. clean review면 `Last Completed Step=PI-FOLLOWUP-COMMIT`으로 갱신하고 Change Log에 `PI-FOLLOWUP-COMMIT: N/A`를 기록한 뒤 `Next Blocking Step=PI-CREATE-PR`로 이동 |
+| `PI-CREATE-PR` | final PR write gate 승인 또는 승인된 PR title/body GitHub write 필요 |
+
+각 step 시작 전 `Next Blocking Step`을 현재 step으로 확정하고, 완료 즉시 `Last Completed Step`을 현재 step으로 갱신한 뒤 다음 blocking step을 기록한다.
+
+Final gate resume rules (split mode only):
+- `File Mode: Split` + `Next Blocking Step=PI-FINAL-REVIEW`에서는 같은 active runtime의 `FINAL_REVIEW_GATE_APPROVED` approval record가 있을 때만 승인된 `PI-FINAL-REVIEW` / `PI-FOLLOWUP-COMMIT` 범위를 실행한다. approval record가 없거나 현재 세션에서 확인할 수 없으면 먼저 final review gate를 다시 제시한다.
+- `File Mode: Split` + `Next Blocking Step=PI-CREATE-PR`에서는 readable master PRD `Approved PR Write Artifact` entry가 있어야 한다. artifact에는 exact title, full body, write mode, base repo, target branch, head repo/branch가 있어야 하며 approved head SHA는 포함하지 않는다. 같은 active runtime에 최신 `FINAL_PR_WRITE_GATE_APPROVED` approval record가 있고 artifact의 stable write tuple이 approval record와 일치하면 승인된 `/create-pr apply-approved` 경로를 실행한다. approval record가 없으면 durable artifact를 그대로 제시해 final PR write gate를 다시 수행한다. artifact가 없거나, artifact가 읽히지 않거나, exact title/body 또는 stable write tuple이 불일치하면 `/create-pr prepare`를 다시 수행하고 artifact를 커밋한 뒤 final PR write gate를 다시 수행한다. 기본 `/create-pr` 생성 경로로 body를 재생성해 바로 쓰지 않는다.
+- `File Mode: Single` + `Next Blocking Step=PI-CREATE-PR`는 Step 7에서 이미 승인된 Post-Implementation `PI-CREATE-PR` 범위로 재개하며, split final PR write gate를 요구하지 않는다.
+- Runtime approval record 형식은 [`./output-templates.md#final-closeout-gate-packet`](./output-templates.md#final-closeout-gate-packet)의 `Final gate runtime approval record`가 SSOT다.
+
+Split PRD에서 다음 phase가 아직 materialized 되지 않았으면 `Active Phase File` 또는 `Next Phase Materialization`에 `Pending phase-start approval`을 표시하고, Phase Index의 해당 row가 정본 outline이 된다. 재개 시 이 상태를 보면 phase 파일을 추측해서 쓰지 않는다. 현재 master PRD, 완료된 phase 파일, 관련 context, 현재 repo 상태를 다시 읽어 phase file draft body와 master PRD materialization update를 재생성하고, 이전 materialized phase의 `PHASE-END-COMMIT` checkpoint를 확인한 뒤 [`./output-templates.md#phase-start-materialization-gate-packet`](./output-templates.md#phase-start-materialization-gate-packet)을 사용자에게 제시한다. 승인 후 phase 파일을 생성하면 `Active Phase File`을 링크로 교체하고 `Next Phase Materialization`을 다음 pending phase 또는 `N/A`로 갱신한다.
 
 PRD 파일 작성 전의 `for_prd.step5_da` / `for_prd.step6_da_apply`는 durable file artifact를 전제하지 않는다. 세션이 끊긴 뒤 재개하면 transient draft/context와 DA verdict를 신뢰하지 않고 이슈 ref + Step 1-4 evidence를 다시 확인한 뒤 Step 5 DA부터 재실행한다. PRD 파일을 작성한 뒤에는 재실행 사유와 최종 verdict 요약을 master `Change Log`에 기록한다.
 

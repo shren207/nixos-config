@@ -52,7 +52,7 @@ PR openai/codex#12735는 collaboration mode 가용성만 확장하고 tool spec/
 
 이 표는 plan-with-questions 고유 행만 정의한다. 사용자 질문/fan-out/파일 읽기·편집은 [run-da 런타임 도구 매핑 표](../../run-da/references/runtime-mapping.md#런타임-도구-매핑)를 단일 진실 원천으로 참조한다 (중복 복제 금지).
 
-**미지원 런타임 처리**: headless 세션은 본 표의 어떤 행에도 도달하지 않는다 (Step 4/Step I-4에서 질문 도구 호출 시점에 BLOCKED). 상세는 위 "지원 런타임" 표와 "질문 도구 미지원 대응" 섹션이 단일 소스다.
+**미지원 런타임 처리**: headless 세션은 본 표의 어떤 승인 요청 행에도 도달하지 않는다 (질문 도구 호출 시점에 BLOCKED). 상세는 위 "지원 런타임" 표와 "질문 도구 미지원 대응" 섹션이 단일 소스다.
 
 | 행동 | Claude Code 세션 | Codex 세션 |
 |------|------------------|--------------------------------|
@@ -61,6 +61,8 @@ PR openai/codex#12735는 collaboration mode 가용성만 확장하고 tool spec/
 | 계획 파일 review/refine | `Write`/`Edit`로 Step 4.5의 기존 canonical plan 파일을 편집. transient buffer/path가 있으면 승인 전 canonical 파일에 최종 내용을 반영 | `apply_patch`로 Step 4.5의 기존 `.claude/plans/<slug>.md`만 편집 |
 | for_action 계획 승인 요청 | `ExitPlanMode`로 canonical plan 파일 제시 및 승인 대기 | `request_user_input` 확인 전에 canonical `.claude/plans/<slug>.md`의 canonical plan file body 전체를 사용자에게 제시한다. 경로/요약만 보인 확인은 fail-closed 처리하며 must not be treated as plan approval. |
 | for_prd 승인 요청 | [`./output-templates.md`](./output-templates.md#full-prd-approval-packet) 형식의 full PRD approval packet을 제시한 뒤 `AskUserQuestion`으로 승인/수정 선택 대기 | [`./output-templates.md`](./output-templates.md#full-prd-approval-packet) 형식의 full PRD approval packet을 제시한 뒤 `request_user_input` confirm 대기. for_prd는 `.claude/plans/` plan body가 아니라 이 packet을 승인 표면으로 사용한다. |
+| for_prd phase-start materialization 승인 요청 | [`./output-templates.md`](./output-templates.md#phase-start-materialization-gate-packet) 형식의 phase-start materialization gate packet을 제시한 뒤 `AskUserQuestion`으로 승인/수정 선택 대기 | [`./output-templates.md`](./output-templates.md#phase-start-materialization-gate-packet) 형식의 phase-start materialization gate packet을 제시한 뒤 `request_user_input` confirm 대기. 이 packet은 prior checkpoint, phase file draft body, master PRD materialization update, phase-scoped 자동 수행 범위를 함께 승인받는다. |
+| for_prd final closeout 승인 요청 | [`./output-templates.md`](./output-templates.md#final-closeout-gate-packet)의 ordered final review gate / final PR write gate packet을 각각 제시한 뒤 `AskUserQuestion`으로 승인/수정 선택 대기 | [`./output-templates.md`](./output-templates.md#final-closeout-gate-packet)의 ordered final review gate / final PR write gate packet을 각각 제시한 뒤 `request_user_input` confirm 대기. 첫 gate는 final review와 follow-up commit을 승인받고, 두 번째 gate는 final diff 고정 후 exact PR title/body와 PR write를 승인받는다. |
 
 본문의 "계획 추적 도구", "파일 편집 도구", "승인 요청 도구"는 위 표의 런타임별 실제 도구를 가리킨다. 최종 산출물은 모드별로 다르다:
 
@@ -72,12 +74,13 @@ PR openai/codex#12735는 collaboration mode 가용성만 확장하고 tool spec/
 
 ## 질문 도구 미지원 대응
 
-이 섹션은 Step 4 / Step I-4 / Step 7에서 참조되는 BLOCKED 처리 정책의 단일 소스다.
+이 섹션은 위 표의 모든 승인 요청 행에서 참조되는 BLOCKED 처리 정책의 단일 소스다.
 
 현재 런타임에서 질문 도구를 호출할 수 없으면 (headless 세션 등 stdin 입력 불가 환경), plan-with-questions는 **BLOCKED 처리**한다. 인터뷰 기반 SKILL의 본질상 사용자 입력 없는 자동 진행이 불가능하므로 자동 전이를 채택하지 않는다.
 
 처리 절차:
-1. 현재 단계(Step 4 / Step I-4 / Step 7 등)와 차단 사유(질문 도구 미지원)를 plain-text로 보고한다 (보고 채널이 없는 headless에서는 silent exit한다).
+1. 상태는 항상 `BLOCKED`다. 보고 채널이 있으면 현재 승인 요청 단계와 차단 사유(질문 도구 미지원)를 plain-text로 보고한다.
+   보고 채널이 없는 headless에서는 관찰 가능한 plain-text report가 없을 수 있지만, 상태 의미는 `BLOCKED`로 유지한다.
 2. SKILL 절차를 종료한다.
 3. 사용자가 새 메시지에서 명시 재개("계속 진행" 등)하거나 질문 도구 지원 런타임으로 전환할 때까지 자동 재개하지 않는다. **지원 런타임 전환 방법**: Claude Code 세션 또는 Codex 세션 사용.
 

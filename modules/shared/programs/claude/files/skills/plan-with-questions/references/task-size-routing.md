@@ -87,7 +87,7 @@ def should_trigger_prd(step12_result):
 
 산출물 경로:
 - **Single**: `.claude/prds/prd-<feature>.md`
-- **Split**: master `.claude/prds/prd-<feature>.md` + phase 파일 `.claude/prds/prd-<feature>/phase-NN-<name>.md` (master는 phase 디렉토리 옆 sibling)
+- **Split**: master `.claude/prds/prd-<feature>.md` + 승인 후 materialized 된 phase 파일 `.claude/prds/prd-<feature>/phase-NN-<name>.md` (master는 phase 디렉토리 옆 sibling). 미래 phase 경로는 Phase Index에 reserved/pending 상태로 남길 수 있으며, prior checkpoint, phase file body, master PRD materialization update, phase-scoped 자동 수행 범위를 phase-start materialization gate로 승인받은 뒤 파일을 만든다.
 
 자동 트리거 조건이 `Phase ≥4`이면 보통 split이 자연스럽다. 사용자가 "single로 유지해" 또는 "split으로 나눠줘"라고 명시하면 그 지시를 우선한다.
 
@@ -103,9 +103,9 @@ Post-Impl 5번 Final Multi-Pass Review는 **모든 모드에서 mandatory**다 (
 | **for_action** (review-impl 의도 trigger 진입, PRD/spec 입력 있음) | 미사용 | Post-Impl 5번 Final overlay에서 라벨링 (phase-end 미실행 — for_action에 phase 단위 없음) | PRD 10-pass + review-impl overlay (6-classification 라벨링 + overbuilt 우선 분류) | 미사용 |
 | **for_prd** | **phase-template 10-pass 수행** | Phase-end + Post-Impl 5번 Final 둘 다 (대체 아님) | PRD 10-pass + review-impl overlay (6-classification 라벨링 + overbuilt 우선 분류) | **미사용** (NG-2) |
 
-**Phase-end 10-pass + 6-classification 동시 수행**: [`./prd/phase-template.md`](./prd/phase-template.md)의 Phase-End 10-pass(intent/correctness/simplicity/code quality/cleanup/security/performance/validation/future-phase/PRD sync)를 그대로 수행하고, 추가로 [`./review-impl/requirement-status.md`](./review-impl/requirement-status.md)의 6-classification(satisfied/partial/missing/conflicting/overbuilt/deferred)을 보조 layer로 적용한다.
+**Phase-end 10-pass + 6-classification 동시 수행**: [`./prd/phase-template.md`](./prd/phase-template.md)의 Phase-End 10-pass(intent/correctness/simplicity/code quality/cleanup/security/performance/validation/future-phase/PRD sync)를 그대로 수행하고, 추가로 [`./review-impl/requirement-status.md`](./review-impl/requirement-status.md)의 6-classification(satisfied/partial/missing/conflicting/overbuilt/deferred)을 보조 layer로 적용한다. 결과는 phase 파일의 `Phase-End Finding Disposition` 표에 기록하며, `PHASE-END-COMMIT` 전 모든 finding이 `satisfied` 또는 `deferred`여야 한다. Phase-end remediation 순서와 재승인 규칙은 [`./output-templates.md#phase-remediation-approval-packet`](./output-templates.md#phase-remediation-approval-packet)이 SSOT다.
 
-**Final review (PRD 10-pass + review-impl overlay)**: 모든 phase 완료 후 Post-Impl 5번에서 [`./prd/multi-pass-review.md`](./prd/multi-pass-review.md)의 PRD 10-pass를 canonical checklist로 수행 (input: PRD master + phase 파일 + 구현 코드). 결과 위에 [`./review-impl/implementation-review.md`](./review-impl/implementation-review.md) overlay를 얹어 각 finding에 [`./review-impl/requirement-status.md`](./review-impl/requirement-status.md) 6-classification 라벨을 부여하고 `overbuilt` 우선 분류를 적용한다 (별도 9-pass checklist 미수행, overlay 자체가 review-impl delta).
+**Final review (PRD 10-pass + review-impl overlay)**: 모든 phase 완료 후 Post-Impl 5번에서 [`./prd/multi-pass-review.md`](./prd/multi-pass-review.md)의 PRD 10-pass를 canonical checklist로 수행 (input: PRD master + 완료되었거나 materialized 된 phase 파일 + 구현 코드). 결과 위에 [`./review-impl/implementation-review.md`](./review-impl/implementation-review.md) overlay를 얹어 각 finding에 [`./review-impl/requirement-status.md`](./review-impl/requirement-status.md) 6-classification 라벨을 부여하고 `overbuilt` 우선 분류를 적용한다 (별도 9-pass checklist 미수행, overlay 자체가 review-impl delta).
 
 `overbuilt` 발견 시 review-impl reference는 보고만 산출한다 (`Decision Log` 권장 기록 + 제거/문서 보강 방향 권장). 적용·정렬·제거는 메인 에이전트가 사용자 승인된 remediation 단계에서 수행한다 (review-only 정책, NG-2).
 

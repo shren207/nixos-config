@@ -61,10 +61,10 @@
    - Resolved evidence + 사용자 답변 + Step 3.5 자문 매트릭스 요약
    - DA findings + Arbiter 판정 핵심
    - 후보 phase 구조 (3-6개) + 산출물 경로 (`.claude/prds/...`)
-   - full PRD approval packet: [`../references/output-templates.md`](../references/output-templates.md#full-prd-approval-packet) 형식으로 승인 후 작성될 master PRD draft body와 split mode phase materialization plan을 제시한다. split phase 파일을 즉시 생성하려면 승인 후 그대로 작성될 phase file draft body도 같은 packet 또는 승인된 chunk에 포함한다. 요약과 후보 phase 구조만 제시한 확인, 또는 요약·경로·checksum만 있는 chunk 확인은 구현·commit·PR 자동 수행 동의로 간주하지 않는다.
-   - **Post-Implementation 자동 수행 범위** ([`../references/post-implementation.md`](../references/post-implementation.md)의 stable step ID 전체 또는 승인 게이트에서 명시한 생략 항목).
+   - full PRD approval packet: [`../references/output-templates.md`](../references/output-templates.md#full-prd-approval-packet) 형식으로 승인 후 작성될 master PRD draft body를 제시한다. split mode이면 최초 active phase file draft body와 즉시 생성할 추가 phase file draft body도 같은 packet 또는 승인된 chunk에 포함한다. 미래 phase outline과 Phase Index row는 phase 구조 승인일 뿐 phase 파일 생성 승인이 아니며, 해당 phase 시작 직전 [`phase-start materialization gate`](../references/output-templates.md#phase-start-materialization-gate-packet)로 다시 승인받는다. 요약과 후보 phase 구조만 제시한 확인, 또는 요약·경로·checksum만 있는 chunk 확인은 구현·commit·PR 자동 수행 동의로 간주하지 않는다.
+   - **자동 수행 범위**: single-file mode는 [`../references/post-implementation.md`](../references/post-implementation.md)의 Post-Implementation stable step ID 전체 또는 승인 게이트에서 명시한 생략 항목을 표시한다. split mode는 최초 active phase 파일을 반드시 생성하므로 `Phase-scoped 자동 수행` 표시 문자열을 항상 표시한다. split mode의 `PI-FINAL-REVIEW`, `PI-FOLLOWUP-COMMIT`, `PI-CREATE-PR`는 Step 7에서 승인하지 않고 모든 phase 완료 후 final closeout gates로 미룬다.
 2. 승인 요청 도구로 사용자 승인 요청. 사용자가 수정 요청하면 PRD draft/context 또는 후보 phase 구조를 갱신한 뒤 다시 요청.
-3. **승인이 곧 Post-Implementation 자동 수행 동의**다 (tracked write·commit·PR write 포함). plan-with-questions의 신뢰 경계는 [`../references/post-implementation.md#신뢰-경계-569-회귀-방지`](../references/post-implementation.md)에 정의된 것과 동일하게 적용된다.
+3. **승인이 곧 승인 표면에 표시된 자동 수행 동의**다. tracked write·commit·PR write 중 무엇이 승인되는지는 해당 gate에 표시된 stable step ID와 자동 수행 범위에 한정된다. split mode의 Step 7 승인은 PRD master와 승인된 phase 파일 작성, 그리고 승인된 phase-scoped PI pipeline 범위에 한정된다. 최종 `PI-FINAL-REVIEW`, `PI-FOLLOWUP-COMMIT`는 모든 phase가 materialized 되고 phase-end PRD sync가 커밋된 뒤 final review gate에서 다시 승인받는다. `PI-CREATE-PR`는 follow-up commit까지 끝나 final diff가 고정된 뒤 final PR write gate에서 exact PR title/body와 함께 다시 승인받는다. plan-with-questions의 신뢰 경계는 [`../references/post-implementation.md#신뢰-경계-569-회귀-방지`](../references/post-implementation.md)에 정의된 것과 동일하게 적용된다.
 
 ### Step 8: PRD 작성
 
@@ -72,14 +72,16 @@
 
 1. Step 1-4에서 수집한 정보, Step 5-6 DA 결과, 승인된 후보 phase 구조를 정리한다.
 2. [`../references/prd/prd-master-template.md`](../references/prd/prd-master-template.md)를 따라 `.claude/prds/prd-<feature>.md`에 Step 7에서 승인된 master PRD draft body를 그대로 작성한다. 승인 packet 이후 본문 변경이 필요하면 작성하지 말고 Step 7로 돌아간다. `<feature>` slug 안전 규칙은 [`../references/prd/file-mode-selection.md`](../references/prd/file-mode-selection.md#경로-slug-안전-규칙)가 SSOT다.
-3. Split mode이면 [`../references/prd/phase-template.md`](../references/prd/phase-template.md)를 따라 Step 7에서 본문 전체가 승인된 phase 파일만 생성한다 (`.claude/prds/prd-<feature>/phase-NN-<name>.md`). phase materialization plan의 outline만 승인된 phase는 master PRD의 Phase Index와 향후 승인 계획에만 반영하며, phase 파일은 만들지 않는다. 승인 packet 또는 승인된 chunk에 없는 template 본문, checklist, 요구사항을 phase 본문에 추가해야 하면 작성하지 말고 Step 7로 돌아간다. `<name>` slug 안전 규칙도 [`../references/prd/file-mode-selection.md`](../references/prd/file-mode-selection.md#경로-slug-안전-규칙)를 따른다.
+3. Split mode이면 [`../references/prd/phase-template.md`](../references/prd/phase-template.md)를 따라 Step 7에서 본문 전체가 승인된 phase 파일만 같은 실행에서 생성한다 (`.claude/prds/prd-<feature>/phase-NN-<name>.md`). 최초 active phase 파일은 반드시 생성되며, 미래 phase는 master PRD의 Phase Index에 `Pending phase-start approval`로 남길 수 있다. 승인 packet 또는 승인된 chunk에 없는 template 본문, checklist, 요구사항을 phase 본문에 추가해야 하면 작성하지 말고 Step 7로 돌아간다. `<name>` slug 안전 규칙도 [`../references/prd/file-mode-selection.md`](../references/prd/file-mode-selection.md#경로-slug-안전-규칙)를 따른다.
+4. Split mode에서 아직 materialized 되지 않은 phase를 시작하려면 [`phase-start materialization gate`](../references/output-templates.md#phase-start-materialization-gate-packet)를 먼저 수행한다. 이 gate만 phase 파일 tracked write와 해당 phase-scoped 진행 동의를 부여하며, 최종 PR write 승인으로 확장되지 않는다. 이 승인도 요약·경로·checksum만으로 대체할 수 없다.
 
 PRD 작성 + 갱신 + phase 진행 + Phase Discovery Gate 적용을 모두 본 모드가 책임진다. 별도 plan 파일 (`.claude/plans/`)은 만들지 않는다.
 
 ### Post-Implementation 흐름 변형
 
-PRD가 작성된 후 구현 단계는 [`../references/post-implementation.md`](../references/post-implementation.md) 7단계를 따르되 다음 추가:
+PRD가 작성된 후 구현 단계는 [`../references/post-implementation.md`](../references/post-implementation.md)를 따르되, split mode의 pending phase는 phase-scoped PI pipeline으로 실행하고 모든 split PRD의 final review·follow-up commit·PR write는 final closeout gates로 승인받는다:
 
+- split mode에서는 모든 phase 완료와 phase-end PRD sync commit checkpoint 후 [`final closeout gate packet`](../references/output-templates.md#final-closeout-gate-packet)을 순서대로 수행하고, 승인된 stable step ID만 실행한다.
 - 상세 review 흐름 (phase-end / Final / overbuilt 처리)은 [`../references/task-size-routing.md#review-impl-통합-시점`](../references/task-size-routing.md#review-impl-통합-시점)이 SSOT다. 본 mode 파일은 link만 두고 절차를 복제하지 않는다 (drift 방지).
 
 PRD Closeout 조건은 `.claude/prds/`에 작성됐으므로 자동 활성화 (이전 버전의 `.claude/plans/` mismatch는 본 변경으로 해소).

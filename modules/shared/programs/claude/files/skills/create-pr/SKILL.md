@@ -1,15 +1,15 @@
 ---
 name: create-pr
-argument-hint: "[update]"
+argument-hint: "[prepare [create|update]|apply-approved|update]"
 description: |
-  Create structured PR. Default: create new PR. Args: update (existing PR body).
+  Create structured PR. Default: create new PR. Args: prepare (draft exact title/body without write), apply-approved (write approved title/body), update (existing PR body).
   Trigger: 'PR 만들어줘', 'PR 생성', 'PR 올려', 'create PR', 'PR 업데이트', 'Human Test'.
   NOT for DA (use run-da). NOT for PR 코멘트 (use review-pr-feedback).
 ---
 
 # 상세 PR 작성
 
-`$ARGUMENTS`가 비어있으면 새 PR을 생성하고, `update`이면 기존 PR 본문을 업데이트한다.
+`$ARGUMENTS`가 비어있으면 새 PR을 생성하고, `prepare`이면 GitHub write 없이 exact title/body를 생성하며, `apply-approved`이면 이미 승인된 exact title/body만 GitHub에 쓴다. `update`이면 기존 PR 본문을 업데이트한다. `prepare create` / `prepare update`로 write mode를 명시할 수 있으며, bare `prepare`는 현재 브랜치 PR이 있으면 `update`, 없으면 `create`로 추론한다.
 
 ## 빠른 참조
 
@@ -52,7 +52,7 @@ PR을 생성하기 전에, 작업 결과의 처리 방향을 결정한다:
 
 ### 새 PR 생성 (기본)
 
-`$ARGUMENTS`가 비어있거나 `update`가 아닌 경우 새 PR을 생성한다.
+첫 토큰이 `prepare`이면 no-write prepare mode, `apply-approved`이면 approved-write mode, `update`이면 기존 PR update mode로 진입한다. `$ARGUMENTS`가 비어있거나 첫 토큰이 위 mode token이 아니면 새 PR을 생성하며, non-mode arguments는 PR 작성 지시나 context로 취급한다.
 
 1. **변경 분석**: `git diff main...HEAD`와 커밋 히스토리(`git log main..HEAD --oneline`)를 분석하여 변경 범위를 파악한다.
 2. **연관 이슈 탐색**: 커밋 메시지, 브랜치명, 변경 내용에서 이슈 번호를 추출한다. 관련 이슈가 있으면 Summary에 `Closes #N`을 포함한다.
@@ -61,6 +61,37 @@ PR을 생성하기 전에, 작업 결과의 처리 방향을 결정한다:
 5. **8섹션 템플릿 작성**: [references/pr-template.md](references/pr-template.md)의 템플릿에 따라 전체 PR 본문을 작성한다.
 6. **Pre-Merge E2E 가이드 작성**: [references/pre-merge-guide.md](references/pre-merge-guide.md)의 규칙에 따라 Phase 기반 검증 가이드를 포함한다.
 7. **PR 생성**: `gh pr create --title "<제목>" --body "<본문>"`으로 PR을 생성한다. 제목은 70자 미만, conventional commit 형식을 따른다.
+
+### PR 본문 준비 (`prepare`)
+
+`$ARGUMENTS`가 `prepare`인 경우 GitHub write 없이 새 PR 또는 기존 PR 업데이트에 사용할 exact title/body를 생성한다. `prepare create` / `prepare update`가 아니면 현재 브랜치 PR이 있으면 `update`, 없으면 `create`로 write mode를 추론한다.
+
+1. 새 PR 생성 Step 1-6 또는 기존 PR 업데이트 Step 1-3과 동일하게 변경사항을 분석하고 8섹션 본문을 작성한다.
+2. 출력은 다음 항목을 포함한다:
+   - PR write mode: `create` 또는 `update`
+   - Base repository owner/name
+   - Target branch / head branch / approved head repo owner/name
+   - Approved head commit SHA
+   - `create` mode: exact PR title. create의 head는 repo-local branch만 지원한다. cross-repo/fork create는 repo identity를 명시적으로 전달하는 API-backed path가 생기기 전까지 unsupported로 중단한다.
+   - `update` mode: PR number/URL, current title, current base repository owner/name, current base/head, head repository owner/name, current head commit SHA, title change 여부. `title_change=yes`이면 exact approved PR title을 함께 출력한다. 제목 변경이 승인 표면에 명시되지 않으면 기존 title을 보존한다.
+   - Exact full PR body
+3. `prepare` 모드에서는 `gh pr create`, `gh pr edit`, review comment 작성, thread resolve 같은 GitHub write를 수행하지 않는다.
+4. split PRD final PR write gate에서 사용할 경우, 이 exact title/body를 master PRD `Approved PR Write Artifact` 섹션에 기록하고 커밋한 뒤 그 커밋 SHA를 final PR write gate에 제시한다. 승인 후 문구를 수정해야 하면 다시 `prepare`를 수행하고 artifact를 다시 커밋한 뒤 다시 승인받는다.
+
+### 승인된 PR 쓰기 (`apply-approved`)
+
+`$ARGUMENTS`가 `apply-approved`인 경우 이미 승인된 exact title/body만 GitHub에 쓴다.
+
+1. 입력 또는 승인 표면에서 PR write mode(`create`/`update`), full PR body, base repository owner/name, target branch, head branch, approved head repo owner/name, approved head commit SHA를 확인한다. `create` mode는 exact PR title이 필요하고, `update` mode는 PR number/URL과 승인 시점 current title이 필요하며 `title_change=yes`이면 exact approved PR title도 필요하다. 요약이나 `/create-pr prepare` 실행 지시만 있고 필요한 exact field가 없으면 중단한다.
+2. PR 본문이 8섹션을 모두 포함하는지 검증한다. 누락이 있으면 본문을 재생성하지 말고 `prepare`로 돌아가 다시 승인받는다.
+3. GitHub write 직전에 title/body를 재작성하거나 현재 diff로 다시 생성하지 않는다. 승인된 문자열을 그대로 body 파일에 저장한다.
+4. `create` mode는 repo-local head만 지원한다. cross-repo/fork head는 `gh pr create --head`가 approved repo name을 직접 고정하지 못하므로 fail closed 처리하고, repo identity를 명시적으로 전달하는 별도 API-backed 절차가 생기기 전에는 `apply-approved create`에서 지원하지 않는다.
+5. `create` mode는 GitHub write 직전 approved base repo와 approved head repo가 현재 repo와 일치하는지 확인하고, approved head branch의 remote ref를 `gh api repos/<approved base owner>/<approved base repo>/git/ref/heads/<approved head branch>` 또는 `git ls-remote`로 조회해 approved head commit SHA와 일치하는지 확인한다.
+6. `create` mode는 검증이 모두 일치할 때만 승인된 repo/branch를 명령에 명시해 `gh pr create --repo "<approved base owner>/<approved base repo>" --base "<approved target branch>" --head "<approved head branch>" --title "<approved title>" --body-file <approved-body-file>`을 실행한다.
+7. `create` mode는 생성 후 생성된 PR의 base/head repo, branch, head SHA가 승인 tuple과 일치하는지 확인한 뒤 성공으로 보고한다.
+8. `update` mode는 GitHub write 전에 `gh api repos/<approved base owner>/<approved base repo>/pulls/<approved number>`로 현재 PR identity를 확인한다. 승인된 PR URL/number, `.base.repo.full_name`, `.base.ref`, `.head.repo.full_name`, `.head.ref`, `.head.sha`, 현재 title이 승인 tuple과 다르면 중단한다.
+9. `update` mode는 승인된 PR number/URL을 대상으로 `gh pr edit <number> --repo "<approved base owner>/<approved base repo>" --body-file <approved-body-file>`을 실행한다. `title_change=yes`로 exact approved PR title이 승인 표면에 명시된 경우에만 `--title "<approved title>"`을 추가하고, `title_change=no`이면 기존 title을 보존한다. approved base 변경이 명시된 경우에만 `--base "<approved target branch>"`를 추가한다. `gh pr edit`는 head 변경을 지원하지 않으므로 head 변경이 필요하면 기존 PR update를 중단하고 새 PR 생성 또는 수동 절차로 분기한다.
+10. 승인된 mode/PR number/base repo/head repo/branch/head SHA/title/body와 실제 write 입력이 다르면 GitHub write를 수행하지 않는다.
 
 ### 기존 PR 업데이트 (`update`)
 
