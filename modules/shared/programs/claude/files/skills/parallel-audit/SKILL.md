@@ -1,6 +1,6 @@
 ---
 name: parallel-audit
-argument-hint: "[agent-count]"
+argument-hint: "[agent-count] [context]"
 description: |
   Exhaustive side-effect/regression audit via parallel agents.
   Trigger: '전수조사', '사이드이펙트 조사', '회귀 조사', '병렬 감사', '에이전트 N개 조사'.
