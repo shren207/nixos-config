@@ -2,7 +2,7 @@
 # tests/test-codex-hook-fixtures.sh
 # Codex 0.124+ stable hook 회귀 차단 fixture runner.
 #
-# 9 카테고리 (8 deterministic + 1 live opt-in subset):
+# 10 카테고리 (8 deterministic + 2 live opt-in subsets):
 #   1. stdin schema baseline 0.124       — fixtures/codex-hooks/stdin/{userpromptsubmit-codex-0.124,stop-codex-0.124,stop-no-last-message}.json
 #   2. dispatcher ordering / failure recovery — runner 내부 mock subscript
 #   3. noise-guard env 변형              — runner 내부 helper (4 env 조합)
@@ -12,6 +12,7 @@
 #       (--live 시 invocation matrix를 programmatic env inheritance보다 먼저 실행)
 #   6. stop-notification reliability/security — transcripts/ + stdin secret/transcript fixtures
 #   7. pinning-alert behavioral          — fixtures/codex-hooks/stdin/pinning-{claude,codex}-*.json
+#   7b. PreToolUse pinning-guard behavioral — hard-fail deny JSON + clean pass fixtures
 #   8. sync.sh mcp-config fail-fast      — missing/no source가 기존 MCP 섹션을 지우지 않음
 #
 # nrs-session-cleanup.sh는 NRS_LOCK_FILE을 하드코딩하므로 (host /tmp/nrs-state 누수 위험)
@@ -64,6 +65,7 @@ TEST_TMP_FILE="$(mktemp "${TMPDIR:-/tmp}/codex-hook-fixtures-list.XXXXXX")"
 . "$SCRIPT_DIR/lib/codex-hook-expectations.sh"
 
 HOOK_REPO_DIR="$REPO_ROOT/modules/shared/programs/codex/files/hooks"
+PINNING_LIB_REPO_FILE="$REPO_ROOT/modules/shared/programs/claude/files/lib/pinning-patterns.sh"
 # verify-ai-compat의 _TEMPLATE 분기와 동일하게 host platform에 맞는 template을 sync-preservation
 # 검증에 사용한다. Darwin은 mcp_servers.chrome-devtools 같은 platform-specific managed leaves를
 # 추가로 가지므로 platform-agnostic 검증은 부족하다.
@@ -153,11 +155,15 @@ new_hook_sandbox() {
     "$sandbox/xdg-config" \
     "$sandbox/codex-home" \
     "$sandbox/home/.codex/hooks" \
+    "$sandbox/home/.codex/lib" \
+    "$sandbox/home/.claude/lib" \
     "$sandbox/home/.local/share/claude-hooks" \
     "$sandbox/bin-stubs"
 
   cp -L "$HOOK_REPO_DIR"/*.sh "$sandbox/home/.codex/hooks/"
   chmod +x "$sandbox/home/.codex/hooks/"*.sh
+  cp -L "$PINNING_LIB_REPO_FILE" "$sandbox/home/.codex/lib/"
+  cp -L "$PINNING_LIB_REPO_FILE" "$sandbox/home/.claude/lib/"
 
   # macOS 외부 채널 차단: Darwin runner의 host PATH가 fixture에 누수되면 stop-notification.sh가
   # 실제 Hammerspoon 알림을 발사할 수 있다. sandbox/bin-stubs를 PATH 최우선으로 두어 hs 호출이
@@ -583,6 +589,28 @@ all_commands = [h.get("command", "") for entry in post for h in entry.get("hooks
 assert all("USER-POSTTOOLUSE-LOST" not in c for c in all_commands), \
     f"user marker still present: {all_commands}"
 PY
+
+  # ── F: PreToolUse template-owned (issue #587) ──
+  # PreToolUse도 template이 declare한 array이므로 사용자가 동일 event에 별도 entry를 추가하면
+  # template-owned leaf 정책에 따라 손실된다.
+  target=$(_sync_preservation_run_one \
+    "$FIXTURE_DIR/sync-preservation/scenario-F-pretooluse-template-owned.toml" "scenario-F")
+  python3 - "$target" "$EXPECTED_PRE_TOOL_USE_PINNING_GUARD_COMMAND" <<'PY' \
+    || fail "scenario-F: PreToolUse 사용자 entry가 손실되어야 하지만 보존됨 (template-owned leaf 정책 위반)"
+import sys, tomllib
+with open(sys.argv[1], "rb") as f:
+    d = tomllib.load(f)
+expected_pre_cmd = sys.argv[2]
+pre = d.get("hooks", {}).get("PreToolUse", [])
+assert isinstance(pre, list) and len(pre) == 1, f"PreToolUse len={len(pre)} (expected 1)"
+sub = pre[0].get("hooks", [])
+assert len(sub) == 1, f"PreToolUse.hooks len={len(sub)}"
+cmd = sub[0].get("command", "")
+assert cmd == expected_pre_cmd, f"command={cmd!r} expected={expected_pre_cmd!r}"
+all_commands = [h.get("command", "") for entry in pre for h in entry.get("hooks", [])]
+assert all("USER-PRETOOLUSE-LOST" not in c for c in all_commands), \
+    f"user marker still present: {all_commands}"
+PY
 }
 
 # ─── 카테고리 8: syncing-codex-harness mcp-config fail-fast (#609) ───
@@ -939,6 +967,87 @@ test_pinning_alert_behavioral() {
   done
 }
 
+# ─── 카테고리 7b: PreToolUse pinning-guard behavioral ───
+# Claude/Codex pinning-guard.sh(PreToolUse hard-fail, issue #587)의 입력→deny JSON/clean pass
+# 동작을 별도 namespace로 박제한다. expected 파일은 deny reason 원문이고, 빈 expected는 clean pass.
+_assert_pretooluse_guard_expectation() {
+  local fixture="$1" stdout_log="$2" reason_log="$3"
+  local expected="${fixture%.json}.expected"
+  if [ -s "$expected" ]; then
+    local event decision
+    event="$(jq -r '.hookSpecificOutput.hookEventName // empty' "$stdout_log" 2>/dev/null)" \
+      || fail "[7b] $(basename "$fixture"): stdout JSON parse failed"
+    decision="$(jq -r '.hookSpecificOutput.permissionDecision // empty' "$stdout_log" 2>/dev/null)" \
+      || fail "[7b] $(basename "$fixture"): stdout JSON parse failed"
+    assert_eq "$event" "PreToolUse" "[7b] $(basename "$fixture"): hook event mismatch"
+    assert_eq "$decision" "deny" "[7b] $(basename "$fixture"): permission decision mismatch"
+    jq -r '.hookSpecificOutput.permissionDecisionReason // empty' "$stdout_log" > "$reason_log" \
+      || fail "[7b] $(basename "$fixture"): reason extract failed"
+  else
+    if [ -s "$stdout_log" ]; then
+      local unexpected
+      unexpected="$(head -40 "$stdout_log")"
+      fail "[7b] $(basename "$fixture"): expected clean pass with empty stdout, got:
+$unexpected"
+    fi
+    : > "$reason_log"
+  fi
+
+  if ! diff -u "$expected" "$reason_log" >/dev/null 2>&1; then
+    local diff_out
+    diff_out=$(diff -u "$expected" "$reason_log" 2>&1 | head -40 || true)
+    fail "[7b] $(basename "$fixture") PreToolUse expectation drift:
+$diff_out"
+  fi
+}
+
+_materialize_pretooluse_fixture() {
+  local fixture="$1" sandbox="$2"
+  local materialized="$fixture"
+  local existing_file="$sandbox/existing-pinned.md"
+  if grep -q "__SANDBOX_EXISTING_PINNED_MD__" "$fixture"; then
+    materialized="$sandbox/$(basename "$fixture")"
+    sed "s#__SANDBOX_EXISTING_PINNED_MD__#$existing_file#g" "$fixture" > "$materialized"
+    jq -r '.tool_input.old_string // empty' "$materialized" > "$existing_file"
+  fi
+  printf '%s\n' "$materialized"
+}
+
+test_pretooluse_pinning_guard_behavioral() {
+  local hook_claude="$REPO_ROOT/modules/shared/programs/claude/files/hooks/pinning-guard.sh"
+  local hook_codex="$REPO_ROOT/modules/shared/programs/codex/files/hooks/pinning-guard.sh"
+  local fixture sandbox hook materialized stdout_log stderr_log reason_log exit_code stderr_head
+
+  for fixture in "$FIXTURE_DIR"/stdin/pretooluse-pinning-guard-*.json; do
+    assert_file_exists "${fixture%.json}.expected" "7b/$(basename "$fixture")"
+
+    sandbox=$(new_hook_sandbox)
+    materialized="$(_materialize_pretooluse_fixture "$fixture" "$sandbox")"
+    stdout_log="$sandbox/pretooluse-stdout.log"
+    stderr_log="$sandbox/pretooluse-stderr.log"
+    reason_log="$sandbox/pretooluse-reason.log"
+
+    case "$(basename "$fixture")" in
+      pretooluse-pinning-guard-claude-*) hook="$hook_claude" ;;
+      pretooluse-pinning-guard-codex-*)  hook="$hook_codex" ;;
+      *) fail "[7b] unexpected fixture name: $(basename "$fixture")" ;;
+    esac
+
+    if _exec_with_sandbox_env "$sandbox" "" "$hook" < "$materialized" >"$stdout_log" 2>"$stderr_log"; then
+      exit_code=0
+    else
+      exit_code=$?
+    fi
+    assert_eq "$exit_code" "0" "[7b] $(basename "$fixture"): hook must exit 0 and communicate deny via JSON"
+    if [ -s "$stderr_log" ]; then
+      stderr_head="$(head -40 "$stderr_log")"
+      fail "[7b] $(basename "$fixture"): expected empty stderr, got:
+$stderr_head"
+    fi
+    _assert_pretooluse_guard_expectation "$fixture" "$stdout_log" "$reason_log"
+  done
+}
+
 # ─── 카테고리 5: programmatic env inheritance live (opt-in) ───
 # programmatic codex exec 호출자가 CODEX_PROGRAMMATIC=1을 codex 프로세스에 붙이면,
 # UserPromptSubmit hook subprocess까지 해당 marker가 상속되는지 검증한다. managed hook
@@ -1202,7 +1311,7 @@ run_test "dispatcher recovers from sub-script failures" \
   test_dispatcher_recovers_from_subscript_failures
 run_test "noise-guard env variants (cleanup unguarded)" \
   test_noise_guard_env_variants_with_cleanup_unguarded
-run_test "sync-codex-config preservation scenarios A/B/C/D/E" \
+run_test "sync-codex-config preservation scenarios A/B/C/D/E/F" \
   test_sync_preservation_scenarios
 
 run_test "stop-notification codex transcript fallback (6.1)" \
@@ -1218,6 +1327,8 @@ run_test "stop-notification helper equivalence (6.4)" \
 
 run_test "pinning-alert behavioral (#606)" \
   test_pinning_alert_behavioral
+run_test "pretooluse pinning-guard behavioral (#587)" \
+  test_pretooluse_pinning_guard_behavioral
 run_test "sync.sh mcp-config valid sources (#609)" \
   test_sync_sh_mcp_config_valid_sources
 run_test "sync.sh mcp-config fail-fast (#609)" \
