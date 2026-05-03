@@ -61,7 +61,7 @@
    - Resolved evidence + 사용자 답변 + Step 3.5 자문 매트릭스 요약
    - DA findings + Arbiter 판정 핵심
    - 후보 phase 구조 (3-6개) + 산출물 경로 (`.claude/prds/...`)
-   - full PRD approval packet: [`../references/output-templates.md`](../references/output-templates.md#full-prd-approval-packet) 형식으로 승인 후 작성될 master PRD draft body와 split mode phase materialization plan을 제시한다. split phase 파일을 즉시 생성하려면 승인 후 그대로 작성될 phase file draft body도 같은 packet 또는 승인된 chunk에 포함한다. 요약과 후보 phase 구조만 제시한 확인은 구현·commit·PR 자동 수행 동의로 간주하지 않는다.
+   - full PRD approval packet: [`../references/output-templates.md`](../references/output-templates.md#full-prd-approval-packet) 형식으로 승인 후 작성될 master PRD draft body와 split mode phase materialization plan을 제시한다. split phase 파일을 즉시 생성하려면 승인 후 그대로 작성될 phase file draft body도 같은 packet 또는 승인된 chunk에 포함한다. 요약과 후보 phase 구조만 제시한 확인, 또는 요약·경로·checksum만 있는 chunk 확인은 구현·commit·PR 자동 수행 동의로 간주하지 않는다.
    - **Post-Implementation 자동 수행 범위** ([`../references/post-implementation.md`](../references/post-implementation.md)의 stable step ID 전체 또는 승인 게이트에서 명시한 생략 항목).
 2. 승인 요청 도구로 사용자 승인 요청. 사용자가 수정 요청하면 PRD draft/context 또는 후보 phase 구조를 갱신한 뒤 다시 요청.
 3. **승인이 곧 Post-Implementation 자동 수행 동의**다 (tracked write·commit·PR write 포함). plan-with-questions의 신뢰 경계는 [`../references/post-implementation.md#신뢰-경계-569-회귀-방지`](../references/post-implementation.md)에 정의된 것과 동일하게 적용된다.

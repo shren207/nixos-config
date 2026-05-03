@@ -59,7 +59,7 @@ PR openai/codex#12735는 collaboration mode 가용성만 확장하고 tool spec/
 | for_action Step 4.5 공식 plan 파일 초기화 | 파일 편집 도구로 안전 검증된 `.claude/plans/<slug>.md`를 생성 (계획 추적 상태 진입 전) | `apply_patch`로 안전 검증된 `.claude/plans/<slug>.md`를 생성 (chat state 추적 전) |
 | 계획 추적 상태 진입 | `EnterPlanMode`로 승인/tracking 상태 진입. canonical plan 파일은 Step 4.5의 기존 경로이며, 런타임이 별도 transient buffer/path를 노출해도 새 canonical plan으로 승격하지 않는다 | `update_plan` (단계별 chat state 추적; 파일 IO 없음). 추적 대상은 Step 4.5의 기존 plan 파일 |
 | 계획 파일 review/refine | `Write`/`Edit`로 Step 4.5의 기존 canonical plan 파일을 편집. transient buffer/path가 있으면 승인 전 canonical 파일에 최종 내용을 반영 | `apply_patch`로 Step 4.5의 기존 `.claude/plans/<slug>.md`만 편집 |
-| for_action 계획 승인 요청 | `ExitPlanMode`로 canonical plan 파일 제시 및 승인 대기 | `request_user_input` 확인 전에 canonical `.claude/plans/<slug>.md`의 full canonical plan body를 사용자에게 제시한다. 경로/요약만 보인 확인은 fail-closed 처리하며 must not be treated as plan approval. |
+| for_action 계획 승인 요청 | `ExitPlanMode`로 canonical plan 파일 제시 및 승인 대기 | `request_user_input` 확인 전에 canonical `.claude/plans/<slug>.md`의 canonical plan file body 전체를 사용자에게 제시한다. 경로/요약만 보인 확인은 fail-closed 처리하며 must not be treated as plan approval. |
 | for_prd 승인 요청 | [`./output-templates.md`](./output-templates.md#full-prd-approval-packet) 형식의 full PRD approval packet을 제시한 뒤 `AskUserQuestion`으로 승인/수정 선택 대기 | [`./output-templates.md`](./output-templates.md#full-prd-approval-packet) 형식의 full PRD approval packet을 제시한 뒤 `request_user_input` confirm 대기. for_prd는 `.claude/plans/` plan body가 아니라 이 packet을 승인 표면으로 사용한다. |
 
 본문의 "계획 추적 도구", "파일 편집 도구", "승인 요청 도구"는 위 표의 런타임별 실제 도구를 가리킨다. 최종 산출물은 모드별로 다르다:

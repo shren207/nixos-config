@@ -133,10 +133,10 @@ Step 3.5는 DA(Step 5)와 목적이 다르다. 3.5는 사용자에게 옵션 제
 
 ## Step 9: 사용자 승인 요청
 
-계획이 완성되면 승인 요청 도구로 사용자에게 계획 승인을 요청한다 (런타임별 실제 도구는 [`../references/runtime-boundaries.md`](../references/runtime-boundaries.md#런타임-도구-매핑-plan-with-questions-고유) 참조). Codex 세션에서는 `request_user_input` 확인 전에 full canonical plan body를 사용자에게 제시해야 한다.
+계획이 완성되면 승인 요청 도구로 사용자에게 계획 승인을 요청한다 (런타임별 실제 도구는 [`../references/runtime-boundaries.md`](../references/runtime-boundaries.md#런타임-도구-매핑-plan-with-questions-고유) 참조). Codex 세션에서는 `request_user_input` 확인 전에 canonical plan file body 전체를 사용자에게 제시해야 한다.
 
 Codex 세션에서 canonical `.claude/plans/<slug>.md` 본문 전체가 보이지 않으면 fail-closed 처리한다. 경로/요약만 보인 확인은 must not be treated as plan approval.
 
 사용자가 수정을 요청하면 계획 파일을 편집한 뒤 승인 요청 도구를 다시 호출한다.
 
-계획이 승인되면 (사용자가 수정 요청을 하지 않으면) 추가 확인 없이 즉시 [`../references/post-implementation.md`](../references/post-implementation.md)의 첫 자동 단계부터 진행한다. 자동 수행 절차는 본 SKILL의 Post-Implementation reference가 정의한 고정 절차이며, Step 8의 "Post-Implementation 자동 수행 범위" 필수 항목이 plan 파일에 포함되어 사용자에게 노출된다. 따라서 계획 승인은 이 자동 진행 범위(tracked write·commit·GitHub PR write 포함)에 대한 사용자 동의로 간주된다.
+계획이 승인되면 (사용자가 수정 요청을 하지 않으면) 추가 확인 없이 즉시 [`../references/post-implementation.md`](../references/post-implementation.md)의 "Post-Implementation 자동 수행 범위"에서 생략 항목과 dependency closure를 적용한 뒤 남은 stable step ID 목록의 첫 항목부터 진행한다. 자동 수행 절차는 본 SKILL의 Post-Implementation reference가 정의한 고정 절차이며, Step 8의 "Post-Implementation 자동 수행 범위" 필수 항목이 plan 파일에 포함되어 사용자에게 노출된다. 따라서 계획 승인은 이 자동 진행 범위(tracked write·commit·GitHub PR write 포함)에 대한 사용자 동의로 간주된다.
