@@ -10,6 +10,7 @@
 - agenix CLI로 `<name>.age` 편집 (sudo 불필요. agenix는 cwd의 `./secrets.nix`를 RULES로 로드하므로 `secrets/` 디렉토리에서 실행)
   - canonical: `cd secrets && agenix -e <name>.age` (PATH `agenix` 사용 가능 시)
   - fallback: `cd secrets && nix run github:ryantm/agenix -- -e <name>.age`
+  - 잔여 follow-up: `hosting-copyparty/references/{setup,troubleshooting}.md`에는 legacy root-relative 예시가 남아 있으므로, 해당 deep reference를 정리하기 전까지는 본 canonical/fallback을 우선한다.
 - Podman socket 접근 권한 + 각 서비스별 `podman-<service>.service` systemd unit 관리
 
 본 스킬을 macOS Codex 세션 등 다른 호스트에서 호출하면 명령이 작동하지 않는다.
