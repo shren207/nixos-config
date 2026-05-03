@@ -27,6 +27,7 @@ EXPECTED_USER_PROMPT_COMMAND='$HOME/.codex/hooks/record-prompt-submit.sh'
 EXPECTED_STOP_DISPATCHER_COMMAND='$HOME/.codex/hooks/_stop-dispatcher.sh'
 
 # ~/.codex/config.toml의 [[hooks.PreToolUse.hooks]] command — issue #587에서 등록.
+# shellcheck disable=SC2016  # $HOME intentionally unexpanded: literal string match against config.toml
 EXPECTED_PRE_TOOL_USE_PINNING_GUARD_COMMAND='$HOME/.codex/hooks/pinning-guard.sh'
 
 # ~/.codex/config.toml의 [[hooks.PostToolUse.hooks]] command — issue #603에서 등록.

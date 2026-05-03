@@ -42,6 +42,10 @@ runner: `tests/test-codex-hook-fixtures.sh`.
 positive fixture의 expected 파일은 stdout JSON에서 추출한 `permissionDecisionReason` 원문이고,
 clean/pass fixture의 expected 파일은 빈 파일이다. hook stderr는 항상 빈 출력이어야 하며,
 exit code는 deny/pass 모두 0이다. deny 여부는 stdout JSON의 `hookSpecificOutput.permissionDecision=deny`로 검증한다.
+파일명 prefix는 호출 대상 runtime을 나타내므로, 공용 tool 이름이어도 Claude hook용 fixture는
+`pretooluse-pinning-guard-claude-write-clean.json`처럼 `claude` prefix를 유지한다.
+runner는 파일 fixture 외에도 sandbox meta case를 생성해 host `PINNING_PATTERNS_LIB` 누수 차단과
+Claude/Codex missing shared-library fail-closed 분기를 검증한다.
 
 | 파일 | hook | 입력 의도 | expected |
 |------|------|----------|----------|
@@ -56,6 +60,7 @@ exit code는 deny/pass 모두 0이다. deny 여부는 stdout JSON의 `hookSpecif
 | `pretooluse-pinning-guard-claude-bash-revert-hash-pass.json` | Claude PreToolUse | real `git commit` revert message with short hash | 빈 파일 |
 | `pretooluse-pinning-guard-codex-applypatch-positive.json` | Codex PreToolUse | apply_patch adds volatile metadata to `.md` | deny reason |
 | `pretooluse-pinning-guard-codex-applypatch-multifile.json` | Codex PreToolUse | apply_patch multi-file attribution | deny reason for matched `.md` |
+| `pretooluse-pinning-guard-codex-applypatch-multimatch.json` | Codex PreToolUse | apply_patch has multiple matched eligible files | single deny reason for first matched path |
 | `pretooluse-pinning-guard-codex-applypatch-moveto.json` | Codex PreToolUse | apply_patch `*** Move to:` effective path | deny reason for moved `.md` |
 | `pretooluse-pinning-guard-codex-applypatch-removeonly.json` | Codex PreToolUse | remove-only patch | 빈 파일 |
 | `pretooluse-pinning-guard-codex-applypatch-clean.json` | Codex PreToolUse | clean apply_patch | 빈 파일 |

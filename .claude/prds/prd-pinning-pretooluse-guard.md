@@ -16,7 +16,7 @@ LLM session and review metadata can still enter durable outputs outside the curr
 ## Goals
 - G-1: Add a shared pinning-pattern library that is the single source for pattern definitions, hash bounds, scan helper, eligibility helper, and finding labels.
 - G-2: Add Claude Code PreToolUse hard-fail coverage for Edit, Write, NotebookEdit, and Bash durable-output commands.
-- G-3: Add Codex managed PreToolUse hard-fail coverage for apply_patch/Edit/Write aliases and Bash durable-output commands.
+- G-3: Add Codex-managed PreToolUse hard-fail coverage for apply_patch/Edit/Write aliases and Bash durable-output commands.
 - G-4: Preserve existing warn-only layers while defining an explicit coexistence contract.
 - G-5: Extend fixtures, verifier, and oracles so missing hook/lib provisioning or config drift is caught before runtime.
 - G-6: Document the managed Codex PreToolUse ownership change and the new hard-fail policy.
@@ -122,6 +122,7 @@ LLM session and review metadata can still enter durable outputs outside the curr
 - Post-Implementation 1-7 automatic flow is approved by the user: implementation, implementation commit, code review loop, parallel audit, final multi-pass review, review fixes/commit, and PR creation.
 
 ## Phase Index
+
 | Phase | Status | Objective | Validation Focus | File |
 |---|---|---|---|---|
 | Phase 1: Pattern SSOT | Complete | Create shared pattern library and preserve warn-only baseline behavior. | Shellcheck, fixture no-live, verifier lib checks. | [phase-01-pattern-ssot.md](./prd-pinning-pretooluse-guard/phase-01-pattern-ssot.md) |

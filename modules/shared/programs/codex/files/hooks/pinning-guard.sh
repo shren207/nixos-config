@@ -171,7 +171,7 @@ case "$TOOL_NAME" in
 
     [ -s "$SECTIONS_FILE" ] || exit 0
 
-    awk -F'\t' '{print $1}' "$SECTIONS_FILE" | sort -u | while IFS= read -r path; do
+    while IFS= read -r path; do
       [ -n "$path" ] || continue
       pinning_should_check_path "$path" || continue
       PATH_SCAN_FILE=$(mktemp "$SCAN_DIR/scan-XXXXXX")
@@ -181,7 +181,7 @@ case "$TOOL_NAME" in
       findings="$(pinning_findings_text "$PATH_SCAN_FILE")"
       [ -n "$findings" ] || continue
       _deny "$TOOL_NAME" "$path" "$findings"
-    done
+    done < <(awk -F'\t' '{print $1}' "$SECTIONS_FILE" | sort -u)
     ;;
 esac
 

@@ -206,10 +206,10 @@ _run_hook_in_sandbox_core() {
 }
 
 # Wrapper 공용: sandbox 격리 env를 적용한 뒤 caller 명령을 실행한다.
-# 격리 계약: CLAUDECODE / CODEX_PROGRAMMATIC unset, sandbox bin-stubs를 PATH 앞에 prepend(host PATH는
-# 뒤에 보존하여 jq 등 시스템 도구 접근 유지), HOME / XDG_DATA_HOME / XDG_CONFIG_HOME / CODEX_HOME은
-# sandbox로 강제. _run_hook_in_sandbox_core(sandbox 내부 hook copy)와 카테고리 7 pinning-alert
-# 외부 절대경로 hook 실행이 이 helper 한 곳을 공유한다.
+# 격리 계약: CLAUDECODE / CODEX_PROGRAMMATIC / host PINNING_PATTERNS_LIB unset, sandbox bin-stubs를
+# PATH 앞에 prepend(host PATH는 뒤에 보존하여 jq 등 시스템 도구 접근 유지), HOME /
+# XDG_DATA_HOME / XDG_CONFIG_HOME / CODEX_HOME은 sandbox로 강제. _run_hook_in_sandbox_core
+# (sandbox 내부 hook copy)와 카테고리 7 pinning-alert 외부 절대경로 hook 실행이 이 helper 한 곳을 공유한다.
 # 첫 인자는 sandbox, 두 번째는 추가 env_pairs_string("" 또는 "K=V K=V"), 이후는 실행 명령 + 인자들.
 _exec_with_sandbox_env() {
   local sandbox="$1"; shift
@@ -218,7 +218,7 @@ _exec_with_sandbox_env() {
   if [[ -n "$env_pairs_string" ]]; then
     read -ra env_array <<<"$env_pairs_string"
   fi
-  env -u CLAUDECODE -u CODEX_PROGRAMMATIC "${env_array[@]}" \
+  env -u CLAUDECODE -u CODEX_PROGRAMMATIC -u PINNING_PATTERNS_LIB "${env_array[@]}" \
       PATH="$sandbox/bin-stubs:${PATH:-/usr/bin:/bin}" \
       HOME="$sandbox/home" \
       XDG_DATA_HOME="$sandbox/xdg-data" \
@@ -1048,6 +1048,81 @@ $stderr_head"
   done
 }
 
+test_pretooluse_pinning_guard_meta_behavioral() {
+  local clean_fixture="$FIXTURE_DIR/stdin/pretooluse-pinning-guard-codex-applypatch-clean.json"
+  local sandbox stdout_log stderr_log exit_code unexpected event decision reason
+
+  sandbox=$(new_hook_sandbox)
+  stdout_log="$sandbox/pretooluse-env-clean-stdout.log"
+  stderr_log="$sandbox/pretooluse-env-clean-stderr.log"
+  if PINNING_PATTERNS_LIB="$sandbox/host-leaked-pinning-patterns.sh" \
+      _exec_with_sandbox_env "$sandbox" "" "$sandbox/home/.codex/hooks/pinning-guard.sh" \
+        < "$clean_fixture" >"$stdout_log" 2>"$stderr_log"; then
+    exit_code=0
+  else
+    exit_code=$?
+  fi
+  assert_eq "$exit_code" "0" "[7b/meta] host PINNING_PATTERNS_LIB leak check: hook must exit 0"
+  if [ -s "$stderr_log" ]; then
+    unexpected="$(head -40 "$stderr_log")"
+    fail "[7b/meta] host PINNING_PATTERNS_LIB leak check: expected empty stderr, got:
+$unexpected"
+  fi
+  if [ -s "$stdout_log" ]; then
+    unexpected="$(head -40 "$stdout_log")"
+    fail "[7b/meta] host PINNING_PATTERNS_LIB leak check: expected clean pass with empty stdout, got:
+$unexpected"
+  fi
+
+  local label hook_source hook_target fixture
+  for label in claude codex; do
+    sandbox=$(new_hook_sandbox)
+    rm -f "$sandbox/home/.claude/lib/pinning-patterns.sh" "$sandbox/home/.codex/lib/pinning-patterns.sh"
+    stdout_log="$sandbox/pretooluse-missing-lib-stdout.log"
+    stderr_log="$sandbox/pretooluse-missing-lib-stderr.log"
+
+    case "$label" in
+      claude)
+        fixture="$FIXTURE_DIR/stdin/pretooluse-pinning-guard-claude-write-clean.json"
+        mkdir -p "$sandbox/home/.claude/hooks"
+        hook_source="$REPO_ROOT/modules/shared/programs/claude/files/hooks/pinning-guard.sh"
+        hook_target="$sandbox/home/.claude/hooks/pinning-guard.sh"
+        cp -L "$hook_source" "$hook_target"
+        chmod +x "$hook_target"
+        ;;
+      codex)
+        fixture="$FIXTURE_DIR/stdin/pretooluse-pinning-guard-codex-applypatch-clean.json"
+        hook_target="$sandbox/home/.codex/hooks/pinning-guard.sh"
+        ;;
+      *) fail "[7b/meta] unexpected runtime label: $label" ;;
+    esac
+
+    if _exec_with_sandbox_env "$sandbox" "" "$hook_target" < "$fixture" >"$stdout_log" 2>"$stderr_log"; then
+      exit_code=0
+    else
+      exit_code=$?
+    fi
+    assert_eq "$exit_code" "0" "[7b/meta/$label] missing shared lib: hook must exit 0 and deny via JSON"
+    if [ -s "$stderr_log" ]; then
+      unexpected="$(head -40 "$stderr_log")"
+      fail "[7b/meta/$label] missing shared lib: expected empty stderr, got:
+$unexpected"
+    fi
+    event="$(jq -r '.hookSpecificOutput.hookEventName // empty' "$stdout_log" 2>/dev/null)" \
+      || fail "[7b/meta/$label] missing shared lib: stdout JSON parse failed"
+    decision="$(jq -r '.hookSpecificOutput.permissionDecision // empty' "$stdout_log" 2>/dev/null)" \
+      || fail "[7b/meta/$label] missing shared lib: stdout JSON parse failed"
+    reason="$(jq -r '.hookSpecificOutput.permissionDecisionReason // empty' "$stdout_log" 2>/dev/null)" \
+      || fail "[7b/meta/$label] missing shared lib: stdout JSON parse failed"
+    assert_eq "$event" "PreToolUse" "[7b/meta/$label] missing shared lib: hook event mismatch"
+    assert_eq "$decision" "deny" "[7b/meta/$label] missing shared lib: permission decision mismatch"
+    case "$reason" in
+      "[pinning-guard] shared pinning policy library is missing:"*) ;;
+      *) fail "[7b/meta/$label] missing shared lib: unexpected reason: $reason" ;;
+    esac
+  done
+}
+
 # ─── 카테고리 5: programmatic env inheritance live (opt-in) ───
 # programmatic codex exec 호출자가 CODEX_PROGRAMMATIC=1을 codex 프로세스에 붙이면,
 # UserPromptSubmit hook subprocess까지 해당 marker가 상속되는지 검증한다. managed hook
@@ -1329,6 +1404,8 @@ run_test "pinning-alert behavioral (#606)" \
   test_pinning_alert_behavioral
 run_test "pretooluse pinning-guard behavioral (#587)" \
   test_pretooluse_pinning_guard_behavioral
+run_test "pretooluse pinning-guard meta behavioral (#587)" \
+  test_pretooluse_pinning_guard_meta_behavioral
 run_test "sync.sh mcp-config valid sources (#609)" \
   test_sync_sh_mcp_config_valid_sources
 run_test "sync.sh mcp-config fail-fast (#609)" \
