@@ -93,8 +93,8 @@ trigger 카테고리 정의 (키워드 목록 + 권장 transition 모드)는 [`.
 for_prd Step 7의 승인 표면은 아래 순서를 유지한다:
 
 - Target PRD paths: master PRD 경로와 split phase 경로 목록
-- Master PRD draft body: 승인 후 그대로 작성될 master PRD 본문 전체
+- Master PRD draft body: 승인 후 그대로 작성될 master PRD 본문 전체. `Change Log`에는 Step 7 full PRD approval packet이 제시됐음과 승인된 Post-Implementation stable step ID 범위를 기록한 항목을 포함한다.
 - Phase draft bodies: split mode일 때 승인 후 그대로 작성될 phase 본문 전체
 - Post-Implementation 자동 수행 범위: 위 stable step ID 표시 형식
 
-승인 후 Step 8에서 생성되는 PRD 파일 본문이 승인 기록이다. master PRD `Change Log`에는 Step 7에서 승인된 draft body를 그대로 작성했음과 승인된 Post-Implementation stable step ID 범위를 기록한다. Step 7 승인 이후 draft body를 바꿔야 하면 파일을 작성하지 말고 Step 7 승인 요청을 다시 수행한다.
+승인 후 Step 8은 승인된 draft body를 그대로 파일에 쓴다. Step 7 승인 이후 draft body를 바꿔야 하면 파일을 작성하지 말고 Step 7 승인 요청을 다시 수행한다.

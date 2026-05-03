@@ -73,7 +73,6 @@
 1. Step 1-4에서 수집한 정보, Step 5-6 DA 결과, 승인된 후보 phase 구조를 정리한다.
 2. [`../references/prd/prd-master-template.md`](../references/prd/prd-master-template.md)를 따라 `.claude/prds/prd-<feature>.md`에 Step 7에서 승인된 master PRD draft body를 그대로 작성한다. 승인 packet 이후 본문 변경이 필요하면 작성하지 말고 Step 7로 돌아간다. `<feature>` slug 안전 규칙은 [`../references/prd/file-mode-selection.md`](../references/prd/file-mode-selection.md#경로-slug-안전-규칙)가 SSOT다.
 3. Split mode이면 [`../references/prd/phase-template.md`](../references/prd/phase-template.md)를 따라 Step 7에서 승인된 phase draft body를 동일 실행에서 그대로 생성 (`.claude/prds/prd-<feature>/phase-NN-<name>.md`). `<name>` slug 안전 규칙도 [`../references/prd/file-mode-selection.md`](../references/prd/file-mode-selection.md#경로-slug-안전-규칙)를 따른다.
-4. 생성된 master PRD `Change Log`에 Step 7에서 승인된 draft body를 그대로 작성했음과 승인된 Post-Implementation stable step ID 범위를 기록한다.
 
 PRD 작성 + 갱신 + phase 진행 + Phase Discovery Gate 적용을 모두 본 모드가 책임진다. 별도 plan 파일 (`.claude/plans/`)은 만들지 않는다.
 

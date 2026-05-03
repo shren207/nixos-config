@@ -28,7 +28,7 @@
 
 사용자가 명시적으로 특정 단계를 생략하라고 지시한 경우에만 해당 단계를 건너뛴다.
 
-승인 표면의 생략 항목은 terminal suffix만 허용한다. 예를 들어 뒤쪽 PR 생성 단계를 생략할 수는 있지만, 앞쪽 checkpoint를 생략하고 그 뒤의 dependent step을 유지할 수 없다. 비연속 생략 요청이 들어오면 dependency closure를 적용한 최종 stable step ID 목록을 다시 사용자에게 노출하고 승인받는다.
+승인 표면의 생략 항목은 의존성을 깨뜨리면 안 된다. 최소 의존성은 다음과 같다: `PI-COMMIT` requires `PI-IMPLEMENT`; `PI-RUN-DA` requires `PI-COMMIT`; `PI-PARALLEL-AUDIT` and `PI-FINAL-REVIEW` require `PI-IMPLEMENT`; `PI-FOLLOWUP-COMMIT` requires `PI-FINAL-REVIEW`; `PI-CREATE-PR` requires `PI-COMMIT`. 생략 요청이 의존성을 깨뜨리면 dependency closure를 적용한 최종 stable step ID 목록을 다시 사용자에게 노출하고 승인받는다.
 
 ## 신뢰 경계 (#569 회귀 방지)
 
