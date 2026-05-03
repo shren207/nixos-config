@@ -22,7 +22,8 @@ PATTERN_D='\b[a-f0-9]{7,40}\b|`[a-f0-9]+`'
 
 # GitHub issue/PR attachment assets are durable media identifiers, not commits.
 # Keep this exact so other URL/path hex tokens remain visible to PATTERN_D.
-PATTERN_GITHUB_ATTACHMENT_ASSET_URL='https://github\.com/user-attachments/assets/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
+# The trailing delimiter is captured and restored by the sanitizer.
+PATTERN_GITHUB_ATTACHMENT_ASSET_URL='https://github\.com/user-attachments/assets/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}([^a-f0-9]|$)'
 
 pinning_should_check_path() {
   local path="$1"
@@ -49,7 +50,7 @@ pinning_should_check_path() {
 
 pinning_sanitize_partial_hash_input() {
   local scan_file="$1"
-  sed -E "s#${PATTERN_GITHUB_ATTACHMENT_ASSET_URL}#__GITHUB_ATTACHMENT_ASSET_URL__#g" "$scan_file"
+  sed -E "s#${PATTERN_GITHUB_ATTACHMENT_ASSET_URL}#__GITHUB_ATTACHMENT_ASSET_URL__\\1#g" "$scan_file"
 }
 
 pinning_partial_hash_report() {
