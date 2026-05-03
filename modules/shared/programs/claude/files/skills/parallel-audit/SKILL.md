@@ -18,7 +18,8 @@ description: |
 |------|-----|
 | 기본 에이전트 수 | 6 |
 | open thread cap | current session의 `agents.max_threads` (unset 기본 6) |
-| `$ARGUMENTS` | 에이전트 수 (정수). 비어있으면 기본값 6 사용 (Claude Code 하네스의 인자 치환 메타문법. Codex에서는 호출 래퍼 또는 메인 에이전트가 사용자 입력에서 정수를 파싱한다.) |
+| args 첫 토큰 (정수) | 에이전트 수. 비어있으면 기본값 6 사용. 예: `parallel-audit 6` (정수 단독) 또는 `parallel-audit 6 <컨텍스트>` (정수 + 컨텍스트). |
+| args 그 외 (자유 텍스트) | 메인 에이전트가 변경 컨텍스트로 활용 (Step 1 `git diff` 결과와 결합). 정수 없이도 가능: `parallel-audit <컨텍스트>` (기본 6). |
 | exhaustive override | `parallel-audit 10` |
 | 에이전트 권한 | 읽기 전용. codex exec 경로(Claude Code/headless)는 Layer 1(`codex-exec-supervised --sandbox read-only --ignore-user-config --ignore-rules`)으로 구조적 강제. Codex 세션(`spawn_agent`)은 정책 + 프롬프트 + self-report로 운영 (Non-goals 참조) |
 
@@ -84,7 +85,8 @@ git log --oneline -5     # 최근 커밋 컨텍스트
 
 ### Step 2: 조사 bundle 분배
 
-에이전트 수(`$ARGUMENTS` 또는 기본값 6)에 맞게 위 6개 bundle을 분배한다.
+에이전트 수(args 첫 토큰이 정수면 그 값, 아니면 기본값 6)에 맞게 위 6개 bundle을 분배한다.
+메인 에이전트는 args의 자유 텍스트(컨텍스트)를 보존하고 Step 1의 `git diff` 결과와 결합하여 bundle 분배 가중치 결정에 활용한다.
 변경 내용에 따라 관련도가 높은 bundle에 에이전트를 더 배정할 수 있다.
 
 예: Nix 설정 변경이면 `Platform (macOS + NixOS)`와 `Adjacent Side Effects`에 더 많은 비중을 두고,
@@ -338,6 +340,10 @@ BUG/REGRESSION/EDGECASE가 있으면 요약 테이블 아래에 상세를 추가
 ```
 
 (근거: 과거 검증 에이전트 5개에 YAGNI 프레이밍을 주입하여 5/5 만장일치 SKIP을 유도한 사례 — 프롬프트 조향 회귀 방지 목적)
+
+## 관련 follow-up
+
+`parallel-audit` + `run-da` + `codex-fan-out` + `plan-with-questions` 4 SKILL의 args 처리 패턴이 서로 다르다 (정수 / mode 토큰 / 텍스트 우선 / 모드 판별 표). 4 SKILL 호출 인터페이스의 mental model 통일은 본 이슈 scope 외 — 별도 메타 이슈에서 다룬다.
 
 ## Non-goals
 
