@@ -68,10 +68,10 @@ PRD 작성 후의 진행은 PRD master Document Status에서 `Current Phase` / `
 |---|---|
 | `N/A` | PRD 작성 전, 또는 모든 phase/final closeout 완료 |
 | `PHASE-MATERIALIZE` | 승인된 phase-start materialization gate에 따라 phase 파일과 master materialization update 작성 필요 |
-| `PI-IMPLEMENT` | active phase 구현 진행 필요 |
-| `PI-COMMIT` | active phase 구현 변경 커밋 필요 |
-| `PI-RUN-DA` | active phase diff 기준 `/run-da for_pr` 필요 |
-| `PI-PARALLEL-AUDIT` | active phase diff 기준 `/parallel-audit` 필요 |
+| `PHASE-IMPLEMENT` | active phase 구현 진행 필요 |
+| `PHASE-COMMIT` | active phase 구현 변경 커밋 필요 |
+| `PHASE-RUN-DA` | active phase diff 기준 `/run-da for_pr` 필요 |
+| `PHASE-PARALLEL-AUDIT` | active phase diff 기준 `/parallel-audit` 필요 |
 | `PHASE-END-PRD-SYNC` | active phase validation, phase-end review, Finding Disposition, master/phase PRD sync 필요 |
 | `PHASE-END-COMMIT` | phase-end PRD sync 변경 커밋 checkpoint 필요 |
 | `PI-FINAL-REVIEW` | 모든 phase checkpoint 이후 final review gate 승인 또는 Final Multi-Pass Review 필요 |
