@@ -89,22 +89,6 @@ Single-file mode에서는 아래 구조 전체를 단일 파일에 둔다. Split
 ## Final Multi-Pass Review After All Phases
 plan-with-questions의 references/prd/multi-pass-review.md 체크리스트를 여기 인라인으로 복제하거나, 해당 파일을 참조 문자열로만 둔다.
 
-## Approved PR Write Artifact
-[split final PR write gate 전에 `/create-pr prepare` 결과를 기록하고 커밋한다. 각 entry는 exact title, full body, and stable write tuple을 포함해야 하며, final PR write gate의 runtime approval record가 해당 entry를 참조한다. approved head commit SHA는 artifact commit 뒤 runtime approval record에서만 고정한다.]
-
-### <entry-id>
-- Mode: create | update
-- PR: N/A | #123
-- Base Repository: owner/repo
-- Target Branch: main
-- Head: owner/repo:branch
-- Title Change: yes | no
-- Exact PR Title: ... <!-- create 또는 Title Change=yes일 때 필수; Title Change=no이면 current title preserved -->
-
-```markdown
-[full approved PR body]
-```
-
 ## Open Questions
 - ...
 

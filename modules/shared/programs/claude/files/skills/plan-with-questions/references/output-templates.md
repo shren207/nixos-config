@@ -177,11 +177,11 @@ Final review default display string:
 
 ### final PR write gate
 
-이 gate는 final review가 끝나고 필요한 follow-up commit이 모두 끝난 뒤, `/create-pr prepare` 결과를 master PRD `Approved PR Write Artifact` 섹션에 기록하고 그 PRD 변경까지 커밋해 final diff가 고정된 뒤에만 제시한다. Final review가 clean이면 `PI-FOLLOWUP-COMMIT: N/A`를 기록하고, artifact commit 이후 diff state를 고정한다. 승인 후 artifact나 PRD marker를 tracked file에 추가로 쓰면 approved head commit SHA가 바뀌므로 금지한다.
+이 gate는 final review가 끝나고 필요한 follow-up commit이 모두 끝나 final diff가 고정된 뒤에만 제시한다. Final review가 clean이면 `PI-FOLLOWUP-COMMIT: N/A`를 기록한 뒤 final diff state를 고정한다. 그 상태에서 `/create-pr prepare`를 실행하고, 결과의 exact PR title/body와 approved head commit SHA를 승인 표면에 그대로 제시한다. 승인 후 PRD marker나 PR body artifact를 tracked file에 추가로 쓰면 approved head commit SHA가 바뀌므로 금지한다.
 
-- Final fixed diff state: follow-up/artifact commit 이후 최종 diff 요약, base repository owner/name, head branch, target branch, head repository owner/name, approved head commit SHA
+- Final fixed diff state: follow-up commit 또는 clean final review 이후 최종 diff 요약, base repository owner/name, head branch, target branch, head repository owner/name, approved head commit SHA
 - PR write target: `create` 또는 `update`. `update`이면 PR number/URL, current title, 현재 base repository owner/name, 현재 base/head, head repository owner/name, current head commit SHA, title 변경 여부를 함께 제시한다. title 변경이 승인 표면에 없으면 기존 title을 보존한다.
-- PR write body: GitHub에 전달할 exact PR title(생성 또는 승인된 title 변경 시)과 full PR body. `/create-pr prepare`나 create-pr 8섹션 템플릿으로 생성한 exact title/body를 이 gate에 그대로 제시한다. `/create-pr` 입력이나 요약은 supporting context로만 사용할 수 있으며 PR write 승인 근거가 될 수 없다. committed artifact에는 exact title/body와 stable write tuple만 저장하고, artifact commit 때문에 다시 바뀌는 approved head commit SHA는 저장하지 않는다.
+- PR write body: GitHub에 전달할 exact PR title(생성 또는 승인된 title 변경 시)과 full PR body. `/create-pr prepare`나 create-pr 8섹션 템플릿으로 생성한 exact title/body를 이 gate에 그대로 제시한다. `/create-pr` 입력이나 요약은 supporting context로만 사용할 수 있으며 PR write 승인 근거가 될 수 없다. exact PR body는 PRD/plan 같은 tracked file에 저장하지 않는다.
 - PRD final PR write 자동 수행 범위: `PI-CREATE-PR`
 - Approval meaning: 승인하면 메인 에이전트가 승인된 `PI-CREATE-PR` 범위에 한해 `/create-pr apply-approved`로 PR 생성/업데이트를 추가 사용자 확인 없이 수행한다. 승인 후 write mode, PR number, base repo, target/head branch, head repository owner/name, head commit SHA, title/body를 재발견하거나 재생성하지 않는다. 직접 `gh pr create/edit`로 우회하지 않는다.
 
@@ -194,7 +194,7 @@ Final gate runtime approval record:
 
 ```markdown
 - YYYY-MM-DD: FINAL_REVIEW_GATE_APPROVED step_ids=[PI-FINAL-REVIEW,PI-FOLLOWUP-COMMIT] base=<owner/repo> head=<owner/repo@sha> target=<branch> followup_scope=<summary-or-N/A>
-- YYYY-MM-DD: FINAL_PR_WRITE_GATE_APPROVED mode=<create|update> pr=<number-or-N/A> base=<owner/repo> head=<owner/repo:branch@sha> target=<branch> title_change=<yes|no> approved_pr_artifact=PRD:Approved PR Write Artifact/<entry-id>
+- YYYY-MM-DD: FINAL_PR_WRITE_GATE_APPROVED mode=<create|update> pr=<number-or-N/A> base=<owner/repo> head=<owner/repo:branch@sha> target=<branch> title_change=<yes|no> approved_packet=final-pr-write-gate
 ```
 
-`approved_pr_artifact` must reference the master PRD `Approved PR Write Artifact` section. That section must contain the exact PR title for create or title-change writes, the approved current title for no-title-change updates, full PR body, write mode, base repository owner/name, target branch, head repository owner/name, and head branch, and it must already be committed before the final PR write gate is shown. The approved head commit SHA is captured only in the final PR write gate runtime approval record after the artifact commit fixes the final diff. The approval record itself is a runtime approval record, not a post-gate tracked PRD write. Inline chat text, `/tmp` paths, transient tool output, summaries, checksums, or paths without the exact title/body are not resumable approval markers; on resume, use the durable artifact to present the final PR write gate again unless the same active runtime still has the approval record.
+`FINAL_PR_WRITE_GATE_APPROVED` is valid only inside the same active runtime that still has the exact approved title/body packet from the final PR write gate. It is a runtime approval record, not a tracked PRD write and not a resumable marker. Inline chat text, `/tmp` paths, transient tool output, summaries, checksums, paths without the exact title/body, or any tracked PRD/plan artifact must not be treated as PR write approval. On resume or after losing the exact approved packet, rerun `/create-pr prepare` against the current fixed diff and present the final PR write gate again.

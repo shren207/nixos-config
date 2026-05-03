@@ -76,7 +76,7 @@ PR을 생성하기 전에, 작업 결과의 처리 방향을 결정한다:
    - `update` mode: PR number/URL, current title, current base repository owner/name, current base/head, head repository owner/name, current head commit SHA, title change 여부. `title_change=yes`이면 exact approved PR title을 함께 출력한다. 제목 변경이 승인 표면에 명시되지 않으면 기존 title을 보존한다.
    - Exact full PR body
 3. `prepare` 모드에서는 `gh pr create`, `gh pr edit`, review comment 작성, thread resolve 같은 GitHub write를 수행하지 않는다.
-4. split PRD final PR write gate에서 사용할 경우, 이 exact title/body를 master PRD `Approved PR Write Artifact` 섹션에 기록하고 커밋한 뒤 그 커밋 SHA를 final PR write gate에 제시한다. 승인 후 문구를 수정해야 하면 다시 `prepare`를 수행하고 artifact를 다시 커밋한 뒤 다시 승인받는다.
+4. split PRD final PR write gate에서 사용할 경우, 이 exact title/body와 approved head commit SHA를 final PR write gate 승인 표면에 그대로 제시한다. PRD/plan 같은 tracked file에 exact PR body를 저장하지 않는다. 승인 후 문구나 head SHA가 바뀌면 다시 `prepare`를 수행하고 final PR write gate를 다시 승인받는다.
 
 ### 승인된 PR 쓰기 (`apply-approved`)
 

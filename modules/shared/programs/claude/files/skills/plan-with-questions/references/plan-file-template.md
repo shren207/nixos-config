@@ -126,6 +126,11 @@ Step 3.5 자문 결과의 `result.json` 경로 또는 핵심 decision_id list. p
 ## 실행 순서
 <의존 관계 고려한 작업 순서>
 
+## Post-Implementation 자동 수행 범위
+`Post-Implementation 자동 수행: PI-IMPLEMENT, PI-COMMIT, PI-RUN-DA, PI-PARALLEL-AUDIT, PI-FINAL-REVIEW, PI-FOLLOWUP-COMMIT, PI-CREATE-PR (default)`
+
+생략 항목: N/A
+
 ## Validation Strategy
 <risk-appropriate mix — `~/.claude/skills/plan-with-questions/references/validation-paths.md` catalog 인용>
 
