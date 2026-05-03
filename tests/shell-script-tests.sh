@@ -289,11 +289,17 @@ test_prd_resume_state_covers_single_file_pi_chain() {
 
 test_phase_remediation_ssot_points_to_resume_state() {
   local routing="$REPO_ROOT/modules/shared/programs/claude/files/skills/plan-with-questions/references/task-size-routing.md"
+  local phase_template="$REPO_ROOT/modules/shared/programs/claude/files/skills/plan-with-questions/references/prd/phase-template.md"
   local stale='Phase-end remediation 순서와 재승인 규칙은 [`./output-templates.md#phase-remediation-approval-packet`](./output-templates.md#phase-remediation-approval-packet)이 SSOT'
+  local stale_phase_template='phase-end remediation 규칙'
 
   grep -Fq 'Phase-end remediation 순서와 재승인 규칙은 [`./resume-state.md#for_prd-prd-작성-후-next-blocking-step`](./resume-state.md#for_prd-prd-작성-후-next-blocking-step)이 SSOT' "$routing" || \
     fail "expected phase remediation execution SSOT to point to resume-state.md"
   ! grep -Fq "$stale" "$routing" || fail "task-size-routing.md still claims output-templates.md owns remediation execution SSOT"
+  grep -Fq '[`../resume-state.md#for_prd-prd-작성-후-next-blocking-step`](../resume-state.md#for_prd-prd-작성-후-next-blocking-step)의 phase-end remediation 실행 계약' "$phase_template" || \
+    fail "expected phase-template.md to point remediation execution to resume-state.md"
+  ! grep -Fq "$stale_phase_template" "$phase_template" || \
+    fail "phase-template.md still describes output-template approval packet as remediation rules"
 }
 
 new_sandbox() {

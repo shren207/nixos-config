@@ -93,4 +93,4 @@ Last Updated: YYYY-MM-DD
 - Phase Discovery Gate는 모든 phase 파일에 필수다. 편집 전에 다시 읽고 체크한다.
 - Validation Checklist 항목에는 "어떤 command / 어떤 surface / 어떤 시나리오"를 적어 evidence로 만든다.
 - Phase-End 10-pass는 phase 종료마다 수행한다. 프로젝트 마감 시 수행하는 Final 10-pass ([`multi-pass-review.md`](./multi-pass-review.md))와는 다른 축이다 — Phase-End는 future-phase/PRD sync 관점이 있고, Final은 closeout 관점이 있다.
-- Phase-End Finding Disposition 표는 `PHASE-END-COMMIT` 전 필수 기록이다. `partial`, `missing`, `conflicting`, `overbuilt` finding은 [`../output-templates.md#phase-remediation-approval-packet`](../output-templates.md#phase-remediation-approval-packet)의 phase-end remediation 규칙에 따라 satisfied 처리하거나, 명시 근거와 follow-up으로 deferred 처리한 뒤 커밋한다.
+- Phase-End Finding Disposition 표는 `PHASE-END-COMMIT` 전 필수 기록이다. `partial`, `missing`, `conflicting`, `overbuilt` finding은 [`../resume-state.md#for_prd-prd-작성-후-next-blocking-step`](../resume-state.md#for_prd-prd-작성-후-next-blocking-step)의 phase-end remediation 실행 계약에 따라 satisfied 처리하거나, [`../output-templates.md#phase-remediation-approval-packet`](../output-templates.md#phase-remediation-approval-packet)의 승인 표면 field order로 명시 근거와 follow-up을 승인받아 deferred 처리한 뒤 커밋한다.
