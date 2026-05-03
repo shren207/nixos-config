@@ -7,7 +7,7 @@ runner: `tests/test-codex-hook-fixtures.sh`.
 
 | 경로 | 의도 | 소비처 |
 |------|------|--------|
-| `stdin/` | hook stdin fixture 공용 디렉터리. Codex 0.124+ payload(`record-prompt-submit.sh`/`record-last-stop.sh`/`stop-notification.sh` 등)와 pinning-alert behavioral fixture(Claude+Codex hook 입력/출력 박제, `*.expected` sidecar 포함)가 함께 위치. 카테고리별 파일 표는 아래 카테고리 6/7 절 참조. | `test_stdin_payloads_create_expected_hook_artifacts_codex_0_124`, `test_stop_notification_codex_transcript_fallback`, `test_stop_notification_secret_redaction`, `test_pinning_alert_behavioral` |
+| `stdin/` | hook stdin fixture 공용 디렉터리. Codex 0.124+ payload(`record-prompt-submit.sh`/`record-last-stop.sh`/`stop-notification.sh` 등), PostToolUse pinning-alert warn-only fixture, PreToolUse pinning-guard hard-fail fixture(`*.expected` sidecar 포함)가 함께 위치. 카테고리별 파일 표는 아래 카테고리 6/7/7b 절 참조. | `test_stdin_payloads_create_expected_hook_artifacts_codex_0_124`, `test_stop_notification_codex_transcript_fallback`, `test_stop_notification_secret_redaction`, `test_pinning_alert_behavioral`, `test_pretooluse_pinning_guard_behavioral` |
 | `sync-preservation/` | `sync-codex-config.py`가 `~/.codex/config.toml`을 merge할 때 user-owned 영역을 어떻게 보존/덮어쓰는지 검증할 user 측 입력 TOML. | `test_sync_preservation_scenarios` |
 | `transcripts/` | Codex 0.124+ session JSONL transcript 샘플. stop-notification.sh의 `extract_last_assistant_text` fallback 경로 검증용. | `test_stop_notification_codex_transcript_fallback` (6.1) |
 
@@ -36,9 +36,47 @@ runner: `tests/test-codex-hook-fixtures.sh`.
 | `pinning-codex-applypatch-backtick-short.json` | Codex apply_patch | `` `abcde` `` 5자 backtick (`HASH_MIN=7` 미만) | 빈 파일 (false positive 회피) |
 | `pinning-codex-bash-out-of-scope.json` | Codex Bash | `tool_name=Bash` (사전 분기 대상) | 빈 파일 |
 
+### stdin/ 카테고리 7b fixture (PreToolUse pinning-guard hard-fail, #587)
+
+각 `pretooluse-pinning-guard-*.json` 옆에 동일 basename의 `*.expected`가 있다.
+positive fixture의 expected 파일은 stdout JSON에서 추출한 `permissionDecisionReason` 원문이고,
+clean/pass fixture의 expected 파일은 빈 파일이다. hook stderr는 항상 빈 출력이어야 하며,
+exit code는 deny/pass 모두 0이다. deny 여부는 stdout JSON의 `hookSpecificOutput.permissionDecision=deny`로 검증한다.
+파일명 prefix는 호출 대상 runtime을 나타내므로, 공용 tool 이름이어도 Claude hook용 fixture는
+`pretooluse-pinning-guard-claude-write-clean.json`처럼 `claude` prefix를 유지한다.
+runner는 파일 fixture 외에도 sandbox meta case를 생성해 host `PINNING_PATTERNS_LIB` 누수 차단과
+Claude/Codex missing shared-library fail-closed 분기를 검증한다.
+
+| 파일 | hook | 입력 의도 | expected |
+|------|------|----------|----------|
+| `pretooluse-pinning-guard-claude-edit-positive.json` | Claude PreToolUse | Edit delta가 새 volatile metadata를 추가 | deny reason |
+| `pretooluse-pinning-guard-claude-edit-existing-no-increase.json` | Claude PreToolUse | 기존 pinned text count가 증가하지 않는 Edit | 빈 파일 |
+| `pretooluse-pinning-guard-claude-write-clean.json` | Claude PreToolUse | clean Write | 빈 파일 |
+| `pretooluse-pinning-guard-claude-write-positive.json` | Claude PreToolUse | Write content with volatile metadata | deny reason |
+| `pretooluse-pinning-guard-claude-notebook-positive.json` | Claude PreToolUse | NotebookEdit on `.ipynb` | deny reason |
+| `pretooluse-pinning-guard-claude-bash-positive.json` | Claude PreToolUse | durable `gh` command with volatile metadata | deny reason |
+| `pretooluse-pinning-guard-claude-bash-cherrypick-comment.json` | Claude PreToolUse | durable `gh` comment mentioning cherry-pick plus a short hash | deny reason |
+| `pretooluse-pinning-guard-claude-bash-git-option-commit.json` | Claude PreToolUse | `git` global-option commit command | deny reason |
+| `pretooluse-pinning-guard-claude-bash-revert-hash-pass.json` | Claude PreToolUse | real `git commit` revert message with short hash | 빈 파일 |
+| `pretooluse-pinning-guard-codex-applypatch-positive.json` | Codex PreToolUse | apply_patch adds volatile metadata to `.md` | deny reason |
+| `pretooluse-pinning-guard-codex-applypatch-multifile.json` | Codex PreToolUse | apply_patch multi-file attribution | deny reason for matched `.md` |
+| `pretooluse-pinning-guard-codex-applypatch-multimatch.json` | Codex PreToolUse | apply_patch has multiple matched eligible files | single deny reason for first matched path |
+| `pretooluse-pinning-guard-codex-applypatch-moveto.json` | Codex PreToolUse | apply_patch `*** Move to:` effective path | deny reason for moved `.md` |
+| `pretooluse-pinning-guard-codex-applypatch-removeonly.json` | Codex PreToolUse | remove-only patch | 빈 파일 |
+| `pretooluse-pinning-guard-codex-applypatch-clean.json` | Codex PreToolUse | clean apply_patch | 빈 파일 |
+| `pretooluse-pinning-guard-codex-applypatch-relative-self-exclude.json` | Codex PreToolUse | repo-relative fixture maintenance patch | 빈 파일 |
+| `pretooluse-pinning-guard-codex-edit-existing-no-increase.json` | Codex PreToolUse | alias Edit existing-count no-increase | 빈 파일 |
+| `pretooluse-pinning-guard-codex-write-positive.json` | Codex PreToolUse | alias Write content with volatile metadata | deny reason |
+| `pretooluse-pinning-guard-codex-bash-positive.json` | Codex PreToolUse | durable `gh` command with volatile metadata | deny reason |
+| `pretooluse-pinning-guard-codex-bash-cherrypick-comment.json` | Codex PreToolUse | durable `gh` comment mentioning cherry-pick plus a short hash | deny reason |
+| `pretooluse-pinning-guard-codex-bash-git-option-commit.json` | Codex PreToolUse | `git` global-option commit command | deny reason |
+| `pretooluse-pinning-guard-codex-bash-gh-api-comment.json` | Codex PreToolUse | `gh api` issue comment body | deny reason |
+| `pretooluse-pinning-guard-codex-bash-revert-hash-pass.json` | Codex PreToolUse | real `git commit` revert message with short hash | 빈 파일 |
+| `pretooluse-pinning-guard-codex-bash-out-of-scope.json` | Codex PreToolUse | non-durable Bash command | 빈 파일 |
+
 ## 외부 contract만 디렉토리로 노출
 
-dispatcher ordering / noise-guard / env-propagation 시나리오는 runner 내부 helper가
+dispatcher ordering / noise-guard / programmatic env inheritance 시나리오는 runner 내부 helper가
 sandbox 안에서 동적으로 mock script를 작성한다. 디렉토리에 빈 placeholder를 두지 않는다.
 
 ## 실행
@@ -70,6 +108,7 @@ agent_id 키는 0.124 schema에 없으며 hook은 graceful fallback에 의존한
 | `scenario-C-user-different-event.toml` | template 미선언 이벤트는 user-owned로 보존 | hooks.SessionStart 등이 그대로 유지 |
 | `scenario-D-mcp-servers-coexist.toml` | mcp_servers와 hooks 인접 ownership view | 사용자 mcp_servers entry 보존 + hooks template 적용 |
 | `scenario-E-posttooluse-template-owned.toml` | template이 선언한 PostToolUse 이벤트(issue #603)에 사용자가 entry 추가 시 sync가 template 값으로 덮어씀 | 사용자 PostToolUse marker가 사라지고 managed pinning-alert command만 남음 |
+| `scenario-F-pretooluse-template-owned.toml` | template이 선언한 PreToolUse 이벤트(issue #587)에 사용자가 entry 추가 시 sync가 template 값으로 덮어씀 | 사용자 PreToolUse marker가 사라지고 managed pinning-guard command만 남음 |
 
 ## codex exec invocation matrix 시나리오 (live opt-in, issue #593)
 
@@ -93,6 +132,6 @@ agent_id 키는 0.124 schema에 없으며 hook은 graceful fallback에 의존한
 | `standard_override_devnull_stdin_hang` | `-c hooks.<event>` | read-only | `</dev/null` | HANG (timeout 못 죽임) | known-issues.md §15 |
 | `standard_override_stdin_pipe_hang` | `-c hooks.<event>` | read-only | pipe + `-` | HANG (timeout 못 죽임) | known-issues.md §15 |
 | `host_home_no_override_stdin_pipe_pass` | 없음 | read-only | pipe + `-` 또는 `</dev/null` | OK 12s, hook fired, "PONG" | invocation matrix scenario-1 (wrapper 적용 시 `_supervised_pass`) |
-| `isolated_codex_home_overrideless_known_hang` | 없음 (ephemeral config.toml로 hook 등록) | read-only | inherited | HANG (PR #595 fixture pattern) | known-issues.md §15 caveat + **follow-up: [#634](https://github.com/greenheadHQ/nixos-config/issues/634)** |
+| `isolated_codex_home_overrideless_retired_self_injection` | 없음 (ephemeral config.toml로 hook 등록) | read-only | inherited | HANG/marker unset in retired PR #595 self-injection assertion | Retired historical context: #634 replaces this with `programmatic_env_inheritance_live` using caller-supplied `CODEX_PROGRAMMATIC=1`, supervised wrapper, and stdin pipe EOF |
 
-**`isolated_codex_home_overrideless_known_hang` caveat**: PR #595 fixture `test_env_propagation_live`가 mac 0.128에서 hang/CLAUDECODE 미도달 fail. 본 PR scope 외 — follow-up [#634](https://github.com/greenheadHQ/nixos-config/issues/634)에서 추적.
+**Retired historical context (#634)**: PR #595의 기존 self-injection assertion은 mac 0.128에서 marker unset fail을 보였지만, repo의 지원 계약은 Codex CLI self-injection이 아니라 caller-supplied `CODEX_PROGRAMMATIC=1`이다. 현재 live fixture는 sandbox `CODEX_HOME` hook config + `codex-exec-supervised` + stdin pipe EOF로 해당 marker가 hook subprocess까지 상속되는지만 검증한다. managed hook early-exit 동작은 deterministic noise-guard fixture가 검증한다.
