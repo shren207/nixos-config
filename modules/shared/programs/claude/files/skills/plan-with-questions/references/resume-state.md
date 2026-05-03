@@ -145,6 +145,8 @@ PRD 파일 작성 전의 `for_prd.step5_da` / `for_prd.step6_da_apply`는 durabl
 
 ### Post-Implementation
 
+New plan state writes must use the canonical `PI-*` stable step IDs from [`post-implementation.md`](./post-implementation.md). The `post_impl.*` values below are legacy resume aliases for older `.claude/plans/*` files only; normalize them to the matching `PI-*` value when the plan next records `Resume From` or `Last Completed Step`.
+
 | Resume From | 진입 조건 |
 |-------------|----------|
 | `post_impl.implementation` | 변경 구현 (1번) |
@@ -154,6 +156,18 @@ PRD 파일 작성 전의 `for_prd.step5_da` / `for_prd.step6_da_apply`는 durabl
 | `post_impl.final_10pass` | Final Multi-Pass Review (5번) |
 | `post_impl.review_commit` | 10-pass 반영 커밋 (6번, 수정 발생 시) |
 | `post_impl.create_pr` | `/create-pr` (7번) |
+
+Legacy alias mapping:
+
+| Legacy Resume From | Canonical stable step ID |
+|---|---|
+| `post_impl.implementation` | `PI-IMPLEMENT` |
+| `post_impl.implementation_commit` | `PI-COMMIT` |
+| `post_impl.run_da_for_pr` | `PI-RUN-DA` |
+| `post_impl.parallel_audit` | `PI-PARALLEL-AUDIT` |
+| `post_impl.final_10pass` | `PI-FINAL-REVIEW` |
+| `post_impl.review_commit` | `PI-FOLLOWUP-COMMIT` |
+| `post_impl.create_pr` | `PI-CREATE-PR` |
 
 ## Baseline drift 검증 알고리즘
 

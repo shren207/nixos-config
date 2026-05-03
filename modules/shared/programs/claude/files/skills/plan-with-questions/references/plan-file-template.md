@@ -207,5 +207,5 @@ Step 3.5 자문 결과의 `result.json` 경로 또는 핵심 decision_id list. p
 - **Step 7 계획 추적 진입**: Step 4.5의 기존 plan 파일을 추적 상태에 바인딩한다. 새 파일을 만들지 않는다.
 - **Step 8 (계획 파일 review/refine)**: 기존 plan 파일의 본문, Decision Log, Post-Implementation 자동 수행 범위를 승인 가능한 수준으로 정리한다.
 - **Step 9 승인 후**: Status `Approved` → `Implementing`. Last Updated 갱신.
-- **Post-Impl 각 단계 완료 시**: Last Completed Step / Resume From / DA State 갱신.
+- **Post-Impl 각 단계 완료 시**: Last Completed Step / Resume From / DA State 갱신. 새 기록은 [`post-implementation.md`](./post-implementation.md)의 canonical `PI-*` stable step ID를 사용하고, legacy `post_impl.*` 값은 [`resume-state.md`](./resume-state.md#post-implementation)의 mapping에 따라 읽기 호환만 수행한다.
 - **재개 시**: Baseline 비교 → drift 시 DL 추가 + Status `Implementing`로 복원.

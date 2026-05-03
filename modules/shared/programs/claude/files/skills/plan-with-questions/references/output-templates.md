@@ -139,8 +139,9 @@ Final review default display string:
 ### final PR write gate
 
 - Final fixed diff state
-- PR write target
-- PR write body
+- PR write tuple: mode, PR number/URL when update, base repository owner/name, target branch, head branch, head repository owner/name, approved head commit SHA
+- PR title tuple: exact PR title when create; current title and title_change when update; exact approved PR title when update title_change=yes
+- Exact full PR body
 - PRD final PR write 자동 수행 범위: `PI-CREATE-PR`
 - Approval meaning
 
