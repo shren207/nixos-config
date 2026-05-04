@@ -217,6 +217,8 @@ rm -rf -- "$CONSULT_DIR"
 - **for_action**: plan 파일 `Decision Log`에 ADR 미니 기록.
 - **for_prd**: PRD draft/context에 기록하고, PRD 작성 후 master `Change Log`와 특정 phase가 영향받는 경우 phase `Discoveries / Decisions`에 이관.
 
+**Durable output에 임시 dir path 기록 금지 (회귀 방지)**: 셸 호출 사이에 `CONSULT_DIR` 리터럴 값을 재사용하는 것은 runtime 요구사항이지만, plan/PRD/PR/issue/comment 같은 durable output에는 `/tmp/consult-XXXXXXXX-YYYYYY/result.json` 같은 임시 경로 리터럴을 박지 않는다. 임시 경로는 세션 종료 시 사라지는 ephemeral identifier이며, dir suffix의 hex 토큰이 `pinning-guard.sh` PATTERN_D에 의해 차단된다(라벨: "짧은 임시 hex 식별자 박제"). durable output에는 자문 회차 자연어 요약(예: "1차 자문(전체 N결정)")·`decision_id` list·verdict 요약만 기록한다.
+
 for_action 기록 형식:
 
 ```
@@ -225,7 +227,7 @@ for_action 기록 형식:
 - Context: Step 3에서 메인 LLM이 옵션 A를 후보로 작성. Step 3.5 외부 자문에서 옵션 A의 disqualifier 발견.
 - Decision: 옵션 B 채택.
 - Consequences: <영향>
-- External Consult: <자문 결과 요약 또는 result.json 경로>
+- External Consult: <자문 회차 자연어 요약 + decision_id list + verdict 요약. result.json 같은 임시 경로 리터럴 박제 금지.>
 ```
 
 ## Validation (Phase 2 Exit Criteria 보조)
