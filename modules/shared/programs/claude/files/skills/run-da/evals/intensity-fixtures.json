@@ -1,5 +1,5 @@
 {
-  "$schema_description": "Review Intensity 회귀 검증 fixture. 메인 LLM 인라인 체크리스트가 intensity-rules.md의 8 룰을 기계적으로 적용해 expected_intensity와 일치하는지 확인하는 게이트. 절차 SSOT는 references/intensity-procedure.md, 룰 SSOT는 references/intensity-rules.md.",
+  "$schema_description": "Review Intensity 회귀 검증 fixture (수동 replay 가이드). 메인 LLM 인라인 체크리스트가 intensity-rules.md의 8 룰을 기계적으로 적용해 expected_intensity와 일치하는지 확인. 자동 eval runner 연결은 follow-up 범위 — 현재 run-eval.sh는 evals/queries.json만 batch discovery하므로 본 fixtures[] 스키마는 별도 replay runner 또는 스키마 통합이 필요. 절차 SSOT는 references/intensity-procedure.md, 룰 SSOT는 references/intensity-rules.md.",
   "fixtures": [
     {
       "case": "boot-config-download-buffer-size",

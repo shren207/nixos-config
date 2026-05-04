@@ -96,6 +96,13 @@ selective: trigger P건 → stable Q건, split R건, fragmented S건, partial_fa
 
 selective consistency가 발동하지 않은 라운드는 마지막 줄을 생략한다. stability_status 집계 규칙은 [`protocol.md`](protocol.md)의 "라운드 요약 기록" 참조.
 
-## 회귀 검증 (Intensity fixture replay)
+## 회귀 검증 (Intensity fixture replay) — 수동 replay 가이드
 
-`evals/intensity-fixtures.json`의 핵심 케이스(download-buffer-size 설정 변경, 보안 옵션 완화, 문서-only, 단일 함수 수정, 정책 파일)를 replay하여 expected_intensity와 일치하는지 확인한다. 미일치 1건이라도 BLOCKED. 본 fixture는 메인 LLM 인라인 체크리스트가 8 룰을 기계적으로 적용하는지 검증하는 회귀 게이트다.
+[`../evals/intensity-fixtures.json`](../evals/intensity-fixtures.json)에 8 룰 회귀 검증용 케이스가 정의되어 있다. 본 파일은 **수동 replay 가이드**이며, 자동 eval runner에는 아직 연결되지 않았다 (현재 `run-eval.sh`는 `evals/queries.json`만 batch discovery).
+
+**수동 replay 절차** (인라인 체크리스트 변경 시 PR 작성자 책임):
+1. 각 fixture의 `changed_files` + `change_summary`를 입력으로 메인 LLM의 8 룰 인라인 체크리스트를 수행한다.
+2. 산출 verdict가 fixture의 `expected_intensity`와 일치하는지 확인한다.
+3. 미일치 1건이라도 회귀로 간주하고 PR 본문에 명시한다.
+
+**자동 eval runner 연결은 follow-up 범위**다 — fixture 스키마(`fixtures[]`)와 `run-eval.sh` activation eval 스키마가 다르므로, 별도 runner 또는 스키마 통합이 필요하다 (관련 follow-up issue는 본 PR 본문 참조).

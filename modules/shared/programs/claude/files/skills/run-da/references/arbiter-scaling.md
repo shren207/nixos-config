@@ -301,7 +301,7 @@ DA 에이전트/Arbiter와 달리, Review Intensity는 별도 subprocess/subagen
 - 절차 SSOT는 [`intensity-procedure.md`](intensity-procedure.md)의 "인라인 체크리스트 절차".
 - 메인 LLM은 자유 추론 금지. 8 룰 순서대로 평가한 표(매치/미매치/불확실 + 근거)를 plan/대화에 남기지 않으면 SKIP/LITE 판정 자체가 무효이며 강한 검토로 fail-closed.
 - 질문 도구(SKIP 시)는 메인 LLM이 호출한다. 질문 도구 미지원 시 SKIP 처리는 위 "질문 도구 미지원 대응" 섹션의 규칙(자동 LITE 승격)을 따른다.
-- 회귀 검증: `evals/intensity-fixtures.json` 핵심 케이스(download-buffer-size 설정 변경, 보안 옵션 완화, 문서-only, 단일 함수 수정, 정책 파일)를 replay하여 expected_intensity와 일치하는지 확인 (필수 게이트).
+- 회귀 검증: 수동 replay 가이드 — 절차 SSOT는 [`intensity-procedure.md`](intensity-procedure.md)의 "회귀 검증 (Intensity fixture replay)" 섹션. fixture 정의는 [`../evals/intensity-fixtures.json`](../evals/intensity-fixtures.json) (자동 eval runner 연결은 follow-up 범위).
 
 ## 향후 확장
 
