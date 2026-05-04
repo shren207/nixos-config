@@ -86,7 +86,7 @@ Step 3.5 자문 결과의 `result.json` 경로 또는 핵심 decision_id list. p
 - `RUNNING`: Step 5 DA를 시작했으나 durable verdict가 plan 파일에 반영되지 않음. 이 상태에서는 `Change Log`에 DA Run ID와 started-at이 있어야 한다.
 - `APPLYING`: Step 5 DA verdict를 수신했고 Step 6 반영 중. 이 상태에서는 `Resume From=for_action.step6_da_apply`와 최신 DA Run ID에 해당하는 DA result path 또는 verdict 요약이 `Change Log`에 있어야 한다.
 - `CONFIRMED`: Step 6 반영이 완료되고 다음 단계로 진행 가능.
-- `SKIPPED`: run-da Intensity가 SKIP으로 판정했고 사용자 승인 또는 계약상 skip 처리가 완료됨.
+- `SKIPPED`: run-da 진입 후 메인 LLM 인라인 체크리스트(8 룰)가 SKIP을 판정했고 사용자 승인 또는 계약상 skip 처리가 완료됨.
 - `BLOCKED`: DA 또는 selective consistency 상태가 BLOCKED.
 - `NEEDS_USER`: DA 결과 반영에 사용자 판단이 필요함.
 
