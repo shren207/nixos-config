@@ -288,7 +288,7 @@ selective consistency에서 나온 stability_status는 first-pass 자동 승격 
 
 ## Review Intensity 판단 실행 계약 (메인 LLM 인라인 체크리스트)
 
-DA 에이전트/Arbiter와 달리, Review Intensity는 별도 subprocess/subagent를 띄우지 않는다. 메인 LLM이 [`intensity-rules.md`](intensity-rules.md)의 8 룰을 인라인 체크리스트로 기계적 적용하고, 그 결과 표를 plan/대화에 남긴다.
+DA 에이전트/Arbiter와 달리, Review Intensity는 별도 subprocess/subagent를 띄우지 않는다. 메인 LLM이 [`intensity-rules.md`](intensity-rules.md)의 룰 표를 인라인 체크리스트로 기계적 적용(모든 룰 평가 + first-match 채택)하고, 그 결과 표를 plan/대화에 남긴다.
 
 | 항목 | DA/Arbiter | Review Intensity |
 |------|-----------|-----------------|
@@ -299,7 +299,7 @@ DA 에이전트/Arbiter와 달리, Review Intensity는 별도 subprocess/subagen
 | 실패 시 | NEEDS_MORE_INFO 승격 | **FULL 강제** (체크리스트 미작성, 룰 2-4 매치/불확실 포함) |
 
 - 절차 SSOT는 [`intensity-procedure.md`](intensity-procedure.md)의 "인라인 체크리스트 절차".
-- 메인 LLM은 자유 추론 금지. 8 룰 순서대로 평가한 표(매치/미매치/불확실 + 근거)를 plan/대화에 남기지 않으면 SKIP/LITE 판정 자체가 무효이며 강한 검토로 fail-closed.
+- 메인 LLM은 자유 추론 금지. 모든 룰을 평가한 표(매치/미매치/불확실 + 근거)를 plan/대화에 남기지 않으면 SKIP/LITE 판정 자체가 무효이며 강한 검토로 fail-closed.
 - 질문 도구(SKIP 시)는 메인 LLM이 호출한다. 질문 도구 미지원 시 SKIP 처리는 위 "질문 도구 미지원 대응" 섹션의 규칙(자동 LITE 승격)을 따른다.
 - 회귀 검증: 수동 replay 가이드 — 절차 SSOT는 [`intensity-procedure.md`](intensity-procedure.md)의 "회귀 검증 (Intensity fixture replay)" 섹션. fixture 정의는 [`../evals/intensity-fixtures.json`](../evals/intensity-fixtures.json) (자동 eval runner 연결은 follow-up 범위).
 

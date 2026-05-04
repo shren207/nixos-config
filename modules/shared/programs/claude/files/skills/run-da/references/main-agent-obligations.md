@@ -6,7 +6,7 @@
 
 | 수행 | 금지 |
 |------|------|
-| Review Intensity 인라인 체크리스트 (8 룰 기계적 적용) | 룰 자유 추론 / 체크리스트 표 생략 |
+| Review Intensity 인라인 체크리스트 (모든 룰 평가 + first-match 채택) | 룰 자유 추론 / 체크리스트 표 생략 |
 | CONFIRMED_ISSUE 수정 | DA finding 직접 판정 (Arbiter 대체) |
 | tracked workspace write, branch mutation, commit/push, GitHub write | DA reviewer/Auditor/Arbiter에 single-writer 작업 위임 |
 | `wt`, `nrs`, rebuild 계열 실행 | main-agent-only command를 direct fan-out subagent에 넘기기 |
@@ -18,7 +18,7 @@
 
 이 섹션은 메인 에이전트가 직접 수행할 행동만 다룬다. 정책/계약/상태 흐름은 정본을 link로만 참조한다.
 
-- **Review Intensity 인라인 체크리스트**: `/run-da` 호출 진입 시 메인 에이전트는 [`intensity-rules.md`](intensity-rules.md)의 8 룰을 순서대로 기계적 평가한 표를 plan/대화에 남기고 SKIP/LITE/FULL 판정을 결정한다. 자유 추론 금지. 룰 2-4(보안/모듈/설정/의존성) 매치/불확실 또는 룰 번호+근거 미명시 시 강한 검토 fail-closed. 절차 SSOT는 [`intensity-procedure.md`](intensity-procedure.md).
+- **Review Intensity 인라인 체크리스트**: `/run-da` 호출 진입 시 메인 에이전트는 [`intensity-rules.md`](intensity-rules.md)의 모든 룰을 평가한 표를 plan/대화에 남기고(short-circuit 금지) first-match 룰 단계를 채택해 SKIP/LITE/FULL 판정을 결정한다. 자유 추론 금지. fail-closed rule group 매치/불확실 또는 룰 ID+근거 미명시 시 강한 검토 fail-closed. 절차 SSOT는 [`intensity-procedure.md`](intensity-procedure.md).
 - **Arbiter 독립 판정 보존**: DA findings는 독립 Arbiter 에이전트가 판정한다. 메인 에이전트는 Arbiter 판정을 대체하지 않는다. 메인 에이전트는 CONFIRMED_ISSUE 항목의 수정만 담당한다.
 - **CONFIRMED_ISSUE 자동 반영**: Arbiter가 CONFIRMED_ISSUE로 판정한 항목은 자동으로 반영한다. CRITICAL 심각도는 진행을 차단하고 즉시 수정한다. 상태 전이별 행동의 정본은 [`protocol.md`](protocol.md)의 "DA → Arbiter → Main Agent 상태 흐름"이다.
 - **사용자 전건 보고**: 모든 Arbiter 판정 결과(CONFIRMED_ISSUE, NOT_AN_ISSUE, NEEDS_MORE_INFO)를 사용자에게 보고한다. NEEDS_MORE_INFO·`split` 항목은 아래 "사용자 질문 시 맥락 설명 의무"의 5요소를 갖춘 질문 도구 호출로 처리한다.

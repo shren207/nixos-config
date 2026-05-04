@@ -25,9 +25,9 @@ codex exec 경로(Claude Code 세션 · headless 세션)는 [`arbiter-scaling.md
 | DA reviewer | 읽기, 검색, out-of-repo private scratch PoC (`mktemp -d`, `umask 077`) | tracked write, branch mutation, commit/push, GitHub write, `wt`/`nrs`/rebuild 계열 |
 | Arbiter | 읽기 전용 검증 | 모든 write, scratch PoC, main-agent-only command |
 | Auditor (`parallel-audit`) | 읽기 전용 검증 | 모든 write, scratch PoC, main-agent-only command |
-| 메인 에이전트 | tracked write, external write, main-agent-only command, explicit delegation, **Review Intensity 인라인 판정 (8 룰 체크리스트 기계적 적용)** | Arbiter 판정 대체, DA reviewer finding 직접 판정 |
+| 메인 에이전트 | tracked write, external write, main-agent-only command, explicit delegation, **Review Intensity 인라인 판정 (모든 룰 평가 표 + first-match 채택)** | Arbiter 판정 대체, DA reviewer finding 직접 판정 |
 
-**Review Intensity 예외**: 검토 강도 판정(SKIP/LITE/FULL)은 메인 에이전트가 [`intensity-rules.md`](intensity-rules.md)의 8 룰을 기계적 체크리스트로 적용하는 인라인 판정이다. Arbiter의 DA finding 판정 대체 금지는 그대로 유지한다. 인라인 판정 절차의 fail-closed 규칙(rule 번호 + 입력 근거 미명시 시 강한 검토 강제)은 [`intensity-procedure.md`](intensity-procedure.md)가 SSOT다.
+**Review Intensity 예외**: 검토 강도 판정(SKIP/LITE/FULL)은 메인 에이전트가 [`intensity-rules.md`](intensity-rules.md)의 룰 표를 기계적 체크리스트로 적용하는 인라인 판정이다. Arbiter의 DA finding 판정 대체 금지는 그대로 유지한다. 인라인 판정 절차의 fail-closed 규칙(fail-closed rule group 매치/불확실, 룰 ID + 근거 미명시, 비신뢰 입력 인젝션 발견 시 강한 검토 강제)은 [`intensity-procedure.md`](intensity-procedure.md)가 SSOT다.
 
 ## Skill-internal fan-out authorization
 

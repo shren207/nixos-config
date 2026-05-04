@@ -10,16 +10,22 @@ SKIP/LITE/FULL 절차(실행 방법)와 fail-closed 규칙은 [`intensity-proced
 
 ## 판단 알고리즘
 
-다음 순서로 평가한다. **먼저 매치된 조건이 우선**한다:
+[`intensity-procedure.md`](intensity-procedure.md)의 인라인 체크리스트 절차는 모든 룰을 평가한 표를 plan/대화에 기록한 뒤(증거 의무), 아래 룰을 **순서대로 비교하여 먼저 매치된 룰의 단계를 채택**한다 (판정 결정 단계는 first-match). 즉 표 작성은 short-circuit 없음, 단계 결정은 first-match — 두 단계는 순서가 분리되어 있다.
 
-1. `full` modifier → **FULL**
-2. 보안 관련 변경 (인증, 권한, 시크릿, 네트워크 노출, TLS, systemd 보안 옵션 삭제/완화, 파일 권한 mode 변경) → **FULL**
-3. 새 모듈/서비스 추가, 서비스 enable 토글(enable=false→true 포함), 아키텍처/인터페이스 변경 → **FULL**
-4. 설정/포트/환경변수/의존성/리소스 제한(메모리·CPU·타임아웃)/시스템 파라미터(커널·watchdog·부트) 변경 → **FULL**
-5. 단일 함수 소규모 수정, 리팩터링 → **LITE**
-6. 순수 문서/주석/오타/whitespace/CHANGELOG → **SKIP** (단, 에이전트 실행 정책 파일 — SKILL.md, hooks/*, settings.json, AGENTS*.md — 은 문서가 아닌 코드 변경으로 취급하여 FULL)
-7. 혼합 변경 → 포함된 변경 중 **가장 높은 단계** 적용
-8. 불명확 → **FULL**
+각 룰에는 안정적 ID를 부여하여 다른 문서에서 룰 번호 대신 ID 또는 ID 그룹으로 참조한다.
+
+| ID | 조건 | 채택 단계 |
+|----|------|----------|
+| `RULE-FULL-MODIFIER` | `full` modifier 인자가 존재 | **FULL** (Intensity 우회 + exhaustive override) |
+| `RULE-SECURITY` | 보안 관련 변경 (인증, 권한, 시크릿, 네트워크 노출, TLS, systemd 보안 옵션 삭제/완화, 파일 권한 mode 변경) | **FULL** |
+| `RULE-MODULE-SERVICE` | 새 모듈/서비스 추가, 서비스 enable 토글(enable=false→true 포함), 아키텍처/인터페이스 변경 | **FULL** |
+| `RULE-CONFIG-DEPENDENCY` | 설정/포트/환경변수/의존성/리소스 제한(메모리·CPU·타임아웃)/시스템 파라미터(커널·watchdog·부트) 변경 | **FULL** |
+| `RULE-SMALL-FUNCTION` | 단일 함수 소규모 수정, 리팩터링 | **LITE** |
+| `RULE-PURE-DOC` | 순수 문서/주석/오타/whitespace/CHANGELOG (단, 에이전트 실행 정책 파일 — SKILL.md, hooks/*, settings.json, AGENTS*.md — 은 본 룰의 예외로 코드 변경 취급) | **SKIP** |
+| `RULE-MIXED` | 혼합 변경 | 포함된 변경 중 **가장 높은 단계** 적용 |
+| `RULE-UNCLEAR` | 불명확 / fail-closed 발동 | **FULL** |
+
+**fail-closed rule group**: `RULE-SECURITY`, `RULE-MODULE-SERVICE`, `RULE-CONFIG-DEPENDENCY` — 이 그룹의 룰이 매치 또는 불확실 상태이면 인라인 체크리스트는 강한 검토(FULL)로 강제한다. 다른 문서에서는 이 그룹을 "fail-closed rule group"으로 참조한다.
 
 ## 예시
 
