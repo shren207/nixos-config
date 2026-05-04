@@ -59,12 +59,14 @@ Claude/Codex missing shared-library fail-closed 분기를 검증한다.
 | `pretooluse-pinning-guard-claude-edit-existing-no-increase.json` | Claude PreToolUse | 기존 pinned text count가 증가하지 않는 Edit | 빈 파일 |
 | `pretooluse-pinning-guard-claude-write-clean.json` | Claude PreToolUse | clean Write | 빈 파일 |
 | `pretooluse-pinning-guard-claude-write-positive.json` | Claude PreToolUse | Write content with volatile metadata | deny reason |
+| `pretooluse-pinning-guard-claude-write-consult-positive.json` | Claude PreToolUse | Write content referencing volatile `/tmp/consult-…/result.json` path | deny reason |
 | `pretooluse-pinning-guard-claude-notebook-positive.json` | Claude PreToolUse | NotebookEdit on `.ipynb` | deny reason |
 | `pretooluse-pinning-guard-claude-bash-positive.json` | Claude PreToolUse | durable `gh` command with volatile metadata | deny reason |
 | `pretooluse-pinning-guard-claude-bash-cherrypick-comment.json` | Claude PreToolUse | durable `gh` comment mentioning cherry-pick plus a short hash | deny reason |
 | `pretooluse-pinning-guard-claude-bash-git-option-commit.json` | Claude PreToolUse | `git` global-option commit command | deny reason |
 | `pretooluse-pinning-guard-claude-bash-revert-hash-pass.json` | Claude PreToolUse | real `git commit` revert message with short hash | 빈 파일 |
 | `pretooluse-pinning-guard-codex-applypatch-positive.json` | Codex PreToolUse | apply_patch adds volatile metadata to `.md` | deny reason |
+| `pretooluse-pinning-guard-codex-applypatch-consult-positive.json` | Codex PreToolUse | apply_patch adds volatile `/tmp/consult-…/result.json` path to `.md` | deny reason |
 | `pretooluse-pinning-guard-codex-applypatch-github-attachment-pass.json` | Codex PreToolUse | apply_patch adds Markdown/inline-code/HTML/raw GitHub attachment URLs to `/tmp/*body*.md` | 빈 파일 |
 | `pretooluse-pinning-guard-codex-applypatch-github-attachment-mixed-positive.json` | Codex PreToolUse | GitHub attachment URL + 별도 short hash on same line | deny reason |
 | `pretooluse-pinning-guard-codex-applypatch-github-attachment-malformed-positive.json` | Codex PreToolUse | GitHub attachment-like URL with malformed UUID | deny reason |
