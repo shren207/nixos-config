@@ -44,7 +44,7 @@
   fi
   ```
   이후 모든 `mktemp -d`와 cleanup glob에서 `$_DA_SID`를 prefix에 포함한다.
-- **모드 시작 시 이전 임시 디렉토리 정리**: for_plan 시작 시 `rm -rf /tmp/da-${_DA_SID}-pr-*(N) /tmp/da-${_DA_SID}-arbiter-*(N) /tmp/da-pr-*(N) /tmp/da-arbiter-*(N)`, for_pr 시작 시 `rm -rf /tmp/da-${_DA_SID}-plan-*(N) /tmp/da-plan-*(N)`. 같은 모드의 이전 라운드는 라운드 교체 시 정리. (Intensity 임시 디렉토리는 이제 생성되지 않으므로 cleanup 패턴에서 제거. 마이그레이션 기간 동안 legacy `/tmp/da-${_DA_SID}-intensity-*` 디렉토리가 남아 있으면 수동 정리 권장.)
+- **모드 시작 시 이전 임시 디렉토리 정리**: for_plan 시작 시 `rm -rf /tmp/da-${_DA_SID}-pr-*(N) /tmp/da-${_DA_SID}-arbiter-*(N) /tmp/da-pr-*(N) /tmp/da-arbiter-*(N)`, for_pr 시작 시 `rm -rf /tmp/da-${_DA_SID}-plan-*(N) /tmp/da-${_DA_SID}-intensity-*(N) /tmp/da-plan-*(N) /tmp/da-intensity-*(N)`. 같은 모드의 이전 라운드는 라운드 교체 시 정리. **Intensity legacy glob (`-intensity-*`)은 마이그레이션 cleanup 용도로 유지** — 인라인 체크리스트 전환 후에는 새로 생성되지 않지만 이전 버전이 만든 디렉토리를 자동 정리하기 위해 cleanup 명령에 그대로 남긴다.
   zsh `(N)` qualifier로 매칭 파일 없을 때 오류를 방지한다. legacy glob(NS 없음)은 전환기 고아 디렉토리 정리용이다.
 - **결과 파일 참조**: `$DA_DIR`, `$ARBITER_DIR` 변수로 정확히 참조한다. **`/tmp/da-*` 와일드카드 glob 금지** — 이전 실행의 결과가 섞인다. (Intensity는 메인 LLM 인라인 체크리스트라 별도 임시 디렉토리를 만들지 않는다.)
 - **셸 호출 간 변수 유지** (모든 런타임 공통): 위 공통 주의 참조. 런타임 종류와 무관하게 셸 호출마다 별도 shell이 생성되므로 `mktemp -d` 결과를 stdout으로 출력해 메인 에이전트가 다음 호출에서 리터럴로 재사용하거나 단일 shell에 체이닝한다. 상세 패턴은 [`arbiter-scaling.md`](arbiter-scaling.md)의 "셸 호출 변수 유실 방지" 참조.

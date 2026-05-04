@@ -22,22 +22,23 @@ modifier `full`은 Review Intensity를 건너뛰고 exhaustive 8-domain path로 
 메인 LLM은 `/run-da` 호출 진입 시 다음을 순서대로 수행한다. **자유 추론 금지** — 8 룰 체크리스트를 기계적으로 적용한다.
 
 1. **변경 규모 입력 수집**
-   - for_pr: `git diff --stat main...HEAD` (파일 목록 + 라인 수)
-   - for_plan: 계획 요약 (변경 대상 파일 목록 + 변경 유형)
+   - for_pr: `git diff --stat main...HEAD` (파일 목록 + 라인 수). 변경 의도 파악이 어려우면 메인 LLM이 commit message나 변경된 파일의 diff hunk를 추가로 읽어 `change_summary` 보조 입력을 스스로 도출한다 (자유 요약 금지 — 실제 변경 사항만 정리).
+   - for_plan: 계획 요약 (변경 대상 파일 목록 + 변경 유형).
+   - 회귀 fixture replay 시: fixture의 `changed_files` + `change_summary`를 동일한 방식으로 다룬다 (실제 런타임의 `git diff --stat`+commit/hunk 도출 결과와 동등한 ground truth로 본다).
 
-2. **8 룰 체크리스트 평가** — [`intensity-rules.md`](intensity-rules.md)의 8 룰을 순서대로 평가한다. 각 룰에 대해 다음을 명시한다:
+2. **8 룰 체크리스트 평가** — [`intensity-rules.md`](intensity-rules.md)의 8 룰 모두에 대해 증거 표를 기록한다 (전체 평가 의무). **판정은 첫 매치 우선**(`intensity-rules.md`의 알고리즘)이지만, 표는 short-circuit 없이 모든 룰의 매치/미매치/불확실 + 근거를 남겨 다음 개발자가 판정 근거를 검증할 수 있게 한다. 예시:
 
    ```text
    | 룰 번호 | 매치/미매치/불확실 | 입력 근거 |
    |---------|--------------------|-----------|
    | 1. full modifier | 미매치 | (modifier 인자 없음) |
-   | 2. 보안 관련 변경 | 매치 | files/secrets.nix:42 권한 mode 변경 |
+   | 2. 보안 관련 변경 | 매치 (← 첫 매치, 판정 결정 룰) | secrets.nix 권한 mode 변경 |
    | 3. 새 모듈/서비스/아키텍처 | 미매치 | 기존 모듈 내부 수정 |
    | 4. 설정/포트/환경변수/의존성 | 미매치 | (해당 변경 없음) |
    | 5. 단일 함수 소규모 수정 | 미매치 | 다중 파일 변경 |
    | 6. 순수 문서/주석 (정책 파일 예외) | 미매치 | 코드 변경 포함 |
-   | 7. 혼합 변경 → 가장 높은 단계 | 매치 | 룰 2 매치로 FULL |
-   | 8. 불명확 → FULL | (적용 안 함) | 룰 2 명확히 매치 |
+   | 7. 혼합 변경 → 가장 높은 단계 | 적용 안 함 (룰 2에서 판정 완료) | first-match 우선 |
+   | 8. 불명확 → FULL | 적용 안 함 (룰 2에서 판정 완료) | first-match 우선 |
    ```
 
 3. **판정 결정** — [`intensity-rules.md`](intensity-rules.md)의 판단 알고리즘 (먼저 매치된 조건 우선)을 적용. 위 예시: 룰 2 매치 → **FULL**.
