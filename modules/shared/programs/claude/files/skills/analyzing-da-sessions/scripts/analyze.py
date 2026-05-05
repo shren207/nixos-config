@@ -1,28 +1,27 @@
 #!/usr/bin/env python3
 """DA 세션 정량 분석 — analyzing-da-sessions Skill의 algorithm SSOT.
 
-PR #670 정정 코멘트의 v2 알고리즘 (분모 정정 + 4-tier fallback + source/confidence 라벨링)
-+ severity 전이 (analyze-da-sessions.py:231-248) + StabilitySource resolver (fleiss-kappa.py)
-를 통합한 단일 진입점.
+PR #670 정정 코멘트의 알고리즘 (분모 정정 + 4-tier fallback + source/confidence 라벨링)
++ severity 전이 + StabilitySource resolver를 통합한 단일 진입점.
 
-Internal boundary (plan D-12):
-  1. constants/enums          — VERDICT_CATEGORIES, BUNDLE_MAP, MARKER_REGEX, VERDICT_JSON_BLOCK 등
-  2. jsonl payload walker     — extract_text_payloads
-  3. finding_id normalizer    — get_bundle, normalize_finding_id
-  4. verdict parser pipeline  — extract_strict_verdicts, extract_unmarked_json_verdicts,
-                                 extract_kv_verdicts, extract_nl_summary
-  5. severity transition extractor — extract_severities_per_finding, severity_rank,
-                                      compute_severity_transitions
-  6. stability source resolver — resolve_stability_status (fleiss-kappa.py | round summary | unavailable)
-  7. aggregate builder        — analyze_session, build_aggregate
-  8. markdown renderer        — render_markdown
-  9. json renderer            — render_json
-  Host handling                — collect_host_files, subprocess.run with fixed argv
+Internal boundary:
+  - constants/enums          — VERDICT_CATEGORIES, INTENSITY_VERDICTS, BUNDLE_MAP, regex 등
+  - jsonl payload walker     — extract_text_payloads
+  - finding_id normalizer    — get_bundle
+  - verdict parser pipeline  — extract_strict_verdicts, extract_unmarked_json_verdicts,
+                                extract_kv_verdicts, extract_nl_summary, extract_intensity_verdicts
+  - severity transition      — find_severity_for_finding, severity_rank, compute_severity_transitions
+  - stability source         — resolve_stability_status_from_round_summary (round summary 전용)
+  - aggregate builder        — analyze_session, build_aggregate
+  - markdown renderer        — render_markdown
+  - json renderer            — render_json
+  - host handling            — collect_local_files, collect_remote_files, fetch_remote_file,
+                                analyze_remote_session, _validate_host, _validate_remote_path
 
 CLI:
-  --hosts <comma list>     default: mac,minipc. whitelist {mac, minipc} reject-fast (plan D-5)
-  --corpus <path>          pinned manifest.json. live home log 분석은 --corpus 미지정 시 (plan D-11)
-  --json out=<path>        JSON sidecar 경로 override (default: /tmp/analyze-da-sessions-<ISO>.json)
+  --hosts <comma list>     default: mac,minipc. whitelist {mac, minipc} reject-fast.
+  --corpus <path>          pinned manifest.json (files + snapshot_id 소비).
+  --json out=<path>        JSON sidecar 경로 override (default: /tmp/analyze-da-sessions-<ISO>.json).
 
 Output:
   stdout                  markdown 표 + 요약
@@ -118,6 +117,14 @@ HOST_PATH_MAP = {
         "codex": "/home/greenhead/.codex/sessions",
     },
 }
+
+# Operational tunables — adjust here when window sizes / timeouts need recalibration
+ARBITER_WINDOW_CHARS = 30000  # KV verdict 회수 시 Arbiter 결과 헤더 뒤 고정 window 크기
+SEVERITY_LOOKBEHIND_CHARS = 200  # finding_id 등장 위치 기준 앞쪽 탐색 범위 (severity 라벨 회수)
+SEVERITY_LOOKAHEAD_CHARS = 1000  # finding_id 등장 위치 기준 뒤쪽 탐색 범위
+SSH_FIND_TIMEOUT_SECONDS = 60  # 원격 호스트의 find 명령 timeout
+SSH_CAT_TIMEOUT_SECONDS = 120  # 원격 호스트의 cat 명령 timeout
+FLEISS_KAPPA_TIMEOUT_SECONDS = 60  # fleiss-kappa.py helper 호출 timeout (현재 v1에서는 미사용)
 
 
 def current_host() -> str:
@@ -227,7 +234,7 @@ def extract_kv_verdicts(text: str, arbiter_window_only: bool = True) -> list[dic
     if arbiter_window_only:
         for m in re.finditer(r"##\s+Arbiter\s+검증\s+결과", text):
             start = m.end()
-            end = min(len(text), start + 30000)
+            end = min(len(text), start + ARBITER_WINDOW_CHARS)
             window = text[start:end]
             nxt = re.search(r"\n##\s", window)
             if nxt:
@@ -281,10 +288,10 @@ def find_severity_for_finding(text_blob: str, finding_id: str) -> str | None:
     """analyze-da-sessions.py 패턴: finding header 인접 영역에서 severity 라벨 추출."""
     if not finding_id:
         return None
-    # finding_id 등장 위치 + 1000자 window 안에서 severity 라벨 검색
+    # finding_id 등장 위치의 앞뒤 window에서 severity 라벨 검색
     for m in re.finditer(re.escape(finding_id), text_blob):
-        start = max(0, m.start() - 200)
-        end = min(len(text_blob), m.end() + 1000)
+        start = max(0, m.start() - SEVERITY_LOOKBEHIND_CHARS)
+        end = min(len(text_blob), m.end() + SEVERITY_LOOKAHEAD_CHARS)
         window = text_blob[start:end]
         sm = SEV_LINE.search(window)
         if sm:
@@ -319,49 +326,19 @@ def compute_severity_transitions(
 # ─────────────────────────────────────────────────────────────────────────────
 
 def resolve_stability_status_from_round_summary(text: str) -> Counter:
-    """fallback source: round summary `selective:` 라인 파싱."""
+    """M-5 v1 source: round summary `selective:` 라인 파싱.
+
+    개별 Arbiter VERDICT_JSON의 `stability_status`는 항상 `N/A`이므로 source 대상 아님.
+    `fleiss-kappa.py` aggregate envelope 호출은 selective consistency arbiter result 디렉터리를
+    session-level에서 직접 추적해야 하는데, 본 Skill의 전체 corpus 스캔 모델에서는 그 경계가
+    자연스럽지 않다 — v1은 round summary 패턴만 사용하고, 둘 다 부재 시 unavailable로 보고한다.
+    """
     counter: Counter = Counter()
     for m in SELECTIVE_LINE.finditer(text):
         # trigger, stable, split, fragmented 카운트 누적
         counter["stable"] += int(m.group(2))
         counter["split"] += int(m.group(3))
         counter["fragmented"] += int(m.group(4))
-    return counter
-
-
-def resolve_stability_via_fleiss_kappa(arbiter_results_dir: str) -> Counter | None:
-    """1차 source: fleiss-kappa.py 호출 → aggregate envelope의 per_finding[].stability_status."""
-    helper_candidates = [
-        os.path.expanduser("~/.claude/scripts/fleiss-kappa.py"),
-        os.path.expanduser("~/.codex/scripts/fleiss-kappa.py"),
-    ]
-    helper = next((h for h in helper_candidates if os.path.exists(h)), None)
-    if not helper:
-        return None
-
-    arbiter_files = sorted(
-        glob.glob(os.path.join(arbiter_results_dir, "arbiter-*-result.md"))
-    )
-    if len(arbiter_files) != 3:
-        return None
-
-    try:
-        proc = subprocess.run(
-            ["python3", helper, *arbiter_files],
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-        if proc.returncode != 0:
-            return None
-        result = json.loads(proc.stdout)
-    except Exception:
-        return None
-
-    counter: Counter = Counter()
-    for entry in result.get("per_finding", []):
-        status = entry.get("stability_status", "N/A")
-        counter[status] += 1
     return counter
 
 
@@ -718,8 +695,36 @@ def collect_local_files(host: str) -> list[str]:
     return files
 
 
+def _allowed_remote_path(host: str, path: str) -> bool:
+    """원격 path가 정확한 base prefix 아래의 안전한 .jsonl 경로인지 확인.
+
+    SSH remote command는 원격 shell이 해석하므로 shell metacharacter (`;`, `$()`,
+    newline, backtick 등)가 포함된 경로는 명령 인젝션 위험이 있다. 따라서 정확한
+    HOST_PATH_MAP base prefix + .jsonl 확장자 + 제어문자 부재만 통과시킨다.
+    """
+    if not isinstance(path, str) or not path:
+        return False
+    # 제어문자 / shell metacharacter 거부
+    if any(c in path for c in "\n\r\t;|&$`(){}[]<>*?\"'\\"):
+        return False
+    if not path.endswith(".jsonl"):
+        return False
+    paths = HOST_PATH_MAP.get(host, {})
+    bases = (paths.get("claude", ""), paths.get("codex", ""))
+    return any(b and path.startswith(b + os.sep) for b in bases)
+
+
+def _validate_remote_path(host: str, path: str) -> None:
+    if not _allowed_remote_path(host, path):
+        raise ValueError(f"disallowed remote path for host {host}: {path!r}")
+
+
 def collect_remote_files(host: str, warnings: list[str]) -> list[str]:
-    """원격 호스트에서 jsonl 파일 path glob (subprocess.run 고정 argv)."""
+    """원격 호스트에서 jsonl 파일 path glob (subprocess.run 고정 argv).
+
+    원격 find stdout의 path 라인은 비신뢰 입력으로 간주하여, _allowed_remote_path가 통과한
+    line만 수집한다 — 제어문자/shell metacharacter 포함 line은 silently 폐기한다.
+    """
     _validate_host(host)
     paths = HOST_PATH_MAP[host]
     all_files: list[str] = []
@@ -729,7 +734,7 @@ def collect_remote_files(host: str, warnings: list[str]) -> list[str]:
                 ["ssh", host, "find", base, "-type", "f", "-name", "*.jsonl"],
                 capture_output=True,
                 text=True,
-                timeout=60,
+                timeout=SSH_FIND_TIMEOUT_SECONDS,
             )
             if proc.returncode != 0:
                 warnings.append(
@@ -737,35 +742,47 @@ def collect_remote_files(host: str, warnings: list[str]) -> list[str]:
                 )
                 continue
             for line in proc.stdout.splitlines():
-                if "/subagents/" not in line:
-                    all_files.append(line)
+                if "/subagents/" in line:
+                    continue
+                if not _allowed_remote_path(host, line):
+                    continue
+                all_files.append(line)
         except subprocess.TimeoutExpired:
-            warnings.append(f"host {host}: ssh timeout for {base} — partial result")
+            warnings.append(f"host {host}: ssh find timeout for {base} — partial result")
         except FileNotFoundError:
             warnings.append(f"host {host}: ssh binary not found — partial result")
     return all_files
 
 
-def fetch_remote_file(host: str, path: str) -> str:
-    """원격 jsonl 내용 가져오기 (allowlist + 고정 argv)."""
+def fetch_remote_file(host: str, path: str, warnings: list[str]) -> str | None:
+    """원격 jsonl 내용 가져오기. SSH 실패는 warnings 누적 + None 반환 (partial result)."""
     _validate_host(host)
-    if not (path.startswith("/Users/") or path.startswith("/home/")):
-        raise ValueError(f"disallowed path: {path!r}")
-    proc = subprocess.run(
-        ["ssh", host, "cat", path],
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
+    _validate_remote_path(host, path)
+    try:
+        proc = subprocess.run(
+            ["ssh", host, "cat", path],
+            capture_output=True,
+            text=True,
+            timeout=SSH_CAT_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        warnings.append(f"host {host}: ssh cat timeout for {path} — partial result")
+        return None
+    except FileNotFoundError:
+        warnings.append(f"host {host}: ssh binary not found — partial result")
+        return None
     if proc.returncode != 0:
-        return ""
+        warnings.append(
+            f"host {host}: ssh cat failed (rc={proc.returncode}) for {path} — partial result"
+        )
+        return None
     return proc.stdout
 
 
-def analyze_remote_session(host: str, path: str) -> dict | None:
+def analyze_remote_session(host: str, path: str, warnings: list[str]) -> dict | None:
     """원격 jsonl을 fetch하여 임시 파일에 쓰고 analyze_session 호출."""
-    content = fetch_remote_file(host, path)
-    if not content:
+    content = fetch_remote_file(host, path, warnings)
+    if content is None or not content:
         return None
     import tempfile
     with tempfile.NamedTemporaryFile("w", suffix=".jsonl", delete=False) as tf:
@@ -864,11 +881,11 @@ def main() -> int:
                 # corpus 모드는 절대 path가 현재 머신에서 read 가능한 경우만 처리
                 if args.corpus and host != cur_host:
                     # corpus의 다른 호스트 파일은 SSH로 fetch
-                    result = analyze_remote_session(host, path)
+                    result = analyze_remote_session(host, path, warnings)
                 else:
                     result = analyze_session(path)
             else:
-                result = analyze_remote_session(host, path)
+                result = analyze_remote_session(host, path, warnings)
             if result is not None:
                 sessions.append(result)
 

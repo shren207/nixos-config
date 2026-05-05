@@ -2,8 +2,8 @@
 name: analyzing-da-sessions
 disable-model-invocation: true
 description: |
-  DA 워크플로(run-da)의 Claude Code/Codex 세션 로그에서 verdict/severity/stability_status 정량 통계를 측정한다 — 검토 강도 verdict 분포(M-1), 판정자 verdict 분포(M-2), reviewer 묶음별 confirmed-rate(M-3), 동일 세션 max severity 전이(M-4), selective consistency stability_status 분포(M-5).
-  사용자 명시 호출 전용 — `/analyzing-da-sessions`로만 동작. LLM이 자동 trigger하지 않는다.
+  사용자가 `/analyzing-da-sessions` 슬래시 명령으로 명시 호출했을 때만 DA 세션 로그 정량 통계를 측정한다.
+  자연어 trigger 매칭은 사용하지 않는다 — 자연어로 측정을 원하더라도 사용자가 명시 호출해야 한다.
 argument-hint: "[--hosts mac,minipc] [--corpus <manifest.json>] [--json out=<path>]"
 ---
 
@@ -67,9 +67,9 @@ PR #670에서 사용한 session log 정량 측정 워크플로의 정식 Skill. 
 
 ## 한계
 
-- 자동 runner 미연결 (사용자 명시 호출 전용). LLM이 `disable-model-invocation: true`로 자동 trigger 차단.
-- live 전체 home log 분석은 시간이 지남에 따라 분모가 변하므로 PR #670 ±5% 회귀 게이트는 `--corpus pr-670-baseline.json` pinned manifest 모드에서만 사용한다.
-- `stability_status` (M-5) 측정은 `~/.claude/scripts/fleiss-kappa.py` 또는 `~/.codex/scripts/fleiss-kappa.py` 부재 시 round summary `selective:` 라인 fallback. 둘 다 없으면 `unavailable` 표기.
+- 사용자 명시 호출 전용. Claude Code는 frontmatter `disable-model-invocation: true`로 자동 trigger 차단. **Codex 세션은 동등 메커니즘이 없으므로 자동 trigger 차단 보장이 best-effort이다** — 자연어 trigger 키워드를 description에서 빼는 방식으로 자동 매칭 surface를 줄이지만 구조적 차단은 아니다 (이슈 #671 D-2 YAGNI 결정).
+- live 전체 home log 분석은 시간이 지남에 따라 분모가 변하므로 PR #670 ±5% 회귀 게이트는 `--corpus pr-670-baseline.json` pinned manifest 모드에서만 사용한다. 단 v1은 manifest 생성 절차(별도 producer 모드)를 포함하지 않는다 — PR #670 baseline manifest는 별도 follow-up에서 capture한다.
+- `stability_status` (M-5)는 v1에서 round summary `selective:` 라인 source만 사용한다. `fleiss-kappa.py` aggregate envelope 호출은 selective consistency arbiter result 디렉터리를 session-level에서 직접 추적해야 하므로 corpus 전체 스캔 모델과 자연스럽게 결합되지 않아 v1에서 미연결 — round summary 부재 시 `unavailable` 표기.
 - bundle 간 unique finding 비율, verdict 모순률은 산식 부재로 v1에 포함하지 않는다 (이슈 #671 follow-up).
 
 ## 회귀 검증
@@ -91,7 +91,8 @@ pytest tests/
 
 ## 주의사항
 
-- 사용자 명시 호출 전용. 자연어 trigger로 자동 호출되지 않는다 (frontmatter `disable-model-invocation: true`).
+- 사용자 명시 호출 전용. Claude Code는 자연어 trigger로 자동 호출되지 않는다 (frontmatter `disable-model-invocation: true`). Codex는 동등 메커니즘이 없어 자동 trigger 차단이 best-effort이다.
 - `--hosts` 값은 `{mac, minipc}` whitelist 외에는 reject-fast.
-- SSH 실패는 silent fallback 금지. partial result + 명시적 경고 표시.
+- 원격 path는 `HOST_PATH_MAP` base prefix 아래의 `.jsonl` 파일만 허용 (제어문자/shell metacharacter 거부).
+- SSH 실패는 silent fallback 금지. partial result + warnings 누적 + 명시적 경고 표시.
 - JSON sidecar 자동 경로(`/tmp/...`)는 재시작 시 휘발. 영구 저장은 `--json out=` 명시.

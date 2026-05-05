@@ -65,9 +65,9 @@ INTENSITY_DIR_MARKER = re.compile(
 }
 ```
 
-- `files`는 절대 경로 list. 호출 시 host 매핑은 path prefix로 자동 분류.
-- `captured_metric_summary`는 baseline 값 — `--corpus` 호출 결과와 ±5% 비교에 사용.
-- manifest.json은 `analyze.py --capture-manifest <out.json>` 또는 동등 모드로 별도 생성한다 (한 번 생성 후 PR PR #670 시점에 pin).
+- `files`는 절대 경로 list. 호출 시 host 매핑은 path prefix로 자동 분류. **v1 `analyze.py --corpus`는 `files` + `snapshot_id`만 소비한다.**
+- `captured_metric_summary`는 baseline 값 — 향후 ±5% 비교 도구가 `--corpus` 결과와 함께 비교할 때 사용. v1 `analyze.py`는 이 필드를 직접 비교하지 않으므로 manifest 안에 보존만 된다.
+- manifest.json 생성 (capture)은 v1 `analyze.py`의 책임 범위가 아니다 — 별도 capture step (외부 스크립트 또는 follow-up 모드)에서 생성한 후 본 Skill 호출 시 `--corpus`로 입력한다.
 
 ## subagent 폴더 제외 사유
 
