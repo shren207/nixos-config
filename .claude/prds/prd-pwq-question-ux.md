@@ -4,8 +4,8 @@
 
 - Status: In Progress
 - File Mode: Split
-- Current Phase: Phase 3
-- Active Phase File: [Phase 3: Output templates and runtime](./prd-pwq-question-ux/phase-03-output-templates-and-runtime.md)
+- Current Phase: Phase 4
+- Active Phase File: [Phase 4: Bias measurement](./prd-pwq-question-ux/phase-04-bias-measurement.md)
 - Last Updated: 2026-05-05
 - PRD File: `.claude/prds/prd-pwq-question-ux.md`
 - Source: https://github.com/greenheadHQ/nixos-config/issues/646
@@ -180,7 +180,7 @@ Step 3.5 자문 결과(`/tmp/consult-*`)와 DA reviewer/Arbiter 산출물(`/tmp/
 |---|---|---|---|---|
 | Phase 1: Schema and Anchoring | Complete | references/consulting-step.md 출력 schema 두 layer + fallback + 합의 알고리즘 + Anti-anchoring 1번 재작성 + 4번 라운드 라벨 금지 | rg + schema + dummy decision round-trip | [phase-01-schema-and-anchoring.md](./prd-pwq-question-ux/phase-01-schema-and-anchoring.md) |
 | Phase 2: SKILL and modes flow | Complete | SKILL.md Invariant 7 + modes/for_action.md Step 4 합의 알고리즘 호출 + modes/for_issue.md Step I-4 1개 통일 + modes/for_prd.md 차용 | rg + 본 PRD self-test | [phase-02-skill-and-modes-flow.md](./prd-pwq-question-ux/phase-02-skill-and-modes-flow.md) |
-| Phase 3: Output templates and runtime | Not Started | references/output-templates.md Step 4/I-4 패턴 + references/runtime-boundaries.md 라운드 정책 통일 | rg + 패턴 일관성 manual | [phase-03-output-templates-and-runtime.md](./prd-pwq-question-ux/phase-03-output-templates-and-runtime.md) |
+| Phase 3: Output templates and runtime | Complete | references/output-templates.md Step 4/I-4 패턴 + references/runtime-boundaries.md 라운드 정책 통일 | rg + 패턴 일관성 manual | [phase-03-output-templates-and-runtime.md](./prd-pwq-question-ux/phase-03-output-templates-and-runtime.md) |
 | Phase 4: Bias measurement | Not Started | references/bias-measurement.md + scripts/measure-anchoring-bias.sh 라벨 metric 갱신 | 스크립트 실행 + grep | [phase-04-bias-measurement.md](./prd-pwq-question-ux/phase-04-bias-measurement.md) |
 | Phase 5: Dogfooding and follow-up | Not Started | 수동 5샘플 + issue #646 본문 교체 + follow-up issue 2건 등록 + Final 10-pass | 수동 dogfooding + gh issue create | [phase-05-dogfooding-and-followup.md](./prd-pwq-question-ux/phase-05-dogfooding-and-followup.md) |
 
@@ -206,3 +206,4 @@ review-impl overlay (6-classification 라벨링 + overbuilt 우선 분류)도 Fi
 - 2026-05-05: Cross-Host Resume Guide 단락 추가 (사용자 인터뷰 — Mac과 miniPC 양쪽 호스트 resume 시나리오 명시 필요). Discovery Summary와 5개 phase 파일의 Implementation Checklist path를 deployed(`~/.claude/skills/...`)에서 source(`modules/shared/programs/claude/files/skills/plan-with-questions/...`)로 정정. Validation은 source 또는 nrs 후 deployed 양쪽 가능 — Cross-Host Resume Guide에 명시.
 - 2026-05-05: Phase 1 (Schema and Anchoring) Complete. consulting-step.md에 두 layer schema(`technical_matrix` + `user_facing`) + 1-shot dummy 예시 + D4 합의 알고리즘 5단계 + D2 fallback 4단계 + 4 fallback 라벨 + 신규 "현 상황 적합성 컨텍스트" 입력 섹션 + judgment-first 라운드 라벨 금지 + 셸 호출 3 schema-level 검증 + D4 hard rule 단락 모두 반영. Validation: rg(user_facing 19, fallback A 4, 현 상황 적합성 컨텍스트 2, technical_matrix 15, FALLBACK_* 10) + jq 1-shot dummy round-trip 통과. Active Phase → Phase 2.
 - 2026-05-05: Phase 2 (SKILL and modes flow) Complete. SKILL.md에 새 Invariant 8(라운드당 1개 + D4 hard rule) 추가, line 115 "주의사항" 정정, modes/for_action.md Step 4 본문 재작성(D1/D2/D4 합의 알고리즘 호출 + judgment-first 라벨 금지 + fallback A/B/C/D 사용자 보고 표 + D4 hard rule), modes/for_issue.md Step I-4를 라운드당 1개로 통일하고 트레이드오프 정책은 for_action callsite 인용, modes/for_prd.md 차용 단락에 D1/D2/D4 동일 적용 명시. Validation: rg("한번에 모아서" 폐기 컨텍스트만 2건 / "라운드당 최대 4개" 폐기 컨텍스트만 1건 / "라운드당 1개"·"라운드당 질문 1개" 합산 5건 / for_action "합의 알고리즘" 3건) 통과. Active Phase → Phase 3.
+- 2026-05-05: Phase 3 (Output templates and runtime) Complete. references/output-templates.md Step 4/I-4 패턴을 라운드당 1개 강제 + user_facing layer 사용 의무 + D4 합의 알고리즘 호출 + hard rule + judgment-first 라벨 금지 + 라운드별 룰 매트릭스 7행(일반/트레이드오프 정상/fallback A·B·C·D/judgment-first)으로 재작성. references/runtime-boundaries.md request_user_input 페이로드 가이드의 폐기 정책(for_issue 4→3 자동 축소, Recommended 절대 금지)을 D1 라운드당 1개 강제 + D4 합의 PASS 시 부착으로 정정하고 "for_action·for_issue 라운드 정책 통일" 단락 추가. Validation: rg("라운드당 1개" output-templates 1건 / user_facing 9건 / judgment-first 라벨 금지 단락 명시 / Recommended 매칭 모두 허용 조건·hard rule·D4 합의 알고리즘 컨텍스트만 — SC-2 통과 / runtime-boundaries 라운드 정책 통일 단락 등장). bias-measurement.md L36의 "Recommended" anchor 키워드는 Phase 4 측정 metric 갱신 컨텍스트로 phase 4에서 다룬다. Active Phase → Phase 4.
