@@ -91,7 +91,7 @@ The implementation must update the SSOT so future generated durable artifacts us
 ### Functional Requirements
 
 - FR-1: `plan-file-template.md` Baseline fields and prose use branch + natural-language anchor + natural-language dirty status.
-- FR-2: `resume-state.md` removes short hash generation and dirty hash equality comparison from the normal/new Baseline algorithm; legacy compatibility is runtime-only and fail-closed.
+- FR-2: `resume-state.md` removes short hash generation and dirty hash equality comparison from the Baseline algorithm.
 - FR-3: Resume logic requires a fail-closed decision when an anchor cannot be confidently resolved.
 - FR-4: Resume logic requires a fail-closed decision when baseline or current state is dirty and content identity cannot be safely compared.
 - FR-5: `consulting-step.md` adds a consistency note tying durable Baseline formatting to the existing durable temp-path boundary.
@@ -162,6 +162,6 @@ Run the plan-with-questions PRD final review checklist plus review-implementatio
 - 2026-05-05: Phase 1 complete. Existing-state grep confirmed old Baseline/result-path/run-token guidance remains in target docs, and hook stdin smoke confirmed old-style generated durable content is denied. Active Phase -> Phase 2.
 - 2026-05-05: Phase 2 complete. Baseline metadata now uses natural-language anchor and dirty status; resume-state removes short-head and dirty digest comparison, adds fail-closed anchor/dirty ambiguity handling, and consulting-step links Baseline formatting to durable-output boundaries. Active Phase -> Phase 3.
 - 2026-05-05: Phase 3 complete. External-review durable state now keeps run correlation runtime-only, uses durable verdict summaries or stable artifact names, keeps helper-as-SSOT wording, and updates the for_action heading. Active Phase -> Phase 4.
-- 2026-05-05: Phase 4 in progress. Static helper checks, consulting runtime example check, old-style deny smoke, new-style pass smoke, fixture tests, `nrs`, `verify-ai-compat`, and implementation commit completed. Review findings about stale result-output wording, PRD status drift, NFR scope wording, guard-internal prose, Baseline delimiters, and legacy Baseline compatibility were incorporated.
+- 2026-05-05: Phase 4 in progress. Static helper checks, consulting runtime example check, old-style deny smoke, new-style pass smoke, fixture tests, `nrs`, `verify-ai-compat`, and implementation commit completed. Review findings about stale result-output wording, PRD status drift, NFR scope wording, guard-internal prose, and Baseline delimiters were incorporated.
 - 2026-05-05: Phase 4 closeout in progress. Code review, parallel audit, and final multi-pass review completed; accepted fixes were incorporated and validation was rerun. Remaining: PR creation and PRD completion update.
 - 2026-05-05: Phase 4 complete. PR #683 created for issue #659 and PRD closeout recorded.

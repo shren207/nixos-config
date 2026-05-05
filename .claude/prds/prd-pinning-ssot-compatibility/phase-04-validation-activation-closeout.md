@@ -89,7 +89,7 @@ Combine source static checks, direct hook behavior, deterministic fixtures, acti
 ## Discoveries / Decisions
 - Current post-implementation flow is steps 1-7 by default; the older issue handoff skip note is not applied unless the user explicitly narrows scope.
 - Validation completed so far: static helper checks, consulting runtime example check, old-style deny smoke, new-style pass smoke, hook fixture tests, `nrs`, `verify-ai-compat`, code review, parallel audit, and final multi-pass review.
-- Review and audit findings about stale result-output wording, PRD status drift, NFR wording ambiguity, guard-internal prose duplication, Baseline delimiter ambiguity, legacy Baseline compatibility, durable review correlation, and resume drift validation were incorporated.
+- Review and audit findings about stale result-output wording, PRD status drift, NFR wording ambiguity, guard-internal prose duplication, Baseline delimiter ambiguity, durable review correlation, and resume drift validation were incorporated.
 - PR #683 was created for issue #659.
 
 ## Phase Change Log

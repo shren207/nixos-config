@@ -64,10 +64,6 @@ PRD 작성 후의 진행은 PRD master Document Status에서 `Current Phase` / `
 
 PRD 파일 작성 전의 `for_prd.step5_da` / `for_prd.step6_da_apply`는 durable file artifact를 전제하지 않는다. 세션이 끊긴 뒤 재개하면 transient draft/context와 DA verdict를 신뢰하지 않고 이슈 ref + Step 1-4 evidence를 다시 확인한 뒤 Step 5 DA부터 재실행한다. PRD 파일을 작성한 뒤에는 재실행 사유와 최종 verdict 요약을 master `Change Log`에 기록한다.
 
-### Legacy DA State compatibility
-
-기존 `.claude/plans/*`에는 새 enum이 아닌 legacy/free-form `DA State` 값이 있을 수 있다. 알 수 없는 값은 즉시 BLOCKED로 처리하지 않고 legacy 상태로 간주한다. `Resume From`, `Last Completed Step`, `Change Log`를 우선해 재개 위치를 판단하고, 다음에 Step 5/6 DA lifecycle에 진입할 때 새 enum(`PRE_DA`/`RUNNING`/`APPLYING`/...)으로 갱신한다. 세 필드로도 안전한 위치를 판단할 수 없으면 `NEEDS_USER`로 사용자 판단을 요청한다.
-
 ### Post-Implementation
 
 | Resume From | 진입 조건 |
@@ -111,22 +107,10 @@ DIRTY="<예: clean 또는 'uncommitted: PRD draft only'>"
 echo "branch=$BRANCH, HEAD=$HEAD_ANCHOR, dirty=$DIRTY"
 ```
 
-### Legacy Baseline compatibility
-
-기존 plan 파일에는 이전 형식의 short commit token과 dirty digest가 남아 있을 수 있다. 기존 plan 파일은 retro-rewrite하지 않는다. 이 섹션은 legacy resume 전용이며, 새 Baseline 작성 알고리즘이 아니다.
-
-- legacy 형식(`branch=<name>, HEAD=<short token>, dirty=<clean 또는 digest>`)이 감지되면, 메인 LLM은 현재 branch와 working tree 상태를 이전 비교 방식으로 **메모리에서만** 계산해 비교한다.
-- runtime-only 비교는 다음 입력으로만 수행한다:
-  - branch: `git rev-parse --abbrev-ref HEAD`
-  - HEAD token: `git rev-parse --short HEAD`
-  - dirty token: `{ git diff; git diff --cached; git status --porcelain=v1 --untracked-files=all; }` payload가 비어 있으면 `clean`; 비어 있지 않으면 `git hash-object --stdin` 결과의 짧은 prefix
-- legacy 값이 정확히 일치하면 기존 `Resume From`으로 재개할 수 있다.
-- legacy 값이 불일치하거나, dirty token payload/order 재현에 확신이 없거나, 계산이 불가능하면 drift 발생 가능으로 처리하여 Step 1-2를 재실행하거나 사용자 확인을 받는다.
-- 위 runtime-only 계산값은 비교에만 사용한다. 다음 durable plan 갱신 시 legacy Baseline을 새 자연어 anchor 형식으로 바꾼다. 이때 새 short token이나 dirty digest를 durable output에 추가하지 않는다.
-
 ### 재개 시 비교 절차
 
 1. plan 파일의 `Baseline` 파싱.
+   - Baseline이 위 새 형식이 아니거나 안전하게 파싱되지 않으면 Step 1-2를 재실행하거나 사용자 확인을 받는다.
 2. 현재 git 상태를 확인: branch 이름, 최근 commit subject, `git status --short`.
 3. 비교:
    - **branch 동일 + anchor 의미가 현재 상태와 명확히 일치 + dirty 상태가 안전하게 비교됨**: `Resume From` enum 값으로 정확한 단계 점프.
