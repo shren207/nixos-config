@@ -35,7 +35,9 @@ INPUT=$(cat)
 # rebuild + nrs-relink로 ~/.codex/hooks/* symlink를 다른 worktree로 relink할 수 있다.
 # rebuild 자체는 stop-notification 호출 ms 안에 끝날 수 없지만, 실행 hook을 호출 시점이 아닌
 # dispatcher 진입 시점에 고정해 hook 사본 일관성을 구조적으로 보장한다.
-HOOKS_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+# `${BASH_SOURCE[0]}`는 호출된 path(`~/.codex/hooks/_stop-dispatcher.sh`) 그대로이며,
+# `readlink -f`는 macOS BSD `readlink`에서 미지원 옵션이라 사용하지 않는다 (issue #614).
+HOOKS_DIR=$(dirname -- "${BASH_SOURCE[0]}")
 
 run_hook() {
   local name="$1"

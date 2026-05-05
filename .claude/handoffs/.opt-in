@@ -1,0 +1,8 @@
+# Session handoff automation opt-in marker (issue #614).
+#
+# 본 파일이 존재해야 handoff_full_snapshot_commit이 자동 commit을 수행한다.
+# user-scope hook이 nixos-config 외 다른 git repo에서 의도하지 않게 commit을 만들지 않도록
+# 명시적 opt-in을 요구한다.
+#
+# 본 nixos-config repo는 handoff 자동화의 의도된 대상이므로 marker를 tracked file로 둔다.
+# 다른 repo에서 자동 handoff를 활성화하려면 같은 path에 marker를 추가한다.

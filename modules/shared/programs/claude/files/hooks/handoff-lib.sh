@@ -123,6 +123,8 @@ handoff_redact() {
   # GitHub Personal Access Token (ghp_/gho_/ghu_/ghs_/ghr_ + 36자 base62)
   # GitHub PAT prefix 자체가 unique signature이라 word-boundary 없이도 false positive 위험 낮다.
   out=$(printf '%s' "$out" | sed -E 's/gh[pousr]_[A-Za-z0-9]{36,}/<github-token-redacted>/g')
+  # GitHub fine-grained PAT (`github_pat_<22>_<59>` 형식 — 두 segment underscore 분리)
+  out=$(printf '%s' "$out" | sed -E 's/github_pat_[A-Za-z0-9_]{22,}/<github-token-redacted>/g')
   # OpenAI API 키 ('sk-' + 20자+) — POSIX 경계로 변경 (BSD sed 호환).
   out=$(printf '%s' "$out" | sed -E 's/(^|[^A-Za-z0-9_-])(sk-[A-Za-z0-9_-]{20,})/\1<openai-key-redacted>/g')
   # AWS access key ID (AKIA = 장기 credential / ASIA = STS temporary credential).
@@ -338,10 +340,21 @@ handoff_full_snapshot_commit() {
   if [ -z "$repo_root" ]; then
     return 0
   fi
+  # repo opt-in gate (issue #614): hook은 user-scope로 배포되어 모든 git repo에서 작동
+  # 가능하다. 의도하지 않은 repo에서 자동 commit이 발생하지 않도록, 본 함수는
+  # `.claude/handoffs/.opt-in` marker 파일이 repo에 명시적으로 존재할 때만 진행한다.
+  # marker 부재 시 silent exit으로 다른 repo의 작업 흐름에 영향 없음.
+  if [ ! -f "$repo_root/.claude/handoffs/.opt-in" ]; then
+    return 0
+  fi
   branch=$(git -C "$repo_root" symbolic-ref --short HEAD 2>/dev/null || printf '')
   if [ -z "$branch" ]; then
     return 0
   fi
+  # branch 원문이 secret-like(`feature/ghp_...`, `feature/user@example.com`)일 수 있으므로
+  # snapshot frontmatter와 commit message에 들어가는 값을 redact한다 (Security+API).
+  local branch_safe
+  branch_safe=$(handoff_redact "$branch")
   branch_hash=$(handoff_compute_branch_hash "$branch" 2>/dev/null || printf '')
   # `last-commit`은 사용자 작업 이력의 anchor이다. handoff hook 자체가 만든
   # `chore(handoff):` commit은 제외하여 hook이 자신의 commit을 last-commit으로 박제하면
@@ -374,7 +387,7 @@ handoff_full_snapshot_commit() {
       return 0
     fi
   fi
-  target=$(handoff_write_snapshot "$slug_full" "$branch" "$branch_hash" "$last_commit" "$runtime" "" "" 2>/dev/null || printf '')
+  target=$(handoff_write_snapshot "$slug_full" "$branch_safe" "$branch_hash" "$last_commit" "$runtime" "" "" 2>/dev/null || printf '')
   if [ -z "$target" ] || [ ! -f "$target" ]; then
     return 0
   fi
@@ -400,8 +413,11 @@ handoff_full_snapshot_commit() {
     # handoff_run_gitleaks 내부에서 unstage + working tree quarantine 처리됨.
     return 0
   fi
-  # DEC-S14: chore(handoff): prefix 강제
-  if ! git -C "$repo_root" commit -m "chore(handoff): session-end snapshot for ${branch}" -- "$target" >/dev/null 2>&1; then
+  # DEC-S14: chore(handoff): prefix 강제. `--no-verify`로 lefthook pre-commit 재진입을 차단한다
+  # (Layer 2 gitleaks staged scan이 이미 위에서 통과했고, lefthook gitleaks는 다음 사용자 commit
+  # 시점의 Layer 3로 보존된다. handoff hook이 SessionEnd마다 lefthook 전체(eval-tests/codex-hook
+  # -fixtures/shellcheck/nixfmt 포함, 8.5초+)를 재실행하면 NFR-1 latency 한계를 초과한다).
+  if ! git -C "$repo_root" commit --no-verify -m "chore(handoff): session-end snapshot for ${branch_safe}" -- "$target" >/dev/null 2>&1; then
     # commit 실패 — staged 상태를 되돌려 working tree가 일관 상태를 유지한다.
     git -C "$repo_root" restore --staged -- "$target" 2>/dev/null || true
     if [ "$is_tracked" = "no" ]; then

@@ -6,7 +6,9 @@ Last Updated: 2026-05-05
 
 ## Objective
 
-DEC-S9 G2 + sourced helper 결정에 따라 공통 로직을 `handoff-lib.sh`에 추출하고, Claude/Codex thin wrapper 4 script(`handoff-stop.sh`, `handoff-session-end.sh`, `handoff-session-start.sh` × 2 사본)를 작성한다. drift fixture는 entrypoint 분리 후에도 잔존하는 중복에만 적용한다.
+DEC-S9 G2 + sourced helper 결정에 따라 공통 로직을 `handoff-lib.sh`에 추출하고, thin wrapper(`handoff-stop.sh`, `handoff-session-end.sh`, `handoff-session-start.sh`)를 작성한다.
+
+**SoT 정책 정정** (직전 fix 반영): handoff-lib.sh는 Claude SoT 단일 file이며, Codex hook 디렉토리(`~/.codex/hooks/handoff-lib.sh`)는 nix module이 Claude source에 mkOutOfStoreSymlink (pinning-patterns.sh와 동일 패턴). 본 phase에 처음 도입한 양쪽 사본 정책은 후속 fix에서 single-SoT로 단순화됨. 따라서 drift fixture는 single-SoT 정책 검증으로 변경(Codex repo source copy 부재 확인)되고 byte-identical 비교는 의미 없다. wrapper(handoff-stop / handoff-session-start)는 entrypoint별 Codex 가드 차이가 있어 별도 사본을 유지한다.
 
 ## Context From Master PRD
 

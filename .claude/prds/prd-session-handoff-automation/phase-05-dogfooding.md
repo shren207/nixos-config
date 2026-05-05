@@ -55,7 +55,7 @@ Last Updated: 2026-05-05
 - [ ] 시나리오 6 (multi-worktree race): 동일 branch가 두 worktree에 동시 checkout된 상태에서 양쪽 SessionEnd → snapshot 충돌 시 마지막 writer wins 동작 + 부작용(이전 active-files 손실 등) 측정. A-2 가정(빈도 낮음) 1-2주 dogfooding 후 재확인.
 - [ ] 시나리오 7 (non-blocking): gitleaks PATH 제거 또는 nix store gitleaks 위치 변경 시뮬레이션 → 세션 종료 흐름이 차단되지 않는지. handoff_run_gitleaks가 commit 차단 + quarantine 후 exit 0 (Phase 2 fixture에서 일부 자동 검증 완료, 실세션 통합은 사용자 협조).
 - [ ] 시나리오 8 (secret/PII 3 layer 통합): chat content에 fixture corpus(GitHub PAT/OpenAI/AWS/Stripe/JWT/이메일/전화/주민번호/$HOME/env-var)를 의도적으로 포함 + SessionEnd → 생성된 snapshot 파일에 잔존 토큰 0건 확인 (Phase 4 fixture에서 일부 자동 검증, 실 chat 통합은 사용자 협조).
-- [ ] 시나리오 9 (write-handoff race): Codex 세션에서 `/write-handoff <issue-url>` 명시 호출 + 동시 SessionEnd hook 발화 → GitHub 코멘트와 `.claude/handoffs/` 양쪽 갱신 race 측정. 결과를 D6 risk evidence + Phase 6 follow-up 이슈에 인용.
+- [ ] 시나리오 9 (write-handoff race): Codex 세션에서 `/write-handoff <issue-url>` 명시 호출 + 동시 Codex Stop heuristic trigger(pseudo-SessionEnd, Codex SessionEnd 미지원) 발화 → GitHub 코멘트와 `.claude/handoffs/` 양쪽 갱신 race 측정. 결과를 D6 risk evidence + Phase 6 follow-up 이슈에 인용.
 
 ## Validation Strategy
 

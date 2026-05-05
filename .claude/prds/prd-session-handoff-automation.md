@@ -43,7 +43,7 @@
 - SC-1: 사용자가 새 세션을 열었을 때 SessionStart stdout으로 `branch` + `last-commit` + handoff 파일 경로가 모델 컨텍스트에 자동 주입된다 (수동 read/copy 없음).
 - SC-2: Claude Code 세션 종료 → 새 Claude Code 세션 SessionStart, Codex 세션 종료 → Codex 새 세션 SessionStart, 그리고 cross-runtime (Claude → Codex / Codex → Claude) 4 시나리오 모두 동일 SoT 파일을 read한다.
 - SC-3: cross-machine — 머신 A에서 hook이 만든 commit을 push, 머신 B에서 git pull, B의 새 세션 SessionStart에서 동일 metadata가 주입된다.
-- SC-4: secret/PII fixture corpus(`sk-...`, `AKIA...`, GitHub token, 이메일/전화 패턴, 절대경로/hostname/env vars)를 가짜 chat content에 삽입했을 때 3 layer(allowlist + redaction + gitleaks) 모두 차단한다.
+- SC-4: secret/PII fixture corpus(`sk-...`, `AKIA...`, `ASIA...`, `ghp_...`, `github_pat_...`, 이메일/전화/주민번호/Unix 절대경로 등)를 hook 입력 env var(`HANDOFF_SUMMARY` 등 4개 allowlist)에 삽입했을 때 3 layer(allowlist + redaction + gitleaks) 모두 차단한다. **NOTE**: hook 자체는 chat payload(`last_assistant_message`)나 transcript 본문을 snapshot에 직접 매핑하지 않는다 — D11 참조.
 - SC-5: hook script가 timeout, gitleaks 미설치, 빈 commit 등의 장애 상황에서 세션 종료/시작 흐름을 차단하지 않는다 (각 시나리오 fixture 통과).
 - SC-6: snapshot이 의미 없는 변경(timestamp/session-id 등 noise field만 변경)일 때 git commit이 발생하지 않는다 (idempotent).
 
@@ -106,7 +106,7 @@
 - FR-5: snapshot 작성 시 allowlist 필드만 포함 (`branch`, `branch-hash`, `last-commit`, `runtime`, `issue-ref`, `prd-link`, `pending-decisions[]`, `active-files[]`, `next-action[]`). transcript/env vars/cwd absolute path/hostname/PII 패턴은 redaction 또는 작성 단계 제거.
 - FR-6: branch-slug 충돌 방지를 위해 raw branch의 short hash(6자)를 suffix로 추가. frontmatter에 raw branch 보존 + read 시 exact match. 빈 slug/예약 이름/path traversal 후보는 hard fail.
 - FR-7: gitleaks 미설치/scan 실패 시 commit 차단 + stderr 알림 + exit 0 (non-blocking 흐름 유지). staged unstage + working tree quarantine.
-- FR-8: handoff commit message는 `chore(handoff):` prefix 강제. squash 머지 시 본 prefix는 PR 본문에서 제외 가이드를 적용.
+- FR-8: handoff commit message는 `chore(handoff):` prefix 강제 (본 PR에 적용). squash 머지 시 본 prefix를 PR 본문에서 제외하는 PR template/create-pr filtering은 별도 follow-up issue (D9).
 
 ### Non-Functional Requirements
 - NFR-1: hook 실행 latency가 세션 종료/시작 흐름을 차단하지 않는 수준 (Stop=metadata-only는 < 500ms 목표, SessionEnd full snapshot+gitleaks+commit은 사용자가 인지하지 못하는 비차단).
@@ -130,7 +130,7 @@
 
 ## Risks / Edge Cases
 
-- D1 — git history 오염: `.claude/handoffs/<branch>.md` commit이 PR diff에 포함될 위험. 대응: `chore(handoff):` prefix + `.gitattributes linguist-generated` + PR template squash 가이드.
+- D1 — git history 오염 (부분 대응 + D9 residual): `.claude/handoffs/<branch>.md` commit이 PR diff에 포함된다. 부분 대응: `chore(handoff):` prefix + `.gitattributes linguist-generated`(GitHub UI collapsed by default)는 본 PR에 적용. PR template squash 가이드 / create-pr filtering은 별도 follow-up issue로 분리(D9 참조).
 - D2 — secret/PII 노출: gitleaks false negative 가능. 대응: 3 layer 방어 (allowlist + redaction + gitleaks).
 - D3 — multi-worktree 혼선: 동일 branch가 두 worktree에 동시 checkout 시 snapshot 충돌. 대응: branch-slug + hash suffix + raw branch exact match 검증. dogfooding에서 race 관찰.
 - D4 — hook overhead: Stop hook이 매 turn 수행되므로 latency budget 필요. 대응: Stop=metadata-only는 빠르게(<500ms), gitleaks scan은 SessionEnd/heuristic-trigger 시에만.

@@ -183,6 +183,16 @@ test_redact() {
     fail "$name"
   fi
 
+  name="redact: GitHub fine-grained PAT (github_pat_)"
+  local gh_pat="github_pat_AAAAAAAAAAAAAAAAAAAAAA_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+  out=$(handoff_redact "leaked $gh_pat")
+  if contains "<github-token-redacted>" "$out" && ! contains "$gh_pat" "$out"; then
+    ok "$name"
+  else
+    note "got '$out'"
+    fail "$name"
+  fi
+
   name="redact: OpenAI API key (sk-)"
   local openai_key="sk-AAAAAAAAAAAAAAAAAAAAAAAA"
   out=$(handoff_redact "config has $openai_key")
@@ -316,6 +326,11 @@ test_full_snapshot_commit_new_file() {
   echo "init" > README.md
   git add README.md
   git commit --quiet -m "init"
+  # opt-in marker (issue #614): hook은 marker 존재 시에만 자동 commit한다.
+  mkdir -p .claude/handoffs
+  touch .claude/handoffs/.opt-in
+  git add .claude/handoffs/.opt-in
+  git commit --quiet -m "test: opt-in marker"
 
   HANDOFF_SUMMARY="snapshot fixture summary" handoff_full_snapshot_commit "claude-code" >/dev/null 2>&1 || true
 
@@ -348,6 +363,10 @@ test_full_snapshot_commit_dirty_skip() {
   echo "init" > README.md
   git add README.md
   git commit --quiet -m "init"
+  mkdir -p .claude/handoffs
+  touch .claude/handoffs/.opt-in
+  git add .claude/handoffs/.opt-in
+  git commit --quiet -m "test: opt-in marker"
 
   # 첫 호출 — untracked → commit 생성
   HANDOFF_SUMMARY="first run" handoff_full_snapshot_commit "claude-code" >/dev/null 2>&1 || true
@@ -395,6 +414,10 @@ test_full_snapshot_commit_idempotent_cleanup() {
   echo "init" > README.md
   git add README.md
   git commit --quiet -m "init"
+  mkdir -p .claude/handoffs
+  touch .claude/handoffs/.opt-in
+  git add .claude/handoffs/.opt-in
+  git commit --quiet -m "test: opt-in marker"
 
   # 첫 호출 — untracked → commit 생성
   HANDOFF_SUMMARY="first run" handoff_full_snapshot_commit "claude-code" >/dev/null 2>&1 || true
