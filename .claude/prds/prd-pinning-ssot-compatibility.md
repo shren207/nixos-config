@@ -20,7 +20,7 @@ The implementation must update the SSOT so future generated durable artifacts us
 
 - G-1: Replace hash-based Baseline guidance with branch + natural-language anchor + natural-language dirty status.
 - G-2: Preserve fail-closed resume behavior when natural-language anchors or dirty state cannot be safely resolved.
-- G-3: Make external-review run identifiers and durable state entries guard-safe.
+- G-3: Keep external-review runtime correlation out of durable state while keeping durable entries guard-safe.
 - G-4: Keep `pinning-patterns.sh` as the pattern SSOT; do not duplicate pattern semantics in prose.
 - G-5: Preserve runtime examples in `consulting-step.md` while making generated durable-output guidance guard-safe.
 - G-6: Validate source and deployed skill surfaces after `nrs`.
@@ -37,7 +37,7 @@ The implementation must update the SSOT so future generated durable artifacts us
 
 - SC-1: The five scoped markdown files no longer instruct agents to write short hash Baseline values or hash-derived dirty state into durable plan files.
 - SC-2: Resume guidance fails closed when a natural-language anchor, same-branch drift, or dirty state cannot be safely compared.
-- SC-3: Durable external-review state uses guard-safe run tokens and records verdict summaries or stable artifact names, not ephemeral scratch paths.
+- SC-3: Durable external-review state records natural-language status plus verdict summaries or stable artifact names, not one-off run identifiers or ephemeral scratch paths.
 - SC-4: `consulting-step.md` keeps required runtime examples, and validation explicitly separates preserved runtime examples from generated durable-output guidance.
 - SC-5: Negative and positive hook smoke checks prove old-style generated durable content is denied and new-style generated durable content passes.
 - SC-6: `nrs` and `./scripts/ai/verify-ai-compat.sh` pass after source changes.
@@ -57,7 +57,7 @@ The implementation must update the SSOT so future generated durable artifacts us
 ### Scenario 3: External review state in a durable plan
 - Actor: plan-with-questions records external review progress.
 - Trigger: review starts, completes, or is resumed.
-- Expected outcome: durable state records a guard-safe run token plus verdict summary or stable artifact name. It does not record ephemeral scratch result paths.
+- Expected outcome: durable state records natural-language review status plus verdict summary or stable artifact name. It does not record one-off run identifiers or ephemeral scratch result paths.
 
 ## Discovery Summary
 
@@ -73,7 +73,7 @@ The implementation must update the SSOT so future generated durable artifacts us
 - Current system:
   - `plan-file-template.md` still documents short hash Baseline and dirty hash examples.
   - `resume-state.md` still computes a short head value and dirty hash for resume comparison.
-  - `da-integration.md` still documents a run identifier containing a short hash component.
+  - `da-integration.md` still documents a per-run identifier in durable state.
   - `for_action.md` still has external-review wording that matches guard patterns.
   - `consulting-step.md` intentionally keeps runtime examples; those examples need explicit validation handling rather than blanket removal.
 - Validation surface:
@@ -95,7 +95,7 @@ The implementation must update the SSOT so future generated durable artifacts us
 - FR-3: Resume logic requires a fail-closed decision when an anchor cannot be confidently resolved.
 - FR-4: Resume logic requires a fail-closed decision when baseline or current state is dirty and content identity cannot be safely compared.
 - FR-5: `consulting-step.md` adds a consistency note tying durable Baseline formatting to the existing durable temp-path boundary.
-- FR-6: `da-integration.md` run identifier guidance uses a guard-safe non-hex token shape.
+- FR-6: `da-integration.md` keeps per-run correlation runtime-only and records durable review state in natural language.
 - FR-7: Durable state wording in `da-integration.md`, `plan-file-template.md`, and `resume-state.md` records verdict summaries or stable artifact names, not ephemeral scratch result paths.
 - FR-8: `for_action.md` external-review section wording avoids the guard keyword shape while preserving meaning.
 - FR-9: `da-integration.md` links `pinning-patterns.sh` as the pattern SSOT and avoids an exhaustive forbidden-to-replacement mapping table.
@@ -111,7 +111,7 @@ The implementation must update the SSOT so future generated durable artifacts us
 ## Assumptions
 
 - A-1: Natural-language anchors are acceptable if resume behavior fails closed when ambiguity remains.
-- A-2: Guard-safe run tokens can use a fixed non-hex prefix plus a decimal counter or another shape that cannot be all-hex.
+- A-2: Runtime-only review correlation may use implementation-local identifiers, but durable markdown must not depend on or record them.
 - A-3: `nrs` updates user-scope skill symlinks before `verify-ai-compat.sh` validates runtime surface.
 
 ## Dependencies / Constraints
@@ -126,7 +126,7 @@ The implementation must update the SSOT so future generated durable artifacts us
 - Natural-language anchors can be ambiguous; fail-closed resume behavior is required.
 - Dirty working tree summaries can hide content drift; dirty state must not authorize same-HEAD resume by itself.
 - Runtime temp-dir examples in `consulting-step.md` can be mistaken for generated durable-output violations; validation must separate those surfaces.
-- A random token can accidentally be all-hex; run token shape must structurally prevent that.
+- Regex-safe per-run labels can still violate the user-scope durable metadata policy; keep review correlation out of markdown.
 - A detailed prose mapping table can drift from `pinning-patterns.sh`; examples must stay illustrative.
 
 ## Execution Rules
@@ -145,7 +145,7 @@ The implementation must update the SSOT so future generated durable artifacts us
 |---|---|---|---|---|
 | Phase 1: Discovery and guard baseline | Complete | Confirm current target lines, helper behavior, and guard reproduction before edits. | Existing-state grep + old-style deny smoke. | [phase-01-discovery-and-guard-baseline.md](./prd-pinning-ssot-compatibility/phase-01-discovery-and-guard-baseline.md) |
 | Phase 2: Baseline and resume contract | Complete | Update Baseline/resume semantics as one invariant. | Natural anchor format + fail-closed drift cases. | [phase-02-baseline-and-resume-contract.md](./prd-pinning-ssot-compatibility/phase-02-baseline-and-resume-contract.md) |
-| Phase 3: Durable external-review wording | Complete | Update durable external-review state and wording across all affected docs. | Guard-safe run token + no ephemeral result paths. | [phase-03-durable-external-review-wording.md](./prd-pinning-ssot-compatibility/phase-03-durable-external-review-wording.md) |
+| Phase 3: Durable external-review wording | Complete | Update durable external-review state and wording across all affected docs. | Runtime-only correlation + no ephemeral result paths. | [phase-03-durable-external-review-wording.md](./prd-pinning-ssot-compatibility/phase-03-durable-external-review-wording.md) |
 | Phase 4: Validation activation closeout | In Progress | Run scoped static, hook, fixture, activation, review, audit, and PR closeout. | Negative/positive smoke + `nrs` + verifier. | [phase-04-validation-activation-closeout.md](./prd-pinning-ssot-compatibility/phase-04-validation-activation-closeout.md) |
 
 ## Final Multi-Pass Review After All Phases
@@ -161,5 +161,6 @@ Run the plan-with-questions PRD final review checklist plus review-implementatio
 - 2026-05-05: Initial PRD created for issue #659 after user approval. External consultation and plan review findings were incorporated into the phase structure: baseline/resume invariant, durable external-review wording invariant, scoped validation split, and current post-implementation workflow.
 - 2026-05-05: Phase 1 complete. Existing-state grep confirmed old Baseline/result-path/run-token guidance remains in target docs, and hook stdin smoke confirmed old-style generated durable content is denied. Active Phase -> Phase 2.
 - 2026-05-05: Phase 2 complete. Baseline metadata now uses natural-language anchor and dirty status; resume-state removes short-head and dirty digest comparison, adds fail-closed anchor/dirty ambiguity handling, and consulting-step links Baseline formatting to durable-output boundaries. Active Phase -> Phase 3.
-- 2026-05-05: Phase 3 complete. External-review durable state now uses guard-safe run tokens, durable verdict summaries or stable artifact names, helper-as-SSOT wording, and updated for_action heading. Active Phase -> Phase 4.
+- 2026-05-05: Phase 3 complete. External-review durable state now keeps run correlation runtime-only, uses durable verdict summaries or stable artifact names, keeps helper-as-SSOT wording, and updates the for_action heading. Active Phase -> Phase 4.
 - 2026-05-05: Phase 4 in progress. Static helper checks, consulting runtime example check, old-style deny smoke, new-style pass smoke, fixture tests, `nrs`, `verify-ai-compat`, and implementation commit completed. Review findings about stale result-output wording, PRD status drift, NFR scope wording, guard-internal prose, Baseline delimiters, and legacy Baseline compatibility were incorporated.
+- 2026-05-05: Phase 4 closeout in progress. Code review, parallel audit, and final multi-pass review completed; accepted fixes were incorporated and validation was rerun. Remaining: PR creation and PRD completion update.

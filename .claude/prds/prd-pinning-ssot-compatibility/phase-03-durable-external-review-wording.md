@@ -35,13 +35,13 @@ Before code edits:
 - Exhaustive prose table that mirrors guard patterns.
 
 ## Implementation Checklist
-- [x] Replace run identifier guidance with a guard-safe token shape that cannot be all-hex.
+- [x] Replace durable run identifier guidance with runtime-only correlation and natural-language durable state.
 - [x] Remove durable guidance examples that use UUID fragments, temp-name fragments, or short hash components.
 - [x] Update `for_action.md` heading/wording to avoid the guard keyword shape while preserving the Step 5-6 meaning.
 - [x] Update durable state guidance to record verdict summaries or stable artifact names only.
 - [x] Remove or replace durable wording that says to record ephemeral scratch result paths.
 - [x] Link `modules/shared/programs/claude/files/lib/pinning-patterns.sh` as the pattern SSOT.
-- [x] Include only a few guard-safe examples and state that examples must be validated with the helper.
+- [x] Include only a few guard-safe durable examples and state that examples must be validated with the helper.
 
 ## Validation Strategy
 
@@ -54,7 +54,7 @@ Use helper-based static checks on changed durable-output guidance and manual rev
 - [x] `da-integration.md` does not contain an exhaustive pattern mapping table.
 
 ## Exit Criteria
-- [x] Durable external-review state is guard-safe.
+- [x] Durable external-review state is guard-safe and excludes per-run correlation identifiers.
 - [x] Pattern semantics remain centralized in `pinning-patterns.sh`.
 - [x] Phase 4 can validate both old-style deny and new-style pass behavior.
 
@@ -71,7 +71,7 @@ Use helper-based static checks on changed durable-output guidance and manual rev
 - [x] 10. PRD sync review.
 
 ## Discoveries / Decisions
-- Durable state may keep stable summaries, but it must not keep ephemeral scratch paths.
+- Durable state may keep stable summaries, but it must not keep per-run correlation identifiers or ephemeral scratch paths.
 - Helper validation across the four Phase 3 target files reported zero guard findings.
 - Old phrase grep returned no active durable wording matches after rephrasing disallowed random suffix sources.
 

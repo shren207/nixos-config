@@ -17,7 +17,7 @@
 - **타이밍**: 반드시 계획 추적 도구 진입 전에 이 단계를 완료한다 (DA 에이전트가 일반 모드에서 full tool access로 PoC 검증을 수행할 수 있도록).
 - **for_action 입력 계약**: Step 4.5에서 만든 공식 `.claude/plans/<slug>.md` 경로와 파일 내용을 DA 입력 context에 포함한다. `/run-da for_plan` 뒤에 path argument나 modifier를 추가하지 않는다.
 - **for_action fail-closed precondition**: Step 4.5 plan 파일이 없거나 canonical path가 `.claude/plans/` 밖이면 `/run-da for_plan`을 호출하지 않고 BLOCKED 처리한다. slug 재생성 또는 파일 초기화를 먼저 완료한다.
-- **for_action DA State 전이**: 외부 검토 시작 직전에 같은 plan 파일의 `DA State`를 `RUNNING`으로 바꾸고 `Change Log`에 run token(`review-YYYYMMDD-HHMMSS-runNN`)과 started-at을 기록한다. token suffix는 `run01`, `run02`처럼 non-hex alphabetic prefix + decimal counter 형태를 사용해 guard-safe하게 만든다. runtime-generated random suffix나 commit-derived suffix처럼 all-hex가 될 수 있는 값은 durable output에 쓰지 않는다. verdict를 수신한 즉시 Step 6 반영 전에 `DA State=APPLYING`, `Resume From=for_action.step6_da_apply`로 갱신하고, 같은 run token의 durable verdict summary 또는 stable artifact name을 `Change Log`에 기록한다. Step 6은 최신 run token과 일치하는 verdict만 반영하며, 나중에 도착한 이전 run verdict는 stale result로 기록하고 무시한다.
+- **for_action DA State 전이**: 외부 검토 시작 직전에 같은 plan 파일의 `DA State`를 `RUNNING`으로 바꾸고 `Change Log`에는 외부 검토가 시작됐다는 자연어 상태만 기록한다. 개별 run 상관관계 값은 live session memory 또는 scratch에만 두고 durable markdown에는 쓰지 않는다. verdict를 수신한 즉시 Step 6 반영 전에 `DA State=APPLYING`, `Resume From=for_action.step6_da_apply`로 갱신하고, durable verdict summary 또는 stable artifact name을 `Change Log`에 기록한다. Step 6은 같은 active session에서 runtime-only 상관관계가 현재 verdict임을 확인할 수 있을 때만 반영한다. 세션 재개 후 상관관계를 확인할 수 없거나 verdict 기록이 불충분하면 같은 plan 파일을 입력으로 외부 검토를 재실행하고, 늦게 도착한 이전 verdict는 stale result로만 기록하고 적용하지 않는다.
 - **for_prd 예외**: `for_prd`는 Step 4.5와 `.claude/plans/` precondition을 적용하지 않는다. Step 5 DA 입력은 PRD draft/context, candidate phase structure, Step 1-4 evidence다.
 
 ### Durable wording guardrails
@@ -26,8 +26,8 @@ Durable plan/PRD/PR/issue/comment text must not duplicate the guard pattern defi
 
 Guard-safe examples for plan `Change Log` entries:
 
-- `외부 검토 plan-mode 시작: token=review-YYYYMMDD-HHMMSS-run01`
-- `외부 검토 결과 반영: token=review-YYYYMMDD-HHMMSS-run01, verdict summary recorded`
+- `외부 검토 plan-mode 시작`
+- `외부 검토 결과 반영: verdict summary recorded`
 - `이전 외부 검토 결과 도착: stale result ignored`
 
 ## Step 6: DA 결과 반영 [일반 모드]

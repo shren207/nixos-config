@@ -29,7 +29,7 @@ Before code edits:
 - Baseline consistency note in `modules/shared/programs/claude/files/skills/plan-with-questions/references/consulting-step.md`
 
 ### Out of Scope
-- External-review run identifier wording; handled in Phase 3.
+- External-review runtime-correlation wording; handled in Phase 3.
 - Runtime command examples in `consulting-step.md`.
 
 ## Implementation Checklist

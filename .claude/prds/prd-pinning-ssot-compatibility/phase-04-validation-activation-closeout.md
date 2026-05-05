@@ -46,10 +46,10 @@ Before code edits:
 - [x] Run `nrs`.
 - [x] Run `./scripts/ai/verify-ai-compat.sh` immediately after `nrs`.
 - [x] Run implementation commit.
-- [ ] Run code review loop.
-- [ ] Run parallel audit.
-- [ ] Run final multi-pass review and review-implementation overlay.
-- [ ] Apply review fixes and commit if needed.
+- [x] Run code review loop.
+- [x] Run parallel audit.
+- [x] Run final multi-pass review and review-implementation overlay.
+- [x] Apply review fixes and commit if needed.
 - [ ] Create PR.
 
 ## Validation Strategy
@@ -64,33 +64,34 @@ Combine source static checks, direct hook behavior, deterministic fixtures, acti
 - [x] Relevant PreToolUse fixture tests pass.
 - [x] `nrs` succeeds.
 - [x] `./scripts/ai/verify-ai-compat.sh` succeeds after `nrs`.
-- [ ] Code review loop reaches clear state or records accepted fixes.
-- [ ] Parallel audit reaches clear state or records accepted fixes.
-- [ ] Final multi-pass review and overlay complete.
+- [x] Code review loop reaches clear state or records accepted fixes.
+- [x] Parallel audit reaches clear state or records accepted fixes.
+- [x] Final multi-pass review and overlay complete.
 
 ## Exit Criteria
-- [ ] All selected validation checks pass or gaps are recorded with reason.
-- [ ] Deployed user-scope skill surface reflects source changes.
+- [x] All selected validation checks pass or gaps are recorded with reason.
+- [x] Deployed user-scope skill surface reflects source changes.
 - [ ] PRD master and phase files are updated to Complete.
 - [ ] PR is created or a blocker is documented.
 
 ## Phase-End Multi-Pass Review
-- [ ] 1. Intent/coverage review.
-- [ ] 2. Correctness review.
-- [ ] 3. Simplicity review.
-- [ ] 4. Code quality review.
-- [ ] 5. Duplication/cleanup review.
-- [ ] 6. Security/privacy review.
-- [ ] 7. Performance/load review.
-- [ ] 8. Validation review.
-- [ ] 9. Future-phase review.
-- [ ] 10. PRD sync review.
+- [x] 1. Intent/coverage review.
+- [x] 2. Correctness review.
+- [x] 3. Simplicity review.
+- [x] 4. Code quality review.
+- [x] 5. Duplication/cleanup review.
+- [x] 6. Security/privacy review.
+- [x] 7. Performance/load review.
+- [x] 8. Validation review.
+- [x] 9. Future-phase review.
+- [x] 10. PRD sync review.
 
 ## Discoveries / Decisions
 - Current post-implementation flow is steps 1-7 by default; the older issue handoff skip note is not applied unless the user explicitly narrows scope.
-- Validation completed so far: static helper checks, consulting runtime example check, old-style deny smoke, new-style pass smoke, hook fixture tests, `nrs`, and `verify-ai-compat`.
-- Review findings about stale result-output wording, PRD status drift, NFR wording ambiguity, guard-internal prose duplication, Baseline delimiter ambiguity, and legacy Baseline compatibility were incorporated.
+- Validation completed so far: static helper checks, consulting runtime example check, old-style deny smoke, new-style pass smoke, hook fixture tests, `nrs`, `verify-ai-compat`, code review, parallel audit, and final multi-pass review.
+- Review and audit findings about stale result-output wording, PRD status drift, NFR wording ambiguity, guard-internal prose duplication, Baseline delimiter ambiguity, legacy Baseline compatibility, durable review correlation, and resume drift validation were incorporated.
 
 ## Phase Change Log
 - 2026-05-05: Phase file created.
 - 2026-05-05: Phase moved to In Progress after validation, activation, and implementation commit. Remaining: review loop clear, parallel audit, final multi-pass review, follow-up commit if needed, PR creation.
+- 2026-05-05: Review loop, parallel audit, and final multi-pass review completed. Accepted fixes were incorporated and validation was rerun. Remaining: PR creation and PRD completion update.
