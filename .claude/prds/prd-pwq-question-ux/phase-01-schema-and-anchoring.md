@@ -102,7 +102,7 @@ Last Updated: 2026-05-05
 
 ## Discoveries / Decisions
 
-- D2 fallback과 D4 알고리즘은 별개의 시스템임을 명시: D2 fallback은 user_facing layer 누락 시 메인 LLM의 graceful degrade(4단계), D4 알고리즘은 라벨 부착 결정 흐름(5단계 + 4 fallback). [FALLBACK_USER_FACING] 라벨은 D2 Stage 3(메인 LLM 자체 작성)에서 사용되며 D4 step 어느 것에도 직접 매핑되지 않는다.
+- D2 fallback과 D4 알고리즘은 별개의 시스템임을 명시: D2 fallback은 user_facing layer 누락 시 메인 LLM의 graceful degrade(4단계), D4 알고리즘은 라벨 부착 결정 흐름(작업 시점에는 5단계로 spec 작성, 후속 자동 검토에서 D4를 schema 한계 내 보수적 합의 정의로 단순화하여 4단계로 정정 — 본 phase Spec 본문은 작업 시점 표현 보존, 정본은 `consulting-step.md` SSOT). [FALLBACK_USER_FACING] 라벨은 D2 Stage 3(메인 LLM 자체 작성)에서 사용되며, D4_FALLBACK_* enum은 별개 축으로 사용자 노출은 평이 한국어 문구만 (후속 정정).
 - 셸 호출 3의 schema 검증을 jq 표현식으로 elevation. fallback A/B 분기를 셸 출력 메시지로 명시하여 메인 LLM이 fallback 라벨로 매핑할 수 있게 함.
 
 ## Phase Change Log

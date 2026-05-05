@@ -113,7 +113,7 @@ Phase 1~4 완료 후 본 PRD 자체로 self-test (dogfooding 5건) + issue #646 
 본 phase는 마지막이라 Phase-End 10-pass와 Final 10-pass가 동일 절차로 수행된다.
 
 - [x] 1. Intent/coverage — 모든 FR + SC가 Phase 1-5 통합으로 달성
-- [x] 2. Correctness — fallback A/B/C/D 4시나리오, judgment-first 보호, D4 합의 알고리즘 5단계 + D2 fallback 4단계 모두 인스트럭션/grep/jq schema 검증으로 정합 확인. dogfooding 시간 의존 항목은 closeout 외부 monitoring (SC-4 deferred).
+- [x] 2. Correctness — fallback enum(D4_FALLBACK_A/B/C/C_MULTI) 시나리오, judgment-first 보호, D4 합의 알고리즘 4단계(보수적 합의 정의) + D2 fallback 4단계 모두 인스트럭션/grep/jq schema 검증으로 정합 확인. dogfooding 시간 의존 항목은 closeout 외부 monitoring (SC-4 deferred).
 - [x] 3. Simplicity — 본 PRD 변경이 인스트럭션 + grep 패턴만, 코드 동작 변경 없음
 - [x] 4. Code quality — 8개 파일 + 스크립트 + 본 PRD가 다음 LLM에게 명확
 - [x] 5. Duplication/cleanup — Phase 1 schema/합의 알고리즘이 SSOT로 인용, 사본 없음

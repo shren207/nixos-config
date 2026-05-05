@@ -281,6 +281,7 @@ if [ -s "$RESULT" ] && jq -e . < "$RESULT" >/dev/null 2>&1; then
         ($opt.technical_matrix | has("주요unknown")) and
         ($opt.technical_matrix | has("비용시간추정")) and
         (($opt.disqualifiers // null) | type == "array") and
+        (($opt.evidence_gaps // null) | type == "array") and
         ($opt.user_facing | type == "object") and
         ($opt.user_facing | has("label")) and
         ($opt.user_facing | has("description")) and
@@ -292,7 +293,7 @@ if [ -s "$RESULT" ] && jq -e . < "$RESULT" >/dev/null 2>&1; then
   ' < "$RESULT" >/dev/null 2>&1; then
     cat "$RESULT"  # 또는 jq로 필요한 필드만 추출
   else
-    echo "consulting-step: schema validation failed — fallback B [FALLBACK_TECHNICAL_INVALID] (라벨 부착 금지)"
+    echo "consulting-step: schema validation failed — fallback B (라벨 부착 금지, schema 위반 사용자 보고)"
     cat "$RESULT"  # raw 출력은 메인 LLM이 D2 fallback 4단계 시도용으로 사용
   fi
 else
@@ -326,24 +327,21 @@ rm -rf -- "$CONSULT_DIR"
 
 1. **추천 라벨 — "허용 + 합의 조건" (D4 합의 알고리즘)** — `(Recommended)` 라벨은 **합의 PASS 단일 옵션에만 부착**한다. 자문 결과 score/rank 같은 implicit choice 필드는 무시 — 라벨 부착 결정은 메인 LLM의 합의 알고리즘만 수행한다. AskUserQuestion 도구 description이 라벨을 권장해도 본 hard rule이 우선한다.
 
-   **D4 합의 알고리즘 5단계** (사용자 노출 직전 메인 LLM이 결정마다 실행):
+   **D4 합의 알고리즘 4단계** (사용자 노출 직전 메인 LLM이 결정마다 실행 — schema 한계 내 보수적 합의 정의):
 
    ```
    Step 1. Step 3.5 Codex 자문 정상 종료 + result.json valid?
        - NO → fallback A: 라벨 부착 금지 + "자문 미수행으로 추천 라벨 없음" 사용자 보고
-   Step 2. technical_matrix schema 검증 (7키 + disqualifiers + user_facing 모두 존재)?
-       - FAIL → fallback B: 라벨 부착 금지 + [FALLBACK_TECHNICAL_INVALID] 사용자 보고
+   Step 2. technical_matrix schema 검증 (7키 + disqualifiers + evidence_gaps + user_facing 모두 존재 + 타입 일치)?
+       - FAIL → fallback B: 라벨 부착 금지 + 사용자에게 schema 위반 평이 보고
    Step 3. 후보 필터 — 자문이 부여한 disqualifier 0개 + evidence_gaps ≤ 1개를 만족하는 옵션 집합 생성:
-       - 후보 0개 → fallback C: 라벨 부착 금지 + [FALLBACK_NO_CONSENSUS] 사용자 보고
-       - 후보 1개 → 그 옵션이 합의 후보로 확정. Step 4 skip → Step 5
-       - 후보 2+ → Step 4 (메인 LLM 가중치 선정 단계 진입)
-   Step 4. 메인 LLM 가중치 선정 — Step 3에서 다수 후보가 남았을 때만 실행. "현 상황 적합성 컨텍스트"(시간 제약/가역성/위험 허용도/영향 범위/기존 패턴 일치도) 가중치로 단일 옵션을 결정:
-       - 가중치 동률 또는 결정 불가 → fallback D: 라벨 부착 금지 + [FALLBACK_DISAGREE] + 후보들 차이를 사용자에게 평이하게 보고
-       - 단일 옵션 결정 성공 → Step 5
-   Step 5. 합의 PASS → Step 3/4에서 확정된 단일 옵션에만 (Recommended) 라벨 부착 + Decision Log에 합의 단계별 evidence 기록
+       - 후보 0개 → fallback C: 라벨 부착 금지 + 사용자에게 평이 보고 ("자문이 모든 옵션에 disqualifier 또는 evidence_gaps를 부여 — 추천 후보 없음")
+       - 후보 1개 → Step 4로 진행
+       - 후보 2+ → fallback C-multi: 라벨 부착 금지 + 후보 옵션들을 user_facing layer로 모두 사용자에게 표시. 메인 LLM이 "현 상황 적합성 컨텍스트"(시간 제약/가역성/위험 허용도/영향 범위/기존 패턴 일치도)로 한 옵션에 대한 tentative 선호를 *별도로* 평이하게 표명할 수 있으나 (Recommended) 라벨은 부착하지 않는다 (schema에 자문 추천 신호 필드가 없어 메인 LLM 단독 선택을 "합의"로 라벨링하지 않는 보수적 정책 — 정합 강화는 future schema extension의 추천/반대 신호 필드 + 메인 LLM 후보와의 일치 검증으로 가능)
+   Step 4. 합의 PASS — Step 3에서 후보가 정확히 1개로 좁혀진 경우에만 도달. 그 옵션에 (Recommended) 라벨 부착 + Decision Log에 합의 단계별 evidence 기록 (자문 disqualifier 0 + evidence_gaps ≤ 1 + 메인 LLM이 동일 후보에 대해 별다른 disqualifier 발견 없음 확인)
    ```
 
-   본 5단계는 first-match가 아닌 단계 순차 진행이다. Step 3/Step 4가 동일 조건을 중복 평가하지 않도록 Step 3는 자문 평가 기반 필터, Step 4는 메인 LLM 가중치 선정으로 책임이 분리되어 있다 (한 단계에서 fail하면 그 단계의 fallback으로 격하). 자문 출력에 future schema extension으로 추천/반대 신호 필드가 추가되면 Step 4의 "합의 판정" 의미가 확장될 수 있으나, 현 schema에서는 위 정의가 단일 trigger다.
+   본 4단계는 first-match가 아닌 단계 순차 진행이다. 라벨 부착의 의미는 "자문이 schema 한계 안에서 부여한 신호와 메인 LLM 평가가 동일 단일 옵션을 가리킨다"이며, 이는 schema에 추천/반대 신호 필드가 없는 현 단계에서 schema 한계 내 가장 보수적인 합의 정의다. fallback C-multi(후보 2+)는 라벨 없이 사용자가 직접 선택하는 케이스로, 라벨 부착이 무리한 추론이 되는 영역을 명확히 분리한다.
 
    **합의 미달 옵션에 라벨 부착 절대 금지**는 본 reference의 hard rule이며, SKILL.md/output-templates.md 양쪽에 동일 hard rule이 명시되어 있어야 한다 (FR-7).
 2. **옵션 순서 셔플 (decision_id 기반 stable)** — `decision_id`를 seed로 옵션 배열 순서를 결정적(deterministic)으로 셔플한다. 같은 `decision_id`를 다시 보여주면 같은 순서가 나온다 (재현성). 다른 `decision_id`이면 다른 순서 (primacy bias 분산). mapping(원본 ↔ 셔플)은 메인 LLM 내부 기록에 보존.
@@ -378,34 +376,27 @@ Stage 4. 위 모두 실패 → 자문 미수행 동등 처리
     - 자문 user_facing이 사용 불가능한 채로 결정 진행 불가 → D4 fallback A와 동등하게 처리 ("자문 미수행으로 추천 라벨 없음" 사용자 보고).
 ```
 
-### D2 fallback Stage 라벨 (텍스트 출처 표기)
+### Fallback enum (내부 Decision Log 전용, 사용자 노출 금지)
 
-D2 fallback은 라벨 단일 항목만 사용한다 — 사용자 노출 텍스트가 자문 원본이 아닌 메인 LLM 자체 작성임을 표기하는 용도다.
+Fallback enum 라벨은 내부 Decision Log 기록과 검증용으로만 사용한다. **사용자에게는 enum 라벨 자체를 노출하지 않는다** — 사용자에게는 평이한 한국어 문구만 보여 user_facing layer 외 기술 taxonomy 노출을 차단한다 (정상 경로의 user_facing 의무와 fallback 경로의 사용자 노출 정책 일관 유지).
 
-| 라벨 | 발생 조건 | 동작 |
+| 내부 enum (Decision Log) | D4 단계 / D2 stage | 사용자 노출 평이 문구 (예시) |
 |---|---|---|
-| `[FALLBACK_USER_FACING]` | D2 Stage 3 — user_facing layer 누락으로 메인 LLM이 description/analogy/plain_disqualifier 자체 작성 | description 출처를 사용자에게 표기 (D4 라벨 부착과는 무관) |
+| `D4_FALLBACK_A` | D4 Step 1 — 자문 timeout 또는 result.json invalid | "자문이 완료되지 못했어요. 추천 없이 옵션을 그대로 보여드릴게요." |
+| `D4_FALLBACK_B` | D4 Step 2 — schema 검증 fail (7키 + disqualifiers + evidence_gaps + user_facing) | "자문 결과 형식이 맞지 않아 평이 설명만 복구했어요. 추천 없이 비교만 보여드릴게요." |
+| `D4_FALLBACK_C` | D4 Step 3 — disqualifier 0 + evidence_gaps ≤ 1 후보 0개 | "각 옵션에 미해결 사항이 남아 있어 추천을 정할 수 없어요. 옵션을 그대로 보여드릴게요." |
+| `D4_FALLBACK_C_MULTI` | D4 Step 3 — 후보 2+ (schema 한계 내 보수적 합의 정의 미달) | "두 옵션 모두 후보로 남아요. (선택적) 메인 LLM tentative 선호: 옵션 X (가중치 근거: ...)" |
+| `D2_FALLBACK_USER_FACING` | D2 Stage 3 — user_facing layer 누락으로 메인 LLM 자체 작성 | "옵션 설명을 메인 LLM이 평이하게 다시 풀어 썼어요." (텍스트 출처 표기일 뿐, D4 라벨 부착과는 별개 축) |
 
-### D4 fallback A/B/C/D (라벨 부착 결정 흐름)
+내부 enum은 다음 두 출처에만 등장한다:
+1. Decision Log의 External Consult 필드 (감사용 — verdict 흐름 기록).
+2. 본 reference + bias-measurement.md baseline 검증 (정책 일관성 확인용).
 
-D4 합의 알고리즘 5단계(위 Anti-anchoring 1번 SSOT)가 어느 단계에서든 fail하면 그 옵션에 `(Recommended)` 라벨을 부착하지 않는다. 4 fallback은 라벨 부착 결정의 흐름 단계이며, 위 D2 텍스트 복구 흐름과는 별개 시스템이다 — 다음 LLM은 두 표를 분리해서 lookup한다.
+사용자 노출 메시지는 평이 한국어 문구만 사용하며, 내부 enum 라벨은 노출하지 않는다 (모든 fallback 메시지가 정상 user_facing layer와 동일한 톤을 유지하도록).
 
-| Fallback | 발생 조건 (D4 단계) | 사용자에게 노출되는 표기 | 동작 |
-|---|---|---|---|
-| A | Step 1 — 자문 timeout 또는 result.json invalid | "자문 미수행으로 추천 라벨 없음" | 라벨 부착 금지 + 모든 옵션 표시 (D2 텍스트 복구가 작동했다면 그 결과 사용) |
-| B `[FALLBACK_TECHNICAL_INVALID]` | Step 2 — technical_matrix/disqualifiers/user_facing schema 검증 fail | "자문 응답 schema 검증 실패" | 라벨 부착 금지 + D2 fallback 4단계로 텍스트 복구 시도 |
-| C `[FALLBACK_NO_CONSENSUS]` | Step 3 — disqualifier 0 + evidence_gaps ≤ 1 후보 0개 | "자문이 모든 옵션에 disqualifier 또는 evidence_gaps를 부여 — 추천 후보 0개" | 라벨 부착 금지 + 모든 옵션 user_facing 그대로 표시 |
-| D `[FALLBACK_DISAGREE]` | Step 4 — Step 3 후보 다수 (2+) 중 메인 LLM이 "현 상황 적합성 컨텍스트" 가중치로 1개 선정 시도 실패 (또는 추후 자문 출력에 추천/반대 신호 필드 도입 시 그 신호와 메인 LLM 후보가 어긋나는 경우) | "메인 LLM 후보와 자문 평가 불일치" | 라벨 부착 금지 + 후보 옵션들의 user_facing을 차이와 함께 사용자에게 표시 |
+### 후보 다수 케이스의 사용자 노출 패턴
 
-D4 fallback A/B/C/D 라벨 표기는 사용자에게 **노출**되어야 한다 (Decision Log에도 동시 기록). 합의 PASS 시에만 (Recommended) 라벨이 허용된다는 의미는, 사용자가 fallback 발생을 인지하지 못한 채 "추천 없음" 상태를 "추천 안 함" 상태로 오해하지 않도록 하기 위함이다.
-
-### fallback D 적용 범위 (현 schema 한계)
-
-현 schema에는 자문 측 추천/반대 신호 필드가 없다 (자문 출력은 disqualifier + evidence_gaps만 신호로 가진다). 따라서 fallback D의 트리거 메커니즘은 현재 schema에서 다음 한 가지로 좁혀진다:
-
-- **Step 3 후보 2+ 케이스**: 메인 LLM이 "현 상황 적합성 컨텍스트" 가중치로 1개 옵션 선정 시도, 가중치 동률 또는 결정 불가 → fallback D.
-
-자문 출력에 신호 필드가 추가되면(future schema extension) fallback D의 트리거 범위가 확장된다. 현 단계에서는 위 한 케이스만 적용 대상이며, Step 3에서 후보가 정확히 1개로 좁혀지면 그 옵션이 합의 PASS로 (Recommended) 라벨을 받는다.
+후보가 2+ (D4_FALLBACK_C_MULTI)인 케이스는 사용자에게 두 옵션 모두 user_facing layer로 표시한다. 메인 LLM은 "현 상황 적합성 컨텍스트" 가중치로 도출한 tentative 선호를 *별도 단락*으로 평이하게 표명할 수 있다 — 단 어떤 옵션에도 `(Recommended)` 라벨을 부착하지 않는다 (schema 한계 내 보수적 합의 정의가 라벨 의미를 보장한다).
 
 ## Decision Log 기록
 

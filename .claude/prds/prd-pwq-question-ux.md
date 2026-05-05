@@ -59,12 +59,12 @@ Root cause 세 메커니즘 결합: SKILL.md Invariant 7 ("한번에 모아서")
 ### Scenario 1: 트레이드오프 라운드 (정상 자문 통과 + 합의 PASS)
 - Actor: PWQ 호출 사용자
 - Trigger: 옵션 2+ 트레이드오프 발견 → Step 3.5 자문 호출
-- Expected outcome: 자문 결과 user_facing layer만 사용자 노출, 메인 LLM이 D4 합의 알고리즘 5단계로 1개 옵션에 (Recommended) 라벨 부착, 사용자가 한 라운드에 1개 질문만 받음.
+- Expected outcome: 자문 결과 user_facing layer만 사용자 노출, 메인 LLM이 D4 합의 알고리즘 4단계 실행 — 후보 정확히 1개로 좁혀진 경우 그 옵션에 (Recommended) 라벨 부착, 사용자가 한 라운드에 1개 질문만 받음.
 
 ### Scenario 2: 자문 timeout / parse fail
 - Actor: 동일
 - Trigger: Codex 자문 30분 budget 초과 또는 result.json invalid
-- Expected outcome: fallback A 작동 — 라벨 부착 금지, 모든 옵션을 라벨 없이 user_facing layer로만 표시, 사용자에게 "자문 미수행으로 추천 라벨 없음" 명시 보고.
+- Expected outcome: D4_FALLBACK_A 내부 enum으로 격하 — 라벨 부착 금지, 모든 옵션을 라벨 없이 user_facing layer로만 표시. 사용자에게는 enum 라벨 대신 평이 한국어 문구만 노출 ("자문이 완료되지 못했어요. 추천 없이 옵션을 그대로 보여드릴게요").
 
 ### Scenario 3: judgment-first 라운드
 - Actor: 동일
@@ -83,10 +83,10 @@ Root cause 세 메커니즘 결합: SKILL.md Invariant 7 ("한번에 모아서")
 - Validation surface: 정적 grep + schema 검증 + 수동 5샘플. 자문 round-trip + fallback 시뮬레이션.
 - Design implications:
   - D2 두 layer는 backward-compatible 유지 (fallback 알고리즘 plan에 명시).
-  - D4 합의 알고리즘 5단계 + 4 fallback (A/B/C/D)이 anti-anchoring 1번 폐기의 mitigation. (D2 fallback 4단계는 별개 시스템 — user_facing 텍스트 복구 흐름)
+  - D4 합의 알고리즘 4단계 + 4 fallback enum (A/B/C/C_MULTI)이 anti-anchoring 1번 폐기의 mitigation. schema 한계 내 보수적 합의 정의로 단순화 — 후보 정확히 1개일 때만 라벨 허용, 후보 2+는 사용자 양쪽 비교 + tentative 선호 표명. (D2 fallback 4단계는 별개 시스템 — user_facing 텍스트 복구 흐름.) Fallback enum 라벨은 내부 Decision Log 전용이며 사용자에게는 평이 한국어 문구만 노출.
   - judgment-first 라운드는 라벨 부착 절대 금지 (D3 anti-anchoring 보호).
 - Confidence / gaps:
-  - 메인 LLM의 "D4 합의 알고리즘 5단계" 안정 적용은 dogfooding 누적 후 평가 (F-OQ-2).
+  - 메인 LLM의 "D4 합의 알고리즘 4단계" 안정 적용은 dogfooding 누적 후 평가 (F-OQ-2).
   - 도구 description의 추천 라벨 자동 권장이 LLM에 얼마나 강하게 작용하는지는 SC-2 grep으로만 검출 (실측 evidence 부재).
 
 ## Requirements
@@ -95,9 +95,9 @@ Root cause 세 메커니즘 결합: SKILL.md Invariant 7 ("한번에 모아서")
 
 - FR-1 (D1): PWQ 호출 시 라운드당 사용자 질문 도구 questions 배열 길이 1.
 - FR-2 (D2): Step 3.5 자문 출력 schema에 `technical_matrix` (메인 LLM 내부) + `user_facing` (사용자 노출) 두 layer.
-- FR-3 (D2 fallback): user_facing 누락 시 fallback 4단계 (`evaluation_matrix.요구충족` + `disqualifiers[0]` 가공 → generic 비유 → `[FALLBACK_USER_FACING]` 라벨 → 라벨 부착 금지).
+- FR-3 (D2 fallback): user_facing 누락 시 fallback 4단계 (legacy 필드명 호환 — `technical_matrix.요구충족` 우선, 없으면 `evaluation_matrix.요구충족` 사용 → generic 비유 → `D2_FALLBACK_USER_FACING` 내부 enum 으로 메인 LLM 자체 작성 + 사용자에게는 평이 한국어 문구로 출처 표기 → 자문 미수행 동등 처리).
 - FR-4 (D3): judgment-first 라운드 옵션을 user_facing 평이 라벨로 표시 + 추천 라벨 부착 절대 금지.
-- FR-5 (D4 합의 알고리즘): 라벨 부착 5단계 알고리즘 (자문 정상 → schema 검증 → 후보 선정 → 합의 판정 → 부착) + 4 fallback (A/B/C/D).
+- FR-5 (D4 합의 알고리즘): 라벨 부착 4단계 알고리즘 (자문 정상 → schema 검증 → 후보 필터 → 후보 1개일 때만 라벨 부착) + 4 fallback enum (A=자문 invalid, B=schema fail, C=후보 0, C_MULTI=후보 2+). schema 한계 내 보수적 합의 정의로 단순화 (자문 측 추천/반대 신호 필드 부재). enum 라벨은 내부 Decision Log 전용.
 - FR-6 (D4 컨텍스트 강화): Step 3.5 자문 prompt에 신규 섹션 "현 상황 적합성 컨텍스트".
 - FR-7 (D4 hard rule): SKILL.md/output-templates.md/consulting-step.md 세 곳에 "도구 default 무시 + 합의 미달 옵션 라벨 절대 금지" 명시.
 - FR-8 (anchoring metric 일관성): bias-measurement.md + scripts 갱신, "허용 조건 컨텍스트 외 라벨 0건" baseline 적용.
@@ -111,7 +111,7 @@ Root cause 세 메커니즘 결합: SKILL.md Invariant 7 ("한번에 모아서")
 
 ## Assumptions
 
-- A-1: 메인 LLM이 D4 합의 알고리즘 5단계 + 4 fallback을 안정 실행한다 (dogfooding으로 검증).
+- A-1: 메인 LLM이 D4 합의 알고리즘 4단계 + 4 fallback enum을 안정 실행한다 (dogfooding으로 검증).
 - A-2: AskUserQuestion 도구 description의 추천 라벨 권장은 SKILL 본문 hard rule로 override 가능하다 (실측 evidence는 SC-2 grep으로 사후 검출).
 - A-3: Codex 자문 30분 budget 내에 두 layer 출력이 가능하다.
 
@@ -124,7 +124,8 @@ Root cause 세 메커니즘 결합: SKILL.md Invariant 7 ("한번에 모아서")
 ## Risks / Edge Cases
 
 - 두 layer 충돌: technical_matrix가 옵션 약점 명시, user_facing이 강점 부각 시 합의 실패 처리 (D4 알고리즘 자동 연동).
-- 합의 미달 후 fallback C 또는 D 발생 시 사용자에게 "추천 라벨 없음" 보고 누락 위험 → output-templates.md 패턴에 명시.
+- 합의 미달 후 fallback C 또는 C_MULTI 발생 시 사용자에게 "추천 없음" 평이 문구 보고 누락 위험 → output-templates.md 패턴 + consulting-step.md "Fallback enum" 표 SSOT에 명시.
+- D4 합의 정의가 "자문 필터 통과 후 후보 1개"로 좁혀져 있어, 후보 2+ 케이스(C_MULTI)는 합의 PASS로 라벨링하지 않는다. future schema extension(자문 측 추천/반대 신호 필드 도입)으로 합의 의미 강화 가능 — 별도 follow-up.
 - AskUserQuestion 도구가 자동 라벨 삽입하면 SC-2 grep으로 검출 후 수동 정정 필요.
 - 다른 인터뷰 스킬과의 라벨 의미 drift는 G-5 follow-up issue로 mitigation, 본 PRD 범위 외.
 
@@ -196,7 +197,7 @@ review-impl overlay (6-classification 라벨링 + overbuilt 우선 분류)도 Fi
 - F-OQ-2 [defer to follow-up issue]: D4 anchoring 효과 손상 정량 측정 방법 — 합의 알고리즘 적용 후 dogfooding 누적으로 baseline 산출 후 별도 issue.
 
 기존 plan 5건 Open Questions 중 3건은 본 PRD 결정 통합:
-- ~~자문 미수행 시 라벨 부착 폴백~~ → FR-5 fallback A/B/C/D로 통합.
+- ~~자문 미수행 시 라벨 부착 폴백~~ → FR-5 fallback enum (A/B/C/C_MULTI)으로 통합.
 - ~~for_issue 4개 → 1개 통일 vs 4개 유지~~ → FR-1에서 1개 통일 결정.
 - ~~다른 인터뷰 스킬 별도 이슈~~ → SC-6 + Phase 5 즉시 등록.
 
