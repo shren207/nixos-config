@@ -71,9 +71,22 @@ Step 3.5는 DA(Step 5)와 목적이 다르다. 3.5는 사용자에게 옵션 제
 
 **사용자에게 질문할 때는 질문 도구를 사용한다. 이 규칙은 예외 없이 적용된다.** 질문 도구 미지원 시 [`../references/runtime-boundaries.md`](../references/runtime-boundaries.md#질문-도구-미지원-대응)를 따른다.
 
-수집한 질문(Step 3) + 외부 자문 매트릭스(Step 3.5)를 질문 도구로 한번에 모아서 사용자에게 제시한다. 질문이 많으면 카테고리별로 묶어서 번호를 매긴다.
+**라운드당 질문 1개 강제 (D1)**: 수집한 질문(Step 3) + 외부 자문 매트릭스(Step 3.5)를 한 라운드에 모아서 던지지 않는다. 라운드당 `questions` 배열 길이는 1로 고정한다. 사용자가 한 결정에 집중할 수 있게 하고, 메인 LLM이 user_facing layer를 충분히 풀어 설명할 cognitive room을 확보한다 (이전 "한번에 모아서" 정책은 폐기 — turn_abort 회귀 방지). 사용자의 답변에 따라 추가 질문이 생기면 새 라운드(여전히 questions 배열 길이 1)로 이어간다. 모든 불명확점이 해소될 때까지 라운드를 반복한다.
 
-사용자의 답변에 따라 추가 질문이 생기면, 다시 질문 도구로 한번에 질문한다. 모든 불명확점이 해소될 때까지 이 과정을 반복한다.
+**사용자 노출은 user_facing layer만 (D2)**: Step 3.5 자문 결과를 사용자에게 표시할 때는 [`../references/consulting-step.md`](../references/consulting-step.md)의 `user_facing` layer(label/description/analogy/plain_disqualifier)만 사용한다. `technical_matrix`(7키 평가 매트릭스)와 raw `disqualifiers`는 메인 LLM 내부 D4 합의 알고리즘 입력으로만 사용하며 사용자에게 노출하지 않는다. user_facing이 자문 출력에 누락되면 D2 fallback 4단계로 graceful degrade한다 ([`../references/consulting-step.md`](../references/consulting-step.md)의 "D2 backward-compat fallback 4단계" SSOT).
+
+**트레이드오프 라운드 — D4 합의 알고리즘 호출 (FR-5)**: 트레이드오프 결정마다 사용자 노출 직전에 [`../references/consulting-step.md`](../references/consulting-step.md)의 D4 합의 알고리즘 5단계를 실행한다. 합의 PASS인 단일 옵션에만 `(Recommended)` 라벨을 부착한다. 어느 단계든 fail 시(fallback A/B/C/D) 라벨을 부착하지 않고 사용자에게 fallback 사유를 평이한 한국어로 보고한다:
+
+| Fallback | 사용자 보고 형식 (예시) |
+|---|---|
+| A (자문 invalid/timeout) | "자문 미수행으로 추천 라벨 없음 — 옵션 선택은 사용자 판단에 맡김." |
+| B (`[FALLBACK_TECHNICAL_INVALID]`) | "자문 응답 schema 검증 실패. 추천 라벨 없이 옵션을 그대로 표시." |
+| C (`[FALLBACK_NO_CONSENSUS]`) | "자문이 모든 옵션에 disqualifier 또는 evidence_gaps를 부여 — 추천 후보 0개. 옵션 라벨 없이 표시." |
+| D (`[FALLBACK_DISAGREE]`) | "메인 LLM 후보와 자문 평가가 일치하지 않음. 양쪽 차이를 평이하게 보고하고 라벨 없이 표시." |
+
+**judgment-first 라운드 라벨 부착 절대 금지 (FR-4)**: 트레이드오프 옵션 제시 직전 사용자 기준을 묻는 judgment-first 사전 라운드는 D4 합의 알고리즘을 **실행하지 않는다**. 어떤 옵션에도 `(Recommended)` 라벨을 부착하지 않으며, `user_facing.label`만으로 기준을 평이하게 표시한다. 이는 자문 출력의 합의 결과와 무관하게 무조건 적용된다 (anti-anchoring 효과를 source에서 보호하기 위함).
+
+**D4 hard rule (FR-7)**: AskUserQuestion 도구 description의 추천 라벨 자동 권장은 본 스킬 컨텍스트에서 무시한다. 사용자 노출 직전 옵션 dict에서 합의 미달 옵션의 `(Recommended)` 문자열 또는 등가 표시가 발견되면 강제 제거한다. 본 hard rule은 SKILL.md Invariant 8 + [`../references/consulting-step.md`](../references/consulting-step.md)의 D4 hard rule 단락과 동일하며, 본 mode 파일은 그 SSOT를 callsite로 강제한다.
 
 질문 패턴과 anti-anchoring 표시 규칙은 [`../references/output-templates.md`](../references/output-templates.md#step-4--step-i-4-질문-패턴) 참조.
 
