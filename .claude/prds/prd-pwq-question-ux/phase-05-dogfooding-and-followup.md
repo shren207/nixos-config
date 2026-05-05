@@ -1,0 +1,134 @@
+# Phase 5: Dogfooding and Follow-up
+
+Parent PRD: [PRD: plan-with-questions Question UX](../prd-pwq-question-ux.md)
+Status: Not Started
+Last Updated: 2026-05-05
+
+## Objective
+
+Phase 1~4 완료 후 본 PRD 자체로 self-test (dogfooding 5건) + issue #646 본문을 분석 결과로 통째 교체 + follow-up issue 2건 등록 (다른 인터뷰 스킬 + plan-file-template/pinning-guard 충돌). 본 phase가 PRD의 closeout이며 Final Multi-Pass Review를 수행한다.
+
+## Context From Master PRD
+
+- Goals covered: G-5 (PWQ만 + follow-up issue 즉시 등록)
+- Success Criteria: SC-4 (수동 5건), SC-6 (follow-up issue 등록)
+- Requirements covered: 모든 FR의 통합 검증
+- Key scenarios touched: Scenario 1, 2, 3 모두 (수동 dogfooding)
+
+## Phase Discovery Gate
+
+코드 편집 전에 재확인한다:
+- [ ] Phase 1~4 모두 Complete
+- [ ] Master PRD Status `Phase 4` → 본 phase 진입
+- [ ] 관련 코드/파일: 모든 PWQ skill 본문 (Phase 1~3 산출물) + bias-measurement (Phase 4 산출물) + 본 PRD master
+- [ ] 관련 docs/spec: `~/.claude/skills/plan-with-questions/references/prd/multi-pass-review.md` (Final 10-pass), `~/.claude/skills/plan-with-questions/references/review-impl/implementation-review.md` (review-impl overlay)
+- [ ] 관련 command 또는 도구: `gh issue create` (follow-up issue), `gh issue edit 646` (본문 교체), 사용자 직접 PWQ 호출 (dogfooding)
+- [ ] Master PRD assumption A-1 (메인 LLM 합의 알고리즘 안정 적용) 검증 가능 시점이 본 phase
+
+## Scope
+
+### In Scope
+
+- 다음 PWQ 호출 5건 수동 dogfooding (SC-4):
+  - 라운드당 questions 배열 길이 1 강제 확인.
+  - 사용자 노출에 user_facing layer만 (evaluation_matrix raw 비노출).
+  - 라벨 부착이 합의 알고리즘 통과 후만, 합의 미달은 라벨 미부착.
+  - judgment-first 라운드는 라벨 절대 미부착.
+  - fallback A/B/C/D 시나리오가 발생하면 사용자 보고 형식 명시.
+- issue #646 본문 통째 교체 (사용자 메타 인터뷰 답변 명시):
+  - TL;DR + 비유.
+  - 정량 통계 표 (3 머신).
+  - mermaid timeline (사용자 호소 2.5개월).
+  - raw quote 4-5건.
+  - root cause flowchart (mermaid).
+  - 변경 범위 표 (8개 파일).
+  - 데이터 출처 (자연어 식별).
+  - 데이터 한계 (transparency).
+- follow-up issue 2건 등록 (gh issue create):
+  - **이슈 A**: 다른 인터뷰 스킬(grill-me, create-issue, review-pr-feedback)에 같은 pain 적용 검토 (G-5, SC-6).
+  - **이슈 B**: plan-file-template SSOT의 `HEAD=<sha7>` 권장과 `pinning-guard.sh` PATTERN_D 차단 충돌 (F-OQ-1).
+- Final Multi-Pass Review 수행 (multi-pass-review.md 10-pass) + review-impl overlay (`.claude/prds/` 산출물이라 PRD Closeout 자동 활성화).
+
+### Out of Scope
+
+- 다른 인터뷰 스킬 본문 변경 (이슈 A로 follow-up).
+- plan-file-template 또는 pinning-guard 변경 (이슈 B로 follow-up).
+- F-OQ-2: D4 anchoring 효과 손상 정량 baseline 산출 (dogfooding 누적 후 별도 issue).
+
+## Implementation Checklist
+
+- [ ] 다음 PWQ 호출 5건을 수동 dogfooding 모니터링 — 5건 동안 발견 사항을 본 phase Discoveries에 기록.
+- [ ] dogfooding 결과 SC-1, SC-2, SC-3, SC-4, SC-5 모두 통과 확인. 미통과 시 Phase 1-4 중 해당 phase 재진입 (PRD Execution Rules의 후속 phase 수정 원칙).
+- [ ] issue #646 본문 교체:
+  - TL;DR + 비유 (의사-환자 또는 식당 메뉴판 비유).
+  - 정량 통계 표 (Mac CC 142 / Mac Codex 169 / miniPC 35 PWQ session, 4개 묶기 17.9-20.3%, turn_aborted 34.3%, 라벨 노출 92.3%).
+  - mermaid gantt (사용자 호소 2.5개월 timeline).
+  - raw quote (2026-03-21 WTF, 2026-05-03 Codex retry, 2026-05-05 issue/671 args, 2026-03-02 awesome-anki 5회 반복).
+  - mermaid flowchart (root cause: 한번에 모아서 + 미가공 노출 + 라벨 권장 → 인지 실패 → turn_abort/drift/args 우회).
+  - 변경 범위 표 (Phase 1-5 + 8개 파일).
+  - 데이터 출처 (자연어 식별 — 시점 + 작업명 + 이슈 번호).
+  - 데이터 한계 (transparency).
+  - 실행: `gh issue edit 646 --body-file <path>`.
+- [ ] follow-up issue A 등록 (`gh issue create`):
+  - Title: "feat(skills): grill-me/create-issue/review-pr-feedback 등 인터뷰 스킬에 PWQ Question UX 정책(라운드당 1개 + user_facing + 합의 라벨) 적용 검토 (#646 후속)"
+  - Body: 본 PRD의 G-5 / SC-6 컨텍스트 + 영향 받을 스킬 목록 + cross-skill 라벨 의미 drift 우려.
+- [ ] follow-up issue B 등록 (`gh issue create`):
+  - Title: "fix(plan-file-template): SSOT의 HEAD=<sha7> 권장과 pinning-guard.sh PATTERN_D 차단 충돌 해결"
+  - Body: 본 PRD F-OQ-1 컨텍스트 + 두 SSOT 사이 충돌 + 권장 방향 (template 또는 pinning-guard 한쪽 갱신).
+- [ ] Final Multi-Pass Review 10-pass 수행 (`~/.claude/skills/plan-with-questions/references/prd/multi-pass-review.md` 체크리스트).
+- [ ] review-impl overlay 적용 (`~/.claude/skills/plan-with-questions/references/review-impl/implementation-review.md` 6-classification 라벨링 + overbuilt 우선 분류).
+- [ ] PRD Closeout 항목 — `.claude/prds/` 산출물이라 자동 활성화. PRD Status `Complete`, Phase Index 모두 Complete, Change Log 갱신.
+
+## Validation Strategy
+
+본 phase는 통합 검증 + closeout이라 dogfooding + multi-pass review가 핵심.
+
+- Manual dogfooding 5건: SC-4 직접 산출.
+- 정적 grep 통합 (Phase 1-4 결과 검증): SC-1, SC-2, SC-3, SC-5 모두.
+- gh CLI 실행: follow-up issue 2건 등록 + #646 본문 교체.
+- Final Multi-Pass Review 10-pass: PRD closeout 일반 절차.
+
+## Validation Checklist
+
+- [ ] Manual dogfooding 5건 통과 — 라운드당 1개 + user_facing only + 합의 후 라벨 + judgment-first 라벨 금지 + fallback 보고
+- [ ] Static check 통합: `rg "한번에 모아서" ~/.claude/skills/plan-with-questions/` → 0건 또는 폐기 컨텍스트
+- [ ] Static check 통합: `rg "Recommended" ~/.claude/skills/plan-with-questions/` → 허용 조건 컨텍스트만
+- [ ] Static check 통합: `rg "user_facing" ~/.claude/skills/plan-with-questions/references/consulting-step.md ~/.claude/skills/plan-with-questions/references/output-templates.md` ≥ 3건
+- [ ] Script 통과: bias-measurement 스크립트 exit 0
+- [ ] gh issue edit 646 — 본문 교체 후 `gh issue view 646`로 새 본문 노출 확인
+- [ ] gh issue create 후 issue A URL 반환 확인
+- [ ] gh issue create 후 issue B URL 반환 확인
+- [ ] Final 10-pass review 통과 + review-impl overlay 적용 + PRD Closeout 완료
+- [ ] error 상태: dogfooding 중 fallback A/B/C/D 발생 시 사용자 보고 형식 누락 없음 검증
+
+## Exit Criteria
+
+- [ ] Phase objective 달성 — dogfooding 5건 + issue #646 본문 교체 + follow-up issue 2건 + Final 10-pass + review-impl overlay
+- [ ] 모든 FR + SC 통합 검증 완료
+- [ ] PRD Status Complete
+- [ ] follow-up 외 deferred blocker 없음
+
+## Phase-End Multi-Pass Review (= Final Multi-Pass Review)
+
+본 phase는 마지막이라 Phase-End 10-pass와 Final 10-pass가 동일 절차로 수행된다.
+
+- [ ] 1. Intent/coverage — 모든 FR + SC가 Phase 1-5 통합으로 달성
+- [ ] 2. Correctness — fallback 4시나리오, judgment-first 보호, 합의 알고리즘 모두 dogfooding 통과
+- [ ] 3. Simplicity — 본 PRD 변경이 인스트럭션 + grep 패턴만, 코드 동작 변경 없음
+- [ ] 4. Code quality — 8개 파일 + 스크립트 + 본 PRD가 다음 LLM에게 명확
+- [ ] 5. Duplication/cleanup — Phase 1 schema/합의 알고리즘이 SSOT로 인용, 사본 없음
+- [ ] 6. Security/privacy — D4 hard rule + schema 검증 + judgment-first 보호로 trust boundary 유지
+- [ ] 7. Performance/load — 라운드당 1개 → turn 수 증가 (사용자 명시 수용), Codex 자문 30분 budget 내 두 layer (A-3 검증)
+- [ ] 8. Validation — 정적 grep + dogfooding + 스크립트 + manual sample이 risk에 적절
+- [ ] 9. Future-phase review — N/A (마지막 phase)
+- [ ] 10. PRD sync review — master PRD Status `In Progress` → `Complete`, 모든 Phase Index Complete, Last Updated, Change Log 갱신
+- [ ] **review-impl overlay (Phase 5 추가)**: 6-classification 라벨링 + overbuilt 우선 분류 (`~/.claude/skills/plan-with-questions/references/review-impl/implementation-review.md`). auto-fix 미사용.
+- [ ] **PRD Closeout**: `.claude/prds/` 산출물이라 자동 활성화. PRD master Status Complete + 모든 phase Complete + Change Log 마지막 entry.
+
+## Discoveries / Decisions
+
+(phase 진행 중 갱신 — 특히 dogfooding 발견 사항, follow-up issue URL)
+
+## Phase Change Log
+
+- 2026-05-05: Phase file created.
