@@ -48,32 +48,45 @@ warn() {
   echo "[WARN] pinning: $1" >&2
 }
 
-# check_ere — 단순 정규식 검사 흐름 통합 helper (PATTERN_A/B/C 공통 구조).
-# 매치 시 warn + 줄번호 출력 + found=1 설정. found는 셸 전역 변수 (subshell 회피 위해 함수 안 사용).
-# usage: check_ere "$PATTERN" "$WARN_MESSAGE"
-check_ere() {
-  local pattern="$1"
-  local message="$2"
-  if grep -qE "$pattern" "$CLEAN_MSG"; then
-    warn "$message"
-    grep -nE "$pattern" "$CLEAN_MSG" | sed 's/^/         /' >&2
-    found=1
-  fi
-}
+# Category code → user-facing remediation message mapping. category code is
+# the stable ID returned by pinning_findings_records (A/B/C/D); the message
+# stays here in commit-msg context to preserve existing UX wording without
+# embedding it in the shared lib.
+WARN_A="라운드 카운터(\`Round N\`) 박제 감지. 영구 산출물에는 자연어 설명으로 표현하라."
+WARN_B="DA finding ID 박제 감지. 라운드/finding ID는 휘발성 보고에만 사용하고 commit message에는 박지 마라."
+WARN_C="DA 키워드 박제 감지. 검토 라운드/모드 표기는 commit message에 박지 말고 PR 코멘트 또는 휘발성 작업 노트에 둬라."
+WARN_D="${PINNING_PARTIAL_HASH_FINDING_LABEL_SUBSTR} 감지. squash 머지 시 dangling 위험 (partial commit hash 포함). 안정 식별자(PR 번호, 머지된 SHA)로 대체하라."
 
+# revert/cherry-pick prefix → suppress partial-hash (D) records at lib level
+SKIP_PARTIAL_HASH=""
+if [[ "$FIRST_LINE" =~ ^[Rr]evert ]]; then
+  SKIP_PARTIAL_HASH=1
+fi
+
+# Single record fetch — D-10 structured API. Loops over TSV records and emits
+# a verbose warn message once per category (when category code transitions),
+# followed by the line:token evidence on subsequent lines indented by the
+# shared PINNING_REPORT_INDENT constant.
+records=$(pinning_findings_records "$CLEAN_MSG" "$SKIP_PARTIAL_HASH")
 found=0
 
-check_ere "$PATTERN_A" "라운드 카운터(\`Round N\`) 박제 감지. 영구 산출물에는 자연어 설명으로 표현하라."
-check_ere "$PATTERN_B" "DA finding ID 박제 감지. 라운드/finding ID는 휘발성 보고에만 사용하고 commit message에는 박지 마라."
-check_ere "$PATTERN_C" "DA 키워드 박제 감지. 검토 라운드/모드 표기는 commit message에 박지 말고 PR 코멘트 또는 휘발성 작업 노트에 둬라."
-
-if [[ ! "$FIRST_LINE" =~ ^[Rr]evert ]]; then
-  pinning_hash_report=$(pinning_partial_hash_report "$CLEAN_MSG")
-  if [ -n "$pinning_hash_report" ]; then
-    warn "${PINNING_PARTIAL_HASH_FINDING_LABEL_SUBSTR} 감지. squash 머지 시 dangling 위험 (partial commit hash 포함). 안정 식별자(PR 번호, 머지된 SHA)로 대체하라."
-    echo "$pinning_hash_report" >&2
-    found=1
-  fi
+if [ -n "$records" ]; then
+  found=1
+  prev_code=""
+  while IFS=$'\t' read -r code label entry; do
+    [ -n "$code" ] || continue
+    if [ "$code" != "$prev_code" ]; then
+      case "$code" in
+        A) warn "$WARN_A" ;;
+        B) warn "$WARN_B" ;;
+        C) warn "$WARN_C" ;;
+        D) warn "$WARN_D" ;;
+        *) warn "$label" ;;
+      esac
+      prev_code="$code"
+    fi
+    printf '%s%s\n' "$PINNING_REPORT_INDENT" "$entry" >&2
+  done <<< "$records"
 fi
 
 if [ "$found" -eq 1 ]; then
