@@ -1,7 +1,7 @@
 # Phase 5: Cross-runtime + Cross-machine Dogfooding
 
 Parent PRD: [PRD: Session Handoff Automation](../prd-session-handoff-automation.md)
-Status: Not Started
+Status: Pending User Smoke (manual dogfooding 협조 필요)
 Last Updated: 2026-05-05
 
 ## Objective
@@ -18,12 +18,12 @@ Last Updated: 2026-05-05
 ## Phase Discovery Gate
 
 코드 편집 전에 재확인한다:
-- [ ] 관련 코드/파일: Phase 2~4에서 작성한 helper + 4 script + 등록 + secret/PII 3 layer 모두
-- [ ] 관련 테스트/fixture: `tests/test-handoff-hooks.sh` 전체 fixture
-- [ ] 관련 docs/spec/외부 참조: master PRD의 Key Scenarios (1~5), Decision Matrix (특히 DEC-S6 B의 idle heuristic이 Phase 1에서 확정 또는 fallback)
-- [ ] 관련 command 또는 도구: 두 머신(MiniPC + macOS), Claude Code + Codex CLI 양쪽 세션, `git push` + `git pull`, multi-worktree 시뮬레이션
-- [ ] Phase 1~4 완료 + 모든 hook이 정상 발화 상태
-- [ ] 발견 사항이 PRD 또는 후속 phase를 바꾸면 즉시 반영 (Phase 6 closeout 전 마지막 기회)
+- [x] 관련 코드/파일: Phase 2~4에서 작성한 helper + 4 script + 등록 + secret/PII 3 layer 모두 — 4 commit으로 누적 (PRD docs / hook scripts+fixture / hook 등록 / redaction 강화+.gitattributes)
+- [x] 관련 테스트/fixture: `tests/test-handoff-hooks.sh` 23 fixture 전부 PASS + `tests/test-codex-hook-fixtures.sh` scenario-C PermissionRequest 이전 통과
+- [x] 관련 docs/spec/외부 참조: master PRD의 Key Scenarios (1~5), Decision Matrix (DEC-S6 B refined Phase 1에서 확정)
+- [ ] 관련 command 또는 도구: 두 머신(MiniPC + macOS), Claude Code + Codex CLI 양쪽 세션, `git push` + `git pull`, multi-worktree 시뮬레이션 — **사용자 manual smoke 협조 필요** (host mutation `nrs` + cross-machine + cross-runtime 모두 자동 수행 범위 외)
+- [x] Phase 1~4 완료 (manual smoke 일부 항목 본 phase로 이관)
+- [x] 발견 사항이 PRD 또는 후속 phase를 바꾸면 즉시 반영
 
 ## Scope
 
@@ -43,17 +43,19 @@ Last Updated: 2026-05-05
 - write-handoff skill 처리 결정 (Phase 6)
 - 본 PRD Closeout (Phase 6)
 
-## Implementation Checklist
+## Implementation Checklist (사용자 manual smoke 항목)
 
-- [ ] 시나리오 1 dogfooding: Claude → Claude. 결과 evidence 정리 (SessionEnd commit hash, SessionStart stdout 캡처, 모델 read 흔적)
-- [ ] 시나리오 2 dogfooding: Codex → Codex. idle/turn-counter heuristic 발동 빈도 측정. fallback 발동(DEC-S6 C/D)이라면 그 동작 확인
-- [ ] 시나리오 3 dogfooding: cross-runtime 양방향 (Claude → Codex, Codex → Claude). 동일 SoT 파일 read 확인
-- [ ] 시나리오 4 dogfooding: cross-machine (MiniPC ↔ macOS). git push/pull 후 metadata 주입 확인
-- [ ] 시나리오 5 시뮬레이션: 강제 종료(`pkill -9 claude`) → Stop hook의 metadata가 fallback으로 남는지 확인. 새 세션에서 stale marker 표시
-- [ ] 시나리오 6 시뮬레이션: 동일 branch 두 worktree에서 동시 SessionEnd → 마지막 writer wins. 부작용 측정 (이전 worktree의 active-files 손실 등). 빈도가 낮음을 dogfooding 1주 후 재확인 → A-2 가정 검증
-- [ ] 시나리오 7 시뮬레이션: gitleaks 제거 + timeout 1s + 빈 commit 모두 fixture로 → 세션 종료 latency 영향 0
-- [ ] 시나리오 8 dogfooding: secret/PII fixture corpus를 의도적으로 chat content에 포함 + SessionEnd → snapshot 검사 → 잔존 토큰 0건 확인 (Phase 4의 3 layer 통합 검증)
-- [ ] 시나리오 9 dogfooding: Codex `/write-handoff` 명시 호출 + 동시 SessionEnd hook → GitHub 코멘트와 `.claude/handoffs/` 양쪽 갱신 → race 측정. 결과를 D6 risk evidence에 추가, Phase 6에서 별도 후속 이슈에 인용
+본 phase의 9 시나리오는 nrs apply + 두 머신(MiniPC + macOS) + 양 runtime(Claude Code + Codex CLI) 실세션 진입이 필요하므로 사용자 manual smoke 협조가 필수다. Post-Implementation 자동 수행 범위 외 (host mutation + cross-machine).
+
+- [ ] 시나리오 1 (Claude → Claude): nrs apply 후 Claude Code 세션 1회 진입 + 종료 (SessionEnd 발화) → `.claude/handoffs/<branch-slug>-<branch-hash>.md` 생성 + commit (`chore(handoff): session-end snapshot for issue/614`) → 새 Claude 세션 SessionStart stdout 확인 (`[handoff resume] branch=...`).
+- [ ] 시나리오 2 (Codex → Codex): Codex 세션 turn 20+ 또는 transcript_path mtime 5분+ 후 Stop trigger → handoff-stop.sh가 full snapshot+commit 발화 확인. 미발동 시 metadata-only (turn-counter 누적만).
+- [ ] 시나리오 3 (cross-runtime): Claude → Codex, Codex → Claude 양방향 resume. 동일 SoT 파일 read.
+- [ ] 시나리오 4 (cross-machine): 머신 A(MiniPC)에서 commit + push → 머신 B(macOS)에서 git pull → B의 Claude 또는 Codex 새 세션 SessionStart 주입 확인.
+- [ ] 시나리오 5 (abnormal termination): `pkill -9 claude` 또는 Codex 강제 종료 → 다음 세션 SessionStart에서 이전 metadata가 stale 상태로 표시되는지 확인 (Stop hook이 record-last-stop으로 metadata만 갱신했을 수 있음).
+- [ ] 시나리오 6 (multi-worktree race): 동일 branch가 두 worktree에 동시 checkout된 상태에서 양쪽 SessionEnd → snapshot 충돌 시 마지막 writer wins 동작 + 부작용(이전 active-files 손실 등) 측정. A-2 가정(빈도 낮음) 1-2주 dogfooding 후 재확인.
+- [ ] 시나리오 7 (non-blocking): gitleaks PATH 제거 또는 nix store gitleaks 위치 변경 시뮬레이션 → 세션 종료 흐름이 차단되지 않는지. handoff_run_gitleaks가 commit 차단 + quarantine 후 exit 0 (Phase 2 fixture에서 일부 자동 검증 완료, 실세션 통합은 사용자 협조).
+- [ ] 시나리오 8 (secret/PII 3 layer 통합): chat content에 fixture corpus(GitHub PAT/OpenAI/AWS/Stripe/JWT/이메일/전화/주민번호/$HOME/env-var)를 의도적으로 포함 + SessionEnd → 생성된 snapshot 파일에 잔존 토큰 0건 확인 (Phase 4 fixture에서 일부 자동 검증, 실 chat 통합은 사용자 협조).
+- [ ] 시나리오 9 (write-handoff race): Codex 세션에서 `/write-handoff <issue-url>` 명시 호출 + 동시 SessionEnd hook 발화 → GitHub 코멘트와 `.claude/handoffs/` 양쪽 갱신 race 측정. 결과를 D6 risk evidence + Phase 6 follow-up 이슈에 인용.
 
 ## Validation Strategy
 
@@ -61,24 +63,26 @@ Last Updated: 2026-05-05
 
 ## Validation Checklist
 
-- [ ] Static check: N/A (manual dogfooding 위주)
-- [ ] 자동 test: 시나리오 5/6/7/8을 가능한 한 fixture로 자동화 (`tests/test-handoff-dogfooding.sh` 또는 `tests/test-handoff-hooks.sh` 확장)
-- [ ] API/CLI workflow: 모든 9 시나리오의 git/codex/claude 명령 evidence
-- [ ] Browser/UI E2E: N/A
-- [ ] Agent/dev browser: N/A
-- [ ] Mobile/app simulator: N/A
-- [ ] Visual/screenshot: GitHub UI에서 `.claude/handoffs/` collapsed 확인(manual, Phase 4와 중복 가능)
-- [ ] Observability/logging: 각 시나리오의 hook stderr/log 보존
-- [ ] Manual smoke check: 본 phase의 핵심. 사용자가 실제로 9 시나리오 진행
-- [ ] Error/empty/permission/retry/rollback: 시나리오 5~9가 error/abnormal 경로 커버
+- [x] Static check: N/A (manual dogfooding 위주)
+- [x] 자동 test (부분): 시나리오 7 non-blocking + 시나리오 8 secret/PII 3-layer는 Phase 2/4 fixture가 일부 자동 검증. 23/23 PASS
+- [ ] API/CLI workflow: 9 시나리오 evidence는 사용자 manual smoke로 수집 — git commit hash + SessionStart stdout 캡처 + handoff snapshot 파일 내용
+- [x] Browser/UI E2E: N/A
+- [x] Agent/dev browser: N/A
+- [x] Mobile/app simulator: N/A
+- [ ] Visual/screenshot: GitHub UI에서 .claude/handoffs/ collapsed by default 확인 — 사용자 PR 머지 후 manual
+- [ ] Observability/logging: 각 시나리오의 hook stderr 보존 — 사용자 협조 시 stderr 인용
+- [ ] Manual smoke check: 본 phase 핵심. 사용자가 9 시나리오 진행 + evidence를 본 phase Discoveries에 추가
+- [ ] Error/empty/permission/retry/rollback: 시나리오 5~9가 error/abnormal 경로 커버 (manual)
 
 ## Exit Criteria
 
-- [ ] Phase objective 달성 (9 시나리오 모두 evidence 확보)
-- [ ] G-1~5 + SC-1~6 모두 dogfooding으로 검증
-- [ ] FR-1~8 + NFR-1~4 모두 작동 확인
-- [ ] Validation Checklist 완료, manual 시나리오는 evidence(commit hash, stdout, log) 인용
+- [ ] Phase objective 달성 (9 시나리오 evidence 확보) — **사용자 manual smoke 후 갱신**
+- [ ] G-1~5 + SC-1~6 모두 dogfooding으로 검증 — manual smoke 후 갱신
+- [ ] FR-1~8 + NFR-1~4 모두 작동 확인 — manual smoke 후 갱신
+- [ ] Validation Checklist 완료 (자동 검증 부분 완료, manual은 evidence 인용 시 완료)
 - [ ] dogfooding 결과로 schema/필드/threshold 조정이 필요하면 Phase 2~4 backport 후 재검증
+
+**자동 진행 가능 작업 (Post-Implementation 자동 수행 범위)**: 본 phase의 manual smoke 결과를 기다리지 않고 Phase 6 closeout(review-only)을 진행한다. dogfooding evidence가 모이면 본 phase Discoveries + Exit Criteria를 사용자 또는 후속 세션에서 갱신한다.
 
 ## Phase-End Multi-Pass Review
 
@@ -96,8 +100,12 @@ Last Updated: 2026-05-05
 
 ## Discoveries / Decisions
 
-- (작성 예정 — Phase 5 진행 중 evidence 누적. 특히 DEC-S6 B 실측 결과, A-2 (multi-worktree 빈도) 검증, A-3 (idle 신호 추출) 확정 또는 fallback 결정)
+- 사용자 manual smoke 후 9 시나리오 evidence가 본 섹션에 누적. 특히:
+  - DEC-S6 B refined turn-counter + transcript mtime 실측 trigger 빈도
+  - A-2 multi-worktree 빈도 검증 (시나리오 6)
+  - 시나리오 9 write-handoff race evidence (D6 risk + Phase 6 follow-up 이슈 inputs)
 
 ## Phase Change Log
 
 - 2026-05-05: Phase file created (split mode 동시 생성).
+- 2026-05-05: Phase 5 Status = Pending User Smoke. Phase 1~4 모든 자동 가능 작업 완료. nrs apply + 두 머신 + 양 runtime 실세션 진입은 host mutation으로 Post-Implementation 자동 수행 범위 외 → 사용자 manual smoke 협조 필요. Phase 6 closeout (review-only)는 본 phase manual smoke 결과를 기다리지 않고 자동 진행.

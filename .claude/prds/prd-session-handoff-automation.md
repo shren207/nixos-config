@@ -3,8 +3,8 @@
 ## Document Status
 - Status: In Progress
 - File Mode: Split
-- Current Phase: Phase 5 (Phase 1+2+3+4 Complete; nrs apply + manual smoke은 Phase 5 통합)
-- Active Phase File: [Phase 5](./prd-session-handoff-automation/phase-05-dogfooding.md)
+- Current Phase: Phase 6 (Phase 1~4 Complete + Phase 5 Pending User Smoke; closeout review-only 진행 중)
+- Active Phase File: [Phase 6](./prd-session-handoff-automation/phase-06-followup.md)
 - Last Updated: 2026-05-05
 - PRD File: `.claude/prds/prd-session-handoff-automation.md`
 - Purpose: Living PRD / 실행 source of truth. SessionStart/SessionEnd lifecycle hook으로 세션 인수인계를 완전 자동화한다 (`/write-handoff` + `gh issue view` + NSS 수동 단계 전부 제거). Claude Code + Codex CLI 양쪽에서 git-tracked `.claude/handoffs/<branch>.md` 단일 SoT로 cross-runtime + cross-machine resume 가능.
@@ -158,7 +158,7 @@
 | Phase 2: handoff-lib + thin wrappers | Complete | 공통 sourced helper + Claude/Codex thin wrapper 4 script + drift fixture | bash unit test + secret/PII fixture corpus | [phase-02-helper-and-wrappers](./prd-session-handoff-automation/phase-02-helper-and-wrappers.md) |
 | Phase 3: hook 등록 | Complete (nrs manual smoke만 Phase 5 통합) | Claude settings.json + Codex config.toml + dispatcher H2 ordering + nix module symlink | nix eval + lefthook eval-tests + codex-hook-fixtures | [phase-03-hook-registration](./prd-session-handoff-automation/phase-03-hook-registration.md) |
 | Phase 4: secret/PII 3-layer + idempotent + PR diff 제외 | Complete (Visual/Manual smoke만 Phase 5 통합) | allowlist + redaction + gitleaks staged ordering + idempotent diff check + chore(handoff) prefix + .gitattributes | secret fixture corpus + idempotent fixture + lefthook gitleaks | [phase-04-secret-and-prdiff](./prd-session-handoff-automation/phase-04-secret-and-prdiff.md) |
-| Phase 5: dogfooding round-trip | Not Started | 9 시나리오 (same/cross-runtime/cross-machine + abnormal + multi-worktree + non-blocking + secret + write-handoff race) | manual + scripted dogfooding | [phase-05-dogfooding](./prd-session-handoff-automation/phase-05-dogfooding.md) |
+| Phase 5: dogfooding round-trip | Pending User Smoke | 9 시나리오 (same/cross-runtime/cross-machine + abnormal + multi-worktree + non-blocking + secret + write-handoff race) | manual + scripted dogfooding (자동 부분은 Phase 2/4 fixture가 일부 검증) | [phase-05-dogfooding](./prd-session-handoff-automation/phase-05-dogfooding.md) |
 | Phase 6: 정리 + follow-up | Not Started | write-handoff 처리 별도 이슈 + sync-codex-config 한계 노트 + Closeout (PRD 10-pass + review-impl overlay) | review-only | [phase-06-followup](./prd-session-handoff-automation/phase-06-followup.md) |
 
 ## Final Multi-Pass Review After All Phases
@@ -178,3 +178,4 @@ Phase 6 closeout에서 `~/.claude/skills/plan-with-questions/references/prd/mult
 - 2026-05-05: Phase 2 Complete. handoff-lib.sh(11 함수 + SoT 상수) + 7 thin wrapper script(Claude 4 + Codex 3) + tests/test-handoff-hooks.sh(16 fixture) 작성. shellcheck 깨끗 + bash -n OK + fixture 16/16 PASS. handoff_full_snapshot_commit + handoff_resolve_bin helper 추가로 Claude SessionEnd ↔ Codex Stop heuristic-trigger 공통 로직 흡수.
 - 2026-05-05: Phase 3 Complete (nrs manual smoke만 Phase 5 통합). settings.json Stop/SessionEnd/SessionStart 신규 entry 추가, _stop-dispatcher.sh H2 ordering 적용 + 헤더 rationale, config.toml [[hooks.SessionStart]] 추가, claude/codex default.nix mkOutOfStoreSymlink 7개. nixfmt + JSON/TOML/shellcheck + 회귀 fixture 모두 PASS. tests/fixtures sync-preservation scenario-C는 PermissionRequest로 이전 (SessionStart가 template-declared가 됐으므로).
 - 2026-05-05: Phase 4 Complete (Visual/Manual smoke만 Phase 5 통합). handoff-lib.sh redaction에 GitHub PAT / OpenAI / AWS / Stripe / JWT 5 secret + AUTH_TOKEN/BEARER env 패턴 추가. .gitattributes 신규 (.claude/handoffs/** linguist-generated=true). fixture 23/23 PASS (Phase 2 16 + Phase 4 7).
+- 2026-05-05: Phase 5 Status = Pending User Smoke. nrs apply + 두 머신(MiniPC + macOS) + 양 runtime(Claude Code + Codex CLI) 실세션 진입은 host mutation으로 Post-Implementation 자동 수행 범위 외 → 사용자 manual smoke 협조 필요. 자동 가능 부분(시나리오 7 non-blocking + 시나리오 8 secret/PII 일부)은 Phase 2/4 fixture에서 검증 완료. Phase 6 closeout(review-only)은 manual smoke 결과를 기다리지 않고 자동 진행.
