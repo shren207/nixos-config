@@ -52,7 +52,7 @@ Last Updated: 2026-05-05
 본 phase는 metric 변경 + 스크립트 grep 패턴 변경이라 스크립트 실행 검증이 핵심.
 
 - 스크립트 실행: `bash scripts/ai/measure-anchoring-bias.sh` (실제 위치) → exit 0 + 출력에 "라벨 위반 0건" 또는 동등.
-- 정적 grep: `rg "Recommended" ~/.claude/skills/plan-with-questions/` → Phase 1-3 변경 결과로 "허용 조건" 컨텍스트만 매칭 (SC-2 + SC-5 통합).
+- 정적 grep: `rg "Recommended" modules/shared/programs/claude/files/skills/plan-with-questions/` → Phase 1-3 변경 결과로 화이트리스트 파일만 매칭 (SC-2 + SC-5 통합, source 기준). deployed(`~/.claude/skills/...`) 재검증은 본 PR 머지 + nrs 후 closeout 외부 monitoring으로 분리한다.
 - 정적 grep: `rg "허용 조건 컨텍스트" modules/shared/programs/claude/files/skills/plan-with-questions/references/bias-measurement.md` ≥ 1건.
 
 ## Validation Checklist
@@ -60,7 +60,7 @@ Last Updated: 2026-05-05
 - [x] Static check 통과: `find ~/.claude -name "measure-anchoring-bias.sh"`로 스크립트 위치 확인 (1+개)
 - [x] Script 실행 통과: `bash <스크립트 경로>` exit 0 + 출력 정상 (라벨 위반 0건)
 - [x] Static check 통과: `rg "허용 조건" modules/shared/programs/claude/files/skills/plan-with-questions/references/bias-measurement.md` ≥ 1건
-- [x] Static check 통과: `rg "Recommended" ~/.claude/skills/plan-with-questions/` → 허용 컨텍스트만 (SC-2 + SC-5 동시 검증)
+- [x] Static check 통과: `rg "Recommended" modules/shared/programs/claude/files/skills/plan-with-questions/` → 화이트리스트 파일/섹션 매칭만 (SC-2 + SC-5 동시 검증, **source 기준 — deployed `~/.claude/skills/...` 재검증은 본 PR 머지 + nrs 후 별도 monitoring**)
 - [x] 자동 test: N/A
 - [x] API/CLI workflow 검증: 스크립트 실행 자체가 검증
 - [x] Manual smoke check: bias-measurement.md read 후 다음 LLM이 metric 의미 파악 가능?

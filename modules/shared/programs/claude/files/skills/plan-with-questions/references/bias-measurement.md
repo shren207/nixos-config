@@ -85,42 +85,43 @@ plan 파일에는 절대 수치 대신 측정 명령과 결과 파일 경로를 
 
 **목적**: PWQ source 본문에서 `(Recommended)` 라벨이 D4 합의 알고리즘 PASS 컨텍스트로만 등장하는지(허용 조건 컨텍스트 외 매칭 없음) 정적 검증한다. 이는 transcript anchoring metric(위 4축)과는 별개의 source sanitization metric이다.
 
-D4 정책 도입 (`consulting-step.md` Anti-anchoring 1번 재작성, SKILL.md Invariant 8) 이후 source 본문에서 `Recommended`가 등장 가능한 허용 컨텍스트 키워드는 다음과 같다:
+D4 정책 도입 (`consulting-step.md` Anti-anchoring 1번 재작성, SKILL.md Invariant 8) 이후 source 본문에서 `Recommended`는 다음 **파일/섹션 화이트리스트** 안에서만 등장이 허용된다 (이전 버전의 긴 키워드 catalog는 self-reference 메타 매칭이 늘면서 catalog 유지 비용이 정책 검증 비용을 압도해 — 파일/섹션 기반 화이트리스트로 단순화).
 
-- `D4 합의 알고리즘`, `합의 PASS`, `합의 미달`, `합의 조건`, `합의 조건부`
-- `허용 조건`, `허용 컨텍스트`, `hard rule`, `절대 금지`, `강제 제거`
-- `D4 라벨 부착 결정 흐름`, `D4 라벨 부착 여부와는 다른 축`, `D4 (Recommended) 라벨과는 다른 축`, `D4의 (Recommended) 라벨`, `D2 텍스트 복구`, `(Recommended) 라벨 부착` (D2 fallback 텍스트 복구와 D4 라벨 부착 결정 흐름이 별개 축임을 명시하는 컨텍스트 + 라운드별 룰 매트릭스 표 컬럼 명 — 표 컬럼 명은 라벨 부착 의무 정책 정의의 일부)
-- `보수적 합의`, `tentative 선호`, `평이 한국어 문구`, `평이한 한국어`, `평이 보고`, `사용자 노출 평이 문구`, `사용자에게는 enum 라벨` (D4 합의 알고리즘 단순화 후 사용자 노출 정책 명시 컨텍스트)
-- `자문 출력에 절대 포함되지 않는다`, `anchor 단어`, `라벨 부재` (자문 입력 금지 + 부재 검증 컨텍스트)
-- `tool description`, `LLM convention`, `로컬 정책 override`, `라벨 부여 안 함` (도구 default override + tool TUI fact 컨텍스트)
-- `PAT_framing`, `framing 키워드`, `transcript 측정`, `추천 프레이밍`, `framing catalog` (transcript metric catalog 컨텍스트)
-- `Recommended 매칭 라인`, `허용 컨텍스트 키워드`, `SKILLDIR` (본 검증 절차 자체의 메타 컨텍스트 — 코드블록의 검증 명령 본문도 매칭됨)
+| 파일 | 허용 섹션 |
+|---|---|
+| `consulting-step.md` | "Anti-anchoring 4 규칙" 1번 D4 합의 알고리즘 단락 / "출력 JSON schema" 금지 단어 단락 / "Validation" Phase 2 보조 단락 |
+| `output-templates.md` | "Step 4 / Step I-4 질문 패턴" 라벨 부착 조건 단락 / "라운드별 룰 매트릭스" 표 / "D2 텍스트 복구 (D4와 별개 축)" 단락 |
+| `runtime-boundaries.md` | "request_user_input 페이로드 가이드" 운영 정책 1번/2번 단락 |
+| `SKILL.md` | "Invariants" 섹션 6번/8번 |
+| `modes/for_action.md` | "Step 4: 사용자에게 질문" 본문 (라벨 부착 + hard rule + judgment-first + fallback 단락) |
+| `modes/for_prd.md` | "Step 1-4 + Step 5-6 (for_action 차용)" Step 4 차용 단락 |
+| `bias-measurement.md` | 본 "Source label sanitization baseline" 단락 자체 (메타) + axis-2 framing catalog 표 (transcript 측정용) |
 
-### 검증 명령 (inline rg, 스크립트 추가 없이 실행)
+### 검증 명령 (inline rg)
 
 ```bash
-# Source: PWQ 본문 (Mac/MiniPC 양쪽에서 동일하게 deploy됨)
 SKILLDIR=~/.claude/skills/plan-with-questions
 
-# 모든 Recommended 매칭 라인 확인
-rg -n "Recommended" "$SKILLDIR/"
+# 모든 Recommended 매칭 파일 확인
+rg -l "Recommended" "$SKILLDIR/"
 
-# 허용 컨텍스트 키워드와 동반되지 않는 매칭 검출 (false positive 가능성 있어 manual triage 필수)
-rg -n "Recommended" "$SKILLDIR/" \
-  | rg -v "D4 합의 알고리즘|합의 PASS|합의 미달|합의 조건|합의 조건부|허용 조건|허용 컨텍스트|hard rule|절대 금지|강제 제거|anchor 단어|라벨 부재|tool description|LLM convention|로컬 정책 override|라벨 부여 안 함|PAT_framing|framing 키워드|transcript 측정|추천 프레이밍|framing catalog|Recommended 매칭 라인|허용 컨텍스트 키워드|SKILLDIR|D4 라벨 부착 결정 흐름|D4 라벨 부착 여부와는 다른 축|D4 \\(Recommended\\) 라벨과는 다른 축|D4의 \\(Recommended\\) 라벨|D2 텍스트 복구|\\(Recommended\\) 라벨 부착|보수적 합의|tentative 선호|평이 한국어 문구|평이한 한국어|평이 보고|사용자 노출 평이 문구|사용자에게는 enum 라벨"
+# 위 화이트리스트에 없는 파일에서 매칭이 나오면 정책 위반 후보 (manual triage 필수)
+rg -l "Recommended" "$SKILLDIR/" \
+  | rg -v "consulting-step\.md$|output-templates\.md$|runtime-boundaries\.md$|SKILL\.md$|modes/for_action\.md$|modes/for_prd\.md$|bias-measurement\.md$"
 ```
 
-두 번째 명령이 매칭을 출력하지 않으면(파이프 종료 후 stdout이 비어 있으면) baseline PASS다. 매칭이 남으면 manual triage:
+두 번째 명령이 매칭을 출력하지 않으면 화이트리스트 외 파일에 라벨 누출이 없다는 뜻이다 (baseline PASS). 매칭이 출력되면 manual triage:
 
-1. 새 허용 컨텍스트인가 → 위 키워드 목록에 추가하고 본 단락 갱신.
-2. D4 정책 위반인가 → source 본문 정정.
-3. 측정 catalog의 illustrative 표현인가 → 그대로 두되 본 단락에 사례 명시.
+1. 새 허용 컨텍스트인 새 파일이면 화이트리스트에 추가 (본 단락 갱신).
+2. D4 정책 위반이면 source 본문에서 라벨 표현 제거 (정상 컨텍스트로 재작성).
+
+화이트리스트 안의 파일이라도 허용 섹션 외에 매칭이 늘었는지는 `rg -n "Recommended" <file>`로 line별 위치 확인 후 manual review (line-level allowlist는 self-reference 메타 매칭이 많아 정규식보다 manual review가 더 정확).
 
 ### baseline 갱신 시점
 
 - D4 정책 변경 시 (consulting-step.md / SKILL.md Invariant / output-templates.md 수정 commit).
-- 신규 허용 컨텍스트 키워드 도입 시 (예: 새 fallback 추가).
-- Phase 5 dogfooding 5건 후 actual transcript와 비교하여 키워드 catalog 정합성 점검.
+- 신규 허용 파일 도입 시 (예: 새 mode 파일에 fallback 단락 추가).
+- Phase 5 dogfooding 5건 후 actual transcript와 비교하여 화이트리스트 정합성 점검.
 
 ### 스크립트와의 분리 이유
 

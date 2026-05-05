@@ -73,10 +73,10 @@ Root cause 세 메커니즘 결합: SKILL.md Invariant 7 ("한번에 모아서")
 
 ## Discovery Summary
 
-- Reviewed (편집 대상은 Nix source path, 읽기/검증은 deployed path — Cross-Host Resume Guide 참조):
-  - Source (편집): `modules/shared/programs/claude/files/skills/plan-with-questions/SKILL.md`, `modes/for_action.md`, `modes/for_issue.md`, `modes/for_prd.md`
-  - Source (편집): `modules/shared/programs/claude/files/skills/plan-with-questions/references/consulting-step.md`, `output-templates.md`, `runtime-boundaries.md`, `bias-measurement.md`, `fanout-fanin.md`
-  - Deployed (읽기/검증, nrs 후): `~/.claude/skills/plan-with-questions/...` (Mac과 miniPC 양쪽 호스트 동일)
+- Reviewed (편집 대상은 Nix source path, 본 PR 작업 시점의 정적 검증은 모두 source path에서 수행 — deployed 검증은 머지 + nrs 후 closeout 외부 monitoring):
+  - Source (편집 + Phase 1~5 정적 grep/jq 검증): `modules/shared/programs/claude/files/skills/plan-with-questions/SKILL.md`, `modes/for_action.md`, `modes/for_issue.md`, `modes/for_prd.md`
+  - Source (편집 + 정적 검증): `modules/shared/programs/claude/files/skills/plan-with-questions/references/consulting-step.md`, `output-templates.md`, `runtime-boundaries.md`, `bias-measurement.md`, `fanout-fanin.md`
+  - Deployed (본 PR 작업 시점에는 PR 변경이 미반영 상태 — 머지 + nrs 후에만 source와 동기): `~/.claude/skills/plan-with-questions/...` (Mac과 miniPC 양쪽 호스트 동일). **본 PR 작업 시점의 모든 Validation Checklist는 source path를 정본으로 사용했고, deployed 재검증은 closeout 외부 monitoring 항목**.
   - `scripts/ai/measure-anchoring-bias.sh` (repo-relative, git tracked)
   - 1.7GB 세션 로그 (Mac Claude Code 968MB / Mac Codex CLI 785MB / miniPC 351MB)
 - Current system: SKILL.md Invariant 7이 "한번에 모아서 왕복 횟수 최소화"로 묶기 권장. consulting-step.md 출력 schema 7키 evaluation_matrix가 사용자에 그대로 노출. AskUserQuestion 도구 description이 추천 라벨 권장 → anti-anchoring 1번 규칙 정면 위반 92.3%.
@@ -153,7 +153,7 @@ PWQ skill 본문은 **Nix source**가 정본이며, `~/.claude/skills/plan-with-
 | **읽기/검증** (Phase별 Validation Checklist `rg`) | `~/.claude/skills/plan-with-questions/...` (deployed, nrs 후 갱신됨) |
 | **anchoring 스크립트** (Phase 4) | `scripts/ai/measure-anchoring-bias.sh` (repo-relative, git tracked) |
 
-각 phase의 Implementation Checklist path는 **source(`modules/shared/...`)** 기준이고, Validation Checklist의 `rg` path는 **deployed(`~/.claude/skills/...`)** 기준이다 (nrs 후). 두 path가 동일 파일을 다른 관점에서 가리킨다.
+각 phase의 Implementation Checklist path는 **source(`modules/shared/...`)** 기준이고, **본 PR 작업 시점의 Validation Checklist `rg`도 source path에서 수행**한다 — 본 PR 머지 전이라 deployed(`~/.claude/skills/...`)는 PR 변경이 미반영 상태이기 때문이다. 머지 + nrs 후에만 deployed가 source와 동기화된다 (Cross-Host Resume Guide의 "Resume 절차" Step 6 nrs 실행이 그 시점).
 
 ### Resume 절차 (Mac → miniPC 또는 그 반대)
 
@@ -163,7 +163,7 @@ PWQ skill 본문은 **Nix source**가 정본이며, `~/.claude/skills/plan-with-
 4. **Active Phase File 진입**: Phase Discovery Gate 읽고 모든 체크박스 통과 확인.
 5. **Phase Implementation Checklist 진행**: Edit 대상은 Nix source(`modules/shared/...`). 단순 파일 편집.
 6. **nrs 실행**: `nrs` (Mac은 darwin-rebuild, miniPC는 nixos-rebuild) — 편집한 source가 `~/.claude/skills/...`에 deploy.
-7. **Validation Checklist 진행**: `rg`는 deployed path(`~/.claude/skills/...`)에서 실행. 양쪽 호스트가 동일 결과 보장.
+7. **Validation Checklist 진행**: nrs 실행 후라면 `rg`는 deployed path(`~/.claude/skills/...`) 또는 source path 어느 쪽에서든 동일 결과 보장. **nrs 실행 전(예: PR 작업 중)이라면 source path만 정본** — deployed는 PR 변경 미반영 상태.
 8. **Phase-End Multi-Pass Review + PRD master sync**: Phase Index Status `Not Started` → `Complete`, `Active Phase File`을 다음 phase로 갱신, `Last Updated` + `Change Log` 갱신.
 9. **Phase commit + push**: 다른 호스트가 다음 phase resume 가능.
 
@@ -195,6 +195,7 @@ review-impl overlay (6-classification 라벨링 + overbuilt 우선 분류)도 Fi
 
 - F-OQ-1 [BLOCKER for downstream — defer to follow-up issue]: plan-file-template SSOT의 `HEAD=<sha7>` 권장과 `pinning-guard.sh` PATTERN_D 차단 충돌 — 별도 issue로 즉시 등록 (Phase 5).
 - F-OQ-2 [defer to follow-up issue]: D4 anchoring 효과 손상 정량 측정 방법 — 합의 알고리즘 적용 후 dogfooding 누적으로 baseline 산출 후 별도 issue.
+- F-OQ-3 [defer to follow-up issue]: D4 합의 정의 강화 — 자문 출력 schema에 `advisor_fit_signal`/`blocking_reasons` 같은 자문 측 추천/반대 신호 필드 추가하여 (Recommended) 라벨 의미를 "자문 신호와 메인 LLM 후보 일치"로 강화. 본 PR 작업 시점의 자동 검토에서 D4 라벨이 schema에 신호 없이 메인 LLM 휴리스틱으로만 만들어진다는 우려가 두 번 잡혔으나, 사용자 D4 결정("라벨 허용 + 합의 조건")을 본 PR 자동 반영으로 뒤집지 않는다 — 본 PR 머지 후 dogfooding 누적 시 라벨 신뢰도 평가 + schema extension 또는 라벨 자체 약화 결정. F-OQ-2와 함께 평가.
 
 기존 plan 5건 Open Questions 중 3건은 본 PRD 결정 통합:
 - ~~자문 미수행 시 라벨 부착 폴백~~ → FR-5 fallback enum (A/B/C/C_MULTI)으로 통합.
