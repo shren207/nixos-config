@@ -34,7 +34,7 @@ Last Updated: 2026-05-05
   - user_facing layer 사용 의무 표시 규칙 (FR-2).
   - 라벨 부착 조건 + hard rule (FR-7).
   - judgment-first 라운드 라벨 부착 절대 금지 (FR-4).
-  - 라운드별 룰 매트릭스 (일반 / 트레이드오프 / judgment-first / fallback A/B/C/D 5 종류) 인용.
+  - 라운드별 룰 매트릭스 7행 (일반 / 트레이드오프 정상 / fallback A/B/C/C_MULTI / judgment-first) 인용.
 - `references/runtime-boundaries.md`에 for_action·for_issue 라운드 정책 통일 단락 추가 (FR-1).
 
 ### Out of Scope
@@ -96,7 +96,7 @@ Last Updated: 2026-05-05
 
 ## Discoveries / Decisions
 
-- output-templates 라운드별 룰 매트릭스를 5종이 아닌 7행으로 확장 (일반/트레이드오프 정상/fallback A/B/C/D/judgment-first). PRD spec은 "5 종류"라 표현했으나 실제로는 fallback이 4 종류이므로 표 행 수가 7개가 자연스럽다 (PRD master 본문의 "fallback 4단계" 정합).
+- output-templates 라운드별 룰 매트릭스를 5종이 아닌 7행으로 확장 (일반/트레이드오프 정상/fallback A/B/C/C_MULTI/judgment-first). PRD spec은 "5 종류"라 표현했으나 실제로는 fallback이 4 종류이므로 표 행 수가 7개가 자연스럽다 (PRD master 본문의 "fallback 4단계" 정합).
 - runtime-boundaries `request_user_input` 페이로드 가이드 line 35의 폐기 정책("for_issue 4개를 3개로 자동 축소")은 D1으로 무효화됨 — 본 phase에서 정정. line 36 "Recommended 라벨 금지"는 D4 합의 알고리즘 호출로 정정 (라벨 허용 + 합의 조건).
 - bias-measurement.md L36의 "Recommended" anchor 키워드는 측정 metric 컨텍스트로 SC-2 검색에 매칭되지만 anchoring 측정용 키워드 catalog일 뿐 사용자 노출 라벨은 아니다 — Phase 4에서 metric 갱신 컨텍스트로 함께 검토.
 

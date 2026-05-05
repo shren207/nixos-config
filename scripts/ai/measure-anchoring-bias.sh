@@ -21,7 +21,8 @@
 # lives in modules/shared/programs/claude/files/skills/plan-with-questions/
 # references/bias-measurement.md "Source label sanitization baseline (D4 정책
 # 일관성)" section. Run that section's inline `rg` commands against the
-# deployed `~/.claude/skills/plan-with-questions/` tree — keeping the two
+# repo-tracked source tree by default; after merge + nrs, optionally re-check
+# the deployed `~/.claude/skills/plan-with-questions/` tree. Keeping the two
 # cadences separate avoids coupling D4 policy changes to transcript metric
 # releases.
 #
