@@ -13,11 +13,15 @@
 #   HANDOFF_TURN_THRESHOLD        (default 20)  — turn-counter 임계 (외부 state file 누적)
 #
 # Local SoT (Maintainability — 본 파일 안에서만 조정):
-#   - branch hash 길이: 6자 (handoff_compute_slug, handoff_full_snapshot_commit 양쪽 동일)
+#   - branch hash 길이: HANDOFF_BRANCH_HASH_LEN 상수로 정의. 변경하려면 본 파일의 상수만
+#     수정하고 모든 호출자(handoff_compute_slug, handoff_full_snapshot_commit)는 helper
+#     handoff_compute_branch_hash를 사용한다.
 #   - redaction regex token length floor:
-#       GitHub PAT 36자 / OpenAI sk- 20자 / AWS AKIA 16자 / Stripe 24자 / JWT 10자
+#       GitHub PAT 36자 / OpenAI sk- 20자 / AWS AKIA/ASIA 16자 / Stripe 24자 / JWT 10자
 #     thresholds는 각 token format의 공식 minimum length에 기반한다. gitleaks rule 길이가
 #     변경되면 본 파일의 redaction sed expression도 함께 조정한다.
+#   - redaction regex는 GNU sed `\b` extension을 사용하지 않는다. macOS 기본 BSD sed 호환을
+#     위해 POSIX character class `[^[:alnum:]_]` 또는 줄 시작/끝 anchor로 경계를 표현한다.
 #
 # Public API:
 #   handoff_compute_slug <raw_branch>            -> stdout: <slug>-<hash>
@@ -32,6 +36,24 @@
 
 : "${HANDOFF_IDLE_TIMEOUT_SECONDS:=300}"
 : "${HANDOFF_TURN_THRESHOLD:=20}"
+
+# branch hash 길이 SoT — slug 충돌 방지용 짧은 sha1 prefix.
+HANDOFF_BRANCH_HASH_LEN=6
+
+# branch hash 계산 helper. handoff_compute_slug와 handoff_full_snapshot_commit 양쪽이 호출.
+handoff_compute_branch_hash() {
+  local raw="${1:-}"
+  if [ -z "$raw" ]; then
+    return 1
+  fi
+  if command -v sha1sum >/dev/null 2>&1; then
+    printf '%s' "$raw" | sha1sum | head -c "$HANDOFF_BRANCH_HASH_LEN"
+  elif command -v shasum >/dev/null 2>&1; then
+    printf '%s' "$raw" | shasum | head -c "$HANDOFF_BRANCH_HASH_LEN"
+  else
+    return 1
+  fi
+}
 
 # noise field SoT (DEC-S15) — idempotent diff 비교에서 제외할 frontmatter 필드.
 # session-id/cwd/hostname은 보안상 frontmatter에 쓰지 않으므로 (FR-5 allowlist 준수)
@@ -74,11 +96,7 @@ handoff_compute_slug() {
       ;;
   esac
   local hash
-  if command -v sha1sum >/dev/null 2>&1; then
-    hash=$(printf '%s' "$raw" | sha1sum | head -c 6)
-  else
-    hash=$(printf '%s' "$raw" | shasum | head -c 6)
-  fi
+  hash=$(handoff_compute_branch_hash "$raw" 2>/dev/null || printf '')
   if [ -z "$hash" ]; then
     printf 'handoff: hash compute failure\n' >&2
     return 2
@@ -103,15 +121,16 @@ handoff_redact() {
   # 주민번호 (NNNNNN-NNNNNNN)
   out=$(printf '%s' "$out" | sed -E 's/[0-9]{6}-[0-9]{7}/<rrn-redacted>/g')
   # GitHub Personal Access Token (ghp_/gho_/ghu_/ghs_/ghr_ + 36자 base62)
+  # GitHub PAT prefix 자체가 unique signature이라 word-boundary 없이도 false positive 위험 낮다.
   out=$(printf '%s' "$out" | sed -E 's/gh[pousr]_[A-Za-z0-9]{36,}/<github-token-redacted>/g')
-  # OpenAI API 키 (sk-... 추정 패턴: 'sk-' + 20자+)
-  out=$(printf '%s' "$out" | sed -E 's/\bsk-[A-Za-z0-9_-]{20,}/<openai-key-redacted>/g')
-  # AWS access key ID (AKIA + 16자 대문자/숫자)
-  out=$(printf '%s' "$out" | sed -E 's/\bAKIA[0-9A-Z]{16}\b/<aws-access-key-redacted>/g')
-  # Stripe live/secret key (sk_live_ / rk_live_ + 24자+)
-  out=$(printf '%s' "$out" | sed -E 's/\b(sk|rk)_(live|test)_[A-Za-z0-9]{24,}/<stripe-key-redacted>/g')
+  # OpenAI API 키 ('sk-' + 20자+) — POSIX 경계로 변경 (BSD sed 호환).
+  out=$(printf '%s' "$out" | sed -E 's/(^|[^A-Za-z0-9_-])(sk-[A-Za-z0-9_-]{20,})/\1<openai-key-redacted>/g')
+  # AWS access key ID (AKIA = 장기 credential / ASIA = STS temporary credential).
+  out=$(printf '%s' "$out" | sed -E 's/(^|[^A-Za-z0-9_])((AKIA|ASIA)[0-9A-Z]{16})($|[^A-Za-z0-9_])/\1<aws-access-key-redacted>\4/g')
+  # Stripe live/secret key (sk_live_ / sk_test_ / rk_live_ / rk_test_ + 24자+)
+  out=$(printf '%s' "$out" | sed -E 's/(^|[^A-Za-z0-9_])((sk|rk)_(live|test)_[A-Za-z0-9]{24,})/\1<stripe-key-redacted>/g')
   # JWT (eyJ로 시작하는 base64url . base64url . base64url)
-  out=$(printf '%s' "$out" | sed -E 's/\beyJ[A-Za-z0-9_=-]{10,}\.eyJ[A-Za-z0-9_=-]{10,}\.[A-Za-z0-9_=-]{10,}/<jwt-redacted>/g')
+  out=$(printf '%s' "$out" | sed -E 's/(^|[^A-Za-z0-9_-])(eyJ[A-Za-z0-9_=-]{10,}\.eyJ[A-Za-z0-9_=-]{10,}\.[A-Za-z0-9_=-]{10,})/\1<jwt-redacted>/g')
   # $HOME 절대경로 → ~
   if [ -n "${HOME:-}" ]; then
     out=$(printf '%s' "$out" | sed "s|${HOME}|~|g")
@@ -351,11 +370,7 @@ handoff_full_snapshot_commit() {
   if [ -z "$branch" ]; then
     return 0
   fi
-  if command -v sha1sum >/dev/null 2>&1; then
-    branch_hash=$(printf '%s' "$branch" | sha1sum | head -c 6)
-  else
-    branch_hash=$(printf '%s' "$branch" | shasum | head -c 6)
-  fi
+  branch_hash=$(handoff_compute_branch_hash "$branch" 2>/dev/null || printf '')
   last_commit=$(git -C "$repo_root" rev-parse --short=7 HEAD 2>/dev/null || printf '')
   slug_full=$(handoff_compute_slug "$branch" 2>/dev/null || printf '')
   if [ -z "$slug_full" ]; then
@@ -363,10 +378,21 @@ handoff_full_snapshot_commit() {
   fi
   # tracked 여부를 작성 전에 결정한다 — 신규 파일은 git diff가 빈 결과를 반환하므로
   # 별도 분기가 필요하다.
-  if git -C "$repo_root" ls-files --error-unmatch -- ".claude/handoffs/${slug_full}.md" >/dev/null 2>&1; then
+  local target_rel=".claude/handoffs/${slug_full}.md"
+  if git -C "$repo_root" ls-files --error-unmatch -- "$target_rel" >/dev/null 2>&1; then
     is_tracked=yes
   else
     is_tracked=no
+  fi
+  # 사용자가 수동 편집/merge conflict로 만든 dirty 변경이 있으면 hook이 그것을 silent로
+  # 덮어쓰거나 원복하지 않게 한다 (기존 tracked snapshot이 있을 때만 검사).
+  if [ "$is_tracked" = "yes" ]; then
+    local dirty
+    dirty=$(git -C "$repo_root" status --porcelain -- "$target_rel" 2>/dev/null || printf '')
+    if [ -n "$dirty" ]; then
+      printf 'handoff: 기존 snapshot에 dirty 변경 — hook skip (working tree 유지)\n' >&2
+      return 0
+    fi
   fi
   target=$(handoff_write_snapshot "$slug_full" "$branch" "$branch_hash" "$last_commit" "$runtime" "" "" 2>/dev/null || printf '')
   if [ -z "$target" ] || [ ! -f "$target" ]; then
@@ -415,6 +441,50 @@ handoff_parse_session_id() {
   if command -v jq >/dev/null 2>&1; then
     printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true
   fi
+}
+
+# SessionStart wrapper의 공통 emit 흐름. Claude/Codex 양쪽 wrapper가 호출하여 본문 중복을
+# 단일 SoT로 흡수한다 (Maintainability — wrapper drift 회피).
+# args: <input_json>  -- stdin JSON (source field 추출용)
+# stdout: I2 형식 ("[handoff resume] ..." + 안내 라인). emit 조건 미충족 시 silent (return 0).
+handoff_session_start_emit_context() {
+  local input="${1:-}"
+  local repo_root branch slug_full target saved_branch last_commit rel_path source_field
+  repo_root=$(git rev-parse --show-toplevel 2>/dev/null || printf '')
+  if [ -z "$repo_root" ]; then
+    return 0
+  fi
+  branch=$(git -C "$repo_root" symbolic-ref --short HEAD 2>/dev/null || printf '')
+  if [ -z "$branch" ]; then
+    return 0
+  fi
+  slug_full=$(handoff_compute_slug "$branch" 2>/dev/null || printf '')
+  if [ -z "$slug_full" ]; then
+    return 0
+  fi
+  target="${repo_root}/.claude/handoffs/${slug_full}.md"
+  if [ ! -f "$target" ]; then
+    return 0
+  fi
+  # branch-slug exact match: frontmatter branch와 현재 git branch 일치 검증.
+  saved_branch=$(handoff_read_frontmatter_field "$target" "branch")
+  if [ -n "$saved_branch" ] && [ "$saved_branch" != "$branch" ]; then
+    return 0
+  fi
+  last_commit=$(handoff_read_frontmatter_field "$target" "last-commit")
+  [ -z "$last_commit" ] && last_commit="(unknown)"
+  rel_path=".claude/handoffs/${slug_full}.md"
+  source_field=""
+  if [ -n "$input" ] && command -v jq >/dev/null 2>&1; then
+    source_field=$(printf '%s' "$input" | jq -r '.source // empty' 2>/dev/null || printf '')
+  fi
+  if [ "$source_field" = "clear" ]; then
+    printf '[handoff resume] branch=%s last-commit=%s file=%s [stale: source=clear]\n' "$branch" "$last_commit" "$rel_path"
+  else
+    printf '[handoff resume] branch=%s last-commit=%s file=%s\n' "$branch" "$last_commit" "$rel_path"
+  fi
+  printf '주: 상세는 위 file을 read하세요.\n'
+  return 0
 }
 
 # transcript_path parsing helper from stdin JSON.

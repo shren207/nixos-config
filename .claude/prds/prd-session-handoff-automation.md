@@ -160,7 +160,7 @@
 | Phase 3: hook 등록 | Complete (nrs manual smoke만 Phase 5 통합) | Claude settings.json + Codex config.toml + dispatcher H2 ordering + nix module symlink | nix eval + lefthook eval-tests + codex-hook-fixtures | [phase-03-hook-registration](./prd-session-handoff-automation/phase-03-hook-registration.md) |
 | Phase 4: secret/PII 3-layer + idempotent + PR diff 제외 | Complete (Visual/Manual smoke만 Phase 5 통합) | allowlist + redaction + gitleaks staged ordering + idempotent diff check + chore(handoff) prefix + .gitattributes | secret fixture corpus + idempotent fixture + lefthook gitleaks | [phase-04-secret-and-prdiff](./prd-session-handoff-automation/phase-04-secret-and-prdiff.md) |
 | Phase 5: dogfooding round-trip | Pending User Smoke | 9 시나리오 (same/cross-runtime/cross-machine + abnormal + multi-worktree + non-blocking + secret + write-handoff race) | manual + scripted dogfooding (자동 부분은 Phase 2/4 fixture가 일부 검증) | [phase-05-dogfooding](./prd-session-handoff-automation/phase-05-dogfooding.md) |
-| Phase 6: 정리 + follow-up | Not Started | write-handoff 처리 별도 이슈 + sync-codex-config 한계 노트 + Closeout (PRD 10-pass + review-impl overlay) | review-only | [phase-06-followup](./prd-session-handoff-automation/phase-06-followup.md) |
+| Phase 6: 정리 + follow-up | Not Started | (a) Closeout review-only(자동, manual smoke 무관 항목) — PRD 10-pass + review-impl overlay 일부 + follow-up 이슈 사전 등록. (b) Post-smoke completion — Phase 5 manual smoke 결과 도착 후 PRD Status=Complete + 마지막 follow-up issue body 갱신. | review-only (a) + post-smoke (b) | [phase-06-followup](./prd-session-handoff-automation/phase-06-followup.md) |
 
 ## Final Multi-Pass Review After All Phases
 

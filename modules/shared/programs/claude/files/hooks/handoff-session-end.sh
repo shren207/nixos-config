@@ -14,7 +14,7 @@ set -u
 INPUT=""
 [ ! -t 0 ] && INPUT=$(cat || true)
 
-HOOK_DIR=$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}" 2>/dev/null || printf '%s' "${BASH_SOURCE[0]}")")
+HOOK_DIR=$(dirname -- "${BASH_SOURCE[0]}")
 LIB="${HOOK_DIR}/handoff-lib.sh"
 if [ ! -f "$LIB" ]; then
   exit 0

@@ -19,7 +19,11 @@ fi
 INPUT=""
 [ ! -t 0 ] && INPUT=$(cat || true)
 
-HOOK_DIR=$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}" 2>/dev/null || printf '%s' "${BASH_SOURCE[0]}")")
+# symlink target을 따라가지 않고 호출된 경로(`~/.codex/hooks/`) 안에서 lib을 찾는다.
+# nix module이 ~/.codex/hooks/handoff-lib.sh를 Claude SoT에 mkOutOfStoreSymlink하므로,
+# readlink -f로 target을 따라가면 modules/shared/programs/claude/files/hooks/로 redirect되어
+# Codex wrapper가 sibling lib을 발견하지 못하고 silent skip된다 (issue #614 round-2 fix).
+HOOK_DIR=$(dirname -- "${BASH_SOURCE[0]}")
 LIB="${HOOK_DIR}/handoff-lib.sh"
 if [ ! -f "$LIB" ]; then
   exit 0

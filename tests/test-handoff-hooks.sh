@@ -191,10 +191,20 @@ test_redact() {
     fail "$name"
   fi
 
-  name="redact: AWS access key (AKIA)"
+  name="redact: AWS access key (AKIA 장기)"
   local aws_key="AKIAAAAAAAAAAAAAAAAA"
-  out=$(handoff_redact "$aws_key in env")
+  out=$(handoff_redact "config $aws_key here")
   if contains "<aws-access-key-redacted>" "$out" && ! contains "$aws_key" "$out"; then
+    ok "$name"
+  else
+    note "got '$out'"
+    fail "$name"
+  fi
+
+  name="redact: AWS access key (ASIA STS temporary)"
+  local aws_sts="ASIABBBBBBBBBBBBBBBB"
+  out=$(handoff_redact "config $aws_sts here")
+  if contains "<aws-access-key-redacted>" "$out" && ! contains "$aws_sts" "$out"; then
     ok "$name"
   else
     note "got '$out'"
@@ -313,6 +323,52 @@ test_full_snapshot_commit_new_file() {
     ok "$name"
   else
     note "no commit was created for new untracked snapshot"
+    fail "$name"
+  fi
+
+  cd "$REPO_ROOT" >/dev/null
+  rm -rf "$sandbox"
+}
+
+# 회귀 fixture: 사용자가 수동 편집(또는 merge conflict)으로 만든 dirty 변경이 있을 때,
+# hook이 그것을 silent로 덮어쓰거나 원복하지 않아야 한다.
+test_full_snapshot_commit_dirty_skip() {
+  local name="full_snapshot_commit: dirty 사용자 편집 보호 (skip + 변경 유지)"
+  local sandbox
+
+  load_lib
+
+  sandbox=$(mktemp -d)
+  cd "$sandbox" >/dev/null
+  git init --quiet --initial-branch=main
+  git config user.email test@example
+  git config user.name test
+  echo "init" > README.md
+  git add README.md
+  git commit --quiet -m "init"
+
+  # 첫 호출 — untracked → commit 생성
+  HANDOFF_SUMMARY="first run" handoff_full_snapshot_commit "claude-code" >/dev/null 2>&1 || true
+
+  # 사용자 수동 편집 시뮬레이션
+  local target
+  target=$(find .claude/handoffs -type f -name '*.md' | head -1)
+  if [ -z "$target" ]; then
+    note "snapshot file not created in setup"
+    fail "$name"
+    cd "$REPO_ROOT" >/dev/null
+    rm -rf "$sandbox"
+    return
+  fi
+  printf '\n## User manual edit (preserve me)\n' >> "$target"
+
+  # 두 번째 호출 — dirty 검사로 skip되어야 함
+  HANDOFF_SUMMARY="second run" handoff_full_snapshot_commit "claude-code" >/dev/null 2>&1 || true
+
+  if grep -q "User manual edit" "$target" 2>/dev/null; then
+    ok "$name"
+  else
+    note "user edit was overwritten"
     fail "$name"
   fi
 
@@ -451,6 +507,7 @@ test_redact
 test_compute_diff_idempotent
 test_full_snapshot_commit_new_file
 test_full_snapshot_commit_idempotent_cleanup
+test_full_snapshot_commit_dirty_skip
 test_trigger_turn_counter
 test_gitleaks_missing
 test_non_blocking_lib_missing

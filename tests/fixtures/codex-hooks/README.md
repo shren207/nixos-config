@@ -129,7 +129,7 @@ agent_id 키는 0.124 schema에 없으며 hook은 graceful fallback에 의존한
 |------|------|-----------|
 | `scenario-A-template-event.toml` | template이 선언한 이벤트는 template 값이 유지 | hooks.UserPromptSubmit이 template과 일치 |
 | `scenario-B-user-added-same-event.toml` | template이 선언한 이벤트에 사용자가 entry 추가 시 sync-codex-config.py가 template 값으로 덮어씀 | 사용자 추가 marker가 사라짐 |
-| `scenario-C-user-different-event.toml` | template 미선언 이벤트는 user-owned로 보존 | hooks.SessionStart 등이 그대로 유지 |
+| `scenario-C-user-different-event.toml` | template 미선언 이벤트는 user-owned로 보존 | hooks.PermissionRequest가 그대로 유지 (issue #614 이전에는 hooks.SessionStart로 검증되었으나 SessionStart가 template-declared가 되면서 PermissionRequest로 이전) |
 | `scenario-D-mcp-servers-coexist.toml` | mcp_servers와 hooks 인접 ownership view | 사용자 mcp_servers entry 보존 + hooks template 적용 |
 | `scenario-E-posttooluse-template-owned.toml` | template이 선언한 PostToolUse 이벤트(issue #603)에 사용자가 entry 추가 시 sync가 template 값으로 덮어씀 | 사용자 PostToolUse marker가 사라지고 managed pinning-alert command만 남음 |
 | `scenario-F-pretooluse-template-owned.toml` | template이 선언한 PreToolUse 이벤트(issue #587)에 사용자가 entry 추가 시 sync가 template 값으로 덮어씀 | 사용자 PreToolUse marker가 사라지고 managed pinning-guard command만 남음 |
