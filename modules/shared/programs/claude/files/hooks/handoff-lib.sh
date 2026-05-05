@@ -131,10 +131,14 @@ handoff_redact() {
   out=$(printf '%s' "$out" | sed -E 's/(^|[^A-Za-z0-9_])((sk|rk)_(live|test)_[A-Za-z0-9]{24,})/\1<stripe-key-redacted>/g')
   # JWT (eyJ로 시작하는 base64url . base64url . base64url)
   out=$(printf '%s' "$out" | sed -E 's/(^|[^A-Za-z0-9_-])(eyJ[A-Za-z0-9_=-]{10,}\.eyJ[A-Za-z0-9_=-]{10,}\.[A-Za-z0-9_=-]{10,})/\1<jwt-redacted>/g')
-  # $HOME 절대경로 → ~
+  # $HOME 절대경로 → ~ (사용자 home 경로 노출 차단)
   if [ -n "${HOME:-}" ]; then
     out=$(printf '%s' "$out" | sed "s|${HOME}|~|g")
   fi
+  # Unix 절대경로 — repo 외 경로 노출 차단. `~/`로 시작하지 않는 절대경로 path-like 토큰을
+  # 가린다. capture group으로 단어 경계를 보존하여 BSD/GNU sed 양쪽 호환. delimiter는
+  # path slash 충돌을 피하려고 `#`을 사용한다.
+  out=$(printf '%s' "$out" | sed -E 's#(^|[^A-Za-z0-9_./~-])(/(home|Users|opt|var|etc|root)/[A-Za-z0-9._/-]+)#\1<abs-path-redacted>#g')
   # env var 값 (TOKEN/KEY/SECRET/PASSWORD/API_KEY/ACCESS_KEY/AUTH 변수 = 값)
   out=$(printf '%s' "$out" | sed -E 's/(TOKEN|API_KEY|SECRET|PASSWORD|ACCESS_KEY|AUTH_TOKEN|BEARER)[ \t]*=[ \t]*[^[:space:]]+/\1=<redacted>/g')
   printf '%s' "$out"
@@ -232,51 +236,19 @@ handoff_run_gitleaks() {
     printf 'handoff: missing staged_path arg\n' >&2
     return 1
   fi
-  # 본 helper는 PATH 조작 환경(test의 미설치 시뮬레이션 포함)에서도 안전하게 동작하기 위해
-  # git/rm 같은 핵심 명령을 절대경로로 resolve한다. handoff_resolve_bin이 PATH 우선 + fallback.
-  local git_bin rm_bin
-  git_bin=$(handoff_resolve_bin git)
-  rm_bin=$(handoff_resolve_bin rm)
-  if [ -z "$git_bin" ] || [ -z "$rm_bin" ]; then
-    # core tool 자체가 없으면 quarantine 시도 자체 불가 — 호출 측 책임 (commit 미발생만 보장).
-    printf 'handoff: core tool missing — commit 차단\n' >&2
-    return 1
-  fi
   if ! command -v gitleaks >/dev/null 2>&1; then
     printf 'handoff: gitleaks 미설치 — commit 차단 + quarantine\n' >&2
-    "$git_bin" restore --staged -- "$staged_path" 2>/dev/null || true
-    "$rm_bin" -f -- "$staged_path" 2>/dev/null || true
+    git restore --staged -- "$staged_path" 2>/dev/null || true
+    rm -f -- "$staged_path" 2>/dev/null || true
     return 1
   fi
   if ! gitleaks protect --staged --no-banner --redact >/dev/null 2>&1; then
     printf 'handoff: gitleaks scan 차단 — unstage + quarantine\n' >&2
-    "$git_bin" restore --staged -- "$staged_path" 2>/dev/null || true
-    "$rm_bin" -f -- "$staged_path" 2>/dev/null || true
+    git restore --staged -- "$staged_path" 2>/dev/null || true
+    rm -f -- "$staged_path" 2>/dev/null || true
     return 1
   fi
   return 0
-}
-
-# 핵심 tool resolve helper — PATH 우선, 미발견 시 일반적 system path fallback.
-handoff_resolve_bin() {
-  local name="${1:-}"
-  if [ -z "$name" ]; then
-    return 1
-  fi
-  local found
-  found=$(command -v -- "$name" 2>/dev/null || printf '')
-  if [ -n "$found" ]; then
-    printf '%s' "$found"
-    return 0
-  fi
-  local p
-  for p in /usr/bin /bin /usr/local/bin /run/current-system/sw/bin; do
-    if [ -x "$p/$name" ]; then
-      printf '%s/%s' "$p" "$name"
-      return 0
-    fi
-  done
-  return 1
 }
 
 # snapshot 파일 작성. allowlist 필드만 (DEC-S12) + redaction.
@@ -371,7 +343,15 @@ handoff_full_snapshot_commit() {
     return 0
   fi
   branch_hash=$(handoff_compute_branch_hash "$branch" 2>/dev/null || printf '')
-  last_commit=$(git -C "$repo_root" rev-parse --short=7 HEAD 2>/dev/null || printf '')
+  # `last-commit`은 사용자 작업 이력의 anchor이다. handoff hook 자체가 만든
+  # `chore(handoff):` commit은 제외하여 hook이 자신의 commit을 last-commit으로 박제하면
+  # 다음 SessionEnd에서 `last-commit`이 매번 변경되어 idempotent 보장이 깨지는 회귀를
+  # 차단한다.
+  last_commit=$(git -C "$repo_root" log --invert-grep --grep='^chore(handoff):' \
+    -n 1 --pretty=%h 2>/dev/null || printf '')
+  if [ -z "$last_commit" ]; then
+    last_commit=$(git -C "$repo_root" rev-parse --short=7 HEAD 2>/dev/null || printf '')
+  fi
   slug_full=$(handoff_compute_slug "$branch" 2>/dev/null || printf '')
   if [ -z "$slug_full" ]; then
     return 0

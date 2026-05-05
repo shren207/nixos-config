@@ -3,14 +3,16 @@
 # Session handoff automation hook fixture runner.
 #
 # 검증 항목 (Phase 2 base):
-#   1. drift sha — Claude/Codex handoff-lib.sh 동일 content 검증 (DEC-S9 G2)
+#   1. handoff-lib SoT — Claude SoT 단일 file + Codex hook 디렉토리는 mkOutOfStoreSymlink로
+#      노출 (Codex source copy 부재). DEC-S9 + handoff-lib SoT 정책.
 #   2. handoff_compute_slug — slug 정규화 + hash + 충돌 회피 + hard fail
-#   3. handoff_redact — 이메일/전화/주민번호/$HOME/env-var redaction
+#   3. handoff_redact — 이메일/전화/주민번호/$HOME/env-var/secret-token redaction
 #   4. handoff_compute_diff — noise field 제외 idempotent diff
-#   5. handoff_should_trigger_full — turn-counter threshold + transcript mtime
-#   6. handoff_run_gitleaks — 미설치 fallback (commit 차단 + quarantine)
-#   7. branch-slug exact match — handoff-session-start.sh가 다른 branch handoff를 차단
-#   8. non-blocking — 모든 hook entry가 실패 경로에서 exit 0
+#   5. handoff_full_snapshot_commit — untracked 신규 commit, idempotent skip cleanup, dirty 보호
+#   6. handoff_should_trigger_full — turn-counter threshold + transcript mtime
+#   7. handoff_run_gitleaks — gitleaks scan 실패 시 commit 차단 + quarantine
+#   8. branch-slug exact match — handoff-session-start.sh가 다른 branch handoff를 차단
+#   9. non-blocking — 모든 hook entry가 실패 경로에서 exit 0
 #
 # Phase 4에서 fixture 확장: secret/PII corpus 광범위 + 3 layer 통합.
 
@@ -409,6 +411,17 @@ test_full_snapshot_commit_idempotent_cleanup() {
     fail "$name"
   fi
 
+  # 회귀 fixture: handoff commit 자체가 last-commit을 다음 실행에서 변경시켜 idempotent 보장이
+  # 깨지는 회귀 차단. last-commit 계산이 chore(handoff): commit을 제외하는지 검증한다.
+  local handoff_commit_count
+  handoff_commit_count=$(git log --grep='^chore(handoff):' --oneline 2>/dev/null | wc -l)
+  if [ "$handoff_commit_count" -le 1 ]; then
+    ok "full_snapshot_commit: 동일 입력 두 번째 호출 후 handoff commit 누적 안 됨 (idempotent)"
+  else
+    note "handoff commit count=$handoff_commit_count (expected <= 1)"
+    fail "full_snapshot_commit: 동일 입력 두 번째 호출 후 handoff commit 누적 안 됨 (idempotent)"
+  fi
+
   cd "$REPO_ROOT" >/dev/null
   rm -rf "$sandbox"
 }
@@ -449,13 +462,15 @@ test_trigger_turn_counter() {
   rm -rf "$XDG_DATA_HOME"
 }
 
-# 6. handoff_run_gitleaks — 미설치 fallback.
+# 6. handoff_run_gitleaks — scan 실패 fallback.
+# stub gitleaks wrapper(exit 1)로 scan 실패를 시뮬레이션해 unstage + working tree quarantine
+# 동작을 검증한다. git/rm은 시스템 PATH의 실제 binary가 그대로 동작한다.
 test_gitleaks_missing() {
-  local name="run_gitleaks: gitleaks 미설치 시 commit 차단 + quarantine"
+  local name="run_gitleaks: gitleaks scan 실패 시 commit 차단 + quarantine"
 
   load_lib
 
-  local sandbox staged
+  local sandbox staged stub_path
   sandbox=$(mktemp -d)
   cd "$sandbox" >/dev/null
   git init --quiet
@@ -465,12 +480,16 @@ test_gitleaks_missing() {
   echo "harmless" > "$staged"
   git add "$staged"
 
-  # gitleaks만 PATH에서 제거. git/rm 같은 core tool은 wrapper script로 보존.
-  local stub_path
   stub_path=$(mktemp -d)
-  # gitleaks가 stub_path에 없으면 command -v가 실패. core tool은 system path fallback으로 helper가 자체 resolve.
+  cat > "$stub_path/gitleaks" <<'STUB'
+#!/usr/bin/env bash
+# fake gitleaks — scan 실패를 시뮬레이션 (helper의 quarantine 분기 검증용)
+exit 1
+STUB
+  chmod +x "$stub_path/gitleaks"
+
   local rc=0
-  PATH="$stub_path" handoff_run_gitleaks "$staged" >/dev/null 2>&1 || rc=$?
+  PATH="$stub_path:$PATH" handoff_run_gitleaks "$staged" >/dev/null 2>&1 || rc=$?
 
   cd "$REPO_ROOT" >/dev/null
   if [ "$rc" -ne 0 ] && [ ! -f "$staged" ]; then

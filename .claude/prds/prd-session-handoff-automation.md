@@ -138,6 +138,9 @@
 - D6 — `/write-handoff` 동시 동작: Codex `write-handoff` skill이 노출된 상태(`exposedCodexSkills`에 포함)에서 자동 hook과 동시 실행 시 GitHub 코멘트와 `.claude/handoffs/`가 모두 갱신될 수 있음. Phase 1 Discovery에서 race 시나리오 측정.
 - D7 — DEC-S6 B refined (Phase 1 결과): hook payload에 idle 필드 없음 → turn-counter (외부 state file 누적) + `transcript_path` mtime 결합으로 우회. C/D fallback 미발동. 단 외부 state file 누적 패턴이 dogfooding(Phase 5)에서 false trigger를 만들면 threshold 조정 또는 C로 추가 fallback.
 - D8 — Codex SessionStart user hook 보존 안 됨: 본 PRD가 `[[hooks.SessionStart]]`를 template-declared array로 추가하면서 `sync-codex-config.py` array AoT merge 한계(issue #591 OPEN)에 따라 사용자가 같은 event에 추가한 entry는 nrs 시 손실된다. NG-6와 일치하는 의도된 한계지만 이전 baseline에서 SessionStart user hook을 사용하던 워크플로는 본 PR 머지 후 영향. mitigation은 issue #591 후속 PR 또는 dispatcher drop-in 디렉토리 패턴(별도 follow-up). 본 PRD는 user-facing 영향만 명시하고 코드 수정은 별도 이슈로 분리.
+- D9 — handoff snapshot이 PR diff에 누적: hook이 `chore(handoff):` prefix로 commit하지만 `.gitattributes linguist-generated`은 GitHub UI collapsed 표시일 뿐 git diff/squash merge 동작에는 영향 주지 않는다 (NG-2 의도된 한계). 사용자가 PR을 리뷰하거나 squash merge할 때 handoff commit이 누적된다. mitigation 후보: PR template/create-pr filtering으로 `chore(handoff):` commit을 본문에서 제외, 또는 PR 머지 직전 user-controlled cleanup. 본 PR 범위 외 — 별도 follow-up issue로 트래킹.
+- D10 — Codex Stop dispatcher 안의 handoff trigger latency: `handoff-stop.sh`는 dispatcher의 `stop-notification` 앞 위치에서 호출되며, threshold/idle 발동 시 snapshot 작성 + gitleaks staged scan + git commit을 직렬로 수행한다. Codex inline `[[hooks.Stop]]`은 per-hook `timeout` 옵션이 없어 trigger 시 stop-notification 도달 latency가 증가할 수 있다. NFR-1 한계로 본 PRD에 명시 — Phase 5 dogfooding에서 latency 측정 후 필요 시 background dispatch 또는 trigger 빈도 조정.
+- D11 — snapshot 입력 경계 (Correctness clarification): hook 자체는 chat payload(`last_assistant_message`)나 transcript 본문을 snapshot에 직접 매핑하지 않는다. snapshot 본문은 `HANDOFF_SUMMARY` / `HANDOFF_PENDING_DECISIONS` / `HANDOFF_ACTIVE_FILES` / `HANDOFF_NEXT_ACTION` 4개 env var에서만 생성되며 호출자가 명시적으로 채워야 한다. 따라서 G-4의 "secret/PII 차단"은 (a) env var 입력에 대한 Layer 1 redaction, (b) gitleaks staged scan, (c) lefthook pre-commit gitleaks 3 layer로 작동하며, "chat content를 가짜로 삽입"하는 통합 시나리오는 호출자가 의도적으로 secret을 env var에 넣는 경우를 모사한다. SC-4는 이 의미로 해석한다.
 
 ## Execution Rules
 
@@ -180,6 +183,14 @@ Phase 6 closeout에서 `~/.claude/skills/plan-with-questions/references/prd/mult
 - 2026-05-05: Phase 3 Complete (nrs manual smoke만 Phase 5 통합). settings.json Stop/SessionEnd/SessionStart 신규 entry 추가, _stop-dispatcher.sh H2 ordering 적용 + 헤더 rationale, config.toml [[hooks.SessionStart]] 추가, claude/codex default.nix mkOutOfStoreSymlink 7개. nixfmt + JSON/TOML/shellcheck + 회귀 fixture 모두 PASS. tests/fixtures sync-preservation scenario-C는 PermissionRequest로 이전 (SessionStart가 template-declared가 됐으므로).
 - 2026-05-05: Phase 4 Complete (Visual/Manual smoke만 Phase 5 통합). handoff-lib.sh redaction에 GitHub PAT / OpenAI / AWS / Stripe / JWT 5 secret + AUTH_TOKEN/BEARER env 패턴 추가. .gitattributes 신규 (.claude/handoffs/** linguist-generated=true). fixture 23/23 PASS (Phase 2 16 + Phase 4 7).
 - 2026-05-05: Phase 5 Status = Pending User Smoke. nrs apply + 두 머신(MiniPC + macOS) + 양 runtime(Claude Code + Codex CLI) 실세션 진입은 host mutation으로 Post-Implementation 자동 수행 범위 외 → 사용자 manual smoke 협조 필요. 자동 가능 부분(시나리오 7 non-blocking + 시나리오 8 secret/PII 일부)은 Phase 2/4 fixture에서 검증 완료. Phase 6 closeout(review-only)은 manual smoke 결과를 기다리지 않고 자동 진행.
+- 2026-05-05: Post-Implementation 코드 DA 추가 라운드(3차) 반영. 9건 CONFIRMED 중 핵심 기능 결함을 fix하고 나머지는 PRD 정정 또는 follow-up issue로 분리:
+  - `handoff_full_snapshot_commit`의 `last-commit` 계산이 `chore(handoff):` commit을 제외하도록 변경. handoff hook 자신의 commit이 다음 호출에서 idempotent를 깨뜨려 SC-6를 위반하던 회귀 fix. 회귀 fixture로 commit count 불변 검증.
+  - `handoff_redact`에 Unix 절대경로 redaction 추가 — `/home/...`, `/Users/...`, `/opt`, `/var`, `/etc`, `/root` prefix 경로를 `<abs-path-redacted>`로 가린다 (BSD/GNU sed 호환 위해 `#` delimiter 사용).
+  - `handoff_resolve_bin` helper 제거 — 라이브러리 다른 곳이 이미 plain `git`/`rm`을 직접 호출하므로 일관성을 확보. `handoff_run_gitleaks`도 plain command로 수정. test fixture는 fake gitleaks wrapper(exit 1)로 scan 실패를 시뮬레이션 (이전 PATH 조작 방식보다 production 시나리오에 가까움).
+  - test-handoff-hooks.sh 헤더 주석을 single-SoT 정책에 맞게 정정.
+  - Risks D9~D11 추가: handoff PR diff 누적 (NG-2 의도된 한계), dispatcher latency (NFR-1 한계), snapshot 입력 경계(env var allowlist만, chat payload 직접 매핑 없음). G-4/SC-4 해석 명확화.
+  - Maintainability: `handoff_full_snapshot_commit` 70줄 함수 분리, redaction rule table 형식 정리는 별도 follow-up issue로 분리.
+  - fixture: 27 → 28 PASS (commit count idempotent 회귀 1 추가, ASIA fixture는 직전 라운드 적용).
 - 2026-05-05: Post-Implementation 코드 DA 1차 반영. 메인 LLM이 4 reviewer bundle + Arbiter 흐름으로 진행한 Devil's Advocate에서 9개 finding 모두 CONFIRMED(HIGH 신뢰도)로 판정. 본 commit chain에서 다음과 같이 자동 반영:
   - `handoff_full_snapshot_commit`이 untracked 신규 snapshot도 commit 진행하도록 분기 추가 + commit skip 시 working tree 원복 (untracked diff 한계 + dirty 잔존 회귀 fix).
   - snapshot frontmatter에서 `cwd`/`hostname`/`session-id` 제거하여 FR-5 allowlist 준수 (env 정보 누출 fix).
