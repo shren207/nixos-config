@@ -536,14 +536,17 @@ PY
   # ── C: user-different-event preserved ──
   target=$(_sync_preservation_run_one \
     "$FIXTURE_DIR/sync-preservation/scenario-C-user-different-event.toml" "scenario-C")
-  python3 - "$target" <<'PY' || fail "scenario-C: hooks.SessionStart user entry가 보존되지 않음"
+  python3 - "$target" <<'PY' || fail "scenario-C: hooks.PermissionRequest user entry가 보존되지 않음"
 import sys, tomllib
 with open(sys.argv[1], "rb") as f:
     d = tomllib.load(f)
-ss = d.get("hooks", {}).get("SessionStart", [])
-assert isinstance(ss, list) and len(ss) == 1, f"SessionStart len={len(ss)}"
-commands = [h.get("command", "") for entry in ss for h in entry.get("hooks", [])]
-assert any("USER-SESSIONSTART-PRESERVED" in c for c in commands), f"user marker missing: {commands}"
+# issue #614 이후 SessionStart는 template-declared가 되어 user entry 보존 대상에서 빠졌다.
+# 본 scenario는 Codex 0.124+에서 template 미선언인 PermissionRequest로 "template-undeclared
+# event는 user-owned로 보존" 정책을 검증한다.
+pr = d.get("hooks", {}).get("PermissionRequest", [])
+assert isinstance(pr, list) and len(pr) == 1, f"PermissionRequest len={len(pr)}"
+commands = [h.get("command", "") for entry in pr for h in entry.get("hooks", [])]
+assert any("USER-PERMISSIONREQUEST-PRESERVED" in c for c in commands), f"user marker missing: {commands}"
 PY
 
   # ── D: mcp_servers ↔ hooks 공존 ──

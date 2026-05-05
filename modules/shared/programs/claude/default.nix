@@ -179,6 +179,15 @@ in
       config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/hooks/record-last-stop.sh";
     ".claude/hooks/record-prompt-submit.sh".source =
       config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/hooks/record-prompt-submit.sh";
+    # Session handoff automation hooks (issue #614)
+    ".claude/hooks/handoff-lib.sh".source =
+      config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/hooks/handoff-lib.sh";
+    ".claude/hooks/handoff-stop.sh".source =
+      config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/hooks/handoff-stop.sh";
+    ".claude/hooks/handoff-session-end.sh".source =
+      config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/hooks/handoff-session-end.sh";
+    ".claude/hooks/handoff-session-start.sh".source =
+      config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/hooks/handoff-session-start.sh";
 
     # hs.notify contentImage용 아이콘 (Claude.app에서 추출한 128x128 PNG, macOS 전용)
     ".claude/assets/notification-icon.png" = lib.mkIf pkgs.stdenv.isDarwin {

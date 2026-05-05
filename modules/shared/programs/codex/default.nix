@@ -126,6 +126,16 @@ in
       config.lib.file.mkOutOfStoreSymlink "${nixosConfigPath}/modules/shared/programs/codex/files/hooks/pinning-guard.sh";
     ".codex/lib/pinning-patterns.sh".source =
       config.lib.file.mkOutOfStoreSymlink "${nixosConfigPath}/modules/shared/programs/claude/files/lib/pinning-patterns.sh";
+    # Session handoff automation hooks (issue #614).
+    # Codex SessionEnd 미지원이라 SessionEnd hook script는 Claude만 등록.
+    # _stop-dispatcher.sh가 handoff-stop.sh를 H2 위치(record-last-stop → nrs-session-cleanup
+    # → handoff-stop → stop-notification)에서 호출 (issue #590 + issue #614 ordering rationale).
+    ".codex/hooks/handoff-lib.sh".source =
+      config.lib.file.mkOutOfStoreSymlink "${nixosConfigPath}/modules/shared/programs/codex/files/hooks/handoff-lib.sh";
+    ".codex/hooks/handoff-stop.sh".source =
+      config.lib.file.mkOutOfStoreSymlink "${nixosConfigPath}/modules/shared/programs/codex/files/hooks/handoff-stop.sh";
+    ".codex/hooks/handoff-session-start.sh".source =
+      config.lib.file.mkOutOfStoreSymlink "${nixosConfigPath}/modules/shared/programs/codex/files/hooks/handoff-session-start.sh";
   }
   # 글로벌 스킬 (Claude와 동일 소스 공유) — exposedCodexSkills에서 자동 생성
   // codexSkillEntries;

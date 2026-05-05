@@ -62,3 +62,15 @@ command = "$HOME/.codex/hooks/pinning-guard.sh"
 [[hooks.PostToolUse.hooks]]
 type = "command"
 command = "$HOME/.codex/hooks/pinning-alert.sh"
+
+# SessionStart hook (issue #614): Codex 0.124+에서 plain stdout 또는 JSON
+# additionalContext가 모델 컨텍스트로 자동 주입된다. handoff-session-start.sh가
+# .claude/handoffs/<branch-slug>-<branch-hash>.md 존재 시 compact metadata + link를
+# stdout으로 출력해 cross-runtime resume을 자동화한다 (DEC-S3 I2 + DEC-codex-start).
+# Codex SessionEnd는 미지원이라 등록하지 않으며, full snapshot+commit은 _stop-dispatcher.sh
+# 안에서 handoff-stop.sh가 turn-counter + transcript mtime 기반으로 trigger한다 (DEC-S6 B refined).
+[[hooks.SessionStart]]
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = "$HOME/.codex/hooks/handoff-session-start.sh"

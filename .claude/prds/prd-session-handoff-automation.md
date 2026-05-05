@@ -3,8 +3,8 @@
 ## Document Status
 - Status: In Progress
 - File Mode: Split
-- Current Phase: Phase 3 (Phase 1 + Phase 2 Complete)
-- Active Phase File: [Phase 3](./prd-session-handoff-automation/phase-03-hook-registration.md)
+- Current Phase: Phase 4 (Phase 1+2+3 Complete; Phase 3 nrs apply는 Phase 5 통합)
+- Active Phase File: [Phase 4](./prd-session-handoff-automation/phase-04-secret-and-prdiff.md)
 - Last Updated: 2026-05-05
 - PRD File: `.claude/prds/prd-session-handoff-automation.md`
 - Purpose: Living PRD / 실행 source of truth. SessionStart/SessionEnd lifecycle hook으로 세션 인수인계를 완전 자동화한다 (`/write-handoff` + `gh issue view` + NSS 수동 단계 전부 제거). Claude Code + Codex CLI 양쪽에서 git-tracked `.claude/handoffs/<branch>.md` 단일 SoT로 cross-runtime + cross-machine resume 가능.
@@ -156,7 +156,7 @@
 |---|---|---|---|---|
 | Phase 1: Discovery | Complete | gitleaks 가용성 + idle/turn-counter PoC + branch-slug 규칙 + noise field 목록 + Claude Stop chain 위치 + write-handoff race 시나리오 + multi-worktree 빈도 조사 | static read-only checks + PoC 측정 | [phase-01-discovery](./prd-session-handoff-automation/phase-01-discovery.md) |
 | Phase 2: handoff-lib + thin wrappers | Complete | 공통 sourced helper + Claude/Codex thin wrapper 4 script + drift fixture | bash unit test + secret/PII fixture corpus | [phase-02-helper-and-wrappers](./prd-session-handoff-automation/phase-02-helper-and-wrappers.md) |
-| Phase 3: hook 등록 | Not Started | Claude settings.json + Codex config.toml + dispatcher H2 ordering + nix module symlink | nix eval + lefthook eval-tests + codex-hook-fixtures | [phase-03-hook-registration](./prd-session-handoff-automation/phase-03-hook-registration.md) |
+| Phase 3: hook 등록 | Complete (nrs manual smoke만 Phase 5 통합) | Claude settings.json + Codex config.toml + dispatcher H2 ordering + nix module symlink | nix eval + lefthook eval-tests + codex-hook-fixtures | [phase-03-hook-registration](./prd-session-handoff-automation/phase-03-hook-registration.md) |
 | Phase 4: secret/PII 3-layer + idempotent + PR diff 제외 | Not Started | allowlist + redaction + gitleaks staged ordering + idempotent diff check + chore(handoff) prefix + .gitattributes | secret fixture corpus + idempotent fixture + lefthook gitleaks | [phase-04-secret-and-prdiff](./prd-session-handoff-automation/phase-04-secret-and-prdiff.md) |
 | Phase 5: dogfooding round-trip | Not Started | 9 시나리오 (same/cross-runtime/cross-machine + abnormal + multi-worktree + non-blocking + secret + write-handoff race) | manual + scripted dogfooding | [phase-05-dogfooding](./prd-session-handoff-automation/phase-05-dogfooding.md) |
 | Phase 6: 정리 + follow-up | Not Started | write-handoff 처리 별도 이슈 + sync-codex-config 한계 노트 + Closeout (PRD 10-pass + review-impl overlay) | review-only | [phase-06-followup](./prd-session-handoff-automation/phase-06-followup.md) |
@@ -176,3 +176,4 @@ Phase 6 closeout에서 `~/.claude/skills/plan-with-questions/references/prd/mult
 - 2026-05-05: Initial PRD created. plan-with-questions for_prd 모드로 작성. 사용자 두 차례 인터뷰(이슈 #614 본문 + 본 세션 추가 인터뷰) + 외부 LLM 자문(Codex SessionEnd 부재 처리 등 5개 트레이드오프) + Devil's Advocate 4-bundle 리뷰(15 CONFIRMED + 1 NOT_AN_ISSUE) 결과 반영. 신규 결정 5개(DEC-S11~S15) 추가.
 - 2026-05-05: Phase 1 Discovery 완료(macOS smoke만 Phase 5 이관). DEC-S6 B refined (turn-counter + transcript mtime), DEC-S11 ordering 확정. A-3 가정 부분 부정 + 우회 방식 명시. branch-slug + hash contract 명세. multi-worktree race 빈도 낮음(A-2 검증). `/write-handoff` Codex 노출 baseline 정정 + race 시나리오 Phase 5 시나리오 9 트래킹.
 - 2026-05-05: Phase 2 Complete. handoff-lib.sh(11 함수 + SoT 상수) + 7 thin wrapper script(Claude 4 + Codex 3) + tests/test-handoff-hooks.sh(16 fixture) 작성. shellcheck 깨끗 + bash -n OK + fixture 16/16 PASS. handoff_full_snapshot_commit + handoff_resolve_bin helper 추가로 Claude SessionEnd ↔ Codex Stop heuristic-trigger 공통 로직 흡수.
+- 2026-05-05: Phase 3 Complete (nrs manual smoke만 Phase 5 통합). settings.json Stop/SessionEnd/SessionStart 신규 entry 추가, _stop-dispatcher.sh H2 ordering 적용 + 헤더 rationale, config.toml [[hooks.SessionStart]] 추가, claude/codex default.nix mkOutOfStoreSymlink 7개. nixfmt + JSON/TOML/shellcheck + 회귀 fixture 모두 PASS.
