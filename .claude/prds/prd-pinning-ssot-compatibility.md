@@ -1,9 +1,9 @@
 # PRD: Pinning SSOT Compatibility
 
 ## Document Status
-- Status: In Progress
+- Status: Complete
 - File Mode: Split
-- Current Phase: Phase 4
+- Current Phase: Complete
 - Active Phase File: [Phase 4: Validation activation closeout](./prd-pinning-ssot-compatibility/phase-04-validation-activation-closeout.md)
 - Last Updated: 2026-05-05
 - PRD File: `.claude/prds/prd-pinning-ssot-compatibility.md`
@@ -146,7 +146,7 @@ The implementation must update the SSOT so future generated durable artifacts us
 | Phase 1: Discovery and guard baseline | Complete | Confirm current target lines, helper behavior, and guard reproduction before edits. | Existing-state grep + old-style deny smoke. | [phase-01-discovery-and-guard-baseline.md](./prd-pinning-ssot-compatibility/phase-01-discovery-and-guard-baseline.md) |
 | Phase 2: Baseline and resume contract | Complete | Update Baseline/resume semantics as one invariant. | Natural anchor format + fail-closed drift cases. | [phase-02-baseline-and-resume-contract.md](./prd-pinning-ssot-compatibility/phase-02-baseline-and-resume-contract.md) |
 | Phase 3: Durable external-review wording | Complete | Update durable external-review state and wording across all affected docs. | Runtime-only correlation + no ephemeral result paths. | [phase-03-durable-external-review-wording.md](./prd-pinning-ssot-compatibility/phase-03-durable-external-review-wording.md) |
-| Phase 4: Validation activation closeout | In Progress | Run scoped static, hook, fixture, activation, review, audit, and PR closeout. | Negative/positive smoke + `nrs` + verifier. | [phase-04-validation-activation-closeout.md](./prd-pinning-ssot-compatibility/phase-04-validation-activation-closeout.md) |
+| Phase 4: Validation activation closeout | Complete | Run scoped static, hook, fixture, activation, review, audit, and PR closeout. | Negative/positive smoke + `nrs` + verifier. | [phase-04-validation-activation-closeout.md](./prd-pinning-ssot-compatibility/phase-04-validation-activation-closeout.md) |
 
 ## Final Multi-Pass Review After All Phases
 
@@ -164,3 +164,4 @@ Run the plan-with-questions PRD final review checklist plus review-implementatio
 - 2026-05-05: Phase 3 complete. External-review durable state now keeps run correlation runtime-only, uses durable verdict summaries or stable artifact names, keeps helper-as-SSOT wording, and updates the for_action heading. Active Phase -> Phase 4.
 - 2026-05-05: Phase 4 in progress. Static helper checks, consulting runtime example check, old-style deny smoke, new-style pass smoke, fixture tests, `nrs`, `verify-ai-compat`, and implementation commit completed. Review findings about stale result-output wording, PRD status drift, NFR scope wording, guard-internal prose, Baseline delimiters, and legacy Baseline compatibility were incorporated.
 - 2026-05-05: Phase 4 closeout in progress. Code review, parallel audit, and final multi-pass review completed; accepted fixes were incorporated and validation was rerun. Remaining: PR creation and PRD completion update.
+- 2026-05-05: Phase 4 complete. PR #683 created for issue #659 and PRD closeout recorded.
