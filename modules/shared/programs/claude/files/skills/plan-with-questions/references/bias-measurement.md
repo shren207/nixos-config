@@ -100,7 +100,11 @@ D4 정책 도입 (`consulting-step.md` Anti-anchoring 1번 재작성, SKILL.md I
 ### 검증 명령 (inline rg)
 
 ```bash
-SKILLDIR=~/.claude/skills/plan-with-questions
+# Default: PR 작업/머지 전 source 검증 (repo-tracked, git-state 일관)
+SKILLDIR=modules/shared/programs/claude/files/skills/plan-with-questions
+
+# Optional: 머지 + nrs 후 deployed 재검증
+# SKILLDIR=~/.claude/skills/plan-with-questions
 
 # 모든 Recommended 매칭 파일 확인
 rg -l "Recommended" "$SKILLDIR/"
@@ -120,8 +124,12 @@ rg -l "Recommended" "$SKILLDIR/" \
 **Stage 2 (manual — 섹션 단위 review, baseline PASS 확정 조건)**: 화이트리스트 파일 내부 매칭이 위 표의 허용 섹션 안에 있는지 사람이 line별 확인. 자동 검증 한계는 다음과 같다 — Stage 1만으로는 같은 파일 내 새 섹션에 라벨이 추가되어도 PASS로 잘못 판정될 수 있다 (SC-2 "허용 조건 명시 컨텍스트만" 계약 약화 위험). Stage 2는 reviewer가 다음을 수행한다:
 
 ```bash
+# Default: PR 작업/머지 전 source 검증 (repo-tracked)
+SKILLDIR=modules/shared/programs/claude/files/skills/plan-with-questions
+# Optional: 머지 + nrs 후 deployed 재검증
+# SKILLDIR=~/.claude/skills/plan-with-questions
+
 # 화이트리스트 각 파일의 매칭 line별 위치 확인
-SKILLDIR=~/.claude/skills/plan-with-questions
 for f in consulting-step.md output-templates.md runtime-boundaries.md; do
   echo "=== $f ==="
   rg -n "Recommended" "$SKILLDIR/references/$f"

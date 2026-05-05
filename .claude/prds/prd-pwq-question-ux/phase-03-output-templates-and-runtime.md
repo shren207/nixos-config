@@ -84,7 +84,7 @@ Last Updated: 2026-05-05
 ## Phase-End Multi-Pass Review
 
 - [x] 1. Intent/coverage — output-templates에 라운드당 1개 + user_facing + 라벨 조건 + judgment-first 라벨 금지 모두 반영
-- [x] 2. Correctness — 라운드별 룰 매트릭스 5 종류 (일반/트레이드오프/judgment-first/fallback A·B·C·D) 모두 다룸
+- [x] 2. Correctness — 라운드별 룰 매트릭스 7행 (일반/트레이드오프 정상/fallback A·B·C·C_MULTI/judgment-first) 모두 다룸 (spec 작성 시점 "5 종류"였으나 Discoveries 결정으로 7행 확장 — 정본은 `output-templates.md` SSOT)
 - [x] 3. Simplicity — output-templates 패턴이 Phase 1 schema 인용으로 단순화
 - [x] 4. Code quality — 패턴/표가 다음 LLM이 따라 적용 가능
 - [x] 5. Duplication/cleanup — 합의 알고리즘 본문 재복사 없이 phase 1 인용

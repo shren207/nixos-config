@@ -34,7 +34,7 @@ Phase 1~4 완료 후 본 PRD 자체로 self-test (dogfooding 5건) + issue #646 
   - 사용자 노출에 user_facing layer만 (evaluation_matrix raw 비노출).
   - 라벨 부착이 합의 알고리즘 통과 후만, 합의 미달은 라벨 미부착.
   - judgment-first 라운드는 라벨 절대 미부착.
-  - fallback A/B/C/D 시나리오가 발생하면 사용자 보고 형식 명시.
+  - fallback enum(D4_FALLBACK_A/B/C/C_MULTI) 시나리오가 발생하면 사용자 보고 형식 명시 (사용자에게는 enum 라벨 대신 평이 한국어 문구만 노출 — `consulting-step.md` "Fallback enum" 표 SSOT).
 - issue #646 본문 통째 교체 (사용자 메타 인터뷰 답변 명시):
   - TL;DR + 비유.
   - 정량 통계 표 (3 머신).
@@ -99,7 +99,7 @@ Phase 1~4 완료 후 본 PRD 자체로 self-test (dogfooding 5건) + issue #646 
 - [x] gh issue create 후 issue A URL 반환 확인
 - [x] gh issue create 후 issue B URL 반환 확인
 - [x] Final 10-pass review 통과 + review-impl overlay 적용 + PRD Closeout 완료
-- [x] error 상태: dogfooding 중 fallback A/B/C/D 발생 시 사용자 보고 형식 누락 없음 검증
+- [x] error 상태: dogfooding 중 fallback enum(D4_FALLBACK_A/B/C/C_MULTI) 발생 시 사용자 노출 평이 문구 SSOT 사용 + 누락 없음 검증
 
 ## Exit Criteria
 
@@ -130,7 +130,7 @@ Phase 1~4 완료 후 본 PRD 자체로 self-test (dogfooding 5건) + issue #646 
 - **issue #646 본문 통째 교체는 PRD 작업 시작 전 이미 적용된 상태로 확인 — 별도 `gh issue edit`으로 재작성하지 않음**. 현 본문이 PRD master Problem/Discovery/데이터 출처/한계 섹션과 일치하므로 추가 변경은 불필요. 검증: `gh issue view 646`이 PRD master와 동일 evidence 표 + mermaid timeline + raw quote + flowchart + 데이터 출처 표 모두 포함 확인.
 - **Follow-up issue 등록 결과**: #679 (다른 인터뷰 스킬에 PWQ Question UX 정책 적용 검토, G-5/SC-6, label `area:skills`+`priority:medium`), #680 (plan-file-template SSOT의 HEAD=&lt;sha7&gt; 권장과 pinning-guard.sh PATTERN_D 차단 충돌, F-OQ-1, label `area:skills`+`priority:medium`), #681 (closeout 외부 monitoring 단일 진입점 — SC-4 dogfooding 5건 + F-OQ-2 anchoring metric baseline + F-OQ-3 D4 합의 정의 강화 검토, label `area:skills`+`priority:medium`).
 - **SC-4 deferred 결정**: dogfooding 5건은 본질적으로 시간 의존 검증으로, 본 PRD 작업으로 즉시 산출 불가. PRD spec에 이미 명시된 "수동 dogfooding"이라 본 phase에서 수동 evidence를 fabricate하지 않고 deferred로 정직 표기. F-OQ-2 (D4 anchoring 효과 손상 정량 baseline)와 함께 dogfooding accumulation 후 별도 follow-up issue로 평가.
-- **Final Multi-Pass Review 10-pass 통과 (메인 LLM 직접 수행)**: Requirements coverage(FR-1~8 satisfied, SC-1/2/3/5/6 satisfied, SC-4 deferred), Cross-phase integration(SSOT 단일 + callsite 인용으로 정합), Correctness(D2 fallback + D4 fallback A/B/C/D + judgment-first 보호 + happy path 모두 명시), Simplicity(인스트럭션 + grep 패턴만, 코드 동작 변경 없음 NFR-1), Cleanup(폐기 정책 명시적 컨텍스트 보존으로 회귀 방지), Security(자문 untrusted output trust boundary jq schema 검증, D4 hard rule, judgment-first 보호), Performance(turn 수 증가는 D1 trade-off 명시 수용, 자문 30분 budget 내 두 layer A-3 검증), Validation(정적 grep + jq + script + manual smoke risk-appropriate), Documentation(Change Log + Discoveries + script 헤더 주석 + Cross-Host Resume Guide 보존), PRD closeout(Status Complete + 모든 phase Complete + follow-up #679/#680 기록).
+- **Final Multi-Pass Review 10-pass 통과 (메인 LLM 직접 수행)**: Requirements coverage(FR-1~8 satisfied, SC-1/2/3/5/6 satisfied, SC-4 deferred), Cross-phase integration(SSOT 단일 + callsite 인용으로 정합), Correctness(D2 fallback + D4 fallback enum A/B/C/C_MULTI + judgment-first 보호 + happy path 모두 명시), Simplicity(인스트럭션 + grep 패턴만, 코드 동작 변경 없음 NFR-1), Cleanup(폐기 정책 명시적 컨텍스트 보존으로 회귀 방지), Security(자문 untrusted output trust boundary jq schema 검증, D4 hard rule, judgment-first 보호), Performance(turn 수 증가는 D1 trade-off 명시 수용, 자문 30분 budget 내 두 layer A-3 검증), Validation(정적 grep + jq + script + manual smoke risk-appropriate), Documentation(Change Log + Discoveries + script 헤더 주석 + Cross-Host Resume Guide 보존), PRD closeout(Status Complete + 모든 phase Complete + follow-up #679/#680 기록).
 - **review-impl overlay (6-classification + overbuilt 우선)**: 6-classification 라벨링은 PRD 10-pass 1번/8번 finding 중 requirement-linked 항목에만 부여 — FR-1~8 + SC-1/2/3/5/6 모두 `satisfied`, SC-4는 `deferred` (PRD spec이 명시적 deferred 선언과 동등). overbuilt 우선 판정 — 후보 0건 (모든 변경이 NFR-1 인스트럭션 + grep 패턴, 미래 phase용 확장점 없음, 별도 workflow/서비스/DB 컬럼 없음, D2 fallback과 D4 알고리즘은 PRD spec이 명시 요구한 시스템).
 
 ## Phase Change Log

@@ -329,7 +329,7 @@ rm -rf -- "$CONSULT_DIR"
 
    **D4 합의 알고리즘 4단계** (사용자 노출 직전 메인 LLM이 결정마다 실행 — schema 한계 내 보수적 합의 정의):
 
-   ```
+   ```text
    Step 1. Step 3.5 Codex 자문 정상 종료 + result.json valid?
        - NO → D4_FALLBACK_A: 라벨 부착 금지 + 사용자 노출은 아래 "Fallback enum" 표 D4_FALLBACK_A 행 평이 문구 SSOT
    Step 2. technical_matrix schema 검증 (7키 + disqualifiers + evidence_gaps + user_facing 모두 존재 + 타입 일치)?
@@ -356,7 +356,7 @@ rm -rf -- "$CONSULT_DIR"
 
 자문 출력에 `user_facing` layer가 누락(또는 부분 누락)된 경우 메인 LLM은 graceful degrade로 다음 4단계를 순서대로 시도한다. 어느 단계에서든 사용자 노출 텍스트가 만들어지면 거기서 멈추고 사용자에게 표시한다. **D2 fallback은 D4 Step 2(schema 검증) fail 후의 텍스트 복구 시도이며, D2 fallback이 텍스트를 만들어내도 라벨은 부착하지 않는다** (D4 Step 2가 이미 fallback B로 격하됐으므로). 본 stage 표는 D2 텍스트 복구 흐름이며, 옆의 D4 fallback 표(아래)와는 별개 시스템이다.
 
-```
+```text
 Stage 1. legacy 필드명 호환 (technical_matrix 우선, 없으면 evaluation_matrix)
     - 새 schema 출력은 technical_matrix.요구충족을 평이 한국어로 풀고 disqualifiers 첫 항목을 plain_disqualifier로 변환한다.
     - legacy 출력(`evaluation_matrix`만 있는 사본)이면 evaluation_matrix.요구충족을 동일 변환 대상으로 사용한다.

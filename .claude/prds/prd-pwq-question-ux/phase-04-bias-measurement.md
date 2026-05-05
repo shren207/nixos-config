@@ -18,7 +18,7 @@ Last Updated: 2026-05-05
 ## Phase Discovery Gate
 
 코드 편집 전에 재확인한다:
-- [x] 관련 코드/파일: `modules/shared/programs/claude/files/skills/plan-with-questions/references/bias-measurement.md`, `~/.claude/skills/plan-with-questions/scripts/ai/measure-anchoring-bias.sh` (실제 위치 확인 — `scripts/` 상대 경로일 수도 또는 `~/.claude/scripts/` global일 수도)
+- [x] 관련 코드/파일: `modules/shared/programs/claude/files/skills/plan-with-questions/references/bias-measurement.md`, `scripts/ai/measure-anchoring-bias.sh` (repo-tracked default; `~/.claude/scripts/` global override는 사용자 host 설정에 따른 optional 경로)
 - [x] Phase 1, 2, 3 산출물 — 라벨 정책 변경 + Anti-anchoring 1번 폐기가 모두 반영됨
 - [x] 관련 docs/spec: `~/.claude/skills/plan-with-questions/references/consulting-step.md` Anti-anchoring 4 규칙 (Phase 1 결과)
 - [x] 관련 command: `bash`/`zsh` (스크립트 실행), `rg`
@@ -40,7 +40,7 @@ Last Updated: 2026-05-05
 
 ## Implementation Checklist
 
-- [x] `find ~/.claude -name "measure-anchoring-bias.sh"` 또는 `find . -name "measure-anchoring-bias.sh"` 등으로 스크립트 실제 경로 확인. PRD master Discovery Summary에 명시된 경로(`~/.claude/scripts/measure-anchoring-bias.sh` 또는 nixos-config/scripts) 둘 중 하나 또는 다른 위치 가능.
+- [x] `find . -name "measure-anchoring-bias.sh"` 등 repo-relative 검색으로 스크립트 위치 확인 (PR 작업 시점 default — `scripts/ai/measure-anchoring-bias.sh`로 확인됨). `~/.claude` global override는 사용자 host 설정에 따라 optional.
 - [x] `references/bias-measurement.md` "anchoring metric" 또는 동등 단락 — 현재 "라벨 0건 grep" 단락 확인 후 "허용 조건 컨텍스트 외 라벨 0건"으로 갱신.
 - [x] `references/bias-measurement.md` 새 baseline 산출 절차 단락 추가 — Phase 1 합의 알고리즘 통과한 라벨은 통과, 그 외는 검출.
 - [x] 스크립트 grep 패턴 갱신 — `(Recommended)` 단순 매칭에서 컨텍스트 인식 매칭 (예: "(Recommended)" 다음 줄 또는 같은 line에 "자문+합의" 또는 "합의 결과" 키워드가 있으면 통과)으로 변경. 또는 `rg "Recommended"` + `rg -A 2 "Recommended"`로 컨텍스트 확인.
@@ -57,7 +57,7 @@ Last Updated: 2026-05-05
 
 ## Validation Checklist
 
-- [x] Static check 통과: `find ~/.claude -name "measure-anchoring-bias.sh"`로 스크립트 위치 확인 (1+개)
+- [x] Static check 통과: `find . -name "measure-anchoring-bias.sh"`로 repo-tracked 스크립트 위치 확인 (1+개; `scripts/ai/measure-anchoring-bias.sh`)
 - [x] Script 실행 통과: `bash <스크립트 경로>` exit 0 + 출력 정상 (라벨 위반 0건)
 - [x] Static check 통과: `rg "허용 조건" modules/shared/programs/claude/files/skills/plan-with-questions/references/bias-measurement.md` ≥ 1건
 - [x] Static check 통과: `rg "Recommended" modules/shared/programs/claude/files/skills/plan-with-questions/` → 화이트리스트 파일/섹션 매칭만 (SC-2 + SC-5 동시 검증, **source 기준 — deployed `~/.claude/skills/...` 재검증은 본 PR 머지 + nrs 후 별도 monitoring**)
