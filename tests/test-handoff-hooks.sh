@@ -10,7 +10,7 @@
 #   4. handoff_compute_diff — noise field 제외 idempotent diff
 #   5. handoff_full_snapshot_commit — untracked 신규 commit, idempotent skip cleanup, dirty 보호
 #   6. handoff_should_trigger_full — turn-counter threshold + transcript mtime
-#   7. handoff_run_gitleaks — gitleaks scan 실패 시 commit 차단 + quarantine
+#   7. handoff_run_gitleaks — gitleaks scan 실패 시 commit 차단 + tracked restore/untracked quarantine
 #   8. branch-slug exact match — handoff-session-start.sh가 다른 branch handoff를 차단
 #   9. non-blocking — 모든 hook entry가 실패 경로에서 exit 0
 #
@@ -40,6 +40,15 @@ test_handoff_lib_single_sot() {
     ok "$name"
   else
     note "claude=$([ -f "${HOOKS_CLAUDE}/handoff-lib.sh" ] && echo yes || echo no) codex_repo_copy=$([ -e "${HOOKS_CODEX}/handoff-lib.sh" ] && echo yes || echo no)"
+    fail "$name"
+  fi
+}
+
+test_gitleaks_runtime_package_declared() {
+  local name="gitleaks runtime: home.packages shared set에 포함"
+  if grep -q 'pkgs\.gitleaks' "${REPO_ROOT}/libraries/packages.nix"; then
+    ok "$name"
+  else
     fail "$name"
   fi
 }
@@ -332,14 +341,23 @@ test_full_snapshot_commit_new_file() {
   git add .claude/handoffs/.opt-in
   git commit --quiet -m "test: opt-in marker"
 
+  local before_handoff_count after_handoff_count target last_subject
+  before_handoff_count=$(git log --grep='^chore(handoff):' --oneline -- .claude/handoffs/ 2>/dev/null | wc -l | tr -d ' ')
+
   HANDOFF_SUMMARY="snapshot fixture summary" handoff_full_snapshot_commit "claude-code" >/dev/null 2>&1 || true
 
-  local commit_count
-  commit_count=$(git log --oneline -- .claude/handoffs/ 2>/dev/null | wc -l)
-  if [ "$commit_count" -ge 1 ]; then
+  after_handoff_count=$(git log --grep='^chore(handoff):' --oneline -- .claude/handoffs/ 2>/dev/null | wc -l | tr -d ' ')
+  target=$(find .claude/handoffs -type f -name '*.md' | head -1)
+  last_subject=""
+  if [ -n "$target" ]; then
+    last_subject=$(git log -1 --format=%s -- "$target" 2>/dev/null || printf '')
+  fi
+  if [ -f "$target" ] \
+    && [ "$after_handoff_count" -eq $((before_handoff_count + 1)) ] \
+    && printf '%s' "$last_subject" | grep -q '^chore(handoff):'; then
     ok "$name"
   else
-    note "no commit was created for new untracked snapshot"
+    note "target=${target:-} before=$before_handoff_count after=$after_handoff_count subject='$last_subject'"
     fail "$name"
   fi
 
@@ -486,10 +504,10 @@ test_trigger_turn_counter() {
 }
 
 # 6. handoff_run_gitleaks — scan 실패 fallback.
-# stub gitleaks wrapper(exit 1)로 scan 실패를 시뮬레이션해 unstage + working tree quarantine
-# 동작을 검증한다. git/rm은 시스템 PATH의 실제 binary가 그대로 동작한다.
-test_gitleaks_missing() {
-  local name="run_gitleaks: gitleaks scan 실패 시 commit 차단 + quarantine"
+# stub gitleaks wrapper(exit 1)로 scan 실패를 시뮬레이션해 cleanup 동작을 검증한다.
+# git/rm은 시스템 PATH의 실제 binary가 그대로 동작한다.
+test_gitleaks_failure_untracked_quarantine() {
+  local name="run_gitleaks: 신규 파일은 scan 실패 시 commit 차단 + quarantine"
 
   load_lib
 
@@ -512,13 +530,78 @@ STUB
   chmod +x "$stub_path/gitleaks"
 
   local rc=0
-  PATH="$stub_path:$PATH" handoff_run_gitleaks "$staged" >/dev/null 2>&1 || rc=$?
+  PATH="$stub_path:$PATH" handoff_run_gitleaks "$staged" "no" >/dev/null 2>&1 || rc=$?
 
   cd "$REPO_ROOT" >/dev/null
   if [ "$rc" -ne 0 ] && [ ! -f "$staged" ]; then
     ok "$name"
   else
     note "rc=$rc staged_exists=$([ -f "$staged" ] && echo yes || echo no)"
+    fail "$name"
+  fi
+  rm -rf "$sandbox" "$stub_path"
+}
+
+test_gitleaks_failure_preserves_tracked_snapshot() {
+  local name="full_snapshot_commit: tracked snapshot scan 실패 시 파일 삭제 없이 HEAD 복원"
+
+  load_lib
+
+  local sandbox stub_path slug target porcelain
+  sandbox=$(mktemp -d)
+  cd "$sandbox" >/dev/null
+  git init --quiet --initial-branch=main
+  git config user.email test@example
+  git config user.name test
+  echo "init" > README.md
+  git add README.md
+  git commit --quiet -m "init"
+
+  mkdir -p .claude/handoffs
+  touch .claude/handoffs/.opt-in
+  slug=$(handoff_compute_slug "main" 2>/dev/null)
+  target=".claude/handoffs/${slug}.md"
+  cat > "$target" <<TARGETEOF
+---
+branch: main
+branch-hash: $(handoff_compute_branch_hash "main")
+last-commit: $(git rev-parse --short=7 HEAD)
+runtime: claude-code
+issue-ref: ''
+prd-link: ''
+last-updated: 2026-05-05T00:00:00Z
+---
+
+## Summary
+old tracked summary
+
+## Pending Decisions
+
+## Active Files
+
+## Next Action
+TARGETEOF
+  git add README.md .claude/handoffs/.opt-in "$target"
+  git commit --quiet -m "test: tracked snapshot setup"
+
+  stub_path=$(mktemp -d)
+  cat > "$stub_path/gitleaks" <<'STUB'
+#!/usr/bin/env bash
+exit 1
+STUB
+  chmod +x "$stub_path/gitleaks"
+
+  PATH="$stub_path:$PATH" HANDOFF_SUMMARY="new summary after failed scan" \
+    handoff_full_snapshot_commit "claude-code" >/dev/null 2>&1 || true
+
+  porcelain=$(git status --porcelain -- "$target" 2>/dev/null)
+  cd "$REPO_ROOT" >/dev/null
+  if [ -f "$sandbox/$target" ] \
+    && grep -q "old tracked summary" "$sandbox/$target" 2>/dev/null \
+    && [ -z "$porcelain" ]; then
+    ok "$name"
+  else
+    note "exists=$([ -f "$sandbox/$target" ] && echo yes || echo no) status='$porcelain'"
     fail "$name"
   fi
   rm -rf "$sandbox" "$stub_path"
@@ -544,6 +627,7 @@ test_non_blocking_lib_missing() {
 
 # Run all tests
 test_handoff_lib_single_sot
+test_gitleaks_runtime_package_declared
 test_compute_slug
 test_redact
 test_compute_diff_idempotent
@@ -551,7 +635,8 @@ test_full_snapshot_commit_new_file
 test_full_snapshot_commit_idempotent_cleanup
 test_full_snapshot_commit_dirty_skip
 test_trigger_turn_counter
-test_gitleaks_missing
+test_gitleaks_failure_untracked_quarantine
+test_gitleaks_failure_preserves_tracked_snapshot
 test_non_blocking_lib_missing
 
 printf '\n=== Result: %d pass / %d fail ===\n' "$PASS" "$FAIL"

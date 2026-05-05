@@ -29,7 +29,7 @@
 #   handoff_increment_turn <session_id>          -> stdout: turn count
 #   handoff_should_trigger_full <session_id> <transcript_path?> -> 0(trigger) / 1(skip)
 #   handoff_compute_diff <file>                  -> stdout: noise-excluded diff (empty if idempotent)
-#   handoff_run_gitleaks <staged_path>           -> 0/1 (실패 시 staged unstage + working tree quarantine)
+#   handoff_run_gitleaks <staged_path> <is_tracked?> -> 0/1 (실패 시 staged unstage + working tree cleanup)
 #   handoff_write_snapshot <slug> <branch> <branch_hash> <last_commit> <runtime> [issue_ref] [prd_link] -> stdout: target path
 
 # 본 file은 source되어 호출되므로 set -euo pipefail은 호출 측 entrypoint에서 적용한다.
@@ -230,24 +230,37 @@ handoff_compute_diff() {
   printf '%s' "$non_noise"
 }
 
-# gitleaks staged scan. 미설치 또는 scan 실패 시 staged unstage + working tree quarantine.
+# gitleaks staged scan. 미설치 또는 scan 실패 시 staged unstage + working tree cleanup.
 # 0 = pass, 1 = fail (commit 차단 + non-blocking exit 0은 호출 측 책임).
+handoff_cleanup_after_gitleaks_failure() {
+  local staged_path="${1:-}"
+  local is_tracked="${2:-no}"
+  if [ -z "$staged_path" ]; then
+    return 0
+  fi
+  git restore --staged -- "$staged_path" 2>/dev/null || true
+  if [ "$is_tracked" = "yes" ]; then
+    git checkout -- "$staged_path" >/dev/null 2>&1 || true
+  else
+    rm -f -- "$staged_path" 2>/dev/null || true
+  fi
+}
+
 handoff_run_gitleaks() {
   local staged_path="${1:-}"
+  local is_tracked="${2:-no}"
   if [ -z "$staged_path" ]; then
     printf 'handoff: missing staged_path arg\n' >&2
     return 1
   fi
   if ! command -v gitleaks >/dev/null 2>&1; then
-    printf 'handoff: gitleaks 미설치 — commit 차단 + quarantine\n' >&2
-    git restore --staged -- "$staged_path" 2>/dev/null || true
-    rm -f -- "$staged_path" 2>/dev/null || true
+    printf 'handoff: gitleaks 미설치 — commit 차단 + working tree cleanup\n' >&2
+    handoff_cleanup_after_gitleaks_failure "$staged_path" "$is_tracked"
     return 1
   fi
   if ! gitleaks protect --staged --no-banner --redact >/dev/null 2>&1; then
-    printf 'handoff: gitleaks scan 차단 — unstage + quarantine\n' >&2
-    git restore --staged -- "$staged_path" 2>/dev/null || true
-    rm -f -- "$staged_path" 2>/dev/null || true
+    printf 'handoff: gitleaks scan 차단 — unstage + working tree cleanup\n' >&2
+    handoff_cleanup_after_gitleaks_failure "$staged_path" "$is_tracked"
     return 1
   fi
   return 0
@@ -409,8 +422,8 @@ handoff_full_snapshot_commit() {
     fi
     return 0
   fi
-  if ! handoff_run_gitleaks "$target"; then
-    # handoff_run_gitleaks 내부에서 unstage + working tree quarantine 처리됨.
+  if ! handoff_run_gitleaks "$target" "$is_tracked"; then
+    # handoff_run_gitleaks 내부에서 unstage + tracked restore/untracked quarantine 처리됨.
     return 0
   fi
   # DEC-S14: chore(handoff): prefix 강제. `--no-verify`로 lefthook pre-commit 재진입을 차단한다

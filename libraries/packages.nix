@@ -12,6 +12,7 @@
     pkgs.ripgrep # grep 대체 (빠른 텍스트 검색)
 
     # 개발 도구
+    pkgs.gitleaks # 시크릿 유출 방지 (git hooks + handoff hook runtime)
     pkgs.shellcheck # 쉘 스크립트 린터
 
     # TUI 도구
