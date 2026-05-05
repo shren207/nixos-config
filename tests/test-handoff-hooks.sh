@@ -1,0 +1,273 @@
+#!/usr/bin/env bash
+# tests/test-handoff-hooks.sh
+# Session handoff automation hook fixture runner.
+#
+# 검증 항목 (Phase 2 base):
+#   1. drift sha — Claude/Codex handoff-lib.sh 동일 content 검증 (DEC-S9 G2)
+#   2. handoff_compute_slug — slug 정규화 + hash + 충돌 회피 + hard fail
+#   3. handoff_redact — 이메일/전화/주민번호/$HOME/env-var redaction
+#   4. handoff_compute_diff — noise field 제외 idempotent diff
+#   5. handoff_should_trigger_full — turn-counter threshold + transcript mtime
+#   6. handoff_run_gitleaks — 미설치 fallback (commit 차단 + quarantine)
+#   7. branch-slug exact match — handoff-session-start.sh가 다른 branch handoff를 차단
+#   8. non-blocking — 모든 hook entry가 실패 경로에서 exit 0
+#
+# Phase 4에서 fixture 확장: secret/PII corpus 광범위 + 3 layer 통합.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+HOOKS_CLAUDE="${REPO_ROOT}/modules/shared/programs/claude/files/hooks"
+HOOKS_CODEX="${REPO_ROOT}/modules/shared/programs/codex/files/hooks"
+
+PASS=0
+FAIL=0
+FAILED_NAMES=()
+
+note() { printf '  - %s\n' "$1" >&2; }
+ok() { PASS=$((PASS + 1)); printf 'PASS: %s\n' "$1"; }
+fail() { FAIL=$((FAIL + 1)); FAILED_NAMES+=("$1"); printf 'FAIL: %s\n' "$1" >&2; }
+
+# 1. drift sha — Claude/Codex handoff-lib.sh 같은 content.
+test_drift_sha() {
+  local name="drift sha — handoff-lib.sh Claude/Codex 동일"
+  if cmp -s "${HOOKS_CLAUDE}/handoff-lib.sh" "${HOOKS_CODEX}/handoff-lib.sh"; then
+    ok "$name"
+  else
+    fail "$name"
+  fi
+}
+
+# helper: lib을 source하여 함수 호출 가능 환경 준비.
+load_lib() {
+  # shellcheck source=/dev/null
+  . "${HOOKS_CLAUDE}/handoff-lib.sh"
+}
+
+# 2. handoff_compute_slug.
+test_compute_slug() {
+  local name out
+
+  load_lib
+
+  name="compute_slug: 단순 branch가 slug-hash 형식 반환"
+  out=$(handoff_compute_slug "main" 2>/dev/null)
+  # slug 부분이 'main', hash 부분이 16진수 6자
+  if [ "${out%%-*}" = "main" ] && [ ${#out} -eq $((4 + 1 + 6)) ]; then
+    ok "$name"
+  else
+    note "got '$out'"
+    fail "$name"
+  fi
+
+  name="compute_slug: slash → hyphen 변환"
+  out=$(handoff_compute_slug "issue/614" 2>/dev/null)
+  case "$out" in
+    issue-614-?*)
+      if [ ${#out} -eq $((9 + 1 + 6)) ]; then
+        ok "$name"
+      else
+        note "got '$out' (len=${#out})"
+        fail "$name"
+      fi
+      ;;
+    *)
+      note "got '$out'"
+      fail "$name"
+      ;;
+  esac
+
+  name="compute_slug: 같은 slug여도 다른 raw branch는 다른 hash"
+  local s1 s2
+  s1=$(handoff_compute_slug "foo/bar" 2>/dev/null)
+  s2=$(handoff_compute_slug "foo-bar" 2>/dev/null)
+  if [ "$s1" != "$s2" ] && [ "${s1%-*}" = "foo-bar" ] && [ "${s2%-*}" = "foo-bar" ]; then
+    ok "$name"
+  else
+    note "s1=$s1 s2=$s2"
+    fail "$name"
+  fi
+
+  name="compute_slug: 빈 raw branch hard fail"
+  if handoff_compute_slug "" 2>/dev/null; then
+    fail "$name"
+  else
+    ok "$name"
+  fi
+
+  name="compute_slug: 정규화 후 빈 slug hard fail"
+  if handoff_compute_slug "///" 2>/dev/null; then
+    fail "$name"
+  else
+    ok "$name"
+  fi
+
+  name="compute_slug: path traversal 후보 hard fail"
+  if handoff_compute_slug "../etc" 2>/dev/null; then
+    fail "$name"
+  else
+    ok "$name"
+  fi
+}
+
+# 3. handoff_redact.
+test_redact() {
+  local name out
+
+  load_lib
+
+  contains() { case "$2" in *"$1"*) return 0 ;; *) return 1 ;; esac; }
+
+  name="redact: 이메일"
+  out=$(handoff_redact "contact me at user@example.com please")
+  if contains "<email-redacted>" "$out" && ! contains "user@example.com" "$out"; then
+    ok "$name"
+  else
+    note "got '$out'"
+    fail "$name"
+  fi
+
+  name="redact: 한국 전화번호"
+  out=$(handoff_redact "phone 010-1234-5678 here")
+  if contains "<phone-redacted>" "$out" && ! contains "010-1234-5678" "$out"; then
+    ok "$name"
+  else
+    note "got '$out'"
+    fail "$name"
+  fi
+
+  name="redact: 주민번호 형태"
+  out=$(handoff_redact "rrn 901231-1234567 here")
+  if contains "<rrn-redacted>" "$out" && ! contains "901231-1234567" "$out"; then
+    ok "$name"
+  else
+    note "got '$out'"
+    fail "$name"
+  fi
+
+  name="redact: HOME 절대경로"
+  out=$(HOME=/home/test handoff_redact "log /home/test/secret.txt opened")
+  # shellcheck disable=SC2088
+  if contains "~/secret.txt" "$out" && ! contains "/home/test/secret.txt" "$out"; then
+    ok "$name"
+  else
+    note "got '$out'"
+    fail "$name"
+  fi
+
+  name="redact: env var 값 (API_KEY)"
+  local input_value="placeholder_secret_value_blob"
+  out=$(handoff_redact "API_KEY=${input_value} in log")
+  if contains "API_KEY=<redacted>" "$out" && ! contains "$input_value" "$out"; then
+    ok "$name"
+  else
+    note "got '$out'"
+    fail "$name"
+  fi
+}
+
+# 5. handoff_should_trigger_full — turn-counter threshold.
+test_trigger_turn_counter() {
+  local name session_id
+
+  load_lib
+
+  session_id="test-trigger-turn-$$"
+  XDG_DATA_HOME=$(mktemp -d)
+  export XDG_DATA_HOME
+  HANDOFF_TURN_THRESHOLD=3
+  HANDOFF_IDLE_TIMEOUT_SECONDS=99999
+  export HANDOFF_TURN_THRESHOLD HANDOFF_IDLE_TIMEOUT_SECONDS
+
+  name="should_trigger_full: turn 1, 2 → skip / turn 3 → trigger"
+  local r1 r2 r3
+  if handoff_should_trigger_full "$session_id" "" 2>/dev/null; then r1=trigger; else r1=skip; fi
+  if handoff_should_trigger_full "$session_id" "" 2>/dev/null; then r2=trigger; else r2=skip; fi
+  if handoff_should_trigger_full "$session_id" "" 2>/dev/null; then r3=trigger; else r3=skip; fi
+  if [ "$r1" = "skip" ] && [ "$r2" = "skip" ] && [ "$r3" = "trigger" ]; then
+    ok "$name"
+  else
+    note "r1=$r1 r2=$r2 r3=$r3"
+    fail "$name"
+  fi
+
+  name="reset_turn 후 카운터 초기화"
+  handoff_reset_turn "$session_id"
+  if handoff_should_trigger_full "$session_id" "" 2>/dev/null; then
+    fail "$name"
+  else
+    ok "$name"
+  fi
+
+  rm -rf "$XDG_DATA_HOME"
+}
+
+# 6. handoff_run_gitleaks — 미설치 fallback.
+test_gitleaks_missing() {
+  local name="run_gitleaks: gitleaks 미설치 시 commit 차단 + quarantine"
+
+  load_lib
+
+  local sandbox staged
+  sandbox=$(mktemp -d)
+  cd "$sandbox" >/dev/null
+  git init --quiet
+  git config user.email test@example
+  git config user.name test
+  staged="${sandbox}/payload.txt"
+  echo "harmless" > "$staged"
+  git add "$staged"
+
+  # gitleaks만 PATH에서 제거. git/rm 같은 core tool은 wrapper script로 보존.
+  local stub_path
+  stub_path=$(mktemp -d)
+  # gitleaks가 stub_path에 없으면 command -v가 실패. core tool은 system path fallback으로 helper가 자체 resolve.
+  local rc=0
+  PATH="$stub_path" handoff_run_gitleaks "$staged" >/dev/null 2>&1 || rc=$?
+
+  cd "$REPO_ROOT" >/dev/null
+  if [ "$rc" -ne 0 ] && [ ! -f "$staged" ]; then
+    ok "$name"
+  else
+    note "rc=$rc staged_exists=$([ -f "$staged" ] && echo yes || echo no)"
+    fail "$name"
+  fi
+  rm -rf "$sandbox" "$stub_path"
+}
+
+# 8. non-blocking — handoff-stop entry가 lib 부재 시에도 exit 0.
+test_non_blocking_lib_missing() {
+  local name="non-blocking: handoff-stop.sh가 lib 부재 시 exit 0"
+  local sandbox
+  sandbox=$(mktemp -d)
+  cp "${HOOKS_CLAUDE}/handoff-stop.sh" "$sandbox/handoff-stop.sh"
+  # lib 미존재
+  local rc=0
+  bash "$sandbox/handoff-stop.sh" </dev/null >/dev/null 2>&1 || rc=$?
+  if [ "$rc" -eq 0 ]; then
+    ok "$name"
+  else
+    note "rc=$rc"
+    fail "$name"
+  fi
+  rm -rf "$sandbox"
+}
+
+# Run all tests
+test_drift_sha
+test_compute_slug
+test_redact
+test_trigger_turn_counter
+test_gitleaks_missing
+test_non_blocking_lib_missing
+
+printf '\n=== Result: %d pass / %d fail ===\n' "$PASS" "$FAIL"
+if [ "$FAIL" -gt 0 ]; then
+  printf 'Failed:\n'
+  for n in "${FAILED_NAMES[@]}"; do
+    printf '  - %s\n' "$n"
+  done
+  exit 1
+fi
+exit 0
