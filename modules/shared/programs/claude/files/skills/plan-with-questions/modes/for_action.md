@@ -63,7 +63,7 @@ Step 3 완료 즉시, 사용자 질문 전(Step 4 직전)에 외부 LLM에 ancho
 - **결과 도착 시**: Step 4로 진입.
 - **budget**: 30분 이내 (high/xhigh 공통). xhigh는 명시적 심층 요청 시에만.
 - **호출 명령 SSOT**: [`../references/consulting-step.md`](../references/consulting-step.md#codex-exec-호출-명령-템플릿-ssot) — codex exec 명령은 본 reference만 정본이다 (`-C` scratch cwd + `--ignore-user-config` + `--sandbox read-only` + `--ephemeral`로 trust boundary 완결). 본 파일은 명령을 복제하지 않는다.
-- **입출력 schema·anti-anchoring 4 규칙**: [`../references/consulting-step.md`](../references/consulting-step.md). 자문 단계가 미구현 상태이면 메인 LLM은 Step 3 결과를 직접 사용자에게 제시하되 anti-anchoring 4 규칙(D4 합의 조건부 라벨·옵션 셔플·user_facing.plain_disqualifier 명시·judgment-first)은 즉시 적용한다 — 자문 부재로 D4 알고리즘 Step 1이 fail하므로 fallback A로 격하되어 어떤 옵션에도 라벨이 부착되지 않으며, 사용자에게 "자문 미수행으로 추천 라벨 없음"으로 보고한다.
+- **입출력 schema·anti-anchoring 4 규칙**: [`../references/consulting-step.md`](../references/consulting-step.md). 자문 단계가 미구현 상태이면 메인 LLM은 Step 3 결과를 직접 사용자에게 제시하되 anti-anchoring 4 규칙(D4 합의 조건부 라벨·옵션 셔플·user_facing.plain_disqualifier 명시·judgment-first)은 즉시 적용한다 — 자문 부재로 D4 알고리즘 Step 1이 fail하므로 D4_FALLBACK_A로 격하되어 어떤 옵션에도 라벨이 부착되지 않는다. 사용자 노출 평이 문구는 [`../references/consulting-step.md`](../references/consulting-step.md) "Fallback enum" 표 D4_FALLBACK_A 행 SSOT를 그대로 사용한다.
 
 Step 3.5는 DA(Step 5)와 목적이 다르다. 3.5는 사용자에게 옵션 제시 전 de-anchoring 전처리, 5는 plan 결함의 사후 검토.
 

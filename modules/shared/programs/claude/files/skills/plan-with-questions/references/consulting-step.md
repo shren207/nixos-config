@@ -293,11 +293,11 @@ if [ -s "$RESULT" ] && jq -e . < "$RESULT" >/dev/null 2>&1; then
   ' < "$RESULT" >/dev/null 2>&1; then
     cat "$RESULT"  # 또는 jq로 필요한 필드만 추출
   else
-    echo "consulting-step: schema validation failed — fallback B (라벨 부착 금지, schema 위반 사용자 보고)"
+    echo "consulting-step: schema validation failed — D4_FALLBACK_B (라벨 부착 금지; 사용자 노출 평이 문구는 본 reference의 'Fallback enum' 표 D4_FALLBACK_B 행 SSOT)"
     cat "$RESULT"  # raw 출력은 메인 LLM이 D2 fallback 4단계 시도용으로 사용
   fi
 else
-  echo "consulting-step: result invalid or empty — fallback A (라벨 부착 금지, '자문 미수행으로 추천 라벨 없음' 사용자 보고)"
+  echo "consulting-step: result invalid or empty — D4_FALLBACK_A (라벨 부착 금지; 사용자 노출 평이 문구는 본 reference의 'Fallback enum' 표 D4_FALLBACK_A 행 SSOT)"
 fi
 rm -rf -- "$CONSULT_DIR"
 ```
@@ -331,7 +331,7 @@ rm -rf -- "$CONSULT_DIR"
 
    ```
    Step 1. Step 3.5 Codex 자문 정상 종료 + result.json valid?
-       - NO → fallback A: 라벨 부착 금지 + "자문 미수행으로 추천 라벨 없음" 사용자 보고
+       - NO → D4_FALLBACK_A: 라벨 부착 금지 + 사용자 노출은 아래 "Fallback enum" 표 D4_FALLBACK_A 행 평이 문구 SSOT
    Step 2. technical_matrix schema 검증 (7키 + disqualifiers + evidence_gaps + user_facing 모두 존재 + 타입 일치)?
        - FAIL → fallback B: 라벨 부착 금지 + 사용자에게 schema 위반 평이 보고
    Step 3. 후보 필터 — 자문이 부여한 disqualifier 0개 + evidence_gaps ≤ 1개를 만족하는 옵션 집합 생성:
@@ -372,8 +372,8 @@ Stage 3. 메인 LLM 자체 작성 (내부 enum: D2_FALLBACK_USER_FACING)
     - 내부 Decision Log에 D2_FALLBACK_USER_FACING enum 기록 (감사 흔적).
     - 사용자 노출은 fallback enum 표(아래)의 D2_FALLBACK_USER_FACING 행 평이 한국어 문구만 사용 — enum 라벨 자체는 사용자에게 노출하지 않는다 (정상 user_facing layer 의무와 fallback 경로 사용자 노출 정책 일관 유지).
 
-Stage 4. 위 모두 실패 → 자문 미수행 동등 처리
-    - 자문 user_facing이 사용 불가능한 채로 결정 진행 불가 → D4 fallback A와 동등하게 처리 ("자문 미수행으로 추천 라벨 없음" 사용자 보고).
+Stage 4. 위 모두 실패 → D4_FALLBACK_A 동등 처리
+    - 자문 user_facing이 사용 불가능한 채로 결정 진행 불가 → D4_FALLBACK_A와 동등하게 처리 (사용자 노출 평이 문구는 아래 "Fallback enum" 표 D4_FALLBACK_A 행 SSOT 사용).
 ```
 
 ### Fallback enum (내부 Decision Log 전용, 사용자 노출 금지)

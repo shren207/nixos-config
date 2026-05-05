@@ -6,7 +6,9 @@ Last Updated: 2026-05-05
 
 ## Objective
 
-`references/consulting-step.md`를 본 PRD의 가장 큰 변경점으로 다룬다 — 출력 schema에 `user_facing` layer 추가, fallback A/B/C/D 정의, D4 합의 알고리즘 5단계 명시, Anti-anchoring 1번 규칙(라벨 금지)을 "라벨 허용 + 합의 조건"으로 재작성, 4번(judgment-first) 라운드 라벨 금지 명시. **본 phase가 후속 phase의 SSOT를 만든다** — Phase 2 (SKILL/modes flow)와 Phase 3 (output-templates)가 본 phase의 schema/규칙을 인용한다.
+`references/consulting-step.md`를 본 PRD의 가장 큰 변경점으로 다룬다 — 출력 schema에 `user_facing` layer 추가, D4 fallback enum(A/B/C/C_MULTI) 정의, D4 합의 알고리즘 정의, Anti-anchoring 1번 규칙(라벨 금지)을 "라벨 허용 + 합의 조건"으로 재작성, 4번(judgment-first) 라운드 라벨 금지 명시. **본 phase가 후속 phase의 SSOT를 만든다** — Phase 2 (SKILL/modes flow)와 Phase 3 (output-templates)가 본 phase의 schema/규칙을 인용한다.
+
+본 spec 작성 시점의 표현은 "D4 합의 알고리즘 5단계" + "fallback A/B/C/D" + 라벨 prefix `[FALLBACK_*]`이었다. 후속 자동 검토 결과 D4가 schema 한계 내 보수적 합의 정의(4단계)로 단순화되고 fallback enum이 D4_FALLBACK_A/B/C/C_MULTI + D2_FALLBACK_USER_FACING으로 정정되었으며, fallback 라벨은 내부 Decision Log 전용으로 격하되어 사용자 노출은 평이 한국어 문구만 사용하도록 변경되었다. **본 spec은 작업 시점 표현 이력으로 보존하고, 정본은 `consulting-step.md` SSOT를 따른다** (정정 결정 트레일은 본 phase Discoveries / Phase Change Log + PRD master Change Log).
 
 ## Context From Master PRD
 

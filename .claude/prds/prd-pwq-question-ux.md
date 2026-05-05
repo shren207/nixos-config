@@ -47,10 +47,10 @@ Root cause 세 메커니즘 결합: SKILL.md Invariant 7 ("한번에 모아서")
 
 ## Success Criteria
 
-- SC-1 (정적, verifiable): `rg "한번에 모아서" .claude/skills/plan-with-questions/`가 0건 또는 "폐기됨" 컨텍스트만 매칭.
-- SC-2 (정적, verifiable): `rg "Recommended" .claude/skills/plan-with-questions/`가 "허용 조건 명시" 컨텍스트만 매칭.
+- SC-1 (정적, verifiable, source 기준): `rg "한번에 모아서" modules/shared/programs/claude/files/skills/plan-with-questions/`가 0건 또는 "폐기됨" 컨텍스트만 매칭. (deployed 재검증은 머지 + nrs 후 `~/.claude/skills/plan-with-questions/` — 본 PR 작업 시점에는 source path 정본)
+- SC-2 (정적, verifiable, source 기준): `rg "Recommended" modules/shared/programs/claude/files/skills/plan-with-questions/`가 bias-measurement.md "Source label sanitization baseline" 화이트리스트 파일/섹션 안의 매칭만 (deployed 재검증도 머지 + nrs 후).
 - SC-3 (schema): `references/consulting-step.md` 출력 JSON schema에 `user_facing` layer 필드 등장 + 1-shot 예시 포함.
-- SC-4 (수동 dogfooding, **closeout 외부 monitoring**): 다음 PWQ 호출 5건 수동 샘플 리뷰 — 라운드당 1개 + 합의 후 라벨만 + matrix 미노출. 본질적으로 시간 의존 검증이라 PRD 작업으로 즉시 충족하지 않으며, PRD Closeout 후 사용자 후속 PWQ 5건 누적 모니터링으로 평가한다 (F-OQ-2와 함께 dogfooding accumulation).
+- SC-4 (수동 dogfooding, **closeout 외부 monitoring — 추적 issue #681**): 다음 PWQ 호출 5건 수동 샘플 리뷰 — 라운드당 1개 + 합의 후 라벨만 + matrix 미노출. 본질적으로 시간 의존 검증이라 PRD 작업으로 즉시 충족하지 않으며, PRD Closeout 후 사용자 후속 PWQ 5건 누적 모니터링으로 평가한다 (F-OQ-2/F-OQ-3와 함께 dogfooding accumulation, 추적 단일 진입점은 #681).
 - SC-5 (anchoring metric 일관성): bias-measurement.md/스크립트의 라벨 metric이 새 정책에 맞춰 갱신.
 - SC-6 (follow-up issue): 다른 인터뷰 스킬 follow-up issue + plan-file-template/pinning-guard 충돌 follow-up issue 본 PRD 종료 즉시 등록.
 
@@ -194,8 +194,8 @@ review-impl overlay (6-classification 라벨링 + overbuilt 우선 분류)도 Fi
 ## Open Questions
 
 - F-OQ-1 [BLOCKER for downstream — defer to follow-up issue]: plan-file-template SSOT의 `HEAD=<sha7>` 권장과 `pinning-guard.sh` PATTERN_D 차단 충돌 — 별도 issue로 즉시 등록 (Phase 5).
-- F-OQ-2 [defer to follow-up issue]: D4 anchoring 효과 손상 정량 측정 방법 — 합의 알고리즘 적용 후 dogfooding 누적으로 baseline 산출 후 별도 issue.
-- F-OQ-3 [defer to follow-up issue]: D4 합의 정의 강화 — 자문 출력 schema에 `advisor_fit_signal`/`blocking_reasons` 같은 자문 측 추천/반대 신호 필드 추가하여 (Recommended) 라벨 의미를 "자문 신호와 메인 LLM 후보 일치"로 강화. 본 PR 작업 시점의 자동 검토에서 D4 라벨이 schema에 신호 없이 메인 LLM 휴리스틱으로만 만들어진다는 우려가 두 번 잡혔으나, 사용자 D4 결정("라벨 허용 + 합의 조건")을 본 PR 자동 반영으로 뒤집지 않는다 — 본 PR 머지 후 dogfooding 누적 시 라벨 신뢰도 평가 + schema extension 또는 라벨 자체 약화 결정. F-OQ-2와 함께 평가.
+- F-OQ-2 [tracked by #681]: D4 anchoring 효과 손상 정량 측정 방법 — 합의 알고리즘 적용 후 dogfooding 누적으로 baseline 산출. SC-4와 함께 #681에서 추적.
+- F-OQ-3 [tracked by #681]: D4 합의 정의 강화 — 자문 출력 schema에 `advisor_fit_signal`/`blocking_reasons` 같은 자문 측 추천/반대 신호 필드 추가하여 (Recommended) 라벨 의미를 "자문 신호와 메인 LLM 후보 일치"로 강화. 본 PR 작업 시점의 자동 검토에서 D4 라벨이 schema에 신호 없이 메인 LLM 휴리스틱으로만 만들어진다는 우려가 두 번 잡혔으나, 사용자 D4 결정("라벨 허용 + 합의 조건")을 본 PR 자동 반영으로 뒤집지 않는다 — 본 PR 머지 후 dogfooding 누적 시 라벨 신뢰도 평가 + schema extension 또는 라벨 자체 약화 결정. F-OQ-2/SC-4와 함께 #681에서 추적.
 
 기존 plan 5건 Open Questions 중 3건은 본 PRD 결정 통합:
 - ~~자문 미수행 시 라벨 부착 폴백~~ → FR-5 fallback enum (A/B/C/C_MULTI)으로 통합.

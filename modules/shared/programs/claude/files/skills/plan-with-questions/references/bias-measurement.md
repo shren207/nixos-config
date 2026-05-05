@@ -110,12 +110,28 @@ rg -l "Recommended" "$SKILLDIR/" \
   | rg -v "consulting-step\.md$|output-templates\.md$|runtime-boundaries\.md$|SKILL\.md$|modes/for_action\.md$|modes/for_prd\.md$|bias-measurement\.md$"
 ```
 
-두 번째 명령이 매칭을 출력하지 않으면 화이트리스트 외 파일에 라벨 누출이 없다는 뜻이다 (baseline PASS). 매칭이 출력되면 manual triage:
+### Baseline PASS 조건 (두 단계)
+
+**Stage 1 (자동 — 파일 단위 negative check)**: 두 번째 명령이 매칭을 출력하지 않으면 화이트리스트 외 파일에 라벨 누출이 없다는 1차 조건 통과. 매칭이 출력되면 manual triage:
 
 1. 새 허용 컨텍스트인 새 파일이면 화이트리스트에 추가 (본 단락 갱신).
 2. D4 정책 위반이면 source 본문에서 라벨 표현 제거 (정상 컨텍스트로 재작성).
 
-화이트리스트 안의 파일이라도 허용 섹션 외에 매칭이 늘었는지는 `rg -n "Recommended" <file>`로 line별 위치 확인 후 manual review (line-level allowlist는 self-reference 메타 매칭이 많아 정규식보다 manual review가 더 정확).
+**Stage 2 (manual — 섹션 단위 review, baseline PASS 확정 조건)**: 화이트리스트 파일 내부 매칭이 위 표의 허용 섹션 안에 있는지 사람이 line별 확인. 자동 검증 한계는 다음과 같다 — Stage 1만으로는 같은 파일 내 새 섹션에 라벨이 추가되어도 PASS로 잘못 판정될 수 있다 (SC-2 "허용 조건 명시 컨텍스트만" 계약 약화 위험). Stage 2는 reviewer가 다음을 수행한다:
+
+```bash
+# 화이트리스트 각 파일의 매칭 line별 위치 확인
+SKILLDIR=~/.claude/skills/plan-with-questions
+for f in consulting-step.md output-templates.md runtime-boundaries.md; do
+  echo "=== $f ==="
+  rg -n "Recommended" "$SKILLDIR/references/$f"
+done
+rg -n "Recommended" "$SKILLDIR/SKILL.md" "$SKILLDIR/modes/for_action.md" "$SKILLDIR/modes/for_prd.md" "$SKILLDIR/references/bias-measurement.md"
+```
+
+각 매칭이 위 표의 허용 섹션 헤더 아래에 있는지, 새 섹션이 도입되었으면 그 섹션이 D4 컨텍스트인지 사람이 판단한다. 모든 매칭이 허용 섹션 안이면 baseline PASS 확정.
+
+본 두 단계 분리는 line-level 정규식 allowlist의 self-reference 메타 매칭 폭증 문제(이전 버전의 키워드 catalog가 풀려는 시도)를 회피하면서, "화이트리스트 외 파일은 절대 라벨 추가 금지" + "화이트리스트 내 새 섹션은 manual review로 정합 검증"이라는 두 보장을 분리해 정합성을 확보한다.
 
 ### baseline 갱신 시점
 
