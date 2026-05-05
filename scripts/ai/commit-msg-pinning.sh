@@ -57,7 +57,7 @@ WARN_B="DA finding ID 박제 감지. 라운드/finding ID는 휘발성 보고에
 WARN_C="DA 키워드 박제 감지. 검토 라운드/모드 표기는 commit message에 박지 말고 PR 코멘트 또는 휘발성 작업 노트에 둬라."
 WARN_D="${PINNING_PARTIAL_HASH_FINDING_LABEL_SUBSTR} 감지. squash 머지 시 dangling 위험 (partial commit hash 포함). 안정 식별자(PR 번호, 머지된 SHA)로 대체하라."
 
-# revert/cherry-pick prefix → suppress partial-hash (D) records at lib level
+# revert prefix → suppress partial-hash (D) records at lib level
 SKIP_PARTIAL_HASH=""
 if [[ "$FIRST_LINE" =~ ^[Rr]evert ]]; then
   SKIP_PARTIAL_HASH=1

@@ -44,10 +44,10 @@ PATTERN_D='\b[a-f0-9]{7,40}\b|`[a-f0-9]+`'
 PATTERN_GITHUB_ATTACHMENT_ASSET_URL="https://github\.com/user-attachments/assets/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}([][:space:])}>\"'\`]|\$|[.,;:!?]([][:space:])}>\"'\`]|\$))"
 
 # Canonicalize a path for whitelist comparison. Returns the canonical path on
-# stdout, or the original path if no canonicalizer is available. Callers must
-# additionally reject paths whose original or canonical form contains `..`,
-# because path traversal can mask durable repo paths as DA scratch paths
-# (e.g. `/tmp/da-x/../../repo/file.md` matches `/tmp/da-*` raw).
+# stdout when canonicalization succeeds, otherwise prints nothing. Callers
+# must treat an empty result as "do not whitelist" (fail-closed) rather than
+# falling back to the raw path, because a symlink under a whitelisted DA
+# scratch directory could otherwise re-export a repo file as exempt.
 pinning_canonicalize_path() {
   local raw="$1"
   local canon=""
@@ -57,21 +57,28 @@ pinning_canonicalize_path() {
   if [ -z "$canon" ] && command -v readlink >/dev/null 2>&1; then
     canon=$(readlink -f "$raw" 2>/dev/null) || canon=""
   fi
-  [ -n "$canon" ] || canon="$raw"
   printf '%s\n' "$canon"
 }
 
 pinning_should_check_path() {
   local raw="$1"
-  # Reject path traversal at the raw layer so callers cannot smuggle
-  # durable repo paths through DA workspace whitelist via `..`.
+  # Reject path traversal segments at the raw layer so callers cannot
+  # smuggle durable repo paths through the DA workspace whitelist via `..`.
+  # Match only true segment traversal patterns (`/../`, leading `../`,
+  # trailing `/..`) instead of any literal `..` so files whose name happens
+  # to contain `..` (e.g. `README..md`) keep the existing exempt contract.
   case "$raw" in
-    *..* ) return 0 ;;
+    *'/../'* | '../'* | *'/..' | '..' ) return 0 ;;
   esac
   local path
   path="$(pinning_canonicalize_path "$raw")"
+  if [ -z "$path" ]; then
+    # Canonicalization unavailable: fail-closed and check the path so DA
+    # whitelist cannot apply on a fallback that we cannot trust.
+    return 0
+  fi
   case "$path" in
-    *..* ) return 0 ;;
+    *'/../'* | '../'* | *'/..' | '..' ) return 0 ;;
   esac
 
   case "$path" in
