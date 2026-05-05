@@ -104,9 +104,9 @@ Step 3.5는 DA(Step 5)와 목적이 다르다. 3.5는 사용자에게 옵션 제
 
 초기 본문은 Step 1-4에서 확인한 사실과 아직 DA 전이라는 상태를 담는 최소 계획이어도 된다. 단, Step 5 DA가 읽을 수 있도록 문제, 목표, non-goal, 변경 후보 파일, 검증 후보, Open Questions 상태는 비워 두지 않는다.
 
-## Step 5-6: DA for_plan + 결과 반영
+## Step 5-6: 외부 검토 plan-mode + 결과 반영
 
-상세는 [`../references/da-integration.md`](../references/da-integration.md) 참조 (Step 5 호출 계약 + Step 6 결과 반영 상태표). `/run-da for_plan` 명령 자체는 바꾸지 않고, Step 4.5에서 만든 plan 파일 경로와 내용을 context로 전달한다. DA 결과의 중요 변경은 같은 plan 파일의 Decision Log에 기록한다.
+상세는 [`../references/da-integration.md`](../references/da-integration.md) 참조 (Step 5 호출 계약 + Step 6 결과 반영 상태표). `/run-da for_plan` 명령 자체는 바꾸지 않고, Step 4.5에서 만든 plan 파일 경로와 내용을 context로 전달한다. 외부 검토 결과의 중요 변경은 같은 plan 파일의 Decision Log에 기록한다.
 
 ## Step 7: 계획 상태 진입 [전환점]
 
