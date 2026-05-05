@@ -2,10 +2,10 @@
 
 ## Document Status
 
-- Status: In Progress
+- Status: Complete
 - File Mode: Split
-- Current Phase: Phase 5
-- Active Phase File: [Phase 5: Dogfooding and follow-up](./prd-pwq-question-ux/phase-05-dogfooding-and-followup.md)
+- Current Phase: Phase 5 (Complete)
+- Active Phase File: [Phase 5: Dogfooding and follow-up](./prd-pwq-question-ux/phase-05-dogfooding-and-followup.md) (Complete)
 - Last Updated: 2026-05-05
 - PRD File: `.claude/prds/prd-pwq-question-ux.md`
 - Source: https://github.com/greenheadHQ/nixos-config/issues/646
@@ -182,7 +182,7 @@ Step 3.5 자문 결과(`/tmp/consult-*`)와 DA reviewer/Arbiter 산출물(`/tmp/
 | Phase 2: SKILL and modes flow | Complete | SKILL.md Invariant 7 + modes/for_action.md Step 4 합의 알고리즘 호출 + modes/for_issue.md Step I-4 1개 통일 + modes/for_prd.md 차용 | rg + 본 PRD self-test | [phase-02-skill-and-modes-flow.md](./prd-pwq-question-ux/phase-02-skill-and-modes-flow.md) |
 | Phase 3: Output templates and runtime | Complete | references/output-templates.md Step 4/I-4 패턴 + references/runtime-boundaries.md 라운드 정책 통일 | rg + 패턴 일관성 manual | [phase-03-output-templates-and-runtime.md](./prd-pwq-question-ux/phase-03-output-templates-and-runtime.md) |
 | Phase 4: Bias measurement | Complete | references/bias-measurement.md + scripts/measure-anchoring-bias.sh 라벨 metric 갱신 | 스크립트 실행 + grep | [phase-04-bias-measurement.md](./prd-pwq-question-ux/phase-04-bias-measurement.md) |
-| Phase 5: Dogfooding and follow-up | Not Started | 수동 5샘플 + issue #646 본문 교체 + follow-up issue 2건 등록 + Final 10-pass | 수동 dogfooding + gh issue create | [phase-05-dogfooding-and-followup.md](./prd-pwq-question-ux/phase-05-dogfooding-and-followup.md) |
+| Phase 5: Dogfooding and follow-up | Complete | 수동 5샘플 + issue #646 본문 교체 + follow-up issue 2건 등록 + Final 10-pass | 수동 dogfooding + gh issue create | [phase-05-dogfooding-and-followup.md](./prd-pwq-question-ux/phase-05-dogfooding-and-followup.md) |
 
 ## Final Multi-Pass Review After All Phases
 
@@ -208,3 +208,4 @@ review-impl overlay (6-classification 라벨링 + overbuilt 우선 분류)도 Fi
 - 2026-05-05: Phase 2 (SKILL and modes flow) Complete. SKILL.md에 새 Invariant 8(라운드당 1개 + D4 hard rule) 추가, line 115 "주의사항" 정정, modes/for_action.md Step 4 본문 재작성(D1/D2/D4 합의 알고리즘 호출 + judgment-first 라벨 금지 + fallback A/B/C/D 사용자 보고 표 + D4 hard rule), modes/for_issue.md Step I-4를 라운드당 1개로 통일하고 트레이드오프 정책은 for_action callsite 인용, modes/for_prd.md 차용 단락에 D1/D2/D4 동일 적용 명시. Validation: rg("한번에 모아서" 폐기 컨텍스트만 2건 / "라운드당 최대 4개" 폐기 컨텍스트만 1건 / "라운드당 1개"·"라운드당 질문 1개" 합산 5건 / for_action "합의 알고리즘" 3건) 통과. Active Phase → Phase 3.
 - 2026-05-05: Phase 3 (Output templates and runtime) Complete. references/output-templates.md Step 4/I-4 패턴을 라운드당 1개 강제 + user_facing layer 사용 의무 + D4 합의 알고리즘 호출 + hard rule + judgment-first 라벨 금지 + 라운드별 룰 매트릭스 7행(일반/트레이드오프 정상/fallback A·B·C·D/judgment-first)으로 재작성. references/runtime-boundaries.md request_user_input 페이로드 가이드의 폐기 정책(for_issue 4→3 자동 축소, Recommended 절대 금지)을 D1 라운드당 1개 강제 + D4 합의 PASS 시 부착으로 정정하고 "for_action·for_issue 라운드 정책 통일" 단락 추가. Validation: rg("라운드당 1개" output-templates 1건 / user_facing 9건 / judgment-first 라벨 금지 단락 명시 / Recommended 매칭 모두 허용 조건·hard rule·D4 합의 알고리즘 컨텍스트만 — SC-2 통과 / runtime-boundaries 라운드 정책 통일 단락 등장). bias-measurement.md L36의 "Recommended" anchor 키워드는 Phase 4 측정 metric 갱신 컨텍스트로 phase 4에서 다룬다. Active Phase → Phase 4.
 - 2026-05-05: Phase 4 (Bias measurement) Complete. references/bias-measurement.md에 "Source label sanitization baseline (D4 정책 일관성)" 단락 추가 — transcript 4축 metric과 별개로 PWQ source 본문에서 (Recommended) 라벨이 D4 합의 PASS / hard rule / 허용 조건 컨텍스트로만 등장하는지 inline rg 명령으로 검증하는 절차 + 허용 컨텍스트 키워드 catalog (3 카테고리). axis-2 framing catalog의 "Recommended" 키워드가 transcript 측정 catalog 용도임을 명시 (D1/D2/D4 도입 후에도 transcript metric 변경 불필요). scripts/ai/measure-anchoring-bias.sh 헤더 주석에 source sanitization SSOT 위치(bias-measurement.md "Source label sanitization baseline" 섹션) + 두 cadence 분리 이유 명시. Validation: source sanitization rg(Recommended 매칭 모두 허용 컨텍스트 catalog로 grep -v 후 EXIT=1 — baseline PASS), transcript 스크립트 실행(--skip-ssh exit 0, minipc 543 transcripts 정상 측정). Active Phase → Phase 5.
+- 2026-05-05: Phase 5 (Dogfooding and follow-up) Complete + **PRD Closeout**. issue #646 본문은 PRD Problem/Discovery 결과로 이미 교체 상태 확인 (별도 edit 불필요). Follow-up issue 2건 등록 — #679 (다른 인터뷰 스킬에 PWQ Question UX 정책 적용 검토, G-5/SC-6), #680 (plan-file-template SSOT의 HEAD=&lt;sha7&gt; 권장과 pinning-guard.sh PATTERN_D 차단 충돌, F-OQ-1). Final Multi-Pass Review 10-pass + review-impl overlay (6-classification + overbuilt 우선) 메인 LLM이 직접 수행: FR-1~FR-8 모두 satisfied, SC-1/2/3/5/6 satisfied, **SC-4 (수동 dogfooding 5건) deferred** — 사용자 후속 PWQ 5건 누적 모니터링이 본질적으로 시간 의존이라 본 PRD 작업으로 즉시 충족 불가. overbuilt 후보 0건 (모든 변경이 인스트럭션 + grep 패턴, NFR-1으로 코드 동작 변경 없음, 미래 phase용 확장점 없음). PRD master Status In Progress → Complete, 모든 Phase Index Complete.
