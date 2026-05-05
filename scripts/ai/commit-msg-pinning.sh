@@ -63,10 +63,11 @@ if [[ "$FIRST_LINE" =~ ^[Rr]evert ]]; then
   SKIP_PARTIAL_HASH=1
 fi
 
-# Single record fetch — D-10 structured API. Loops over TSV records and emits
-# a verbose warn message once per category (when category code transitions),
-# followed by the line:token evidence on subsequent lines indented by the
-# shared PINNING_REPORT_INDENT constant.
+# Loop over the shared structured records. Verbose warn message is emitted
+# once per category (when the category code transitions). For A/B/C the
+# shared category label line is also printed so commit-msg output matches
+# the guard/alert rendering contract; for D the legacy verbose-only output
+# is preserved (existing fixtures do not include the label line).
 records=$(pinning_findings_records "$CLEAN_MSG" "$SKIP_PARTIAL_HASH")
 found=0
 
@@ -77,9 +78,9 @@ if [ -n "$records" ]; then
     [ -n "$code" ] || continue
     if [ "$code" != "$prev_code" ]; then
       case "$code" in
-        A) warn "$WARN_A" ;;
-        B) warn "$WARN_B" ;;
-        C) warn "$WARN_C" ;;
+        A) warn "$WARN_A"; printf '  - %s\n' "$label" >&2 ;;
+        B) warn "$WARN_B"; printf '  - %s\n' "$label" >&2 ;;
+        C) warn "$WARN_C"; printf '  - %s\n' "$label" >&2 ;;
         D) warn "$WARN_D" ;;
         *) warn "$label" ;;
       esac

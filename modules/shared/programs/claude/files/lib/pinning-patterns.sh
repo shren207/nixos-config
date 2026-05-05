@@ -11,9 +11,9 @@ HASH_MAX=12
 # rendered output (partial-hash report and findings_text wrapper).
 PINNING_REPORT_INDENT='         '
 
-# partial-hash finding 라벨 식별 substring. 라벨 출력과 hooks의 partial-hash exception
-# 필터(`pinning_strip_partial_hash_finding`)가 동일 정의를 단일 SSOT로 공유한다.
-# 라벨 텍스트가 바뀌면 이 변수 한 곳만 갱신하면 출력과 helper grep이 동시에 동기화된다.
+# partial-hash finding 라벨 식별 substring. 라벨 텍스트가 바뀌면 이 변수 한 곳만
+# 갱신하면 카테고리 D 라벨 (PINNING_PATTERN_D_LABEL)이 자동 동기화된다. revert/cherry-pick
+# 예외는 record 생성 단계의 skip 옵션으로 처리되며 별도 라벨 substring 매칭이 필요 없다.
 PINNING_PARTIAL_HASH_FINDING_LABEL_SUBSTR='짧은 임시 hex 식별자 박제'
 
 # Category labels (per-PATTERN). pinning_findings_records emits the label as
@@ -90,8 +90,8 @@ pinning_should_check_path() {
     tests/fixtures/* | */tests/fixtures/*) return 1 ;;
     evals/queries.json | */evals/queries.json) return 1 ;;
     eval-workspace/* | */eval-workspace/*) return 1 ;;
-    /tmp/da-*) return 1 ;;
-    /var/folders/*/T/da-*) return 1 ;;
+    /tmp/da-*/*) return 1 ;;
+    /var/folders/*/T/da-*/*) return 1 ;;
   esac
 
   return 0
@@ -127,12 +127,16 @@ _pinning_simple_records() {
       ' || true
 }
 
-# D-10 structured findings API. Output: TSV records, one per match.
+# Structured findings API. Output: TSV records, one per match.
 # Format: <category_code>\t<label>\t<line>:<token>
-# - category_code: stable identifier (A/B/C/D)
+# - category_code: stable identifier (A/B/C/D) — callers branch on this
+#   without parsing the human-readable label, which keeps display-string
+#   changes from breaking branching logic.
 # - label: human-readable category label (sourced from PINNING_PATTERN_*_LABEL)
 # - line:token: 1-based line number from grep -n + matched token
-# Second arg `skip_partial_hash` (truthy) suppresses D records.
+# Second arg `skip_partial_hash` (truthy) suppresses D records — used by the
+# git revert/cherry-pick exception so callers never need to post-process
+# rendered text to remove partial-hash entries.
 pinning_findings_records() {
   local scan_file="$1"
   local skip_partial_hash="${2:-}"
