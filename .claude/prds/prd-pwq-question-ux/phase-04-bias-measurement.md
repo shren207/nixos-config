@@ -18,7 +18,7 @@ Last Updated: 2026-05-05
 ## Phase Discovery Gate
 
 코드 편집 전에 재확인한다:
-- [ ] 관련 코드/파일: `~/.claude/skills/plan-with-questions/references/bias-measurement.md`, `~/.claude/skills/plan-with-questions/scripts/ai/measure-anchoring-bias.sh` (실제 위치 확인 — `scripts/` 상대 경로일 수도 또는 `~/.claude/scripts/` global일 수도)
+- [ ] 관련 코드/파일: `modules/shared/programs/claude/files/skills/plan-with-questions/references/bias-measurement.md`, `~/.claude/skills/plan-with-questions/scripts/ai/measure-anchoring-bias.sh` (실제 위치 확인 — `scripts/` 상대 경로일 수도 또는 `~/.claude/scripts/` global일 수도)
 - [ ] Phase 1, 2, 3 산출물 — 라벨 정책 변경 + Anti-anchoring 1번 폐기가 모두 반영됨
 - [ ] 관련 docs/spec: `~/.claude/skills/plan-with-questions/references/consulting-step.md` Anti-anchoring 4 규칙 (Phase 1 결과)
 - [ ] 관련 command: `bash`/`zsh` (스크립트 실행), `rg`
@@ -53,13 +53,13 @@ Last Updated: 2026-05-05
 
 - 스크립트 실행: `bash scripts/ai/measure-anchoring-bias.sh` (실제 위치) → exit 0 + 출력에 "라벨 위반 0건" 또는 동등.
 - 정적 grep: `rg "Recommended" ~/.claude/skills/plan-with-questions/` → Phase 1-3 변경 결과로 "허용 조건" 컨텍스트만 매칭 (SC-2 + SC-5 통합).
-- 정적 grep: `rg "허용 조건 컨텍스트" ~/.claude/skills/plan-with-questions/references/bias-measurement.md` ≥ 1건.
+- 정적 grep: `rg "허용 조건 컨텍스트" modules/shared/programs/claude/files/skills/plan-with-questions/references/bias-measurement.md` ≥ 1건.
 
 ## Validation Checklist
 
 - [ ] Static check 통과: `find ~/.claude -name "measure-anchoring-bias.sh"`로 스크립트 위치 확인 (1+개)
 - [ ] Script 실행 통과: `bash <스크립트 경로>` exit 0 + 출력 정상 (라벨 위반 0건)
-- [ ] Static check 통과: `rg "허용 조건" ~/.claude/skills/plan-with-questions/references/bias-measurement.md` ≥ 1건
+- [ ] Static check 통과: `rg "허용 조건" modules/shared/programs/claude/files/skills/plan-with-questions/references/bias-measurement.md` ≥ 1건
 - [ ] Static check 통과: `rg "Recommended" ~/.claude/skills/plan-with-questions/` → 허용 컨텍스트만 (SC-2 + SC-5 동시 검증)
 - [ ] 자동 test: N/A
 - [ ] API/CLI workflow 검증: 스크립트 실행 자체가 검증

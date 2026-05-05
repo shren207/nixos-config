@@ -21,7 +21,7 @@ Phase 1~4 완료 후 본 PRD 자체로 self-test (dogfooding 5건) + issue #646 
 - [ ] Phase 1~4 모두 Complete
 - [ ] Master PRD Status `Phase 4` → 본 phase 진입
 - [ ] 관련 코드/파일: 모든 PWQ skill 본문 (Phase 1~3 산출물) + bias-measurement (Phase 4 산출물) + 본 PRD master
-- [ ] 관련 docs/spec: `~/.claude/skills/plan-with-questions/references/prd/multi-pass-review.md` (Final 10-pass), `~/.claude/skills/plan-with-questions/references/review-impl/implementation-review.md` (review-impl overlay)
+- [ ] 관련 docs/spec: `modules/shared/programs/claude/files/skills/plan-with-questions/references/prd/multi-pass-review.md` (Final 10-pass), `modules/shared/programs/claude/files/skills/plan-with-questions/references/review-impl/implementation-review.md` (review-impl overlay)
 - [ ] 관련 command 또는 도구: `gh issue create` (follow-up issue), `gh issue edit 646` (본문 교체), 사용자 직접 PWQ 호출 (dogfooding)
 - [ ] Master PRD assumption A-1 (메인 LLM 합의 알고리즘 안정 적용) 검증 가능 시점이 본 phase
 
@@ -75,8 +75,8 @@ Phase 1~4 완료 후 본 PRD 자체로 self-test (dogfooding 5건) + issue #646 
 - [ ] follow-up issue B 등록 (`gh issue create`):
   - Title: "fix(plan-file-template): SSOT의 HEAD=<sha7> 권장과 pinning-guard.sh PATTERN_D 차단 충돌 해결"
   - Body: 본 PRD F-OQ-1 컨텍스트 + 두 SSOT 사이 충돌 + 권장 방향 (template 또는 pinning-guard 한쪽 갱신).
-- [ ] Final Multi-Pass Review 10-pass 수행 (`~/.claude/skills/plan-with-questions/references/prd/multi-pass-review.md` 체크리스트).
-- [ ] review-impl overlay 적용 (`~/.claude/skills/plan-with-questions/references/review-impl/implementation-review.md` 6-classification 라벨링 + overbuilt 우선 분류).
+- [ ] Final Multi-Pass Review 10-pass 수행 (`modules/shared/programs/claude/files/skills/plan-with-questions/references/prd/multi-pass-review.md` 체크리스트).
+- [ ] review-impl overlay 적용 (`modules/shared/programs/claude/files/skills/plan-with-questions/references/review-impl/implementation-review.md` 6-classification 라벨링 + overbuilt 우선 분류).
 - [ ] PRD Closeout 항목 — `.claude/prds/` 산출물이라 자동 활성화. PRD Status `Complete`, Phase Index 모두 Complete, Change Log 갱신.
 
 ## Validation Strategy
@@ -91,9 +91,9 @@ Phase 1~4 완료 후 본 PRD 자체로 self-test (dogfooding 5건) + issue #646 
 ## Validation Checklist
 
 - [ ] Manual dogfooding 5건 통과 — 라운드당 1개 + user_facing only + 합의 후 라벨 + judgment-first 라벨 금지 + fallback 보고
-- [ ] Static check 통합: `rg "한번에 모아서" ~/.claude/skills/plan-with-questions/` → 0건 또는 폐기 컨텍스트
-- [ ] Static check 통합: `rg "Recommended" ~/.claude/skills/plan-with-questions/` → 허용 조건 컨텍스트만
-- [ ] Static check 통합: `rg "user_facing" ~/.claude/skills/plan-with-questions/references/consulting-step.md ~/.claude/skills/plan-with-questions/references/output-templates.md` ≥ 3건
+- [ ] Static check 통합: `rg "한번에 모아서" modules/shared/programs/claude/files/skills/plan-with-questions/` → 0건 또는 폐기 컨텍스트
+- [ ] Static check 통합: `rg "Recommended" modules/shared/programs/claude/files/skills/plan-with-questions/` → 허용 조건 컨텍스트만
+- [ ] Static check 통합: `rg "user_facing" modules/shared/programs/claude/files/skills/plan-with-questions/references/consulting-step.md modules/shared/programs/claude/files/skills/plan-with-questions/references/output-templates.md` ≥ 3건
 - [ ] Script 통과: bias-measurement 스크립트 exit 0
 - [ ] gh issue edit 646 — 본문 교체 후 `gh issue view 646`로 새 본문 노출 확인
 - [ ] gh issue create 후 issue A URL 반환 확인
@@ -122,7 +122,7 @@ Phase 1~4 완료 후 본 PRD 자체로 self-test (dogfooding 5건) + issue #646 
 - [ ] 8. Validation — 정적 grep + dogfooding + 스크립트 + manual sample이 risk에 적절
 - [ ] 9. Future-phase review — N/A (마지막 phase)
 - [ ] 10. PRD sync review — master PRD Status `In Progress` → `Complete`, 모든 Phase Index Complete, Last Updated, Change Log 갱신
-- [ ] **review-impl overlay (Phase 5 추가)**: 6-classification 라벨링 + overbuilt 우선 분류 (`~/.claude/skills/plan-with-questions/references/review-impl/implementation-review.md`). auto-fix 미사용.
+- [ ] **review-impl overlay (Phase 5 추가)**: 6-classification 라벨링 + overbuilt 우선 분류 (`modules/shared/programs/claude/files/skills/plan-with-questions/references/review-impl/implementation-review.md`). auto-fix 미사용.
 - [ ] **PRD Closeout**: `.claude/prds/` 산출물이라 자동 활성화. PRD master Status Complete + 모든 phase Complete + Change Log 마지막 entry.
 
 ## Discoveries / Decisions

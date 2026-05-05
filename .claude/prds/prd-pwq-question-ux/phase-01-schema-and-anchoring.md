@@ -18,7 +18,7 @@ Last Updated: 2026-05-05
 ## Phase Discovery Gate
 
 코드 편집 전에 재확인한다:
-- [ ] 관련 코드/파일: `~/.claude/skills/plan-with-questions/references/consulting-step.md`
+- [ ] 관련 코드/파일: `modules/shared/programs/claude/files/skills/plan-with-questions/references/consulting-step.md`
 - [ ] 관련 docs/spec/외부 참조: 본 PRD master, `~/.claude/skills/plan-with-questions/SKILL.md` (Invariant 7), `~/.claude/skills/plan-with-questions/references/output-templates.md` (Step 4 패턴)
 - [ ] 관련 command 또는 도구: `rg` (grep), `jq` (JSON validation)
 - [ ] Master PRD의 assumption A-1, A-2, A-3이 여전히 유효함
@@ -59,16 +59,16 @@ Last Updated: 2026-05-05
 
 본 phase는 schema 변경이 핵심이라 정적 검증 + dummy round-trip이 risk-appropriate. browser/UI E2E 등은 N/A.
 
-- 정적 grep: `rg "user_facing" ~/.claude/skills/plan-with-questions/references/consulting-step.md` (등장 ≥ 1).
-- 정적 grep: `rg "Anti-anchoring 1번" ~/.claude/skills/plan-with-questions/references/consulting-step.md`로 재작성 흔적 확인.
+- 정적 grep: `rg "user_facing" modules/shared/programs/claude/files/skills/plan-with-questions/references/consulting-step.md` (등장 ≥ 1).
+- 정적 grep: `rg "Anti-anchoring 1번" modules/shared/programs/claude/files/skills/plan-with-questions/references/consulting-step.md`로 재작성 흔적 확인.
 - JSON schema sanity: 1-shot 예시 dummy decision JSON을 `jq -e .` 통과 확인.
 - (선택, Phase 5에서 본격 실행) 자문 round-trip dummy decision 1개로 새 schema 출력 확인.
 
 ## Validation Checklist
 
-- [ ] Static check 통과: `rg "user_facing" ~/.claude/skills/plan-with-questions/references/consulting-step.md` ≥ 1건
-- [ ] Static check 통과: `rg "fallback A" ~/.claude/skills/plan-with-questions/references/consulting-step.md` ≥ 1건
-- [ ] Static check 통과: `rg "현 상황 적합성 컨텍스트" ~/.claude/skills/plan-with-questions/references/consulting-step.md` ≥ 1건
+- [ ] Static check 통과: `rg "user_facing" modules/shared/programs/claude/files/skills/plan-with-questions/references/consulting-step.md` ≥ 1건
+- [ ] Static check 통과: `rg "fallback A" modules/shared/programs/claude/files/skills/plan-with-questions/references/consulting-step.md` ≥ 1건
+- [ ] Static check 통과: `rg "현 상황 적합성 컨텍스트" modules/shared/programs/claude/files/skills/plan-with-questions/references/consulting-step.md` ≥ 1건
 - [ ] dummy 1-shot 예시가 `jq -e . < <(extract_json_block)` 통과
 - [ ] 자동 test 추가/갱신: 본 phase는 인스트럭션 문서 수정만이라 자동 test 추가 N/A
 - [ ] API/CLI workflow 검증: N/A (Phase 5에서 자문 round-trip 통합 검증)

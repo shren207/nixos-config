@@ -18,7 +18,7 @@ Last Updated: 2026-05-05
 ## Phase Discovery Gate
 
 코드 편집 전에 재확인한다:
-- [ ] 관련 코드/파일: `~/.claude/skills/plan-with-questions/references/output-templates.md`, `~/.claude/skills/plan-with-questions/references/runtime-boundaries.md`
+- [ ] 관련 코드/파일: `modules/shared/programs/claude/files/skills/plan-with-questions/references/output-templates.md`, `modules/shared/programs/claude/files/skills/plan-with-questions/references/runtime-boundaries.md`
 - [ ] Phase 1, 2 산출물: `references/consulting-step.md` (schema, fallback, 합의 알고리즘), `SKILL.md` Invariant 7, `modes/for_action.md` Step 4 흐름
 - [ ] 관련 docs/spec: 본 PRD master "라운드별 룰 매트릭스" 섹션 (Phase 1/2 결과 통합)
 - [ ] 관련 command: `rg`
@@ -57,18 +57,18 @@ Last Updated: 2026-05-05
 
 본 phase는 output-templates 패턴 + runtime-boundaries 규칙 변경이라 정적 grep + Phase 5 self-test가 적절.
 
-- 정적 grep: `rg "라운드당 1개" ~/.claude/skills/plan-with-questions/references/output-templates.md` ≥ 1건.
-- 정적 grep: `rg "user_facing" ~/.claude/skills/plan-with-questions/references/output-templates.md` ≥ 2건 (표시 규칙 + judgment-first 인용).
-- 정적 grep: `rg "judgment-first 라운드 라벨" ~/.claude/skills/plan-with-questions/references/output-templates.md` ≥ 1건 (FR-4 명시).
-- 정적 grep: `rg "Recommended" ~/.claude/skills/plan-with-questions/` → "허용 조건" 컨텍스트만 매칭, label에 직접 추가 없음 (SC-2).
+- 정적 grep: `rg "라운드당 1개" modules/shared/programs/claude/files/skills/plan-with-questions/references/output-templates.md` ≥ 1건.
+- 정적 grep: `rg "user_facing" modules/shared/programs/claude/files/skills/plan-with-questions/references/output-templates.md` ≥ 2건 (표시 규칙 + judgment-first 인용).
+- 정적 grep: `rg "judgment-first 라운드 라벨" modules/shared/programs/claude/files/skills/plan-with-questions/references/output-templates.md` ≥ 1건 (FR-4 명시).
+- 정적 grep: `rg "Recommended" modules/shared/programs/claude/files/skills/plan-with-questions/` → "허용 조건" 컨텍스트만 매칭, label에 직접 추가 없음 (SC-2).
 
 ## Validation Checklist
 
-- [ ] Static check 통과: `rg "라운드당 1개" ~/.claude/skills/plan-with-questions/references/output-templates.md` ≥ 1건
-- [ ] Static check 통과: `rg "user_facing" ~/.claude/skills/plan-with-questions/references/output-templates.md` ≥ 2건
-- [ ] Static check 통과: `rg "judgment-first" ~/.claude/skills/plan-with-questions/references/output-templates.md` 등장 + 라벨 금지 단락 명시
-- [ ] Static check 통과: `rg "Recommended" ~/.claude/skills/plan-with-questions/` → 허용 조건 컨텍스트만 (SC-2 직접 검증)
-- [ ] Static check 통과: `rg "for_action.*for_issue.*통일" ~/.claude/skills/plan-with-questions/references/runtime-boundaries.md` 또는 동등 단락 존재
+- [ ] Static check 통과: `rg "라운드당 1개" modules/shared/programs/claude/files/skills/plan-with-questions/references/output-templates.md` ≥ 1건
+- [ ] Static check 통과: `rg "user_facing" modules/shared/programs/claude/files/skills/plan-with-questions/references/output-templates.md` ≥ 2건
+- [ ] Static check 통과: `rg "judgment-first" modules/shared/programs/claude/files/skills/plan-with-questions/references/output-templates.md` 등장 + 라벨 금지 단락 명시
+- [ ] Static check 통과: `rg "Recommended" modules/shared/programs/claude/files/skills/plan-with-questions/` → 허용 조건 컨텍스트만 (SC-2 직접 검증)
+- [ ] Static check 통과: `rg "for_action.*for_issue.*통일" modules/shared/programs/claude/files/skills/plan-with-questions/references/runtime-boundaries.md` 또는 동등 단락 존재
 - [ ] 자동 test: N/A
 - [ ] API/CLI workflow 검증: Phase 5 self-test
 - [ ] Browser/UI E2E: N/A

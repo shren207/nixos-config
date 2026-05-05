@@ -18,9 +18,9 @@ Last Updated: 2026-05-05
 ## Phase Discovery Gate
 
 코드 편집 전에 재확인한다:
-- [ ] 관련 코드/파일: `~/.claude/skills/plan-with-questions/SKILL.md` (Invariant 7), `~/.claude/skills/plan-with-questions/modes/for_action.md` (Step 4), `~/.claude/skills/plan-with-questions/modes/for_issue.md` (Step I-4), `~/.claude/skills/plan-with-questions/modes/for_prd.md` (차용 부분)
-- [ ] Phase 1 산출물: `~/.claude/skills/plan-with-questions/references/consulting-step.md` (schema 두 layer + fallback + D4 합의 알고리즘)
-- [ ] 관련 docs/spec: 본 PRD master, `~/.claude/skills/plan-with-questions/references/output-templates.md` (Phase 3에서 갱신)
+- [ ] 관련 코드/파일: `modules/shared/programs/claude/files/skills/plan-with-questions/SKILL.md` (Invariant 7), `modules/shared/programs/claude/files/skills/plan-with-questions/modes/for_action.md` (Step 4), `modules/shared/programs/claude/files/skills/plan-with-questions/modes/for_issue.md` (Step I-4), `modules/shared/programs/claude/files/skills/plan-with-questions/modes/for_prd.md` (차용 부분)
+- [ ] Phase 1 산출물: `modules/shared/programs/claude/files/skills/plan-with-questions/references/consulting-step.md` (schema 두 layer + fallback + D4 합의 알고리즘)
+- [ ] 관련 docs/spec: 본 PRD master, `modules/shared/programs/claude/files/skills/plan-with-questions/references/output-templates.md` (Phase 3에서 갱신)
 - [ ] 관련 command 또는 도구: `rg`
 - [ ] Master PRD assumption 유효
 - [ ] Phase 1 결과로 modes의 Step 4 합의 알고리즘 호출 부분이 변경되어야 한다면 본 phase에서 반영
@@ -61,17 +61,17 @@ Last Updated: 2026-05-05
 
 본 phase는 modes 흐름 변경이라 정적 grep + 본 PRD self-test (Phase 5에서)이 핵심.
 
-- 정적 grep: `rg "한번에 모아서" ~/.claude/skills/plan-with-questions/SKILL.md ~/.claude/skills/plan-with-questions/modes/` → 0건 또는 "폐기됨" 컨텍스트만 (SC-1).
-- 정적 grep: `rg "라운드당 최대 4개" ~/.claude/skills/plan-with-questions/modes/` → 0건.
-- 정적 grep: `rg "라운드당 1개" ~/.claude/skills/plan-with-questions/SKILL.md ~/.claude/skills/plan-with-questions/modes/` → 등장 (양적 매핑).
+- 정적 grep: `rg "한번에 모아서" modules/shared/programs/claude/files/skills/plan-with-questions/SKILL.md modules/shared/programs/claude/files/skills/plan-with-questions/modes/` → 0건 또는 "폐기됨" 컨텍스트만 (SC-1).
+- 정적 grep: `rg "라운드당 최대 4개" modules/shared/programs/claude/files/skills/plan-with-questions/modes/` → 0건.
+- 정적 grep: `rg "라운드당 1개" modules/shared/programs/claude/files/skills/plan-with-questions/SKILL.md modules/shared/programs/claude/files/skills/plan-with-questions/modes/` → 등장 (양적 매핑).
 - Phase 5 dogfooding에서 본 PRD self-test로 검증 (다음 PWQ 호출 시 questions 배열 길이 1 확인).
 
 ## Validation Checklist
 
-- [ ] Static check 통과: `rg "한번에 모아서" ~/.claude/skills/plan-with-questions/SKILL.md ~/.claude/skills/plan-with-questions/modes/` → 0건 또는 "폐기됨" 컨텍스트만
-- [ ] Static check 통과: `rg "라운드당 최대 4개" ~/.claude/skills/plan-with-questions/modes/for_issue.md` → 0건
-- [ ] Static check 통과: `rg "라운드당 1개" ~/.claude/skills/plan-with-questions/` ≥ 3건 (SKILL + for_action + for_issue)
-- [ ] Static check 통과: `rg "합의 알고리즘" ~/.claude/skills/plan-with-questions/modes/for_action.md` ≥ 1건 (Phase 1 호출)
+- [ ] Static check 통과: `rg "한번에 모아서" modules/shared/programs/claude/files/skills/plan-with-questions/SKILL.md modules/shared/programs/claude/files/skills/plan-with-questions/modes/` → 0건 또는 "폐기됨" 컨텍스트만
+- [ ] Static check 통과: `rg "라운드당 최대 4개" modules/shared/programs/claude/files/skills/plan-with-questions/modes/for_issue.md` → 0건
+- [ ] Static check 통과: `rg "라운드당 1개" modules/shared/programs/claude/files/skills/plan-with-questions/` ≥ 3건 (SKILL + for_action + for_issue)
+- [ ] Static check 통과: `rg "합의 알고리즘" modules/shared/programs/claude/files/skills/plan-with-questions/modes/for_action.md` ≥ 1건 (Phase 1 호출)
 - [ ] 자동 test: N/A (인스트럭션 문서)
 - [ ] API/CLI workflow 검증: Phase 5에서 본 PRD self-test
 - [ ] Browser/UI E2E: N/A

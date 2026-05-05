@@ -73,11 +73,11 @@ Root cause 세 메커니즘 결합: SKILL.md Invariant 7 ("한번에 모아서")
 
 ## Discovery Summary
 
-- Reviewed:
-  - `~/.claude/skills/plan-with-questions/SKILL.md`, `modes/for_action.md`, `modes/for_issue.md`, `modes/for_prd.md`
-  - `~/.claude/skills/plan-with-questions/references/consulting-step.md`, `output-templates.md`, `runtime-boundaries.md`, `bias-measurement.md`
-  - `~/.claude/skills/plan-with-questions/references/fanout-fanin.md`
-  - `~/.claude/scripts/measure-anchoring-bias.sh` 또는 동등 위치의 anchoring metric 스크립트
+- Reviewed (편집 대상은 Nix source path, 읽기/검증은 deployed path — Cross-Host Resume Guide 참조):
+  - Source (편집): `modules/shared/programs/claude/files/skills/plan-with-questions/SKILL.md`, `modes/for_action.md`, `modes/for_issue.md`, `modes/for_prd.md`
+  - Source (편집): `modules/shared/programs/claude/files/skills/plan-with-questions/references/consulting-step.md`, `output-templates.md`, `runtime-boundaries.md`, `bias-measurement.md`, `fanout-fanin.md`
+  - Deployed (읽기/검증, nrs 후): `~/.claude/skills/plan-with-questions/...` (Mac과 miniPC 양쪽 호스트 동일)
+  - `scripts/ai/measure-anchoring-bias.sh` (repo-relative, git tracked)
   - 1.7GB 세션 로그 (Mac Claude Code 968MB / Mac Codex CLI 785MB / miniPC 351MB)
 - Current system: SKILL.md Invariant 7이 "한번에 모아서 왕복 횟수 최소화"로 묶기 권장. consulting-step.md 출력 schema 7키 evaluation_matrix가 사용자에 그대로 노출. AskUserQuestion 도구 description이 추천 라벨 권장 → anti-anchoring 1번 규칙 정면 위반 92.3%.
 - Validation surface: 정적 grep + schema 검증 + 수동 5샘플. 자문 round-trip + fallback 시뮬레이션.
@@ -138,6 +138,42 @@ Root cause 세 메커니즘 결합: SKILL.md Invariant 7 ("한번에 모아서")
 - 검증 방법은 risk와 가용 도구에 맞춰 선택한다 (validation-paths.md 참조).
 - 각 phase 종료 시 본 PRD를 갱신하고 학습 결과에 따라 후속 phase를 수정한다.
 
+## Cross-Host Resume Guide
+
+본 PRD는 Mac (darwin)과 miniPC (NixOS) 양쪽 호스트에서 resume 가능하다. 다음 두 가지를 인지하지 않으면 path 혼동으로 잘못 편집할 수 있다.
+
+### 편집 대상 vs 읽기 대상의 분리
+
+PWQ skill 본문은 **Nix source**가 정본이며, `~/.claude/skills/plan-with-questions/...`은 nrs로 deploy된 산출물이다. 비유: source는 **고치는 책상**, deployed는 **읽는 책장**. 책상에서 고치고 nrs로 책장에 옮긴다.
+
+| 동작 | Path |
+|---|---|
+| **편집** (Phase 1~4 Implementation Checklist) | `modules/shared/programs/claude/files/skills/plan-with-questions/...` (repo, git tracked) |
+| **읽기/검증** (Phase별 Validation Checklist `rg`) | `~/.claude/skills/plan-with-questions/...` (deployed, nrs 후 갱신됨) |
+| **anchoring 스크립트** (Phase 4) | `scripts/ai/measure-anchoring-bias.sh` (repo-relative, git tracked) |
+
+각 phase의 Implementation Checklist path는 **source(`modules/shared/...`)** 기준이고, Validation Checklist의 `rg` path는 **deployed(`~/.claude/skills/...`)** 기준이다 (nrs 후). 두 path가 동일 파일을 다른 관점에서 가리킨다.
+
+### Resume 절차 (Mac → miniPC 또는 그 반대)
+
+1. **Pull**: `git pull origin issue/646` — PRD master + 5 phase + (이미 완료된 phase의) PWQ source 변경 모두 sync.
+2. **Baseline drift 검증**: `git log -1 --pretty=format:"%s"`의 commit subject가 PRD master의 `Baseline` 필드 commit subject와 동일한지 확인. 다르면 새 baseline으로 PRD `Baseline` 갱신.
+3. **PRD Status 읽기**: PRD master의 `Current Phase`, `Active Phase File`, `Last Updated`, `Phase Index` Status 컬럼으로 현재 진행 단계 파악.
+4. **Active Phase File 진입**: Phase Discovery Gate 읽고 모든 체크박스 통과 확인.
+5. **Phase Implementation Checklist 진행**: Edit 대상은 Nix source(`modules/shared/...`). 단순 파일 편집.
+6. **nrs 실행**: `nrs` (Mac은 darwin-rebuild, miniPC는 nixos-rebuild) — 편집한 source가 `~/.claude/skills/...`에 deploy.
+7. **Validation Checklist 진행**: `rg`는 deployed path(`~/.claude/skills/...`)에서 실행. 양쪽 호스트가 동일 결과 보장.
+8. **Phase-End Multi-Pass Review + PRD master sync**: Phase Index Status `Not Started` → `Complete`, `Active Phase File`을 다음 phase로 갱신, `Last Updated` + `Change Log` 갱신.
+9. **Phase commit + push**: 다른 호스트가 다음 phase resume 가능.
+
+### 양 호스트 동시 작업 회피
+
+같은 phase를 두 호스트에서 동시에 작업하지 않는다. PRD `Current Phase`를 lock으로 사용 — 한 호스트가 phase 시작 시 `In Progress`로 갱신·commit·push, 종료 시 `Complete`로 갱신·commit·push.
+
+### 자문/DA raw output ephemeral 주의
+
+Step 3.5 자문 결과(`/tmp/consult-*`)와 DA reviewer/Arbiter 산출물(`/tmp/da-*`, `/tmp/arb-*`)은 cleanup된다. PRD master Decisions + Decision Log에 모든 결정이 통합되어 있어 normally 재현 불필요. 단, Phase 진행 중 raw 자문이 다시 필요하면 새 Step 3.5 round를 호출한다 (consulting-step.md SSOT 따라).
+
 ## Phase Index
 
 | Phase | Status | Objective | Validation Focus | File |
@@ -167,3 +203,4 @@ review-impl overlay (6-classification 라벨링 + overbuilt 우선 분류)도 Fi
 ## Change Log
 
 - 2026-05-05: Initial PRD created. Plan `.claude/plans/issue-646-pwq-question-ux.md`에서 mode 전환 (split-file 5 phase, Phase ≥4 자동 트리거 + 다중 도메인). 사용자 5결정(D1~D5) + Step 3.5 Codex xhigh 자문 + Step 5 DA Arbiter 17 CONFIRMED 모두 본 PRD 본문에 통합. plan 파일은 superseded 표시.
+- 2026-05-05: Cross-Host Resume Guide 단락 추가 (사용자 인터뷰 — Mac과 miniPC 양쪽 호스트 resume 시나리오 명시 필요). Discovery Summary와 5개 phase 파일의 Implementation Checklist path를 deployed(`~/.claude/skills/...`)에서 source(`modules/shared/programs/claude/files/skills/plan-with-questions/...`)로 정정. Validation은 source 또는 nrs 후 deployed 양쪽 가능 — Cross-Host Resume Guide에 명시.
