@@ -37,6 +37,8 @@ plan 파일에는 절대 수치 대신 측정 명령과 결과 파일 경로를 
 | 3. defect | 사후에 결함이 발견된 흔적 | `CONFIRMED_ISSUE`, `YAGNI`, `overbuilt`, `parallel-audit` |
 | 4. resistance | 결함을 보고도 저항한 흔적 | `사용자 결정에 따라`, `현상 유지`, `기각`, `재설계.*거부` |
 
+축 2 framing의 `Recommended` 키워드는 transcript 안에서 LLM이 추천 프레이밍을 사용한 흔적을 식별하는 catalog 용도다 — D4 합의 알고리즘이 정상 작동해도(합의 PASS 옵션에 라벨 부착) transcript에 "Recommended" 토큰은 등장한다. 따라서 본 transcript metric은 D1/D2/D4 도입 후에도 그대로 유지된다 (axis-2의 의미는 "framing 흔적 식별"이지 "라벨 부착 위반 검출"이 아니다). PWQ source 본문에서 라벨 부착이 D4 합의 PASS 컨텍스트로만 한정되었는지 별개로 검증하려면 아래 "Source label sanitization baseline (D4 정책 일관성)" 절차를 사용한다.
+
 키워드 갱신은 **script `PAT_*` 변수가 단일 진실 원천**이다. 위 표는 사람 읽기용 illustrative 사본 — script 변경 후 표를 손으로 동기화하면 된다 (반대 방향 금지: 표만 바꾸면 측정 결과는 바뀌지 않는다).
 
 ## 4 metric
@@ -78,6 +80,49 @@ plan 파일에는 절대 수치 대신 측정 명령과 결과 파일 경로를 
 - file-level intersection은 같은 transcript 내 동반 등장만 보여준다. line-ordering(choice가 defect보다 앞에 있는지)은 v2에서 추가.
 - 외부 변수(이슈 복잡도 변화, 사용자 학습, 다른 스킬 개선)가 metric에 동시 영향. Step 3.5의 단독 효과 분리 불가.
 - 절대 수치 변화를 효과 증명으로 쓰지 않는다 — 추세 + 정성 사례(`#490` 같은 transcript 발췌) 병행.
+
+## Source label sanitization baseline (D4 정책 일관성)
+
+**목적**: PWQ source 본문에서 `(Recommended)` 라벨이 D4 합의 알고리즘 PASS 컨텍스트로만 등장하는지(허용 조건 컨텍스트 외 매칭 없음) 정적 검증한다. 이는 transcript anchoring metric(위 4축)과는 별개의 source sanitization metric이다.
+
+D4 정책 도입 (`consulting-step.md` Anti-anchoring 1번 재작성, SKILL.md Invariant 8) 이후 source 본문에서 `Recommended`가 등장 가능한 허용 컨텍스트 키워드는 다음과 같다:
+
+- `D4 합의 알고리즘`, `합의 PASS`, `합의 미달`, `합의 조건`
+- `허용 조건`, `허용 컨텍스트`, `hard rule`, `절대 금지`, `강제 제거`
+- `자문 출력에 절대 포함되지 않는다`, `anchor 단어`, `라벨 부재` (자문 입력 금지 + 부재 검증 컨텍스트)
+- `tool description`, `LLM convention`, `로컬 정책 override`, `라벨 부여 안 함` (도구 default override + tool TUI fact 컨텍스트)
+- `PAT_framing`, `framing 키워드`, `transcript 측정`, `추천 프레이밍`, `framing catalog` (transcript metric catalog 컨텍스트)
+- `Recommended 매칭 라인`, `허용 컨텍스트 키워드`, `SKILLDIR` (본 검증 절차 자체의 메타 컨텍스트 — 코드블록의 검증 명령 본문도 매칭됨)
+
+### 검증 명령 (inline rg, 스크립트 추가 없이 실행)
+
+```bash
+# Source: PWQ 본문 (Mac/MiniPC 양쪽에서 동일하게 deploy됨)
+SKILLDIR=~/.claude/skills/plan-with-questions
+
+# 모든 Recommended 매칭 라인 확인
+rg -n "Recommended" "$SKILLDIR/"
+
+# 허용 컨텍스트 키워드와 동반되지 않는 매칭 검출 (false positive 가능성 있어 manual triage 필수)
+rg -n "Recommended" "$SKILLDIR/" \
+  | rg -v "D4 합의 알고리즘|합의 PASS|합의 미달|합의 조건|허용 조건|허용 컨텍스트|hard rule|절대 금지|강제 제거|anchor 단어|라벨 부재|tool description|LLM convention|로컬 정책 override|라벨 부여 안 함|PAT_framing|framing 키워드|transcript 측정|추천 프레이밍|framing catalog|Recommended 매칭 라인|허용 컨텍스트 키워드|SKILLDIR"
+```
+
+두 번째 명령이 매칭을 출력하지 않으면(파이프 종료 후 stdout이 비어 있으면) baseline PASS다. 매칭이 남으면 manual triage:
+
+1. 새 허용 컨텍스트인가 → 위 키워드 목록에 추가하고 본 단락 갱신.
+2. D4 정책 위반인가 → source 본문 정정.
+3. 측정 catalog의 illustrative 표현인가 → 그대로 두되 본 단락에 사례 명시.
+
+### baseline 갱신 시점
+
+- D4 정책 변경 시 (consulting-step.md / SKILL.md Invariant / output-templates.md 수정 commit).
+- 신규 허용 컨텍스트 키워드 도입 시 (예: 새 fallback 추가).
+- Phase 5 dogfooding 5건 후 actual transcript와 비교하여 키워드 catalog 정합성 점검.
+
+### 스크립트와의 분리 이유
+
+`measure-anchoring-bias.sh`는 transcript anchoring metric (4축 file-level intersection)이 본업이며, source sanitization은 D4 정책 변경 cadence에 종속된 별개 측정이다. 두 metric을 한 스크립트에 묶으면 cadence가 충돌하므로 본 reference의 inline rg 명령을 SSOT로 둔다.
 
 ## v2 follow-up
 
