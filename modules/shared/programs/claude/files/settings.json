@@ -162,12 +162,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/nrs-session-cleanup.sh"
+            "command": "~/.claude/hooks/handoff-session-end.sh",
+            "timeout": 30
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/handoff-session-end.sh",
-            "timeout": 30
+            "command": "~/.claude/hooks/nrs-session-cleanup.sh"
           }
         ]
       }

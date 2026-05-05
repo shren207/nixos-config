@@ -29,6 +29,6 @@ export HANDOFF_SESSION_ID="$SESSION_ID"
 handoff_full_snapshot_commit "claude-code" >/dev/null 2>&1 || true
 
 # turn-counter reset (full snapshot 후 카운터 초기화)
-handoff_reset_turn "$SESSION_ID" >/dev/null 2>&1 || true
+[ -n "$SESSION_ID" ] && handoff_reset_turn "$SESSION_ID" >/dev/null 2>&1 || true
 
 exit 0

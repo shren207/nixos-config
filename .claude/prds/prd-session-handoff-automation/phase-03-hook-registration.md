@@ -30,7 +30,7 @@ Phase 2에서 작성한 helper + 4 script를 Claude `settings.json` + Codex `_st
 ### In Scope
 - `modules/shared/programs/claude/files/settings.json`:
   - `Stop` chain에 `~/.claude/hooks/handoff-stop.sh` 추가 (DEC-S11 위치)
-  - `SessionEnd`에 `~/.claude/hooks/handoff-session-end.sh` append
+  - `SessionEnd`에 `~/.claude/hooks/handoff-session-end.sh` 추가 (`nrs-session-cleanup.sh` 앞)
   - `SessionStart`에 `~/.claude/hooks/handoff-session-start.sh` append (기존 `session-init-icons.sh` 옆)
 - `modules/shared/programs/codex/files/hooks/_stop-dispatcher.sh`:
   - 새 ordering 적용: `record-last-stop` → `nrs-session-cleanup` → `handoff-stop` → `stop-notification`
@@ -52,7 +52,7 @@ Phase 2에서 작성한 helper + 4 script를 Claude `settings.json` + Codex `_st
 ## Implementation Checklist
 
 - [x] `settings.json` Stop chain에 `handoff-stop.sh` 추가 — DEC-S11 위치 `record-last-stop → handoff-stop → stop-notification → nrs-session-cleanup`
-- [x] `settings.json` SessionEnd에 `handoff-session-end.sh` append (기존 `nrs-session-cleanup.sh` 보존)
+- [x] `settings.json` SessionEnd에 `handoff-session-end.sh` 추가 — `handoff-session-end.sh` → `nrs-session-cleanup.sh`
 - [x] `settings.json` SessionStart에 `handoff-session-start.sh` append (기존 `session-init-icons.sh` 보존)
 - [x] `_stop-dispatcher.sh`에 `handoff-stop.sh` 호출 추가 — H2 위치 `record-last-stop → nrs-session-cleanup → handoff-stop → stop-notification`. 헤더 주석에 issue #614 ordering rationale 추가
 - [x] `config.toml`에 `[[hooks.SessionStart]]` block 추가 — `command = "$HOME/.codex/hooks/handoff-session-start.sh"`
@@ -83,7 +83,7 @@ Phase 2에서 작성한 helper + 4 script를 Claude `settings.json` + Codex `_st
 - [x] FR-1, NFR-2 만족 (양쪽 runtime hook 정의 완료, 발화 확인은 nrs apply 후 사용자 manual)
 - [x] Validation Checklist 완료 (Manual smoke만 사용자 협조 대기)
 - [ ] `nrs` 빌드 통과 + symlink 검증 — Phase 5 dogfooding과 통합 (사용자 협조)
-- [x] 기존 hook(record-last-stop, nrs-session-cleanup, stop-notification, session-init-icons) ordering 보존, 신규 entry append만 수행
+- [x] 기존 Stop/SessionStart hook ordering 보존. SessionEnd는 snapshot hook이 relink window 전에 실행되도록 `handoff-session-end.sh` → `nrs-session-cleanup.sh` 순서 적용
 
 ## Phase-End Multi-Pass Review
 
@@ -92,7 +92,7 @@ Phase 2에서 작성한 helper + 4 script를 Claude `settings.json` + Codex `_st
 - [x] 2. Correctness review — settings.json/config.toml syntax valid, dispatcher H2 ordering 정확, symlink 선언 4 + 3 = 7 path 모두 존재
 - [x] 3. Simplicity review — declarative 변경만. 불필요한 추상화 없음
 - [x] 4. Code quality review — dispatcher 헤더 주석에 issue #590 + #614 ordering rationale 명시. symlink 선언 패턴(claude/default.nix line 178+, codex/default.nix line 122+) 기존과 일관
-- [x] 5. Duplication/cleanup review — 기존 hook(record-last-stop/stop-notification/nrs-session-cleanup/session-init-icons) ordering 보존. 신규 handoff-* 4 entry는 append + dispatcher H2 위치
+- [x] 5. Duplication/cleanup review — Stop/SessionStart 기존 ordering 보존. SessionEnd는 handoff snapshot 후 cleanup. 신규 handoff-* 4 entry는 settings/dispatcher에 명시 위치로 추가
 - [x] 6. Security/privacy review — settings.json/config.toml 변경이 secret/PII에 영향 주지 않음 (실제 redaction + gitleaks는 Phase 2 helper + Phase 4 강화)
 - [x] 7. Performance/load review — Stop chain 4 entry로 증가했으나 handoff-stop은 turn-counter 외부 file write 1회만 (~ms). NFR-1 추정 만족
 - [x] 8. Validation review — nixfmt + JSON/TOML parser + shellcheck + lefthook + fixture 16/16 PASS로 risk 커버. nrs build + manual smoke은 사용자 협조 (Phase 5 통합)

@@ -53,6 +53,20 @@ test_gitleaks_runtime_package_declared() {
   fi
 }
 
+test_claude_session_end_hook_order() {
+  local name="settings.json: SessionEnd는 handoff 후 nrs cleanup 순서"
+  local order
+  order=$(jq -r '.hooks.SessionEnd[0].hooks[].command' \
+    "${REPO_ROOT}/modules/shared/programs/claude/files/settings.json" 2>/dev/null | paste -sd '|' -)
+  # shellcheck disable=SC2088  # settings.json command string intentionally contains literal "~".
+  if [ "$order" = "~/.claude/hooks/handoff-session-end.sh|~/.claude/hooks/nrs-session-cleanup.sh" ]; then
+    ok "$name"
+  else
+    note "order='$order'"
+    fail "$name"
+  fi
+}
+
 # helper: lib을 source하여 함수 호출 가능 환경 준비.
 load_lib() {
   # shellcheck source=/dev/null
@@ -607,6 +621,35 @@ STUB
   rm -rf "$sandbox" "$stub_path"
 }
 
+test_session_end_empty_session_id_does_not_reset_global_counter() {
+  local name="session-end: 빈 SESSION_ID는 global turn counter를 reset하지 않음"
+  local sandbox xdg counter rc
+
+  sandbox=$(mktemp -d)
+  xdg=$(mktemp -d)
+  mkdir -p "$sandbox/hooks" "$xdg/claude-hooks"
+  cp "${HOOKS_CLAUDE}/handoff-lib.sh" "$sandbox/hooks/handoff-lib.sh"
+  cp "${HOOKS_CLAUDE}/handoff-session-end.sh" "$sandbox/hooks/handoff-session-end.sh"
+  counter="$xdg/claude-hooks/handoff-turn-count-global"
+  printf '7\n' > "$counter"
+
+  rc=0
+  (
+    cd "$sandbox" >/dev/null
+    XDG_DATA_HOME="$xdg" CLAUDE_SESSION_ID="" bash "$sandbox/hooks/handoff-session-end.sh" <<'JSON'
+{"session_id":""}
+JSON
+  ) >/dev/null 2>&1 || rc=$?
+
+  if [ "$rc" -eq 0 ] && [ -f "$counter" ] && [ "$(cat "$counter")" = "7" ]; then
+    ok "$name"
+  else
+    note "rc=$rc counter_exists=$([ -f "$counter" ] && echo yes || echo no) value=$(cat "$counter" 2>/dev/null || printf missing)"
+    fail "$name"
+  fi
+  rm -rf "$sandbox" "$xdg"
+}
+
 # 8. non-blocking — handoff-stop entry가 lib 부재 시에도 exit 0.
 test_non_blocking_lib_missing() {
   local name="non-blocking: handoff-stop.sh가 lib 부재 시 exit 0"
@@ -628,6 +671,7 @@ test_non_blocking_lib_missing() {
 # Run all tests
 test_handoff_lib_single_sot
 test_gitleaks_runtime_package_declared
+test_claude_session_end_hook_order
 test_compute_slug
 test_redact
 test_compute_diff_idempotent
@@ -637,6 +681,7 @@ test_full_snapshot_commit_dirty_skip
 test_trigger_turn_counter
 test_gitleaks_failure_untracked_quarantine
 test_gitleaks_failure_preserves_tracked_snapshot
+test_session_end_empty_session_id_does_not_reset_global_counter
 test_non_blocking_lib_missing
 
 printf '\n=== Result: %d pass / %d fail ===\n' "$PASS" "$FAIL"
