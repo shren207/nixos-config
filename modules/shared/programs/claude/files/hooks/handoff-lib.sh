@@ -75,7 +75,9 @@ handoff_compute_slug() {
   printf '%s-%s\n' "$slug" "$hash"
 }
 
-# PII redaction. Phase 4에서 추가 패턴 강화.
+# PII + secret redaction. handoff allowlist를 통과한 텍스트라도 추가 redaction layer로 잔존
+# 패턴을 제거한다. 본 redaction은 gitleaks staged scan(Layer 2)/lefthook pre-commit gitleaks
+# (Layer 3) 보다 앞서는 Layer 1이며, 세 layer는 defense-in-depth다.
 handoff_redact() {
   local input="${1:-}"
   if [ -z "$input" ]; then
@@ -89,12 +91,22 @@ handoff_redact() {
   out=$(printf '%s' "$out" | sed -E 's/(010|011|016|017|018|019)[-]?[0-9]{3,4}[-]?[0-9]{4}/<phone-redacted>/g')
   # 주민번호 (NNNNNN-NNNNNNN)
   out=$(printf '%s' "$out" | sed -E 's/[0-9]{6}-[0-9]{7}/<rrn-redacted>/g')
+  # GitHub Personal Access Token (ghp_/gho_/ghu_/ghs_/ghr_ + 36자 base62)
+  out=$(printf '%s' "$out" | sed -E 's/gh[pousr]_[A-Za-z0-9]{36,}/<github-token-redacted>/g')
+  # OpenAI API 키 (sk-... 추정 패턴: 'sk-' + 20자+)
+  out=$(printf '%s' "$out" | sed -E 's/\bsk-[A-Za-z0-9_-]{20,}/<openai-key-redacted>/g')
+  # AWS access key ID (AKIA + 16자 대문자/숫자)
+  out=$(printf '%s' "$out" | sed -E 's/\bAKIA[0-9A-Z]{16}\b/<aws-access-key-redacted>/g')
+  # Stripe live/secret key (sk_live_ / rk_live_ + 24자+)
+  out=$(printf '%s' "$out" | sed -E 's/\b(sk|rk)_(live|test)_[A-Za-z0-9]{24,}/<stripe-key-redacted>/g')
+  # JWT (eyJ로 시작하는 base64url . base64url . base64url)
+  out=$(printf '%s' "$out" | sed -E 's/\beyJ[A-Za-z0-9_=-]{10,}\.eyJ[A-Za-z0-9_=-]{10,}\.[A-Za-z0-9_=-]{10,}/<jwt-redacted>/g')
   # $HOME 절대경로 → ~
   if [ -n "${HOME:-}" ]; then
     out=$(printf '%s' "$out" | sed "s|${HOME}|~|g")
   fi
-  # env var 값 (TOKEN/KEY/SECRET/PASSWORD/API_KEY 변수 = 값)
-  out=$(printf '%s' "$out" | sed -E 's/(TOKEN|API_KEY|SECRET|PASSWORD|ACCESS_KEY)[ \t]*=[ \t]*[^[:space:]]+/\1=<redacted>/g')
+  # env var 값 (TOKEN/KEY/SECRET/PASSWORD/API_KEY/ACCESS_KEY/AUTH 변수 = 값)
+  out=$(printf '%s' "$out" | sed -E 's/(TOKEN|API_KEY|SECRET|PASSWORD|ACCESS_KEY|AUTH_TOKEN|BEARER)[ \t]*=[ \t]*[^[:space:]]+/\1=<redacted>/g')
   printf '%s' "$out"
 }
 

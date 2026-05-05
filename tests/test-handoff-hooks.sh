@@ -165,6 +165,126 @@ test_redact() {
     note "got '$out'"
     fail "$name"
   fi
+
+  # Phase 4 secret corpus: GitHub Personal Access Token, OpenAI key, AWS access key,
+  # Stripe secret, JWT 모두 redaction 후 잔존 토큰 0건 확인.
+  name="redact: GitHub PAT (ghp_)"
+  local gh_token="ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+  out=$(handoff_redact "leaked $gh_token")
+  if contains "<github-token-redacted>" "$out" && ! contains "$gh_token" "$out"; then
+    ok "$name"
+  else
+    note "got '$out'"
+    fail "$name"
+  fi
+
+  name="redact: OpenAI API key (sk-)"
+  local openai_key="sk-AAAAAAAAAAAAAAAAAAAAAAAA"
+  out=$(handoff_redact "config has $openai_key")
+  if contains "<openai-key-redacted>" "$out" && ! contains "$openai_key" "$out"; then
+    ok "$name"
+  else
+    note "got '$out'"
+    fail "$name"
+  fi
+
+  name="redact: AWS access key (AKIA)"
+  local aws_key="AKIAAAAAAAAAAAAAAAAA"
+  out=$(handoff_redact "$aws_key in env")
+  if contains "<aws-access-key-redacted>" "$out" && ! contains "$aws_key" "$out"; then
+    ok "$name"
+  else
+    note "got '$out'"
+    fail "$name"
+  fi
+
+  name="redact: Stripe secret key (sk_live_)"
+  local stripe_key="sk_live_AAAAAAAAAAAAAAAAAAAAAAAA"
+  out=$(handoff_redact "stripe ${stripe_key} dump")
+  if contains "<stripe-key-redacted>" "$out" && ! contains "$stripe_key" "$out"; then
+    ok "$name"
+  else
+    note "got '$out'"
+    fail "$name"
+  fi
+
+  name="redact: JWT token"
+  local jwt_token="eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.placeholder_signature_blob"
+  out=$(handoff_redact "auth $jwt_token here")
+  if contains "<jwt-redacted>" "$out" && ! contains "$jwt_token" "$out"; then
+    ok "$name"
+  else
+    note "got '$out'"
+    fail "$name"
+  fi
+}
+
+# 4. handoff_compute_diff — noise field 제외 idempotent diff.
+test_compute_diff_idempotent() {
+  local name sandbox
+
+  load_lib
+
+  sandbox=$(mktemp -d)
+  cd "$sandbox" >/dev/null
+  git init --quiet
+  git config user.email test@example
+  git config user.name test
+  mkdir -p .claude/handoffs
+  local target="$sandbox/.claude/handoffs/sample.md"
+
+  # 초기 commit (의미 있는 변경)
+  cat > "$target" <<TARGETEOF
+---
+branch: main
+last-commit: 1111111
+runtime: claude-code
+last-updated: 2026-05-05T00:00:00Z
+session-id: aaa
+---
+TARGETEOF
+  git add "$target"
+  git commit --quiet -m "init"
+
+  name="compute_diff: noise field만 변경된 경우 빈 diff"
+  cat > "$target" <<TARGETEOF
+---
+branch: main
+last-commit: 1111111
+runtime: claude-code
+last-updated: 2026-05-05T11:11:11Z
+session-id: bbb
+---
+TARGETEOF
+  local diff_out
+  diff_out=$(handoff_compute_diff "$target" 2>/dev/null)
+  if [ -z "$diff_out" ]; then
+    ok "$name"
+  else
+    note "got non-empty: '$diff_out'"
+    fail "$name"
+  fi
+
+  name="compute_diff: 의미 있는 필드(last-commit) 변경 시 non-empty diff"
+  cat > "$target" <<TARGETEOF
+---
+branch: main
+last-commit: 2222222
+runtime: claude-code
+last-updated: 2026-05-05T22:22:22Z
+session-id: ccc
+---
+TARGETEOF
+  diff_out=$(handoff_compute_diff "$target" 2>/dev/null)
+  if [ -n "$diff_out" ] && contains "last-commit: 2222222" "$diff_out"; then
+    ok "$name"
+  else
+    note "got: '$diff_out'"
+    fail "$name"
+  fi
+
+  cd "$REPO_ROOT" >/dev/null
+  rm -rf "$sandbox"
 }
 
 # 5. handoff_should_trigger_full — turn-counter threshold.
@@ -258,6 +378,7 @@ test_non_blocking_lib_missing() {
 test_drift_sha
 test_compute_slug
 test_redact
+test_compute_diff_idempotent
 test_trigger_turn_counter
 test_gitleaks_missing
 test_non_blocking_lib_missing

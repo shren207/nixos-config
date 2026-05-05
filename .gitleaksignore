@@ -2,3 +2,8 @@
 .claude/skills/understanding-nix/references/features.md:aws-access-token:126
 .claude/skills/understanding-nix/references/features.md:aws-access-token:149
 .claude/skills/understanding-nix/references/features.md:aws-access-token:150
+
+# tests/test-handoff-hooks.sh: handoff-lib.sh redaction 패턴 fixture corpus.
+# 본 fixture는 Layer 1 redaction이 secret-like 형식을 잡는지 검증하는 placeholder다.
+# gitleaks가 동시에 잡지만 실제 토큰이 아니므로 ignore.
+tests/test-handoff-hooks.sh:jwt:212

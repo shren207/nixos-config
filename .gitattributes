@@ -1,0 +1,5 @@
+# Session handoff snapshots (issue #614 DEC-S14).
+# Hook이 자동 생성하는 .claude/handoffs/<branch-slug>-<branch-hash>.md 파일은
+# GitHub UI에서 PR diff에 collapsed by default로 표시되어 PR 본문 검토를 흐리지 않도록 한다.
+# 본 표시는 GitHub linguist가 generated 파일로 분류하는 신호이며 git diff 동작과는 무관하다.
+.claude/handoffs/** linguist-generated=true
