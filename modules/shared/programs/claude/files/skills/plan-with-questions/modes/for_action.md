@@ -63,7 +63,7 @@ Step 3 완료 즉시, 사용자 질문 전(Step 4 직전)에 외부 LLM에 ancho
 - **결과 도착 시**: Step 4로 진입.
 - **budget**: 30분 이내 (high/xhigh 공통). xhigh는 명시적 심층 요청 시에만.
 - **호출 명령 SSOT**: [`../references/consulting-step.md`](../references/consulting-step.md#codex-exec-호출-명령-템플릿-ssot) — codex exec 명령은 본 reference만 정본이다 (`-C` scratch cwd + `--ignore-user-config` + `--sandbox read-only` + `--ephemeral`로 trust boundary 완결). 본 파일은 명령을 복제하지 않는다.
-- **입출력 schema·anti-anchoring 4 규칙**: [`../references/consulting-step.md`](../references/consulting-step.md). 자문 단계가 미구현 상태이면 메인 LLM은 Step 3 결과를 직접 사용자에게 제시하되 anti-anchoring 4 규칙(라벨 금지·옵션 셔플·disqualifier 명시·judgment-first)은 즉시 적용한다.
+- **입출력 schema·anti-anchoring 4 규칙**: [`../references/consulting-step.md`](../references/consulting-step.md). 자문 단계가 미구현 상태이면 메인 LLM은 Step 3 결과를 직접 사용자에게 제시하되 anti-anchoring 4 규칙(D4 합의 조건부 라벨·옵션 셔플·user_facing.plain_disqualifier 명시·judgment-first)은 즉시 적용한다 — 자문 부재로 D4 알고리즘 Step 1이 fail하므로 fallback A로 격하되어 어떤 옵션에도 라벨이 부착되지 않으며, 사용자에게 "자문 미수행으로 추천 라벨 없음"으로 보고한다.
 
 Step 3.5는 DA(Step 5)와 목적이 다르다. 3.5는 사용자에게 옵션 제시 전 de-anchoring 전처리, 5는 plan 결함의 사후 검토.
 
@@ -75,14 +75,16 @@ Step 3.5는 DA(Step 5)와 목적이 다르다. 3.5는 사용자에게 옵션 제
 
 **사용자 노출은 user_facing layer만 (D2)**: Step 3.5 자문 결과를 사용자에게 표시할 때는 [`../references/consulting-step.md`](../references/consulting-step.md)의 `user_facing` layer(label/description/analogy/plain_disqualifier)만 사용한다. `technical_matrix`(7키 평가 매트릭스)와 raw `disqualifiers`는 메인 LLM 내부 D4 합의 알고리즘 입력으로만 사용하며 사용자에게 노출하지 않는다. user_facing이 자문 출력에 누락되면 D2 fallback 4단계로 graceful degrade한다 ([`../references/consulting-step.md`](../references/consulting-step.md)의 "D2 backward-compat fallback 4단계" SSOT).
 
-**트레이드오프 라운드 — D4 합의 알고리즘 호출 (FR-5)**: 트레이드오프 결정마다 사용자 노출 직전에 [`../references/consulting-step.md`](../references/consulting-step.md)의 D4 합의 알고리즘 5단계를 실행한다. 합의 PASS인 단일 옵션에만 `(Recommended)` 라벨을 부착한다. 어느 단계든 fail 시(fallback A/B/C/D) 라벨을 부착하지 않고 사용자에게 fallback 사유를 평이한 한국어로 보고한다:
+**트레이드오프 라운드 — D4 합의 알고리즘 호출 (FR-5)**: 트레이드오프 결정마다 사용자 노출 직전에 [`../references/consulting-step.md`](../references/consulting-step.md)의 D4 합의 알고리즘 5단계를 실행한다. 합의 PASS인 단일 옵션에만 `(Recommended)` 라벨을 부착한다. 어느 단계든 fail 시(fallback A/B/C/D) 라벨을 부착하지 않고 사용자에게 fallback 사유를 평이한 한국어로 보고한다 (D4 라벨 부착 결정 흐름):
 
-| Fallback | 사용자 보고 형식 (예시) |
+| D4 Fallback | 사용자 보고 형식 (예시) |
 |---|---|
 | A (자문 invalid/timeout) | "자문 미수행으로 추천 라벨 없음 — 옵션 선택은 사용자 판단에 맡김." |
 | B (`[FALLBACK_TECHNICAL_INVALID]`) | "자문 응답 schema 검증 실패. 추천 라벨 없이 옵션을 그대로 표시." |
 | C (`[FALLBACK_NO_CONSENSUS]`) | "자문이 모든 옵션에 disqualifier 또는 evidence_gaps를 부여 — 추천 후보 0개. 옵션 라벨 없이 표시." |
-| D (`[FALLBACK_DISAGREE]`) | "메인 LLM 후보와 자문 평가가 일치하지 않음. 양쪽 차이를 평이하게 보고하고 라벨 없이 표시." |
+| D (`[FALLBACK_DISAGREE]`) | "Step 3 후보 다수 중 메인 LLM이 가중치로 단일 옵션 선정 실패. 후보들 차이를 평이하게 보고하고 라벨 없이 표시." |
+
+**D2 텍스트 복구 표기 (D4와 별개 축)**: 자문 출력에 `user_facing` layer가 누락(또는 부분 누락)되면 메인 LLM이 D2 fallback 4단계로 텍스트 복구를 시도한다. Stage 3에서 메인 LLM이 description/analogy/plain_disqualifier를 자체 작성한 경우 사용자에게 `[FALLBACK_USER_FACING]` 라벨로 텍스트 출처를 표기한다 (예: "자문 user_facing 누락 — 메인 LLM이 자체 작성한 평이 설명입니다"). 본 라벨은 텍스트 출처 표기일 뿐, D4의 `(Recommended)` 라벨 부착 여부와는 다른 축이다 (D4 Step 2는 schema 검증 fail로 fallback B 유지).
 
 **judgment-first 라운드 라벨 부착 절대 금지 (FR-4)**: 트레이드오프 옵션 제시 직전 사용자 기준을 묻는 judgment-first 사전 라운드는 D4 합의 알고리즘을 **실행하지 않는다**. 어떤 옵션에도 `(Recommended)` 라벨을 부착하지 않으며, `user_facing.label`만으로 기준을 평이하게 표시한다. 이는 자문 출력의 합의 결과와 무관하게 무조건 적용된다 (anti-anchoring 효과를 source에서 보호하기 위함).
 

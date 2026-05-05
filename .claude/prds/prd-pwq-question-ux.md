@@ -50,7 +50,7 @@ Root cause 세 메커니즘 결합: SKILL.md Invariant 7 ("한번에 모아서")
 - SC-1 (정적, verifiable): `rg "한번에 모아서" .claude/skills/plan-with-questions/`가 0건 또는 "폐기됨" 컨텍스트만 매칭.
 - SC-2 (정적, verifiable): `rg "Recommended" .claude/skills/plan-with-questions/`가 "허용 조건 명시" 컨텍스트만 매칭.
 - SC-3 (schema): `references/consulting-step.md` 출력 JSON schema에 `user_facing` layer 필드 등장 + 1-shot 예시 포함.
-- SC-4 (수동 dogfooding): 다음 PWQ 호출 5건 수동 샘플 리뷰 — 라운드당 1개 + 합의 후 라벨만 + matrix 미노출.
+- SC-4 (수동 dogfooding, **closeout 외부 monitoring**): 다음 PWQ 호출 5건 수동 샘플 리뷰 — 라운드당 1개 + 합의 후 라벨만 + matrix 미노출. 본질적으로 시간 의존 검증이라 PRD 작업으로 즉시 충족하지 않으며, PRD Closeout 후 사용자 후속 PWQ 5건 누적 모니터링으로 평가한다 (F-OQ-2와 함께 dogfooding accumulation).
 - SC-5 (anchoring metric 일관성): bias-measurement.md/스크립트의 라벨 metric이 새 정책에 맞춰 갱신.
 - SC-6 (follow-up issue): 다른 인터뷰 스킬 follow-up issue + plan-file-template/pinning-guard 충돌 follow-up issue 본 PRD 종료 즉시 등록.
 
@@ -59,7 +59,7 @@ Root cause 세 메커니즘 결합: SKILL.md Invariant 7 ("한번에 모아서")
 ### Scenario 1: 트레이드오프 라운드 (정상 자문 통과 + 합의 PASS)
 - Actor: PWQ 호출 사용자
 - Trigger: 옵션 2+ 트레이드오프 발견 → Step 3.5 자문 호출
-- Expected outcome: 자문 결과 user_facing layer만 사용자 노출, 메인 LLM이 합의 알고리즘 4단계로 1개 옵션에 (Recommended) 라벨 부착, 사용자가 한 라운드에 1개 질문만 받음.
+- Expected outcome: 자문 결과 user_facing layer만 사용자 노출, 메인 LLM이 D4 합의 알고리즘 5단계로 1개 옵션에 (Recommended) 라벨 부착, 사용자가 한 라운드에 1개 질문만 받음.
 
 ### Scenario 2: 자문 timeout / parse fail
 - Actor: 동일
@@ -83,10 +83,10 @@ Root cause 세 메커니즘 결합: SKILL.md Invariant 7 ("한번에 모아서")
 - Validation surface: 정적 grep + schema 검증 + 수동 5샘플. 자문 round-trip + fallback 시뮬레이션.
 - Design implications:
   - D2 두 layer는 backward-compatible 유지 (fallback 알고리즘 plan에 명시).
-  - D4 합의 알고리즘 4단계 + 4 fallback (A/B/C/D)이 anti-anchoring 1번 폐기의 mitigation.
+  - D4 합의 알고리즘 5단계 + 4 fallback (A/B/C/D)이 anti-anchoring 1번 폐기의 mitigation. (D2 fallback 4단계는 별개 시스템 — user_facing 텍스트 복구 흐름)
   - judgment-first 라운드는 라벨 부착 절대 금지 (D3 anti-anchoring 보호).
 - Confidence / gaps:
-  - 메인 LLM의 "합의 알고리즘 4단계" 안정 적용은 dogfooding 누적 후 평가 (F-OQ-2).
+  - 메인 LLM의 "D4 합의 알고리즘 5단계" 안정 적용은 dogfooding 누적 후 평가 (F-OQ-2).
   - 도구 description의 추천 라벨 자동 권장이 LLM에 얼마나 강하게 작용하는지는 SC-2 grep으로만 검출 (실측 evidence 부재).
 
 ## Requirements
@@ -111,7 +111,7 @@ Root cause 세 메커니즘 결합: SKILL.md Invariant 7 ("한번에 모아서")
 
 ## Assumptions
 
-- A-1: 메인 LLM이 합의 알고리즘 4단계 + 4 fallback을 안정 실행한다 (dogfooding으로 검증).
+- A-1: 메인 LLM이 D4 합의 알고리즘 5단계 + 4 fallback을 안정 실행한다 (dogfooding으로 검증).
 - A-2: AskUserQuestion 도구 description의 추천 라벨 권장은 SKILL 본문 hard rule로 override 가능하다 (실측 evidence는 SC-2 grep으로 사후 검출).
 - A-3: Codex 자문 30분 budget 내에 두 layer 출력이 가능하다.
 

@@ -266,19 +266,29 @@ esac
 [ -d "$CONSULT_DIR" ] || { echo "consulting-step: missing CONSULT_DIR=$CONSULT_DIR"; exit 1; }
 RESULT="$CONSULT_DIR/result.json"
 if [ -s "$RESULT" ] && jq -e . < "$RESULT" >/dev/null 2>&1; then
-  # D4 합의 알고리즘 Step 2 — schema-level 검증 (필수 7키 + disqualifiers + user_facing 두 layer 존재)
+  # D4 합의 알고리즘 Step 2 — schema-level 검증
+  # 한국어 키는 jq dot 접근에서 INVALID_CHARACTER로 compile fail하므로 quoted key + has()로 검증한다 (jq 1.8 검증).
+  # option 단위 boolean을 array로 모은 뒤 length>0 + all()로 평가하여, jq -e가 마지막 출력 기준으로 partial PASS되는 함정을 방지한다.
   if jq -e '
-    .decisions[]?.options[]? | (
-      (.technical_matrix.요구충족? and
-       .technical_matrix.구현비용? and
-       .technical_matrix.되돌리기쉬움? and
-       .technical_matrix.운영위험? and
-       .technical_matrix.검증가능성? and
-       .technical_matrix.주요unknown? and
-       .technical_matrix.비용시간추정? and
-       (.disqualifiers? | type == "array") and
-       (.user_facing.label? and .user_facing.description? and .user_facing.plain_disqualifier?))
-    ) // false
+    [
+      .decisions[]?.options[]? as $opt | (
+        ($opt.technical_matrix | type == "object") and
+        ($opt.technical_matrix | has("요구충족")) and
+        ($opt.technical_matrix | has("구현비용")) and
+        ($opt.technical_matrix | has("되돌리기쉬움")) and
+        ($opt.technical_matrix | has("운영위험")) and
+        ($opt.technical_matrix | has("검증가능성")) and
+        ($opt.technical_matrix | has("주요unknown")) and
+        ($opt.technical_matrix | has("비용시간추정")) and
+        (($opt.disqualifiers // null) | type == "array") and
+        ($opt.user_facing | type == "object") and
+        ($opt.user_facing | has("label")) and
+        ($opt.user_facing | has("description")) and
+        ($opt.user_facing | has("analogy")) and
+        ($opt.user_facing | has("plain_disqualifier"))
+      )
+    ] as $checks
+    | ($checks | length > 0) and all($checks[]; .)
   ' < "$RESULT" >/dev/null 2>&1; then
     cat "$RESULT"  # 또는 jq로 필요한 필드만 추출
   else
@@ -323,13 +333,17 @@ rm -rf -- "$CONSULT_DIR"
        - NO → fallback A: 라벨 부착 금지 + "자문 미수행으로 추천 라벨 없음" 사용자 보고
    Step 2. technical_matrix schema 검증 (7키 + disqualifiers + user_facing 모두 존재)?
        - FAIL → fallback B: 라벨 부착 금지 + [FALLBACK_TECHNICAL_INVALID] 사용자 보고
-   Step 3. 메인 LLM 1차 추천 후보 선정 — 자문 disqualifier 0개 + evidence_gaps ≤ 1개로 평가된 옵션만 후보:
+   Step 3. 후보 필터 — 자문이 부여한 disqualifier 0개 + evidence_gaps ≤ 1개를 만족하는 옵션 집합 생성:
        - 후보 0개 → fallback C: 라벨 부착 금지 + [FALLBACK_NO_CONSENSUS] 사용자 보고
-       - 후보 2+ → 메인 LLM이 "현 상황 적합성 컨텍스트" 가중치로 1개 선택 시도. 실패 시 fallback D
-   Step 4. 합의 판정 — 자문이 후보를 disqualifier 0개 + evidence_gaps ≤ 1개로 평가했는가?
-       - FAIL → fallback D: 라벨 부착 금지 + [FALLBACK_DISAGREE] 사용자 보고
-   Step 5. 합의 PASS → 그 단일 옵션에만 (Recommended) 라벨 부착 + Decision Log에 합의 단계별 evidence 기록
+       - 후보 1개 → 그 옵션이 합의 후보로 확정. Step 4 skip → Step 5
+       - 후보 2+ → Step 4 (메인 LLM 가중치 선정 단계 진입)
+   Step 4. 메인 LLM 가중치 선정 — Step 3에서 다수 후보가 남았을 때만 실행. "현 상황 적합성 컨텍스트"(시간 제약/가역성/위험 허용도/영향 범위/기존 패턴 일치도) 가중치로 단일 옵션을 결정:
+       - 가중치 동률 또는 결정 불가 → fallback D: 라벨 부착 금지 + [FALLBACK_DISAGREE] + 후보들 차이를 사용자에게 평이하게 보고
+       - 단일 옵션 결정 성공 → Step 5
+   Step 5. 합의 PASS → Step 3/4에서 확정된 단일 옵션에만 (Recommended) 라벨 부착 + Decision Log에 합의 단계별 evidence 기록
    ```
+
+   본 5단계는 first-match가 아닌 단계 순차 진행이다. Step 3/Step 4가 동일 조건을 중복 평가하지 않도록 Step 3는 자문 평가 기반 필터, Step 4는 메인 LLM 가중치 선정으로 책임이 분리되어 있다 (한 단계에서 fail하면 그 단계의 fallback으로 격하). 자문 출력에 future schema extension으로 추천/반대 신호 필드가 추가되면 Step 4의 "합의 판정" 의미가 확장될 수 있으나, 현 schema에서는 위 정의가 단일 trigger다.
 
    **합의 미달 옵션에 라벨 부착 절대 금지**는 본 reference의 hard rule이며, SKILL.md/output-templates.md 양쪽에 동일 hard rule이 명시되어 있어야 한다 (FR-7).
 2. **옵션 순서 셔플 (decision_id 기반 stable)** — `decision_id`를 seed로 옵션 배열 순서를 결정적(deterministic)으로 셔플한다. 같은 `decision_id`를 다시 보여주면 같은 순서가 나온다 (재현성). 다른 `decision_id`이면 다른 순서 (primacy bias 분산). mapping(원본 ↔ 셔플)은 메인 LLM 내부 기록에 보존.
@@ -342,36 +356,56 @@ rm -rf -- "$CONSULT_DIR"
 
 ## D2 backward-compat fallback 4단계 (user_facing 누락 시)
 
-자문 출력에 `user_facing` layer가 누락(또는 부분 누락)된 경우 메인 LLM은 graceful degrade로 다음 4단계를 순서대로 시도한다. 어느 단계에서든 사용자 노출이 가능해지면 거기서 멈추고 진행하되, **D4 합의 알고리즘 Step 2(schema 검증)는 fallback과 별개로 실패 처리**한다 — 즉 D2 fallback이 user_facing 텍스트를 만들어내도 라벨은 부착하지 않는다 (Step 2 → fallback B).
+자문 출력에 `user_facing` layer가 누락(또는 부분 누락)된 경우 메인 LLM은 graceful degrade로 다음 4단계를 순서대로 시도한다. 어느 단계에서든 사용자 노출 텍스트가 만들어지면 거기서 멈추고 사용자에게 표시한다. **D2 fallback은 D4 Step 2(schema 검증) fail 후의 텍스트 복구 시도이며, D2 fallback이 텍스트를 만들어내도 라벨은 부착하지 않는다** (D4 Step 2가 이미 fallback B로 격하됐으므로). 본 stage 표는 D2 텍스트 복구 흐름이며, 옆의 D4 fallback 표(아래)와는 별개 시스템이다.
 
 ```
-Stage 1. evaluation_matrix.요구충족 + disqualifiers[0] 가공
-    - technical_matrix.요구충족 한 줄을 평이 한국어로 풀고, disqualifiers 첫 항목을 plain_disqualifier로 변환.
-    - 성공 → 라벨 부착 금지(B) + 사용자에게 평이 description 표시.
+Stage 1. legacy 필드명 호환 (technical_matrix 우선, 없으면 evaluation_matrix)
+    - 새 schema 출력은 technical_matrix.요구충족을 평이 한국어로 풀고 disqualifiers 첫 항목을 plain_disqualifier로 변환한다.
+    - legacy 출력(`evaluation_matrix`만 있는 사본)이면 evaluation_matrix.요구충족을 동일 변환 대상으로 사용한다.
+    - 둘 다 부재 → Stage 2.
+    - 텍스트 생성 성공 → D2 텍스트 복구 OK (D4 라벨 결정과는 별개로 D4는 Step 2 fail로 fallback B 유지).
 
 Stage 2. generic 비유 적용
     - Stage 1 텍스트가 여전히 기술 용어 위주이면 도메인 무관 비유(요리/교통/주방)로 유추 description 생성.
-    - 성공 → 라벨 부착 금지(B) + 평이 description 표시.
+    - 텍스트 생성 성공 → D2 텍스트 복구 OK.
 
 Stage 3. [FALLBACK_USER_FACING] 라벨로 메인 LLM 자체 작성
     - Stage 1/2 모두 실패 → 메인 LLM이 description/analogy/plain_disqualifier 3 필드를 자체 생성.
     - 결과에 [FALLBACK_USER_FACING] 라벨을 prefix하여 "자문 user_facing 누락 — 메인 LLM이 자체 작성한 평이 설명" 출처를 명시.
-    - 라벨 부착 금지(B) + 사용자에게 fallback 출처 보고.
+    - 사용자에게 라벨 + fallback 출처 보고. 본 라벨은 사용자 노출 텍스트의 출처 표기이며 D4 (Recommended) 라벨과는 다른 축이다.
 
-Stage 4. 위 모두 실패 → 사용자에게 자문 미수행 동등 처리
-    - 자문 user_facing이 사용 불가능한 채로 결정 진행 불가 — fallback A로 격하 (라벨 부착 금지 + "자문 미수행으로 추천 라벨 없음" 보고).
+Stage 4. 위 모두 실패 → 자문 미수행 동등 처리
+    - 자문 user_facing이 사용 불가능한 채로 결정 진행 불가 → D4 fallback A와 동등하게 처리 ("자문 미수행으로 추천 라벨 없음" 사용자 보고).
 ```
 
-### 4 fallback 라벨 정의 (D4 알고리즘 + D2 fallback 공통)
+### D2 fallback Stage 라벨 (텍스트 출처 표기)
+
+D2 fallback은 라벨 단일 항목만 사용한다 — 사용자 노출 텍스트가 자문 원본이 아닌 메인 LLM 자체 작성임을 표기하는 용도다.
 
 | 라벨 | 발생 조건 | 동작 |
 |---|---|---|
-| `[FALLBACK_USER_FACING]` | D2 Stage 3 — user_facing 누락 시 메인 LLM 자체 작성 | description 출처 명시 + 라벨 부착 금지 |
-| `[FALLBACK_TECHNICAL_INVALID]` | D4 Step 2 — technical_matrix/disqualifiers/user_facing schema 검증 fail | 라벨 부착 금지 + 사용자에게 schema 위반 보고 |
-| `[FALLBACK_NO_CONSENSUS]` | D4 Step 3 — disqualifier 0 + evidence_gaps ≤ 1 후보 0개 | 라벨 부착 금지 + 모든 옵션 user_facing 그대로 표시 |
-| `[FALLBACK_DISAGREE]` | D4 Step 4 — 메인 LLM 후보와 자문 평가 합의 fail | 라벨 부착 금지 + 자문 평가 차이를 사용자에게 평이하게 보고 |
+| `[FALLBACK_USER_FACING]` | D2 Stage 3 — user_facing layer 누락으로 메인 LLM이 description/analogy/plain_disqualifier 자체 작성 | description 출처를 사용자에게 표기 (D4 라벨 부착과는 무관) |
 
-모든 fallback 라벨은 사용자에게 **표시**되어야 한다 (Decision Log에도 동시 기록). 합의 PASS 시에만 라벨 부착이 허용된다는 의미는, 사용자가 fallback 발생을 인지하지 못한 채 "추천 없음" 상태를 "추천 안 함" 상태로 오해하지 않도록 하기 위함이다.
+### D4 fallback A/B/C/D (라벨 부착 결정 흐름)
+
+D4 합의 알고리즘 5단계(위 Anti-anchoring 1번 SSOT)가 어느 단계에서든 fail하면 그 옵션에 `(Recommended)` 라벨을 부착하지 않는다. 4 fallback은 라벨 부착 결정의 흐름 단계이며, 위 D2 텍스트 복구 흐름과는 별개 시스템이다 — 다음 LLM은 두 표를 분리해서 lookup한다.
+
+| Fallback | 발생 조건 (D4 단계) | 사용자에게 노출되는 표기 | 동작 |
+|---|---|---|---|
+| A | Step 1 — 자문 timeout 또는 result.json invalid | "자문 미수행으로 추천 라벨 없음" | 라벨 부착 금지 + 모든 옵션 표시 (D2 텍스트 복구가 작동했다면 그 결과 사용) |
+| B `[FALLBACK_TECHNICAL_INVALID]` | Step 2 — technical_matrix/disqualifiers/user_facing schema 검증 fail | "자문 응답 schema 검증 실패" | 라벨 부착 금지 + D2 fallback 4단계로 텍스트 복구 시도 |
+| C `[FALLBACK_NO_CONSENSUS]` | Step 3 — disqualifier 0 + evidence_gaps ≤ 1 후보 0개 | "자문이 모든 옵션에 disqualifier 또는 evidence_gaps를 부여 — 추천 후보 0개" | 라벨 부착 금지 + 모든 옵션 user_facing 그대로 표시 |
+| D `[FALLBACK_DISAGREE]` | Step 4 — Step 3 후보 다수 (2+) 중 메인 LLM이 "현 상황 적합성 컨텍스트" 가중치로 1개 선정 시도 실패 (또는 추후 자문 출력에 추천/반대 신호 필드 도입 시 그 신호와 메인 LLM 후보가 어긋나는 경우) | "메인 LLM 후보와 자문 평가 불일치" | 라벨 부착 금지 + 후보 옵션들의 user_facing을 차이와 함께 사용자에게 표시 |
+
+D4 fallback A/B/C/D 라벨 표기는 사용자에게 **노출**되어야 한다 (Decision Log에도 동시 기록). 합의 PASS 시에만 (Recommended) 라벨이 허용된다는 의미는, 사용자가 fallback 발생을 인지하지 못한 채 "추천 없음" 상태를 "추천 안 함" 상태로 오해하지 않도록 하기 위함이다.
+
+### fallback D 적용 범위 (현 schema 한계)
+
+현 schema에는 자문 측 추천/반대 신호 필드가 없다 (자문 출력은 disqualifier + evidence_gaps만 신호로 가진다). 따라서 fallback D의 트리거 메커니즘은 현재 schema에서 다음 한 가지로 좁혀진다:
+
+- **Step 3 후보 2+ 케이스**: 메인 LLM이 "현 상황 적합성 컨텍스트" 가중치로 1개 옵션 선정 시도, 가중치 동률 또는 결정 불가 → fallback D.
+
+자문 출력에 신호 필드가 추가되면(future schema extension) fallback D의 트리거 범위가 확장된다. 현 단계에서는 위 한 케이스만 적용 대상이며, Step 3에서 후보가 정확히 1개로 좁혀지면 그 옵션이 합의 PASS로 (Recommended) 라벨을 받는다.
 
 ## Decision Log 기록
 

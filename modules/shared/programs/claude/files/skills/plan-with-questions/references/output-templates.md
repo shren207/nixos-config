@@ -53,17 +53,23 @@ Step 3.5 자문 결과를 사용자에게 표시할 때는 [`consulting-step.md`
 - 옵션 보이기 전 "어떤 기준이 가장 중요한가?" 먼저 묻는 judgment-first 패턴.
 - 옵션 description은 `user_facing.description` + `user_facing.analogy`를 그대로 사용하여 사용자가 도메인 모르더라도 트레이드오프를 직관할 수 있게 함.
 
-### 라운드별 룰 매트릭스
+### 라운드별 룰 매트릭스 (D4 라벨 부착 결정 흐름)
 
-| 라운드 종류 | 묶음 | user_facing 사용 | 라벨 부착 | 부착 조건 |
+본 표는 D4 합의 알고리즘의 결과로 라벨 부착 여부와 묶음 정책을 결정한다. user_facing 텍스트 출처(자문 원본 vs D2 메인 LLM 자체 작성)는 D2 텍스트 복구 흐름의 별개 축이며 아래 "D2 텍스트 복구 표기" 단락에서 별도로 다룬다.
+
+| 라운드 종류 | 묶음 | user_facing 텍스트 사용 여부 | (Recommended) 라벨 부착 | 부착/미부착 조건 |
 |---|---|---|---|---|
 | 일반 (단순 요구사항/사이드이펙트) | 1개 (D1) | 옵션 표시 시 사용 | 미적용 (옵션이 단순 또는 yes/no) | — |
-| 트레이드오프 (정상 자문 통과 + 합의 PASS) | 1개 (D1) | 필수 (D2) | **허용** — 합의 PASS 단일 옵션만 | D4 5단계 모두 PASS |
-| 트레이드오프 — fallback A (자문 invalid/timeout) | 1개 | 필수 (D2 fallback) | 절대 금지 | "자문 미수행으로 추천 라벨 없음" 보고 |
-| 트레이드오프 — fallback B `[FALLBACK_TECHNICAL_INVALID]` | 1개 | 필수 (D2 fallback) | 절대 금지 | "자문 응답 schema 검증 실패" 보고 |
-| 트레이드오프 — fallback C `[FALLBACK_NO_CONSENSUS]` | 1개 | 필수 (D2 fallback) | 절대 금지 | "자문이 모든 옵션에 disqualifier — 추천 후보 0개" 보고 |
-| 트레이드오프 — fallback D `[FALLBACK_DISAGREE]` | 1개 | 필수 (D2 fallback) | 절대 금지 | "메인 LLM 후보와 자문 평가 불일치" 보고 |
-| judgment-first 사전 라운드 | 1개 (D1) | 필수 (D2) — 기준 평이 라벨 | **절대 금지** (FR-4) | D4 미실행 |
+| 트레이드오프 (정상 자문 통과 + 합의 PASS) | 1개 (D1) | 사용 (D2) | **허용** — 합의 PASS 단일 옵션만 | D4 5단계 모두 PASS |
+| 트레이드오프 — D4 fallback A (자문 invalid/timeout) | 1개 | 자문 결과 부재 — 메인 LLM이 Step 3 raw 옵션을 평이화하여 표시 | 절대 금지 | "자문 미수행으로 추천 라벨 없음" 보고 |
+| 트레이드오프 — D4 fallback B `[FALLBACK_TECHNICAL_INVALID]` | 1개 | 자문 결과는 있으나 schema 위반 — 메인 LLM이 D2 fallback 4단계로 텍스트 복구 시도 | 절대 금지 | "자문 응답 schema 검증 실패" 보고 |
+| 트레이드오프 — D4 fallback C `[FALLBACK_NO_CONSENSUS]` | 1개 | 자문 user_facing 그대로 사용 | 절대 금지 | "자문이 모든 옵션에 disqualifier — 추천 후보 0개" 보고 |
+| 트레이드오프 — D4 fallback D `[FALLBACK_DISAGREE]` | 1개 | 자문 user_facing 그대로 사용 | 절대 금지 | "Step 3 후보 다수 중 메인 LLM이 가중치로 단일 옵션 선정 실패" 보고 |
+| judgment-first 사전 라운드 | 1개 (D1) | 사용 (D2) — 기준 평이 라벨 | **절대 금지** (FR-4) | D4 미실행 |
+
+### D2 텍스트 복구 표기 (D4와 별개 축)
+
+자문 출력에 `user_facing` layer가 누락(또는 부분 누락)된 경우 메인 LLM은 [`consulting-step.md`](./consulting-step.md)의 D2 fallback 4단계로 텍스트 복구를 시도한다. Stage 3에서 메인 LLM이 description/analogy/plain_disqualifier를 자체 작성한 경우 사용자에게 `[FALLBACK_USER_FACING]` 라벨로 출처를 표기한다 (예: "자문 user_facing 누락 — 메인 LLM이 자체 작성한 평이 설명입니다"). 본 라벨은 텍스트 출처 표기일 뿐, D4 라벨 부착 여부와는 다른 축이다 — D2 fallback이 텍스트를 만들어내도 D4 Step 2가 schema 검증 fail로 fallback B를 유지하므로 `(Recommended)` 라벨은 부착되지 않는다.
 
 상세 schema/algorithm은 [`consulting-step.md`](./consulting-step.md) 참조.
 

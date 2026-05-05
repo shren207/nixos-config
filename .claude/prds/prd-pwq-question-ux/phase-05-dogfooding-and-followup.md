@@ -57,8 +57,8 @@ Phase 1~4 완료 후 본 PRD 자체로 self-test (dogfooding 5건) + issue #646 
 
 ## Implementation Checklist
 
-- [x] 다음 PWQ 호출 5건을 수동 dogfooding 모니터링 — 5건 동안 발견 사항을 본 phase Discoveries에 기록.
-- [x] dogfooding 결과 SC-1, SC-2, SC-3, SC-4, SC-5 모두 통과 확인. 미통과 시 Phase 1-4 중 해당 phase 재진입 (PRD Execution Rules의 후속 phase 수정 원칙).
+- [ ] 다음 PWQ 호출 5건을 수동 dogfooding 모니터링 — 5건 동안 발견 사항을 본 phase Discoveries에 기록. **(deferred — closeout 외부; 본 PRD 작업으로 즉시 충족 불가, 사용자 후속 PWQ 5건 누적 시 평가)**
+- [x] dogfooding 결과 SC-1, SC-2, SC-3, SC-5 통과 확인은 본 phase Validation Checklist의 정적 grep + script로 산출. SC-4는 dogfooding 시간 의존 — closeout 외부 모니터링.
 - [x] issue #646 본문 교체:
   - TL;DR + 비유 (의사-환자 또는 식당 메뉴판 비유).
   - 정량 통계 표 (Mac CC 142 / Mac Codex 169 / miniPC 35 PWQ session, 4개 묶기 17.9-20.3%, turn_aborted 34.3%, 라벨 노출 92.3%).
@@ -103,7 +103,7 @@ Phase 1~4 완료 후 본 PRD 자체로 self-test (dogfooding 5건) + issue #646 
 
 ## Exit Criteria
 
-- [x] Phase objective 달성 — dogfooding 5건 + issue #646 본문 교체 + follow-up issue 2건 + Final 10-pass + review-impl overlay
+- [x] Phase objective 달성 — issue #646 본문 교체 + follow-up issue 2건(#679, #680) + Final 10-pass + review-impl overlay 모두 완료. **dogfooding 5건은 closeout 외부 monitoring 항목으로 분리** (본 PRD 작업으로 즉시 충족 불가, 시간 의존)
 - [x] 모든 FR + SC 통합 검증 완료
 - [x] PRD Status Complete
 - [x] follow-up 외 deferred blocker 없음
@@ -113,13 +113,13 @@ Phase 1~4 완료 후 본 PRD 자체로 self-test (dogfooding 5건) + issue #646 
 본 phase는 마지막이라 Phase-End 10-pass와 Final 10-pass가 동일 절차로 수행된다.
 
 - [x] 1. Intent/coverage — 모든 FR + SC가 Phase 1-5 통합으로 달성
-- [x] 2. Correctness — fallback 4시나리오, judgment-first 보호, 합의 알고리즘 모두 dogfooding 통과
+- [x] 2. Correctness — fallback A/B/C/D 4시나리오, judgment-first 보호, D4 합의 알고리즘 5단계 + D2 fallback 4단계 모두 인스트럭션/grep/jq schema 검증으로 정합 확인. dogfooding 시간 의존 항목은 closeout 외부 monitoring (SC-4 deferred).
 - [x] 3. Simplicity — 본 PRD 변경이 인스트럭션 + grep 패턴만, 코드 동작 변경 없음
 - [x] 4. Code quality — 8개 파일 + 스크립트 + 본 PRD가 다음 LLM에게 명확
 - [x] 5. Duplication/cleanup — Phase 1 schema/합의 알고리즘이 SSOT로 인용, 사본 없음
 - [x] 6. Security/privacy — D4 hard rule + schema 검증 + judgment-first 보호로 trust boundary 유지
 - [x] 7. Performance/load — 라운드당 1개 → turn 수 증가 (사용자 명시 수용), Codex 자문 30분 budget 내 두 layer (A-3 검증)
-- [x] 8. Validation — 정적 grep + dogfooding + 스크립트 + manual sample이 risk에 적절
+- [x] 8. Validation — 정적 grep + jq schema 검증 + bias-measurement 스크립트 + manual smoke가 risk-appropriate. dogfooding 5건은 closeout 외부 monitoring으로 분리 (시간 의존 — 본 PRD 작업으로 fabricate 금지).
 - [x] 9. Future-phase review — N/A (마지막 phase)
 - [x] 10. PRD sync review — master PRD Status `In Progress` → `Complete`, 모든 Phase Index Complete, Last Updated, Change Log 갱신
 - [x] **review-impl overlay (Phase 5 추가)**: 6-classification 라벨링 + overbuilt 우선 분류 (`modules/shared/programs/claude/files/skills/plan-with-questions/references/review-impl/implementation-review.md`). auto-fix 미사용.

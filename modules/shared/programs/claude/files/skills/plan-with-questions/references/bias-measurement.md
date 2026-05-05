@@ -87,8 +87,9 @@ plan 파일에는 절대 수치 대신 측정 명령과 결과 파일 경로를 
 
 D4 정책 도입 (`consulting-step.md` Anti-anchoring 1번 재작성, SKILL.md Invariant 8) 이후 source 본문에서 `Recommended`가 등장 가능한 허용 컨텍스트 키워드는 다음과 같다:
 
-- `D4 합의 알고리즘`, `합의 PASS`, `합의 미달`, `합의 조건`
+- `D4 합의 알고리즘`, `합의 PASS`, `합의 미달`, `합의 조건`, `합의 조건부`
 - `허용 조건`, `허용 컨텍스트`, `hard rule`, `절대 금지`, `강제 제거`
+- `D4 라벨 부착 결정 흐름`, `D4 라벨 부착 여부와는 다른 축`, `D4 (Recommended) 라벨과는 다른 축`, `D4의 (Recommended) 라벨`, `D2 텍스트 복구`, `라벨 부착 | 부착/미부착` (D2 fallback 텍스트 복구와 D4 라벨 부착 결정 흐름이 별개 축임을 명시하는 컨텍스트 + 라운드별 룰 매트릭스 표 컬럼 명)
 - `자문 출력에 절대 포함되지 않는다`, `anchor 단어`, `라벨 부재` (자문 입력 금지 + 부재 검증 컨텍스트)
 - `tool description`, `LLM convention`, `로컬 정책 override`, `라벨 부여 안 함` (도구 default override + tool TUI fact 컨텍스트)
 - `PAT_framing`, `framing 키워드`, `transcript 측정`, `추천 프레이밍`, `framing catalog` (transcript metric catalog 컨텍스트)
@@ -105,7 +106,7 @@ rg -n "Recommended" "$SKILLDIR/"
 
 # 허용 컨텍스트 키워드와 동반되지 않는 매칭 검출 (false positive 가능성 있어 manual triage 필수)
 rg -n "Recommended" "$SKILLDIR/" \
-  | rg -v "D4 합의 알고리즘|합의 PASS|합의 미달|합의 조건|허용 조건|허용 컨텍스트|hard rule|절대 금지|강제 제거|anchor 단어|라벨 부재|tool description|LLM convention|로컬 정책 override|라벨 부여 안 함|PAT_framing|framing 키워드|transcript 측정|추천 프레이밍|framing catalog|Recommended 매칭 라인|허용 컨텍스트 키워드|SKILLDIR"
+  | rg -v "D4 합의 알고리즘|합의 PASS|합의 미달|합의 조건|합의 조건부|허용 조건|허용 컨텍스트|hard rule|절대 금지|강제 제거|anchor 단어|라벨 부재|tool description|LLM convention|로컬 정책 override|라벨 부여 안 함|PAT_framing|framing 키워드|transcript 측정|추천 프레이밍|framing catalog|Recommended 매칭 라인|허용 컨텍스트 키워드|SKILLDIR|D4 라벨 부착 결정 흐름|D4 라벨 부착 여부와는 다른 축|D4 \\(Recommended\\) 라벨과는 다른 축|D4의 \\(Recommended\\) 라벨|D2 텍스트 복구|라벨 부착 \\| 부착/미부착"
 ```
 
 두 번째 명령이 매칭을 출력하지 않으면(파이프 종료 후 stdout이 비어 있으면) baseline PASS다. 매칭이 남으면 manual triage:
