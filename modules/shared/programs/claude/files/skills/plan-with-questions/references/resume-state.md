@@ -96,6 +96,7 @@ branch=<branch_name>, HEAD=<자연어 anchor>, dirty=<clean 또는 자연어 요
   - 예: `작업 시작 직전 main`
   - 예: `issue/659 작업 branch 생성 직후`
 - `clean 또는 자연어 요약`: working tree가 clean이면 `clean`. dirty이면 어떤 종류의 미커밋 작업인지 자연어로 요약한다. diff digest나 짧은 commit 식별자를 쓰지 않는다.
+- `branch_name`, `HEAD`, `dirty` 값은 한 줄로 작성하고 comma(`,`)와 newline을 포함하지 않는다. branch 이름에 comma가 있으면 plan 작성 전에 사용자 확인을 받고 branch를 바꾸거나 Baseline을 `NEEDS_USER`로 둔다. 자연어 값에 comma가 필요하면 semicolon이나 짧은 문장으로 바꿔 delimiter parsing을 깨지 않게 한다.
 
 작성 시 명령:
 
@@ -109,6 +110,19 @@ HEAD_ANCHOR="<예: 작업 시작 직전 main>"
 DIRTY="<예: clean 또는 'uncommitted: PRD draft only'>"
 echo "branch=$BRANCH, HEAD=$HEAD_ANCHOR, dirty=$DIRTY"
 ```
+
+### Legacy Baseline compatibility
+
+기존 plan 파일에는 이전 형식의 short commit token과 dirty digest가 남아 있을 수 있다. 기존 plan 파일은 retro-rewrite하지 않는다. 이 섹션은 legacy resume 전용이며, 새 Baseline 작성 알고리즘이 아니다.
+
+- legacy 형식(`branch=<name>, HEAD=<short token>, dirty=<clean 또는 digest>`)이 감지되면, 메인 LLM은 현재 branch와 working tree 상태를 이전 비교 방식으로 **메모리에서만** 계산해 비교한다.
+- runtime-only 비교는 다음 입력으로만 수행한다:
+  - branch: `git rev-parse --abbrev-ref HEAD`
+  - HEAD token: `git rev-parse --short HEAD`
+  - dirty token: `{ git diff; git diff --cached; git status --porcelain=v1 --untracked-files=all; }` payload가 비어 있으면 `clean`; 비어 있지 않으면 `git hash-object --stdin` 결과의 짧은 prefix
+- legacy 값이 정확히 일치하면 기존 `Resume From`으로 재개할 수 있다.
+- legacy 값이 불일치하거나, dirty token payload/order 재현에 확신이 없거나, 계산이 불가능하면 drift 발생 가능으로 처리하여 Step 1-2를 재실행하거나 사용자 확인을 받는다.
+- 위 runtime-only 계산값은 비교에만 사용한다. 다음 durable plan 갱신 시 legacy Baseline을 새 자연어 anchor 형식으로 바꾼다. 이때 새 short token이나 dirty digest를 durable output에 추가하지 않는다.
 
 ### 재개 시 비교 절차
 
@@ -148,7 +162,7 @@ echo "branch=$BRANCH, HEAD=$HEAD_ANCHOR, dirty=$DIRTY"
 ## 불변조건
 
 - **첫 미완료 blocking step**: `Resume From`은 항상 첫 번째 미완료 blocking step만 가리킨다 (이미 끝난 단계나 skip된 단계를 가리키지 않는다).
-- **체크박스 evidence**: 완료 체크박스(`- [x]`)는 evidence 또는 validation note 없이 전환 금지. plan에 "Step 5 DA 완료"라 적으려면 DA verdict 또는 result file 경로가 함께 있어야 한다.
+- **체크박스 evidence**: 완료 체크박스(`- [x]`)는 evidence 또는 validation note 없이 전환 금지. plan에 "Step 5 DA 완료"라 적으려면 외부 검토 verdict 요약, stable artifact name, 또는 validation note가 함께 있어야 한다. ephemeral scratch reference를 durable evidence로 쓰지 않는다.
 - **Last Updated 동기화**: `Last Updated`가 바뀌면 `Change Log`도 같은 날짜로 갱신된 entry가 있어야 한다.
 - **Mode 전환은 DL**: `Mode` 필드가 바뀌면(`for_action` → `for_prd`) 반드시 Decision Log에 기록한다.
 - **Baseline drift 처리 의무**: Baseline drift 또는 dirty 상태 ambiguity 감지 시 Step 1-2 재실행 또는 사용자 확인이 필요하다. 메인 LLM 자체 판단으로 "drift는 무시해도 되겠다"며 `Resume From`으로 점프하지 않는다.

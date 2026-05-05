@@ -49,7 +49,7 @@ Use helper-based static checks on changed durable-output guidance and manual rev
 
 ## Validation Checklist
 - [x] Shared helper reports no new guard findings in changed durable-output guidance.
-- [x] `rg -n "result path|shortsha|UUID fragment|mktemp basename" modules/shared/programs/claude/files/skills/plan-with-questions/references/da-integration.md modules/shared/programs/claude/files/skills/plan-with-questions/references/plan-file-template.md modules/shared/programs/claude/files/skills/plan-with-questions/references/resume-state.md` returns no active durable guidance matches.
+- [x] `rg -n "result file|result path|shortsha|UUID fragment|mktemp basename" modules/shared/programs/claude/files/skills/plan-with-questions/references/da-integration.md modules/shared/programs/claude/files/skills/plan-with-questions/references/plan-file-template.md modules/shared/programs/claude/files/skills/plan-with-questions/references/resume-state.md` returns no active durable guidance matches.
 - [x] `for_action.md` Step 5-6 heading no longer matches the guard keyword shape.
 - [x] `da-integration.md` does not contain an exhaustive pattern mapping table.
 

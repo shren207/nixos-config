@@ -47,7 +47,7 @@ Before code edits:
 Use static checks for removed short-hash guidance plus manual scenario checks for same-branch drift and dirty-state ambiguity.
 
 ## Validation Checklist
-- [x] `rg -n "HEAD=<sha|short_sha|hash-object|rev-parse --short|sha1_of_diff|dirty=<clean\\|hash" modules/shared/programs/claude/files/skills/plan-with-questions/references/plan-file-template.md modules/shared/programs/claude/files/skills/plan-with-questions/references/resume-state.md` returns no active guidance matches.
+- [x] `rg -n "HEAD=<sha|short_sha|sha1_of_diff|dirty=<clean\\|hash" modules/shared/programs/claude/files/skills/plan-with-questions/references/plan-file-template.md modules/shared/programs/claude/files/skills/plan-with-questions/references/resume-state.md` returns no active generated durable Baseline guidance matches. Runtime-only legacy compatibility is the explicit allowlist for `rev-parse --short` and `hash-object`.
 - [x] Manual scenario: same branch with a newer commit cannot silently resume from old `Resume From`.
 - [x] Manual scenario: same branch and same anchor with dirty ambiguity requires discovery rerun or user confirmation.
 - [x] `consulting-step.md` new note does not alter runtime command examples.
@@ -71,7 +71,7 @@ Use static checks for removed short-hash guidance plus manual scenario checks fo
 
 ## Discoveries / Decisions
 - Baseline formatting and resume drift handling are one invariant; they must not be implemented as independent phases.
-- Validation pattern was tightened to avoid treating `git status --short` as a short commit identifier.
+- Validation pattern was tightened to avoid treating `git status --short` as a short commit identifier, then scoped again to allow only the runtime-only legacy compatibility section for old Baseline comparison terms.
 - Fail-closed dirty ambiguity is documented as a resume blocker unless the user confirms or discovery is rerun.
 
 ## Phase Change Log

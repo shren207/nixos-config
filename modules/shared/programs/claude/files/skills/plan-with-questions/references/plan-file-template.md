@@ -78,7 +78,7 @@
 
 ### External Consult
 
-Step 3.5 자문 결과의 자문 회차 자연어 요약(예: "1차 자문(전체 N결정)") + 핵심 `decision_id` list + verdict 요약. plan 파일은 자문 raw output을 인라인 복제하지 않으며, `/tmp/consult-XXXXXXXX-YYYYYY/result.json` 같은 임시 경로 리터럴도 박지 않는다 — 임시 경로는 세션 종료 시 사라지는 ephemeral identifier이며 dir suffix hex 토큰이 `pinning-guard.sh` PATTERN_D에 차단된다(라벨: "짧은 임시 hex 식별자 박제"). 셸 호출 사이의 `CONSULT_DIR` 리터럴 재사용은 runtime 요구이지만 durable plan에는 기록하지 않는다는 경계를 분리해 적용한다.
+Step 3.5 자문 결과의 자문 회차 자연어 요약(예: "1차 자문(전체 N결정)") + 핵심 `decision_id` list + verdict 요약. plan 파일은 자문 raw output을 인라인 복제하지 않으며, temporary scratch consult output 리터럴도 박지 않는다. 임시 경로는 세션 종료 시 사라지는 ephemeral identifier이며, durable output 적합성은 [`pinning-patterns.sh`](../../../lib/pinning-patterns.sh) helper로 검증한다. 셸 호출 사이의 `CONSULT_DIR` 리터럴 재사용은 runtime 요구이지만 durable plan에는 기록하지 않는다는 경계를 분리해 적용한다.
 
 ### DA State 값
 
