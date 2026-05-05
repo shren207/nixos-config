@@ -29,12 +29,15 @@ note() { printf '  - %s\n' "$1" >&2; }
 ok() { PASS=$((PASS + 1)); printf 'PASS: %s\n' "$1"; }
 fail() { FAIL=$((FAIL + 1)); FAILED_NAMES+=("$1"); printf 'FAIL: %s\n' "$1" >&2; }
 
-# 1. drift sha — Claude/Codex handoff-lib.sh 같은 content.
-test_drift_sha() {
-  local name="drift sha — handoff-lib.sh Claude/Codex 동일"
-  if cmp -s "${HOOKS_CLAUDE}/handoff-lib.sh" "${HOOKS_CODEX}/handoff-lib.sh"; then
+# 1. handoff-lib SoT — Claude SoT 단일 file이 Codex hook 디렉토리에 mkOutOfStoreSymlink로
+#    노출되는 single-source 정책을 검증한다 (pinning-patterns.sh와 동일 패턴). repo source
+#    레벨에서는 Codex 사본 file이 없어야 한다 — drift surface 자체를 차단.
+test_handoff_lib_single_sot() {
+  local name="handoff-lib SoT — Claude만 source file, Codex 사본 file은 없다"
+  if [ -f "${HOOKS_CLAUDE}/handoff-lib.sh" ] && [ ! -e "${HOOKS_CODEX}/handoff-lib.sh" ]; then
     ok "$name"
   else
+    note "claude=$([ -f "${HOOKS_CLAUDE}/handoff-lib.sh" ] && echo yes || echo no) codex_repo_copy=$([ -e "${HOOKS_CODEX}/handoff-lib.sh" ] && echo yes || echo no)"
     fail "$name"
   fi
 }
@@ -240,20 +243,18 @@ branch: main
 last-commit: 1111111
 runtime: claude-code
 last-updated: 2026-05-05T00:00:00Z
-session-id: aaa
 ---
 TARGETEOF
   git add "$target"
   git commit --quiet -m "init"
 
-  name="compute_diff: noise field만 변경된 경우 빈 diff"
+  name="compute_diff: noise field(last-updated)만 변경된 경우 빈 diff"
   cat > "$target" <<TARGETEOF
 ---
 branch: main
 last-commit: 1111111
 runtime: claude-code
 last-updated: 2026-05-05T11:11:11Z
-session-id: bbb
 ---
 TARGETEOF
   local diff_out
@@ -272,7 +273,6 @@ branch: main
 last-commit: 2222222
 runtime: claude-code
 last-updated: 2026-05-05T22:22:22Z
-session-id: ccc
 ---
 TARGETEOF
   diff_out=$(handoff_compute_diff "$target" 2>/dev/null)
@@ -280,6 +280,76 @@ TARGETEOF
     ok "$name"
   else
     note "got: '$diff_out'"
+    fail "$name"
+  fi
+
+  cd "$REPO_ROOT" >/dev/null
+  rm -rf "$sandbox"
+}
+
+# 회귀 fixture: handoff_full_snapshot_commit이 untracked 신규 snapshot도 의미 있는 변경
+# 으로 처리해 commit하는지 검증한다. 이전 구현은 git diff가 untracked 파일을 빈 결과로
+# 보고하므로 첫 SessionEnd가 commit을 생략하던 회귀가 있었다.
+test_full_snapshot_commit_new_file() {
+  local name="full_snapshot_commit: untracked 신규 파일도 commit 발생"
+  local sandbox
+
+  load_lib
+
+  sandbox=$(mktemp -d)
+  cd "$sandbox" >/dev/null
+  git init --quiet --initial-branch=main
+  git config user.email test@example
+  git config user.name test
+  echo "init" > README.md
+  git add README.md
+  git commit --quiet -m "init"
+
+  HANDOFF_SUMMARY="snapshot fixture summary" handoff_full_snapshot_commit "claude-code" >/dev/null 2>&1 || true
+
+  local commit_count
+  commit_count=$(git log --oneline -- .claude/handoffs/ 2>/dev/null | wc -l)
+  if [ "$commit_count" -ge 1 ]; then
+    ok "$name"
+  else
+    note "no commit was created for new untracked snapshot"
+    fail "$name"
+  fi
+
+  cd "$REPO_ROOT" >/dev/null
+  rm -rf "$sandbox"
+}
+
+# 회귀 fixture: tracked 파일에 noise field만 변경된 경우, commit skip 후 working tree가
+# dirty로 남지 않아야 한다 (이전에는 commit skip 후에도 working tree에 noise 변경이 잔존
+# 하여 PR/status 흐름을 오염시킬 수 있었다).
+test_full_snapshot_commit_idempotent_cleanup() {
+  local name="full_snapshot_commit: idempotent skip 시 working tree 정리"
+  local sandbox
+
+  load_lib
+
+  sandbox=$(mktemp -d)
+  cd "$sandbox" >/dev/null
+  git init --quiet --initial-branch=main
+  git config user.email test@example
+  git config user.name test
+  echo "init" > README.md
+  git add README.md
+  git commit --quiet -m "init"
+
+  # 첫 호출 — untracked → commit 생성
+  HANDOFF_SUMMARY="first run" handoff_full_snapshot_commit "claude-code" >/dev/null 2>&1 || true
+
+  # 두 번째 호출 — last-updated만 새 timestamp이라 noise → commit skip + working tree 원복
+  HANDOFF_SUMMARY="first run" handoff_full_snapshot_commit "claude-code" >/dev/null 2>&1 || true
+
+  local porcelain
+  porcelain=$(git status --porcelain 2>/dev/null)
+  if [ -z "$porcelain" ]; then
+    ok "$name"
+  else
+    note "working tree dirty after idempotent skip: '$porcelain'"
     fail "$name"
   fi
 
@@ -375,10 +445,12 @@ test_non_blocking_lib_missing() {
 }
 
 # Run all tests
-test_drift_sha
+test_handoff_lib_single_sot
 test_compute_slug
 test_redact
 test_compute_diff_idempotent
+test_full_snapshot_commit_new_file
+test_full_snapshot_commit_idempotent_cleanup
 test_trigger_turn_counter
 test_gitleaks_missing
 test_non_blocking_lib_missing

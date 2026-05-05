@@ -130,8 +130,11 @@ in
     # Codex SessionEnd 미지원이라 SessionEnd hook script는 Claude만 등록.
     # _stop-dispatcher.sh가 handoff-stop.sh를 H2 위치(record-last-stop → nrs-session-cleanup
     # → handoff-stop → stop-notification)에서 호출 (issue #590 + issue #614 ordering rationale).
+    # handoff-lib.sh는 Claude SoT를 직접 symlink (pinning-patterns.sh와 동일 패턴).
+    # thin wrapper(handoff-stop / handoff-session-start)는 entrypoint별 Codex 가드를 가지므로
+    # Codex 사본을 별도 유지한다.
     ".codex/hooks/handoff-lib.sh".source =
-      config.lib.file.mkOutOfStoreSymlink "${nixosConfigPath}/modules/shared/programs/codex/files/hooks/handoff-lib.sh";
+      config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/hooks/handoff-lib.sh";
     ".codex/hooks/handoff-stop.sh".source =
       config.lib.file.mkOutOfStoreSymlink "${nixosConfigPath}/modules/shared/programs/codex/files/hooks/handoff-stop.sh";
     ".codex/hooks/handoff-session-start.sh".source =

@@ -2,13 +2,22 @@
 # handoff-lib.sh — Session handoff automation 공통 helper.
 #
 # 본 helper는 Claude Code (~/.claude/hooks/handoff-lib.sh)와 Codex CLI
-# (~/.codex/hooks/handoff-lib.sh) 양쪽에서 source된다. epic #584 Codex 사본 정책에 따라
-# 양쪽이 별도 file이지만 동일 content를 유지한다 — drift는 tests/test-handoff-hooks.sh
-# 의 fixture가 검증한다 (DEC-S9 G2 + sourced helper).
+# (~/.codex/hooks/handoff-lib.sh) 양쪽에서 source된다. nix module이 단일 source인 본
+# 파일을 양쪽 hook 디렉토리에 mkOutOfStoreSymlink하므로 두 path가 같은 inode를 가리킨다
+# (`pinning-patterns.sh`와 동일 패턴). Codex 사본은 별도 source가 아니라 본 파일에 대한
+# symlink — drift는 구조적으로 차단된다 (DEC-S9 refined: epic #584 Claude SoT 정책 +
+# 단일 SoT helper).
 #
 # 환경변수 (Phase 1 Discovery에서 결정):
 #   HANDOFF_IDLE_TIMEOUT_SECONDS  (default 300) — transcript_path mtime 기반 idle 임계
 #   HANDOFF_TURN_THRESHOLD        (default 20)  — turn-counter 임계 (외부 state file 누적)
+#
+# Local SoT (Maintainability — 본 파일 안에서만 조정):
+#   - branch hash 길이: 6자 (handoff_compute_slug, handoff_full_snapshot_commit 양쪽 동일)
+#   - redaction regex token length floor:
+#       GitHub PAT 36자 / OpenAI sk- 20자 / AWS AKIA 16자 / Stripe 24자 / JWT 10자
+#     thresholds는 각 token format의 공식 minimum length에 기반한다. gitleaks rule 길이가
+#     변경되면 본 파일의 redaction sed expression도 함께 조정한다.
 #
 # Public API:
 #   handoff_compute_slug <raw_branch>            -> stdout: <slug>-<hash>
@@ -25,7 +34,9 @@
 : "${HANDOFF_TURN_THRESHOLD:=20}"
 
 # noise field SoT (DEC-S15) — idempotent diff 비교에서 제외할 frontmatter 필드.
-HANDOFF_NOISE_FIELDS=("last-updated" "session-id" "cwd" "hostname")
+# session-id/cwd/hostname은 보안상 frontmatter에 쓰지 않으므로 (FR-5 allowlist 준수)
+# noise 비교 대상에서도 빠진다. timestamp 같은 ephemeral 정보만 noise로 취급한다.
+HANDOFF_NOISE_FIELDS=("last-updated")
 
 # slug + hash 생성. raw branch가 비거나 정규화 후 빈 slug면 hard fail.
 handoff_compute_slug() {
@@ -273,11 +284,12 @@ handoff_write_snapshot() {
   local target_dir="${repo_root}/.claude/handoffs"
   mkdir -p "$target_dir"
   local target="${target_dir}/${slug}.md"
-  local now session_id cwd_redacted host
+  local now
   now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-  session_id="${HANDOFF_SESSION_ID:-}"
-  cwd_redacted=$(handoff_redact "$PWD")
-  host=$(hostname -s 2>/dev/null || printf 'unknown')
+  # FR-5 allowlist 준수: session-id/cwd/hostname/env 등 환경 정보는 git-tracked snapshot에
+  # 절대 포함하지 않는다. transcript 원문/env vars/절대경로는 `handoff_redact` Layer 1에서
+  # 추가 차단된다. 만약 machine-local 진단 정보가 필요하면 별도 untracked state 파일로 분리
+  # (본 함수가 아닌 별도 helper에서 다룸).
   local summary pending active_files next_action
   summary=$(handoff_redact "${HANDOFF_SUMMARY:-}")
   pending=$(handoff_redact "${HANDOFF_PENDING_DECISIONS:-}")
@@ -293,9 +305,6 @@ handoff_write_snapshot() {
     printf "issue-ref: '%s'\n" "$issue_ref"
     printf "prd-link: '%s'\n" "$prd_link"
     printf 'last-updated: %s\n' "$now"
-    printf 'session-id: %s\n' "$session_id"
-    printf 'cwd: %s\n' "$cwd_redacted"
-    printf 'hostname: %s\n' "$host"
     printf -- '---\n\n'
     printf '## Summary\n%s\n\n' "$summary"
     printf '## Pending Decisions\n%s\n\n' "$pending"
@@ -305,12 +314,35 @@ handoff_write_snapshot() {
   printf '%s\n' "$target"
 }
 
-# full snapshot + redaction + git add + gitleaks --staged + commit. Claude SessionEnd와 Codex Stop heuristic-trigger가 공유한다 (DEC-S9 G2 + sourced helper).
+# frontmatter field reader — SessionStart wrapper가 사용 (Maintainability: 단일 SoT).
+# stdout: field 값 (없으면 빈 문자열, exit 0)
+# args: <file> <key>
+handoff_read_frontmatter_field() {
+  local file="${1:-}"
+  local key="${2:-}"
+  if [ -z "$file" ] || [ -z "$key" ] || [ ! -f "$file" ]; then
+    return 0
+  fi
+  awk -v key="$key" '
+    BEGIN { c=0 }
+    /^---$/ { c++; next }
+    c==1 {
+      pat = "^" key ":[ \t]*"
+      if (match($0, pat)) {
+        print substr($0, RSTART + RLENGTH)
+        exit
+      }
+    }
+  ' "$file" 2>/dev/null || true
+}
+
+# full snapshot + redaction + git add + gitleaks --staged + commit. Claude SessionEnd와
+# Codex Stop heuristic-trigger가 공유한다 (DEC-S9 + handoff-lib SoT).
 # args: <runtime>  -- "claude-code" or "codex"
-# 0 = success or idempotent skip, 0 = failure (non-blocking 보장).
+# 항상 exit 0 반환 (non-blocking 보장).
 handoff_full_snapshot_commit() {
   local runtime="${1:-unknown}"
-  local repo_root branch branch_hash last_commit slug_full target diff
+  local repo_root branch branch_hash last_commit slug_full target diff is_tracked
   repo_root=$(git rev-parse --show-toplevel 2>/dev/null || printf '')
   if [ -z "$repo_root" ]; then
     return 0
@@ -329,24 +361,47 @@ handoff_full_snapshot_commit() {
   if [ -z "$slug_full" ]; then
     return 0
   fi
+  # tracked 여부를 작성 전에 결정한다 — 신규 파일은 git diff가 빈 결과를 반환하므로
+  # 별도 분기가 필요하다.
+  if git -C "$repo_root" ls-files --error-unmatch -- ".claude/handoffs/${slug_full}.md" >/dev/null 2>&1; then
+    is_tracked=yes
+  else
+    is_tracked=no
+  fi
   target=$(handoff_write_snapshot "$slug_full" "$branch" "$branch_hash" "$last_commit" "$runtime" "" "" 2>/dev/null || printf '')
   if [ -z "$target" ] || [ ! -f "$target" ]; then
     return 0
   fi
-  # idempotent diff check (DEC-S7 E2)
-  diff=$(handoff_compute_diff "$target" 2>/dev/null || printf '')
-  if [ -z "$diff" ]; then
-    return 0
+  if [ "$is_tracked" = "yes" ]; then
+    # tracked 파일은 noise field 제외 diff로 의미 있는 변경을 판정한다 (DEC-S7 idempotent).
+    diff=$(handoff_compute_diff "$target" 2>/dev/null || printf '')
+    if [ -z "$diff" ]; then
+      # 의미 없는 변경 — working tree를 원복해 상태가 dirty로 남지 않게 한다.
+      git -C "$repo_root" checkout -- "$target" >/dev/null 2>&1 || true
+      return 0
+    fi
   fi
   # DEC-S13 staged ordering: add → gitleaks --staged → commit
+  # (untracked 신규 파일도 여기까지 도달하여 의미 있는 변경으로 처리된다.)
   if ! git -C "$repo_root" add -- "$target" 2>/dev/null; then
+    # add 실패 시 working tree에 남은 untracked 파일은 quarantine한다.
+    if [ "$is_tracked" = "no" ]; then
+      rm -f -- "$target" 2>/dev/null || true
+    fi
     return 0
   fi
   if ! handoff_run_gitleaks "$target"; then
+    # handoff_run_gitleaks 내부에서 unstage + working tree quarantine 처리됨.
     return 0
   fi
   # DEC-S14: chore(handoff): prefix 강제
-  git -C "$repo_root" commit -m "chore(handoff): session-end snapshot for ${branch}" -- "$target" >/dev/null 2>&1 || true
+  if ! git -C "$repo_root" commit -m "chore(handoff): session-end snapshot for ${branch}" -- "$target" >/dev/null 2>&1; then
+    # commit 실패 — staged 상태를 되돌려 working tree가 일관 상태를 유지한다.
+    git -C "$repo_root" restore --staged -- "$target" 2>/dev/null || true
+    if [ "$is_tracked" = "no" ]; then
+      rm -f -- "$target" 2>/dev/null || true
+    fi
+  fi
   return 0
 }
 

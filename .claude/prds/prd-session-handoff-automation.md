@@ -137,6 +137,7 @@
 - D5 — Codex stop-review-gate-hook 충돌: dispatcher 패턴에 새 entry 추가 시 ordering 충돌 가능. 대응: dispatcher 헤더 주석에 ordering rationale + 신규 위치 명시.
 - D6 — `/write-handoff` 동시 동작: Codex `write-handoff` skill이 노출된 상태(`exposedCodexSkills`에 포함)에서 자동 hook과 동시 실행 시 GitHub 코멘트와 `.claude/handoffs/`가 모두 갱신될 수 있음. Phase 1 Discovery에서 race 시나리오 측정.
 - D7 — DEC-S6 B refined (Phase 1 결과): hook payload에 idle 필드 없음 → turn-counter (외부 state file 누적) + `transcript_path` mtime 결합으로 우회. C/D fallback 미발동. 단 외부 state file 누적 패턴이 dogfooding(Phase 5)에서 false trigger를 만들면 threshold 조정 또는 C로 추가 fallback.
+- D8 — Codex SessionStart user hook 보존 안 됨: 본 PRD가 `[[hooks.SessionStart]]`를 template-declared array로 추가하면서 `sync-codex-config.py` array AoT merge 한계(issue #591 OPEN)에 따라 사용자가 같은 event에 추가한 entry는 nrs 시 손실된다. NG-6와 일치하는 의도된 한계지만 이전 baseline에서 SessionStart user hook을 사용하던 워크플로는 본 PR 머지 후 영향. mitigation은 issue #591 후속 PR 또는 dispatcher drop-in 디렉토리 패턴(별도 follow-up). 본 PRD는 user-facing 영향만 명시하고 코드 수정은 별도 이슈로 분리.
 
 ## Execution Rules
 
@@ -179,3 +180,12 @@ Phase 6 closeout에서 `~/.claude/skills/plan-with-questions/references/prd/mult
 - 2026-05-05: Phase 3 Complete (nrs manual smoke만 Phase 5 통합). settings.json Stop/SessionEnd/SessionStart 신규 entry 추가, _stop-dispatcher.sh H2 ordering 적용 + 헤더 rationale, config.toml [[hooks.SessionStart]] 추가, claude/codex default.nix mkOutOfStoreSymlink 7개. nixfmt + JSON/TOML/shellcheck + 회귀 fixture 모두 PASS. tests/fixtures sync-preservation scenario-C는 PermissionRequest로 이전 (SessionStart가 template-declared가 됐으므로).
 - 2026-05-05: Phase 4 Complete (Visual/Manual smoke만 Phase 5 통합). handoff-lib.sh redaction에 GitHub PAT / OpenAI / AWS / Stripe / JWT 5 secret + AUTH_TOKEN/BEARER env 패턴 추가. .gitattributes 신규 (.claude/handoffs/** linguist-generated=true). fixture 23/23 PASS (Phase 2 16 + Phase 4 7).
 - 2026-05-05: Phase 5 Status = Pending User Smoke. nrs apply + 두 머신(MiniPC + macOS) + 양 runtime(Claude Code + Codex CLI) 실세션 진입은 host mutation으로 Post-Implementation 자동 수행 범위 외 → 사용자 manual smoke 협조 필요. 자동 가능 부분(시나리오 7 non-blocking + 시나리오 8 secret/PII 일부)은 Phase 2/4 fixture에서 검증 완료. Phase 6 closeout(review-only)은 manual smoke 결과를 기다리지 않고 자동 진행.
+- 2026-05-05: Post-Implementation 코드 DA 1차 반영. 메인 LLM이 4 reviewer bundle + Arbiter 흐름으로 진행한 Devil's Advocate에서 9개 finding 모두 CONFIRMED(HIGH 신뢰도)로 판정. 본 commit chain에서 다음과 같이 자동 반영:
+  - `handoff_full_snapshot_commit`이 untracked 신규 snapshot도 commit 진행하도록 분기 추가 + commit skip 시 working tree 원복 (untracked diff 한계 + dirty 잔존 회귀 fix).
+  - snapshot frontmatter에서 `cwd`/`hostname`/`session-id` 제거하여 FR-5 allowlist 준수 (env 정보 누출 fix).
+  - Claude SessionEnd hook entry에 `timeout: 30` 명시 (기본 1.5초 한계 회피, gitleaks+commit 예산 확보).
+  - Codex `handoff-lib.sh`를 별도 사본 → Claude SoT mkOutOfStoreSymlink로 변경, drift fixture 제거 + single-SoT fixture 추가 (`pinning-patterns.sh`와 동일 패턴 차용).
+  - `handoff_read_frontmatter_field` helper로 SessionStart wrapper의 frontmatter parsing SSOT 통합.
+  - handoff-lib 헤더에 hash/redaction threshold local SoT 주석 추가.
+  - Risks D8로 Codex SessionStart user hook 보존 안 됨을 user-facing 영향으로 명시 + issue #591 후속 mitigation 트래킹.
+  - fixture 25/25 PASS (24 base + untracked 첫 commit/idempotent skip 회귀 2 추가).

@@ -43,18 +43,13 @@ fi
 
 # DEC-S8 F1 + branch-slug exact match: frontmatter branch 값과 현재 git branch가 같은지 검증.
 # 다른 branch의 handoff가 slug 충돌로 잘못 주입되는 것을 차단한다.
-SAVED_BRANCH=""
-if command -v awk >/dev/null 2>&1; then
-  SAVED_BRANCH=$(awk '/^---$/{c++; next} c==1 && /^branch:/{sub(/^branch:[ ]*/, ""); print; exit}' "$TARGET" 2>/dev/null || printf '')
-fi
+# frontmatter parsing은 helper(handoff_read_frontmatter_field)가 single SoT.
+SAVED_BRANCH=$(handoff_read_frontmatter_field "$TARGET" "branch")
 if [ -n "$SAVED_BRANCH" ] && [ "$SAVED_BRANCH" != "$BRANCH" ]; then
   exit 0
 fi
 
-LAST_COMMIT=""
-if command -v awk >/dev/null 2>&1; then
-  LAST_COMMIT=$(awk '/^---$/{c++; next} c==1 && /^last-commit:/{sub(/^last-commit:[ ]*/, ""); print; exit}' "$TARGET" 2>/dev/null || printf '')
-fi
+LAST_COMMIT=$(handoff_read_frontmatter_field "$TARGET" "last-commit")
 [ -z "$LAST_COMMIT" ] && LAST_COMMIT="(unknown)"
 
 REL_PATH=".claude/handoffs/${SLUG_FULL}.md"

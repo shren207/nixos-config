@@ -166,7 +166,8 @@
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/handoff-session-end.sh"
+            "command": "~/.claude/hooks/handoff-session-end.sh",
+            "timeout": 30
           }
         ]
       }
