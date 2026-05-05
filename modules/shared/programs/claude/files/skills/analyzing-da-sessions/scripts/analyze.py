@@ -53,7 +53,8 @@ INTENSITY_VERDICTS = ("FULL", "LITE", "SKIP")
 ARBITER_DIR_MARKER = re.compile(r"/tmp/da-[a-fA-F0-9]+-arbiter-(?!XXXXXX\b)[A-Za-z0-9]+")
 INTENSITY_DIR_MARKER = re.compile(r"/tmp/da-[a-fA-F0-9]+-intensity-(?!XXXXXX\b)[A-Za-z0-9]+")
 VERDICT_JSON_BLOCK = re.compile(
-    r"<!--\s*verdict-json:start\s*-->\s*```json\s*(\{.*?\})\s*```", re.S
+    r"<!--\s*verdict-json:start\s*-->\s*```json\s*(.*?)\s*```\s*<!--\s*verdict-json:end\s*-->",
+    re.S,
 )
 HUMAN_VERDICT_HEADER = re.compile(
     r"###\s+([A-Za-z][A-Za-z_ ]*?(?:[-]\d+|\s+Finding\s+\d+))\s*[—\-]\s*(CONFIRMED_ISSUE|NOT_AN_ISSUE|NEEDS_MORE_INFO)"
@@ -171,33 +172,48 @@ def get_bundle(finding_id: str | None) -> str | None:
 # 4. verdict parser pipeline (4-tier fallback)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def extract_strict_verdicts(text: str) -> list[dict]:
-    """Tier 1+2: VERDICT_JSON marker + ### header."""
+def extract_strict_verdicts(text: str, parse_failures: list | None = None) -> list[dict]:
+    """Tier 1 (VERDICT_JSON marker)을 우선 적용, finding_id 단위로 Tier 2 (### header)
+    fallback. 같은 finding_id가 두 source에 모두 있으면 Tier 1만 채택해 중복 카운트를 차단한다.
+    parse_failures가 주어지면 JSON parse 실패를 silent swallow 대신 누적한다.
+    """
     verdicts = []
+    seen_finding_ids: set[str] = set()
     for m in VERDICT_JSON_BLOCK.finditer(text):
         try:
             v = json.loads(m.group(1))
-            verdicts.append({
-                "finding_id": v.get("finding_id", ""),
-                "verdict": v.get("verdict", ""),
-                "confidence": v.get("confidence", "N/A"),
-                "stability_status": v.get("stability_status", "N/A"),
-                "bundle": get_bundle(v.get("finding_id", "")),
-                "source": "verdict_json",
-                "source_confidence": "high",
-            })
-        except Exception:
-            pass
-    for m in HUMAN_VERDICT_HEADER.finditer(text):
+        except Exception as e:
+            if parse_failures is not None:
+                snippet = m.group(1)[:80].replace("\n", " ")
+                parse_failures.append(f"verdict_json parse error: {type(e).__name__}: {snippet}")
+            continue
+        finding_id = v.get("finding_id", "")
         verdicts.append({
-            "finding_id": m.group(1),
+            "finding_id": finding_id,
+            "verdict": v.get("verdict", ""),
+            "confidence": v.get("confidence", "N/A"),
+            "stability_status": v.get("stability_status", "N/A"),
+            "bundle": get_bundle(finding_id),
+            "source": "verdict_json",
+            "source_confidence": "high",
+        })
+        if finding_id:
+            seen_finding_ids.add(finding_id)
+    for m in HUMAN_VERDICT_HEADER.finditer(text):
+        finding_id = m.group(1)
+        # Tier 1에서 이미 회수된 finding은 skip (4-tier fallback 의무 — 중복 카운트 차단)
+        if finding_id in seen_finding_ids:
+            continue
+        verdicts.append({
+            "finding_id": finding_id,
             "verdict": m.group(2),
             "confidence": "N/A",
             "stability_status": "N/A",
-            "bundle": get_bundle(m.group(1)),
+            "bundle": get_bundle(finding_id),
             "source": "md_header",
             "source_confidence": "high",
         })
+        seen_finding_ids.add(finding_id)
     return verdicts
 
 
@@ -355,6 +371,7 @@ def analyze_session(path: str) -> dict | None:
     nl_signal_only = False
     nl_estimated = 0
     full_text = []
+    parse_failures: list[str] = []
 
     try:
         with open(path, "r", errors="replace") as fp:
@@ -374,7 +391,7 @@ def analyze_session(path: str) -> dict | None:
 
                     intensity_verdicts.extend(extract_intensity_verdicts(text))
 
-                    sv = extract_strict_verdicts(text)
+                    sv = extract_strict_verdicts(text, parse_failures)
                     if sv:
                         all_verdicts.extend(sv)
                         continue
@@ -410,6 +427,7 @@ def analyze_session(path: str) -> dict | None:
         "nl_signal_only": nl_signal_only,
         "nl_estimated_count": nl_estimated,
         "round_summary_stability": resolve_stability_status_from_round_summary(text_blob),
+        "parse_failures": parse_failures,
     }
 
 
@@ -422,6 +440,16 @@ def build_aggregate(
     """모든 세션 분석 결과를 통합 aggregate 객체로 빌드."""
     arbiter_marker_sessions = [s for s in sessions if s and s["has_arbiter_marker"]]
     intensity_marker_sessions = [s for s in sessions if s and s["has_intensity_marker"]]
+
+    # parse_failures (verdict_json JSON parse error 등)를 warnings에 누적해 silent swallow 차단
+    parse_failure_total = 0
+    for s in sessions:
+        if s and s.get("parse_failures"):
+            parse_failure_total += len(s["parse_failures"])
+    if parse_failure_total > 0:
+        warnings.append(
+            f"verdict_json parse failures: {parse_failure_total}건 — diagnostics는 session-level parse_failures 참조"
+        )
 
     # M-1: 검토 강도 verdict 분포
     m1_counter: Counter = Counter()
@@ -699,13 +727,14 @@ def _allowed_remote_path(host: str, path: str) -> bool:
     """원격 path가 정확한 base prefix 아래의 안전한 .jsonl 경로인지 확인.
 
     SSH remote command는 원격 shell이 해석하므로 shell metacharacter (`;`, `$()`,
-    newline, backtick 등)가 포함된 경로는 명령 인젝션 위험이 있다. 따라서 정확한
-    HOST_PATH_MAP base prefix + .jsonl 확장자 + 제어문자 부재만 통과시킨다.
+    newline, backtick, space 등)가 포함된 경로는 명령 인젝션/word-splitting 위험이
+    있다. 따라서 정확한 HOST_PATH_MAP base prefix + .jsonl 확장자 + 제어문자/공백
+    부재만 통과시킨다.
     """
     if not isinstance(path, str) or not path:
         return False
-    # 제어문자 / shell metacharacter 거부
-    if any(c in path for c in "\n\r\t;|&$`(){}[]<>*?\"'\\"):
+    # 제어문자 / shell metacharacter / space 거부
+    if any(c in path for c in " \n\r\t;|&$`(){}[]<>*?\"'\\"):
         return False
     if not path.endswith(".jsonl"):
         return False
@@ -730,8 +759,10 @@ def collect_remote_files(host: str, warnings: list[str]) -> list[str]:
     all_files: list[str] = []
     for base in (paths["claude"], paths["codex"]):
         try:
+            # SSH는 argv를 single string으로 합쳐 원격 shell에 전달하므로
+            # `*.jsonl`을 single-quote로 감싸 원격 glob expansion을 차단한다.
             proc = subprocess.run(
-                ["ssh", host, "find", base, "-type", "f", "-name", "*.jsonl"],
+                ["ssh", host, "find", base, "-type", "f", "-name", "'*.jsonl'"],
                 capture_output=True,
                 text=True,
                 timeout=SSH_FIND_TIMEOUT_SECONDS,
