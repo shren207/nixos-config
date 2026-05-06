@@ -103,7 +103,7 @@ Issue #686 path-aware PATTERN_A guard fixtures add the explicit matrix:
 | Equal-count non-A replacement still denied | `pretooluse-pinning-guard-claude-write-prds-pattern-b-to-c-deny.*`, `pretooluse-pinning-guard-codex-write-plans-pattern-c-to-b-deny.*`, `pretooluse-pinning-guard-claude-edit-prds-pattern-b-token-change-deny.*` |
 | Equal-count replacement outside PRD/plan keeps existing count-gate behavior | `pretooluse-pinning-guard-codex-edit-outside-equal-count-clean.*` |
 | Codex `apply_patch` effective path remains correct | `pretooluse-pinning-guard-codex-applypatch-{moveto,multifile,update}-prds-pattern-a-clean.*`, `pretooluse-pinning-guard-codex-applypatch-mixed-prds-outside-pattern-a-deny.*` |
-| Traversal-looking PRD/plan paths fail closed | `pinning-claude-write-prds-traversal-pattern-a-positive.*`, `pinning-codex-applypatch-prds-tab-traversal-pattern-a-positive.*`, `pretooluse-pinning-guard-claude-write-prds-traversal-pattern-a-deny.*`, `pretooluse-pinning-guard-codex-applypatch-prds-tab-traversal-pattern-a-deny.*` |
+| Traversal-looking PRD paths fail closed | `pinning-claude-write-prds-traversal-pattern-a-positive.*`, `pinning-codex-applypatch-prds-tab-traversal-pattern-a-positive.*`, `pretooluse-pinning-guard-claude-write-prds-traversal-pattern-a-deny.*`, `pretooluse-pinning-guard-codex-applypatch-prds-tab-traversal-pattern-a-deny.*` |
 | Edit/Notebook future-compatible PATTERN_A clean paths | `pretooluse-pinning-guard-claude-edit-prds-pattern-a-clean.*`, `pretooluse-pinning-guard-claude-notebook-plans-pattern-a-clean.*`, `pretooluse-pinning-guard-codex-edit-plans-pattern-a-clean.*`, `pretooluse-pinning-guard-codex-notebook-prds-pattern-a-clean.*` |
 
 ### commit-msg/ 카테고리 7c fixture (commit-msg-pinning behavioral)

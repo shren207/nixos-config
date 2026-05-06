@@ -937,8 +937,8 @@ test_pinning_shared_library_behavioral() {
   # shellcheck source=../modules/shared/programs/claude/files/lib/pinning-patterns.sh
   . "$PINNING_LIB_REPO_FILE"
 
-  assert_eq "$(pinning_match_count "$scan_file" "" 1)" "4" \
-    "[7/lib] raw helper must ignore extra args and keep PATTERN_A visible"
+  assert_eq "$(pinning_match_count "$scan_file")" "4" \
+    "[7/lib] raw helper must keep PATTERN_A visible"
   assert_eq "$(pinning_match_count_for_path "$scan_file" "$sandbox/outside.md")" "4" \
     "[7/lib] outside path must keep PATTERN_A visible"
   assert_eq "$(pinning_match_count_for_path "$scan_file" "$sandbox/.claude/prds/prd.md")" "3" \

@@ -262,7 +262,7 @@ pinning_findings_records() {
   fi
 }
 
-_pinning_findings_records_for_prd_state() {
+_pinning_findings_records_for_prd_or_plan_state() {
   local scan_file="$1"
   local skip_partial_hash="${2:-}"
   local is_prd_or_plan="${3:-}"
@@ -283,7 +283,7 @@ pinning_findings_records_for_path() {
   if pinning_is_prd_or_plan_path "$path"; then
     is_prd_or_plan=1
   fi
-  _pinning_findings_records_for_prd_state "$scan_file" "$skip_partial_hash" "$is_prd_or_plan"
+  _pinning_findings_records_for_prd_or_plan_state "$scan_file" "$skip_partial_hash" "$is_prd_or_plan"
 }
 
 # Compatibility wrapper: render PATTERN_D records as the legacy indented
@@ -321,11 +321,11 @@ pinning_findings_text() {
   pinning_findings_records "$scan_file" "$skip_partial_hash" | _pinning_render_records
 }
 
-_pinning_findings_text_for_prd_state() {
+_pinning_findings_text_for_prd_or_plan_state() {
   local scan_file="$1"
   local skip_partial_hash="${2:-}"
   local is_prd_or_plan="${3:-}"
-  _pinning_findings_records_for_prd_state "$scan_file" "$skip_partial_hash" "$is_prd_or_plan" \
+  _pinning_findings_records_for_prd_or_plan_state "$scan_file" "$skip_partial_hash" "$is_prd_or_plan" \
     | _pinning_render_records
 }
 
@@ -335,11 +335,11 @@ pinning_match_count() {
   pinning_findings_records "$scan_file" "$skip_partial_hash" | wc -l | tr -d ' '
 }
 
-_pinning_match_count_for_prd_state() {
+_pinning_match_count_for_prd_or_plan_state() {
   local scan_file="$1"
   local skip_partial_hash="${2:-}"
   local is_prd_or_plan="${3:-}"
-  _pinning_findings_records_for_prd_state "$scan_file" "$skip_partial_hash" "$is_prd_or_plan" \
+  _pinning_findings_records_for_prd_or_plan_state "$scan_file" "$skip_partial_hash" "$is_prd_or_plan" \
     | wc -l | tr -d ' '
 }
 
@@ -351,7 +351,7 @@ pinning_findings_text_for_path() {
   if pinning_is_prd_or_plan_path "$path"; then
     is_prd_or_plan=1
   fi
-  _pinning_findings_text_for_prd_state "$scan_file" "$skip_partial_hash" "$is_prd_or_plan"
+  _pinning_findings_text_for_prd_or_plan_state "$scan_file" "$skip_partial_hash" "$is_prd_or_plan"
 }
 
 pinning_match_count_for_path() {
@@ -362,7 +362,7 @@ pinning_match_count_for_path() {
   if pinning_is_prd_or_plan_path "$path"; then
     is_prd_or_plan=1
   fi
-  _pinning_match_count_for_prd_state "$scan_file" "$skip_partial_hash" "$is_prd_or_plan"
+  _pinning_match_count_for_prd_or_plan_state "$scan_file" "$skip_partial_hash" "$is_prd_or_plan"
 }
 
 # Intermediate schema for the delta helper:
@@ -370,28 +370,15 @@ pinning_match_count_for_path() {
 # NEW<TAB>code<TAB>label<TAB>line-entry<TAB>token
 # Delta identity is category code + token; label and line-entry are retained
 # only so newly introduced records can be rendered without rescanning.
-pinning_new_findings_records_for_path() {
-  local old_scan_file="$1"
-  local new_scan_file="$2"
-  local path="$3"
-  local skip_partial_hash="${4:-}"
-  local is_prd_or_plan=""
-  if pinning_is_prd_or_plan_path "$path"; then
-    is_prd_or_plan=1
-  fi
-  _pinning_new_findings_records_for_prd_state \
-    "$old_scan_file" "$new_scan_file" "$skip_partial_hash" "$is_prd_or_plan"
-}
-
-_pinning_new_findings_records_for_prd_state() {
+_pinning_new_findings_records_for_prd_or_plan_state() {
   local old_scan_file="$1"
   local new_scan_file="$2"
   local skip_partial_hash="${3:-}"
   local is_prd_or_plan="${4:-}"
   {
-    _pinning_findings_records_for_prd_state "$old_scan_file" "$skip_partial_hash" "$is_prd_or_plan" \
+    _pinning_findings_records_for_prd_or_plan_state "$old_scan_file" "$skip_partial_hash" "$is_prd_or_plan" \
       | awk -F'\t' '{ token = $3; sub(/^[0-9]+: /, "", token); print "OLD\t" $1 "\t" token }'
-    _pinning_findings_records_for_prd_state "$new_scan_file" "$skip_partial_hash" "$is_prd_or_plan" \
+    _pinning_findings_records_for_prd_or_plan_state "$new_scan_file" "$skip_partial_hash" "$is_prd_or_plan" \
       | awk -F'\t' '{ token = $3; sub(/^[0-9]+: /, "", token); print "NEW\t" $1 "\t" $2 "\t" $3 "\t" token }'
   } | awk -F'\t' '
     $1 == "OLD" {
@@ -410,27 +397,14 @@ _pinning_new_findings_records_for_prd_state() {
   '
 }
 
-_pinning_new_findings_text_for_prd_state() {
+_pinning_new_findings_text_for_prd_or_plan_state() {
   local old_scan_file="$1"
   local new_scan_file="$2"
   local skip_partial_hash="${3:-}"
   local is_prd_or_plan="${4:-}"
-  _pinning_new_findings_records_for_prd_state \
+  _pinning_new_findings_records_for_prd_or_plan_state \
       "$old_scan_file" "$new_scan_file" "$skip_partial_hash" "$is_prd_or_plan" \
     | _pinning_render_records
-}
-
-pinning_new_findings_text_for_path() {
-  local old_scan_file="$1"
-  local new_scan_file="$2"
-  local path="$3"
-  local skip_partial_hash="${4:-}"
-  local is_prd_or_plan=""
-  if pinning_is_prd_or_plan_path "$path"; then
-    is_prd_or_plan=1
-  fi
-  _pinning_new_findings_text_for_prd_state \
-    "$old_scan_file" "$new_scan_file" "$skip_partial_hash" "$is_prd_or_plan"
 }
 
 pinning_guard_findings_text_for_path() {
@@ -444,15 +418,15 @@ pinning_guard_findings_text_for_path() {
   fi
 
   if [ -n "$is_prd_or_plan" ]; then
-    _pinning_new_findings_text_for_prd_state \
+    _pinning_new_findings_text_for_prd_or_plan_state \
       "$old_scan_file" "$new_scan_file" "$skip_partial_hash" "$is_prd_or_plan"
     return
   fi
 
   local old_count new_count
-  old_count="$(_pinning_match_count_for_prd_state "$old_scan_file" "$skip_partial_hash" "$is_prd_or_plan")"
-  new_count="$(_pinning_match_count_for_prd_state "$new_scan_file" "$skip_partial_hash" "$is_prd_or_plan")"
+  old_count="$(_pinning_match_count_for_prd_or_plan_state "$old_scan_file" "$skip_partial_hash" "$is_prd_or_plan")"
+  new_count="$(_pinning_match_count_for_prd_or_plan_state "$new_scan_file" "$skip_partial_hash" "$is_prd_or_plan")"
   if [ "$new_count" -gt "$old_count" ]; then
-    _pinning_findings_text_for_prd_state "$new_scan_file" "$skip_partial_hash" "$is_prd_or_plan"
+    _pinning_findings_text_for_prd_or_plan_state "$new_scan_file" "$skip_partial_hash" "$is_prd_or_plan"
   fi
 }
