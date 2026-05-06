@@ -72,12 +72,12 @@ PRD 파일 작성 전의 `for_prd.step5_da` / `for_prd.step6_da_apply`는 durabl
 | `post_impl.implementation` | 변경 구현 (1번) |
 | `post_impl.implementation_commit` | 구현 커밋 (2번) |
 | `post_impl.run_da_for_pr` | preflight gate 적용 후 `/run-da for_pr` 또는 승인된 SKIP 처리 (3번) |
-
-Post-Implementation Step 3 outcome is recorded in the active plan `Change Log` / resume note for `post_impl.run_da_for_pr`. It does not overwrite plan-mode `DA State`, which only tracks Step 5/6 plan DA.
 | `post_impl.parallel_audit` | `/parallel-audit` (4번) |
 | `post_impl.final_10pass` | Final Multi-Pass Review (5번) |
 | `post_impl.review_commit` | 10-pass 반영 커밋 (6번, 수정 발생 시) |
 | `post_impl.create_pr` | `/create-pr` (7번) |
+
+Post-Implementation Step 3 outcome is recorded in the active plan `Change Log` / resume note for `post_impl.run_da_for_pr`. It does not overwrite plan-mode `DA State`, which only tracks Step 5/6 plan DA.
 
 ## Baseline drift 검증 알고리즘
 

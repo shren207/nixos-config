@@ -48,5 +48,9 @@ When the gate invokes `/run-da` after preflight, pass the checklist table and ou
 - all rule results with evidence
 - final intensity verdict
 - user approval state when the verdict was `SKIP`
+- freshness fields:
+  - `for_plan`: target plan path plus current plan title/source and changed-file list used for the checklist.
+  - `for_prd`: PRD target path or draft/context label plus candidate phase summary and changed-file list used for the checklist.
+  - `for_pr`: exact `git diff --stat main...HEAD` text used for the checklist.
 
-If the handoff is missing, malformed, or based on stale input, `/run-da` reruns the checklist from current inputs and fail-closes according to its own procedure.
+If the handoff is missing, malformed, or any freshness field differs from the current input, `/run-da` reruns the checklist from current inputs and fail-closes according to its own procedure.

@@ -63,8 +63,9 @@ modifier `full`은 Review Intensity를 건너뛰고 exhaustive 8-domain path로 
 - 모든 룰의 매치/미매치/불확실 표와 근거
 - first-match verdict
 - SKIP verdict일 때 사용자 승인 상태
+- freshness fields from the automatic caller gate (target artifact/path or draft label, changed-file list, and for `for_pr` the exact `git diff --stat main...HEAD` text used for the checklist)
 
-유효한 handoff가 있으면 `/run-da`는 같은 입력에 대해 같은 질문을 반복하지 않는다. SKIP을 사용자가 거부했거나 질문 도구를 사용할 수 없었던 handoff는 `SKIPPED`가 아니며, 아래 SKIP 절차의 거부/미지원 경로로 승격한다.
+유효한 handoff가 있고 freshness fields가 현재 입력과 일치하면 `/run-da`는 같은 입력에 대해 같은 질문을 반복하지 않는다. handoff가 없거나 malformed이거나 freshness fields가 현재 입력과 다르면 현재 입력으로 체크리스트를 다시 적용한다. SKIP을 사용자가 거부했거나 질문 도구를 사용할 수 없었던 handoff는 `SKIPPED`가 아니며, 아래 SKIP 절차의 거부/미지원 경로로 승격한다.
 
 ## 메인 LLM의 의무 (합리화 방지)
 

@@ -4,7 +4,7 @@ argument-hint: "[for_plan|for_pr|both] [full] [fresh]"
 description: |
   Run Devil's Advocate review on plans or code. Args: for_plan, for_pr, both. Modifier: full, fresh.
   Trigger: 'DA', '피드백 루프', 'YAGNI 리뷰', '코드 리뷰 루프', 'run-da',
-  'HALLUCINATION', '설계 검토', '코드 품질 리뷰', '간단한 오타 수정', 'DA 필요', 'DA 생략'.
+  'HALLUCINATION', '설계 검토', '코드 품질 리뷰', '간단한 변경 DA 필요 여부', 'DA 필요', 'DA 생략'.
   Also trigger when the user asks whether a simple change can skip DA; this skill owns the SKIP/LITE/FULL decision path.
   NOT for PR 코멘트 (use review-pr-feedback). NOT for 전수조사 (use parallel-audit). NOT for DA session log/statistics/verdict 분포 정량 분석 (use analyzing-da-sessions, 사용자 명시 호출 전용).
 ---
