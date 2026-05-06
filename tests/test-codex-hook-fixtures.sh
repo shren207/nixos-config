@@ -112,6 +112,10 @@ trap cleanup EXIT
 fail() { echo "FAIL: $*" >&2; exit 1; }
 warn() { echo "WARN: $*" >&2; }
 
+sed_replacement_escape() {
+  printf '%s' "$1" | sed 's/[&#]/\\&/g'
+}
+
 assert_eq() {
   # $1=actual $2=expected $3=message
   [[ "$1" == "$2" ]] || fail "$3 (actual='$1' expected='$2')"
@@ -955,6 +959,11 @@ STUB
   chmod +x "$sandbox/bin-stubs/realpath" "$sandbox/bin-stubs/readlink"
   assert_eq "$(PATH="$sandbox/bin-stubs:${PATH:-/usr/bin:/bin}" pinning_match_count_for_path "$scan_file" "$sandbox/.claude/plans/plan.md")" "3" \
     "[7/lib] PRD/plan path fallback must not require GNU realpath/readlink"
+  mkdir -p "$sandbox/.claude/prds"
+  : > "$sandbox/outside.md"
+  ln -s "$sandbox/outside.md" "$sandbox/.claude/prds/symlink.md"
+  assert_eq "$(PATH="$sandbox/bin-stubs:${PATH:-/usr/bin:/bin}" pinning_match_count_for_path "$scan_file" "$sandbox/.claude/prds/symlink.md")" "4" \
+    "[7/lib] PRD/plan fallback must fail closed for existing symlink targets"
 }
 
 _assert_pinning_expectation() {
@@ -1042,7 +1051,7 @@ _materialize_pretooluse_fixture() {
   materialized="$sandbox/$(basename "$fixture")"
   local materialized_meta="$materialized.with-meta"
   local sandbox_sed
-  sandbox_sed="$(printf '%s' "$sandbox" | sed 's/[&#]/\\&/g')"
+  sandbox_sed="$(sed_replacement_escape "$sandbox")"
   local placeholders=(
     "__SANDBOX_EXISTING_PINNED_MD__"
     "__SANDBOX_EXISTING_PRD_MD__"
@@ -1064,7 +1073,7 @@ _materialize_pretooluse_fixture() {
     "$sandbox/fixture-pinning/.claude/plans"
   for i in "${!placeholders[@]}"; do
     mkdir -p "$(dirname "${paths[$i]}")"
-    sed_args+=(-e "s#${placeholders[$i]}#${paths[$i]}#g")
+    sed_args+=(-e "s#${placeholders[$i]}#$(sed_replacement_escape "${paths[$i]}")#g")
   done
 
   sed "${sed_args[@]}" "$fixture" > "$materialized_meta"

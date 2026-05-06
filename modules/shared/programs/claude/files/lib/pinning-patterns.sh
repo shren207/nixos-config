@@ -137,7 +137,7 @@ pinning_is_prd_or_plan_path() {
 
   local path
   path="$(pinning_canonicalize_path "$raw")"
-  if [ -z "$path" ]; then
+  if [ -z "$path" ] && [ ! -e "$raw" ] && [ ! -L "$raw" ]; then
     path="$(pinning_canonicalize_existing_parent_path "$raw")"
   fi
   [ -n "$path" ] || return 1
@@ -273,16 +273,21 @@ _pinning_findings_records_for_prd_or_plan_state() {
   fi
 }
 
+_pinning_prd_or_plan_state_for_path() {
+  local path="$1"
+  if pinning_is_prd_or_plan_path "$path"; then
+    printf '1\n'
+  fi
+}
+
 # Path-aware records keep the generic TSV format. PRD/plan paths suppress only
 # category A; categories B/C/D remain visible there.
 pinning_findings_records_for_path() {
   local scan_file="$1"
   local path="$2"
   local skip_partial_hash="${3:-}"
-  local is_prd_or_plan=""
-  if pinning_is_prd_or_plan_path "$path"; then
-    is_prd_or_plan=1
-  fi
+  local is_prd_or_plan
+  is_prd_or_plan="$(_pinning_prd_or_plan_state_for_path "$path")"
   _pinning_findings_records_for_prd_or_plan_state "$scan_file" "$skip_partial_hash" "$is_prd_or_plan"
 }
 
@@ -347,10 +352,8 @@ pinning_findings_text_for_path() {
   local scan_file="$1"
   local path="$2"
   local skip_partial_hash="${3:-}"
-  local is_prd_or_plan=""
-  if pinning_is_prd_or_plan_path "$path"; then
-    is_prd_or_plan=1
-  fi
+  local is_prd_or_plan
+  is_prd_or_plan="$(_pinning_prd_or_plan_state_for_path "$path")"
   _pinning_findings_text_for_prd_or_plan_state "$scan_file" "$skip_partial_hash" "$is_prd_or_plan"
 }
 
@@ -358,10 +361,8 @@ pinning_match_count_for_path() {
   local scan_file="$1"
   local path="$2"
   local skip_partial_hash="${3:-}"
-  local is_prd_or_plan=""
-  if pinning_is_prd_or_plan_path "$path"; then
-    is_prd_or_plan=1
-  fi
+  local is_prd_or_plan
+  is_prd_or_plan="$(_pinning_prd_or_plan_state_for_path "$path")"
   _pinning_match_count_for_prd_or_plan_state "$scan_file" "$skip_partial_hash" "$is_prd_or_plan"
 }
 
@@ -412,10 +413,8 @@ pinning_guard_findings_text_for_path() {
   local new_scan_file="$2"
   local path="$3"
   local skip_partial_hash="${4:-}"
-  local is_prd_or_plan=""
-  if pinning_is_prd_or_plan_path "$path"; then
-    is_prd_or_plan=1
-  fi
+  local is_prd_or_plan
+  is_prd_or_plan="$(_pinning_prd_or_plan_state_for_path "$path")"
 
   if [ -n "$is_prd_or_plan" ]; then
     _pinning_new_findings_text_for_prd_or_plan_state \
