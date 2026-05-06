@@ -28,14 +28,22 @@ let
     value:
     let
       type = builtins.typeOf value;
+      assertLocalCssValue =
+        text:
+        if (builtins.match ".*(@import|url\\(|https?://|file://).*" text) != null then
+          throw "Islands Dark stylesheet contains a blocked external/local resource reference: ${text}"
+        else
+          text;
     in
     if type == "string" then
-      value
+      assertLocalCssValue value
     else if type == "int" || type == "float" || type == "bool" then
       toString value
     else
       throw "Islands Dark stylesheet contains unsupported CSS value type: ${type}";
 
+  # Nix JSON parsing stores objects as attrsets, so selector/property source order is not preserved.
+  # Keep this path for self-contained declarations that do not depend on equal-specificity cascade order.
   cssText = builtins.concatStringsSep "\n" (
     lib.mapAttrsToList (selector: rules: ''
       ${selector} {

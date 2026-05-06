@@ -83,6 +83,7 @@ nrs
 **선택 방법:**
 1. 먼저 https://open-vsx.org 에서 검색
 2. 없으면 https://marketplace.visualstudio.com 사용
+3. Marketplace/Open-VSX에 없거나 upstream source patch/font/CSS까지 함께 고정해야 하면 custom pinned source 사용
 
 ## 확장 ID 찾는 방법
 
