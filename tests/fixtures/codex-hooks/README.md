@@ -99,6 +99,7 @@ Issue #686 path-aware PATTERN_A guard fixtures add the explicit matrix:
 |----------|---------|
 | PATTERN_A allowed in `.claude/prds/` and `.claude/plans/` | `pretooluse-pinning-guard-claude-write-{prds,plans}-pattern-a-clean.*`, `pretooluse-pinning-guard-codex-applypatch-{prds,plans}-pattern-a-clean.*` |
 | PATTERN_B/C/D still denied in `.claude/prds/` and `.claude/plans/` | `pretooluse-pinning-guard-claude-write-{prds,plans}-pattern-{b,c,d}-deny.*` |
+| Equal-count non-A replacement still denied | `pretooluse-pinning-guard-{claude,codex}-write-{prds,plans}-pattern-*-to-*-deny.*`, `pretooluse-pinning-guard-claude-edit-prds-pattern-b-token-change-deny.*` |
 | Codex `apply_patch` effective path remains correct | `pretooluse-pinning-guard-codex-applypatch-{moveto,multifile}-prds-pattern-a-clean.*` |
 
 ### commit-msg/ 카테고리 7c fixture (commit-msg-pinning behavioral)

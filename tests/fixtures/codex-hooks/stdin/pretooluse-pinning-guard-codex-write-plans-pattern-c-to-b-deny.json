@@ -1,0 +1,8 @@
+{
+  "tool_name": "Write",
+  "tool_input": {
+    "file_path": "__SANDBOX_EXISTING_PLAN_MD__",
+    "old_string": "DA for_plan",
+    "content": "Correctness-1"
+  }
+}

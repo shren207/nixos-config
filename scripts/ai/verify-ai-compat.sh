@@ -1438,7 +1438,7 @@ for _var in PATTERN_A PATTERN_B PATTERN_C PATTERN_D HASH_MIN HASH_MAX PINNING_RE
     fail "pinning $_var 정의 부재 ($_pinning_lib)"
   fi
 done
-for _fn in pinning_findings_records pinning_findings_text pinning_match_count pinning_should_check_path pinning_is_prd_or_plan_path pinning_apply_patch_added_sections pinning_findings_text_for_path pinning_match_count_for_path; do
+for _fn in pinning_findings_records pinning_findings_text pinning_match_count pinning_should_check_path pinning_is_prd_or_plan_path pinning_apply_patch_added_sections pinning_findings_records_for_path pinning_findings_text_for_path pinning_match_count_for_path pinning_new_findings_records_for_path pinning_new_findings_text_for_path; do
   if grep -m1 -E "^${_fn}\(\)" "$_pinning_lib" >/dev/null 2>&1; then
     pass "pinning $_fn shared lib 함수 OK"
   else

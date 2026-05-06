@@ -178,20 +178,7 @@ _pinning_simple_records() {
       ' || true
 }
 
-# Structured findings API. Output: TSV records, one per match.
-# Format: <category_code>\t<label>\t<line>:<token>
-# - category_code: stable identifier (A/B/C/D) — callers branch on this
-#   without parsing the human-readable label, which keeps display-string
-#   changes from breaking branching logic.
-# - label: human-readable category label (sourced from PINNING_PATTERN_*_LABEL)
-# - line:token: 1-based line number from grep -n + matched token
-# Second arg `skip_partial_hash` (truthy) suppresses D records — used by the
-# git revert/cherry-pick exception so callers never need to post-process
-# rendered text to remove partial-hash entries.
-# Third arg `skip_pattern_a` (truthy) suppresses PATTERN_A records only. It is
-# for path-aware PRD/plan round-counter allowances and must never suppress
-# PATTERN_B/C/D.
-pinning_findings_records() {
+_pinning_findings_records() {
   local scan_file="$1"
   local skip_partial_hash="${2:-}"
   local skip_pattern_a="${3:-}"
@@ -206,6 +193,33 @@ pinning_findings_records() {
   fi
 }
 
+# Structured findings API. Output: TSV records, one per match.
+# Format: <category_code>\t<label>\t<line>:<token>
+# - category_code: stable identifier (A/B/C/D) — callers branch on this
+#   without parsing the human-readable label, which keeps display-string
+#   changes from breaking branching logic.
+# - label: human-readable category label (sourced from PINNING_PATTERN_*_LABEL)
+# - line:token: 1-based line number from grep -n + matched token
+# Second arg `skip_partial_hash` (truthy) suppresses D records — used by the
+# git revert/cherry-pick exception so callers never need to post-process
+# rendered text to remove partial-hash entries.
+pinning_findings_records() {
+  local scan_file="$1"
+  local skip_partial_hash="${2:-}"
+  _pinning_findings_records "$scan_file" "$skip_partial_hash"
+}
+
+pinning_findings_records_for_path() {
+  local scan_file="$1"
+  local path="$2"
+  local skip_partial_hash="${3:-}"
+  local skip_pattern_a=""
+  if pinning_is_prd_or_plan_path "$path"; then
+    skip_pattern_a=1
+  fi
+  _pinning_findings_records "$scan_file" "$skip_partial_hash" "$skip_pattern_a"
+}
+
 # Compatibility wrapper: render PATTERN_D records as the legacy indented
 # `<line>: <token>` form. Kept so existing callers (tests, observability)
 # that only care about partial-hash output keep working.
@@ -215,16 +229,9 @@ pinning_partial_hash_report() {
     | awk -F'\t' -v indent="$PINNING_REPORT_INDENT" '{ print indent $3 }'
 }
 
-# Render records as human-readable findings text. Output preserves the legacy
-# layout (label line per category followed by indented `<line>: <token>`
-# evidence lines). Second arg `skip_partial_hash` (truthy) suppresses D output.
-# Third arg `skip_pattern_a` (truthy) suppresses PATTERN_A output only.
-pinning_findings_text() {
-  local scan_file="$1"
-  local skip_partial_hash="${2:-}"
-  local skip_pattern_a="${3:-}"
+_pinning_render_records() {
   local records
-  records="$(pinning_findings_records "$scan_file" "$skip_partial_hash" "$skip_pattern_a")"
+  records="$(cat)"
   [ -n "$records" ] || return 0
   printf '%s\n' "$records" | awk -F'\t' -v indent="$PINNING_REPORT_INDENT" '
     BEGIN { last_code = "" }
@@ -239,31 +246,67 @@ pinning_findings_text() {
   '
 }
 
+# Render records as human-readable findings text. Output preserves the legacy
+# layout (label line per category followed by indented `<line>: <token>`
+# evidence lines). Second arg `skip_partial_hash` (truthy) suppresses D output.
+pinning_findings_text() {
+  local scan_file="$1"
+  local skip_partial_hash="${2:-}"
+  pinning_findings_records "$scan_file" "$skip_partial_hash" | _pinning_render_records
+}
+
 pinning_match_count() {
   local scan_file="$1"
   local skip_partial_hash="${2:-}"
-  local skip_pattern_a="${3:-}"
-  pinning_findings_records "$scan_file" "$skip_partial_hash" "$skip_pattern_a" | wc -l | tr -d ' '
+  pinning_findings_records "$scan_file" "$skip_partial_hash" | wc -l | tr -d ' '
 }
 
 pinning_findings_text_for_path() {
   local scan_file="$1"
   local path="$2"
   local skip_partial_hash="${3:-}"
-  local skip_pattern_a=""
-  if pinning_is_prd_or_plan_path "$path"; then
-    skip_pattern_a=1
-  fi
-  pinning_findings_text "$scan_file" "$skip_partial_hash" "$skip_pattern_a"
+  pinning_findings_records_for_path "$scan_file" "$path" "$skip_partial_hash" | _pinning_render_records
 }
 
 pinning_match_count_for_path() {
   local scan_file="$1"
   local path="$2"
   local skip_partial_hash="${3:-}"
-  local skip_pattern_a=""
-  if pinning_is_prd_or_plan_path "$path"; then
-    skip_pattern_a=1
-  fi
-  pinning_match_count "$scan_file" "$skip_partial_hash" "$skip_pattern_a"
+  pinning_findings_records_for_path "$scan_file" "$path" "$skip_partial_hash" | wc -l | tr -d ' '
+}
+
+pinning_new_findings_records_for_path() {
+  local old_scan_file="$1"
+  local new_scan_file="$2"
+  local path="$3"
+  local skip_partial_hash="${4:-}"
+  {
+    pinning_findings_records_for_path "$old_scan_file" "$path" "$skip_partial_hash" \
+      | awk -F'\t' '{ token = $3; sub(/^[0-9]+: /, "", token); print "OLD\t" $1 "\t" token }'
+    pinning_findings_records_for_path "$new_scan_file" "$path" "$skip_partial_hash" \
+      | awk -F'\t' '{ token = $3; sub(/^[0-9]+: /, "", token); print "NEW\t" $1 "\t" $2 "\t" $3 "\t" token }'
+  } | awk -F'\t' '
+    $1 == "OLD" {
+      key = $2 SUBSEP $3
+      old[key]++
+      next
+    }
+    $1 == "NEW" {
+      key = $2 SUBSEP $5
+      if (old[key] > 0) {
+        old[key]--
+        next
+      }
+      print $2 "\t" $3 "\t" $4
+    }
+  '
+}
+
+pinning_new_findings_text_for_path() {
+  local old_scan_file="$1"
+  local new_scan_file="$2"
+  local path="$3"
+  local skip_partial_hash="${4:-}"
+  pinning_new_findings_records_for_path "$old_scan_file" "$new_scan_file" "$path" "$skip_partial_hash" \
+    | _pinning_render_records
 }

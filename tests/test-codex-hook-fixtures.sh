@@ -1006,10 +1006,30 @@ _materialize_pretooluse_fixture() {
   local fixture="$1" sandbox="$2"
   local materialized="$fixture"
   local existing_file="$sandbox/existing-pinned.md"
-  if grep -q "__SANDBOX_EXISTING_PINNED_MD__" "$fixture"; then
+  local existing_prd_file="$sandbox/.claude/prds/existing.md"
+  local existing_plan_file="$sandbox/.claude/plans/existing.md"
+  if grep -q "__SANDBOX_EXISTING_.*_MD__" "$fixture"; then
     materialized="$sandbox/$(basename "$fixture")"
-    sed "s#__SANDBOX_EXISTING_PINNED_MD__#$existing_file#g" "$fixture" > "$materialized"
-    jq -r '.tool_input.old_string // empty' "$materialized" > "$existing_file"
+    mkdir -p "$(dirname "$existing_file")" "$(dirname "$existing_prd_file")" "$(dirname "$existing_plan_file")"
+    sed \
+      -e "s#__SANDBOX_EXISTING_PINNED_MD__#$existing_file#g" \
+      -e "s#__SANDBOX_EXISTING_PRD_MD__#$existing_prd_file#g" \
+      -e "s#__SANDBOX_EXISTING_PLAN_MD__#$existing_plan_file#g" \
+      "$fixture" > "$materialized"
+    sed \
+      -e "s#__SANDBOX_EXISTING_PINNED_MD__#$existing_file#g" \
+      -e "s#__SANDBOX_EXISTING_PRD_MD__#$existing_prd_file#g" \
+      -e "s#__SANDBOX_EXISTING_PLAN_MD__#$existing_plan_file#g" \
+      "${fixture%.json}.expected" > "${materialized%.json}.expected"
+    if grep -q "__SANDBOX_EXISTING_PINNED_MD__" "$fixture"; then
+      jq -r '.tool_input.old_string // empty' "$materialized" > "$existing_file"
+    fi
+    if grep -q "__SANDBOX_EXISTING_PRD_MD__" "$fixture"; then
+      jq -r '.tool_input.old_string // empty' "$materialized" > "$existing_prd_file"
+    fi
+    if grep -q "__SANDBOX_EXISTING_PLAN_MD__" "$fixture"; then
+      jq -r '.tool_input.old_string // empty' "$materialized" > "$existing_plan_file"
+    fi
   fi
   printf '%s\n' "$materialized"
 }
@@ -1045,7 +1065,7 @@ test_pretooluse_pinning_guard_behavioral() {
       fail "[7b] $(basename "$fixture"): expected empty stderr, got:
 $stderr_head"
     fi
-    _assert_pretooluse_guard_expectation "$fixture" "$stdout_log" "$reason_log"
+    _assert_pretooluse_guard_expectation "$materialized" "$stdout_log" "$reason_log"
   done
 }
 
