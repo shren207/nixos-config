@@ -1064,6 +1064,7 @@ _materialize_pinning_fixture() {
     "$sandbox/.claude/plans/existing.md"
   )
   local sed_args=(
+    -e "s#/tmp/fixture-pinning-#${sandbox_sed}/fixture-pinning-#g"
     -e "s#/tmp/fixture-pinning/#${sandbox_sed}/fixture-pinning/#g"
     -e "s#/tmp/fixture-pretooluse-#${sandbox_sed}/fixture-pretooluse-#g"
   )
