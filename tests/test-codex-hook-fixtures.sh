@@ -1104,18 +1104,10 @@ _materialize_pinning_fixture() {
   sed "${sed_args[@]}" "${fixture%.json}.expected" > "${materialized%.json}.expected"
   for i in "${!placeholders[@]}"; do
     if grep -q "${placeholders[$i]}" "$fixture"; then
-      jq -r --arg placeholder "${placeholders[$i]}" '
-        (
-          if (._fixture_existing_content_by_placeholder | type) == "object" then
-            ._fixture_existing_content_by_placeholder[$placeholder]
-          else
-            null
-          end
-        ) // ._fixture_existing_content // .tool_input.old_string // empty
-      ' "$materialized_meta" > "${paths[$i]}"
+      jq -r '._fixture_existing_content // .tool_input.old_string // empty' "$materialized_meta" > "${paths[$i]}"
     fi
   done
-  jq 'del(._fixture_existing_content, ._fixture_existing_content_by_placeholder)' "$materialized_meta" > "$materialized"
+  jq 'del(._fixture_existing_content)' "$materialized_meta" > "$materialized"
   rm -f "$materialized_meta"
   printf '%s\n' "$materialized"
 }

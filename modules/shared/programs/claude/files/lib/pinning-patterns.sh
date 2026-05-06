@@ -20,7 +20,7 @@ PINNING_PARTIAL_HASH_FINDING_LABEL_SUBSTR='짧은 임시 hex 식별자 박제'
 # a stable field so callers can map by category code (A/B/C/D) instead of
 # substring-matching the human-readable text.
 PINNING_PATTERN_A_LABEL="Round counter 박제: 'Round N'"
-PINNING_PATTERN_B_LABEL="Volatile finding ID 박제"
+PINNING_PATTERN_B_LABEL="Bundle finding ID 박제: 'Bundle-N'"
 PINNING_PATTERN_C_LABEL="DA 실행 키워드 박제"
 PINNING_PATTERN_D_LABEL="${PINNING_PARTIAL_HASH_FINDING_LABEL_SUBSTR} (${HASH_MIN}~${HASH_MAX}자)"
 
@@ -60,9 +60,6 @@ pinning_canonicalize_path() {
   printf '%s\n' "$canon"
 }
 
-# Resolve <raw> by walking up to the nearest existing ancestor and re-attaching
-# the missing suffix. Output is not slash-normalized; callers must validate
-# traversal and symlink policy before trusting the result for an allowlist.
 pinning_canonicalize_existing_parent_path() {
   local raw="$1"
   local abs dir suffix parent
