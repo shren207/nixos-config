@@ -123,7 +123,7 @@ case "$TOOL_NAME" in
         _scan_text_file "$NEW_SOURCE" "$SCAN_DIR/new.txt"
         ;;
     esac
-    findings="$(pinning_new_findings_text_for_path "$SCAN_DIR/old.txt" "$SCAN_DIR/new.txt" "$FILE_PATH")"
+    findings="$(pinning_guard_findings_text_for_path "$SCAN_DIR/old.txt" "$SCAN_DIR/new.txt" "$FILE_PATH")"
     if [ -n "$findings" ]; then
       _deny "$TOOL_NAME" "$FILE_PATH" "$findings"
     fi

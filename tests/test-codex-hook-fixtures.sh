@@ -923,6 +923,28 @@ test_stop_notification_helper_equivalence() {
 # 옆에 위치한 *.expected에 stderr 출력을 박는다. exit code는 모두 0(warn-only contract).
 # Codex apply_patch envelope V4A awk parser의 핵심 분기(*** Move to: rename, multi-file
 # attribution, removeonly added-line filter, backtick HASH_MIN 미만)를 함께 보호한다.
+test_pinning_shared_library_behavioral() {
+  local sandbox scan_file
+  sandbox=$(new_hook_sandbox)
+  scan_file="$sandbox/pinning-shared-scan.txt"
+  {
+    printf '%s\n' "Ro""und 1"
+    printf '%s\n' "Correctness""-1"
+    printf '%s\n' "DA ""for_plan"
+    printf '%s\n' "dead""bee"
+  } > "$scan_file"
+
+  # shellcheck source=../modules/shared/programs/claude/files/lib/pinning-patterns.sh
+  . "$PINNING_LIB_REPO_FILE"
+
+  assert_eq "$(pinning_match_count "$scan_file" "" 1)" "4" \
+    "[7/lib] raw helper must ignore extra args and keep PATTERN_A visible"
+  assert_eq "$(pinning_match_count_for_path "$scan_file" "$sandbox/outside.md")" "4" \
+    "[7/lib] outside path must keep PATTERN_A visible"
+  assert_eq "$(pinning_match_count_for_path "$scan_file" "$sandbox/.claude/prds/prd.md")" "3" \
+    "[7/lib] PRD path must skip only PATTERN_A"
+}
+
 _assert_pinning_expectation() {
   local fixture="$1" stderr_log="$2"
   local expected="${fixture%.json}.expected"
@@ -1005,31 +1027,30 @@ $diff_out"
 _materialize_pretooluse_fixture() {
   local fixture="$1" sandbox="$2"
   local materialized="$fixture"
-  local existing_file="$sandbox/existing-pinned.md"
-  local existing_prd_file="$sandbox/.claude/prds/existing.md"
-  local existing_plan_file="$sandbox/.claude/plans/existing.md"
   if grep -q "__SANDBOX_EXISTING_.*_MD__" "$fixture"; then
     materialized="$sandbox/$(basename "$fixture")"
-    mkdir -p "$(dirname "$existing_file")" "$(dirname "$existing_prd_file")" "$(dirname "$existing_plan_file")"
-    sed \
-      -e "s#__SANDBOX_EXISTING_PINNED_MD__#$existing_file#g" \
-      -e "s#__SANDBOX_EXISTING_PRD_MD__#$existing_prd_file#g" \
-      -e "s#__SANDBOX_EXISTING_PLAN_MD__#$existing_plan_file#g" \
-      "$fixture" > "$materialized"
-    sed \
-      -e "s#__SANDBOX_EXISTING_PINNED_MD__#$existing_file#g" \
-      -e "s#__SANDBOX_EXISTING_PRD_MD__#$existing_prd_file#g" \
-      -e "s#__SANDBOX_EXISTING_PLAN_MD__#$existing_plan_file#g" \
-      "${fixture%.json}.expected" > "${materialized%.json}.expected"
-    if grep -q "__SANDBOX_EXISTING_PINNED_MD__" "$fixture"; then
-      jq -r '.tool_input.old_string // empty' "$materialized" > "$existing_file"
-    fi
-    if grep -q "__SANDBOX_EXISTING_PRD_MD__" "$fixture"; then
-      jq -r '.tool_input.old_string // empty' "$materialized" > "$existing_prd_file"
-    fi
-    if grep -q "__SANDBOX_EXISTING_PLAN_MD__" "$fixture"; then
-      jq -r '.tool_input.old_string // empty' "$materialized" > "$existing_plan_file"
-    fi
+    local placeholders=(
+      "__SANDBOX_EXISTING_PINNED_MD__"
+      "__SANDBOX_EXISTING_PRD_MD__"
+      "__SANDBOX_EXISTING_PLAN_MD__"
+    )
+    local paths=(
+      "$sandbox/existing-pinned.md"
+      "$sandbox/.claude/prds/existing.md"
+      "$sandbox/.claude/plans/existing.md"
+    )
+    local sed_args=() i
+    for i in "${!placeholders[@]}"; do
+      mkdir -p "$(dirname "${paths[$i]}")"
+      sed_args+=(-e "s#${placeholders[$i]}#${paths[$i]}#g")
+    done
+    sed "${sed_args[@]}" "$fixture" > "$materialized"
+    sed "${sed_args[@]}" "${fixture%.json}.expected" > "${materialized%.json}.expected"
+    for i in "${!placeholders[@]}"; do
+      if grep -q "${placeholders[$i]}" "$fixture"; then
+        jq -r '.tool_input.old_string // empty' "$materialized" > "${paths[$i]}"
+      fi
+    done
   fi
   printf '%s\n' "$materialized"
 }
@@ -1453,6 +1474,8 @@ run_test "stop-notification timeout unavailable fail-open (6.3)" \
 run_test "stop-notification helper equivalence (6.4)" \
   test_stop_notification_helper_equivalence
 
+run_test "pinning shared library behavioral" \
+  test_pinning_shared_library_behavioral
 run_test "pinning-alert behavioral (#606)" \
   test_pinning_alert_behavioral
 run_test "pretooluse pinning-guard behavioral (#587)" \

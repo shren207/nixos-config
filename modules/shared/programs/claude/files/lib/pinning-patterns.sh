@@ -178,14 +178,11 @@ _pinning_simple_records() {
       ' || true
 }
 
-_pinning_findings_records() {
+pinning_findings_records() {
   local scan_file="$1"
   local skip_partial_hash="${2:-}"
-  local skip_pattern_a="${3:-}"
 
-  if [ -z "$skip_pattern_a" ]; then
-    _pinning_simple_records "$scan_file" "A" "$PATTERN_A" "$PINNING_PATTERN_A_LABEL"
-  fi
+  _pinning_simple_records "$scan_file" "A" "$PATTERN_A" "$PINNING_PATTERN_A_LABEL"
   _pinning_simple_records "$scan_file" "B" "$PATTERN_B" "$PINNING_PATTERN_B_LABEL"
   _pinning_simple_records "$scan_file" "C" "$PATTERN_C" "$PINNING_PATTERN_C_LABEL"
   if [ -z "$skip_partial_hash" ]; then
@@ -203,21 +200,15 @@ _pinning_findings_records() {
 # Second arg `skip_partial_hash` (truthy) suppresses D records — used by the
 # git revert/cherry-pick exception so callers never need to post-process
 # rendered text to remove partial-hash entries.
-pinning_findings_records() {
-  local scan_file="$1"
-  local skip_partial_hash="${2:-}"
-  _pinning_findings_records "$scan_file" "$skip_partial_hash"
-}
-
 pinning_findings_records_for_path() {
   local scan_file="$1"
   local path="$2"
   local skip_partial_hash="${3:-}"
-  local skip_pattern_a=""
   if pinning_is_prd_or_plan_path "$path"; then
-    skip_pattern_a=1
+    pinning_findings_records "$scan_file" "$skip_partial_hash" | awk -F'\t' '$1 != "A"'
+  else
+    pinning_findings_records "$scan_file" "$skip_partial_hash"
   fi
-  _pinning_findings_records "$scan_file" "$skip_partial_hash" "$skip_pattern_a"
 }
 
 # Compatibility wrapper: render PATTERN_D records as the legacy indented
@@ -275,6 +266,11 @@ pinning_match_count_for_path() {
   pinning_findings_records_for_path "$scan_file" "$path" "$skip_partial_hash" | wc -l | tr -d ' '
 }
 
+# Intermediate schema for the delta helper:
+# OLD<TAB>code<TAB>token
+# NEW<TAB>code<TAB>label<TAB>line-entry<TAB>token
+# Delta identity is category code + token; label and line-entry are retained
+# only so newly introduced records can be rendered without rescanning.
 pinning_new_findings_records_for_path() {
   local old_scan_file="$1"
   local new_scan_file="$2"
@@ -309,4 +305,22 @@ pinning_new_findings_text_for_path() {
   local skip_partial_hash="${4:-}"
   pinning_new_findings_records_for_path "$old_scan_file" "$new_scan_file" "$path" "$skip_partial_hash" \
     | _pinning_render_records
+}
+
+pinning_guard_findings_text_for_path() {
+  local old_scan_file="$1"
+  local new_scan_file="$2"
+  local path="$3"
+  local skip_partial_hash="${4:-}"
+  if pinning_is_prd_or_plan_path "$path"; then
+    pinning_new_findings_text_for_path "$old_scan_file" "$new_scan_file" "$path" "$skip_partial_hash"
+    return
+  fi
+
+  local old_count new_count
+  old_count="$(pinning_match_count_for_path "$old_scan_file" "$path" "$skip_partial_hash")"
+  new_count="$(pinning_match_count_for_path "$new_scan_file" "$path" "$skip_partial_hash")"
+  if [ "$new_count" -gt "$old_count" ]; then
+    pinning_findings_text_for_path "$new_scan_file" "$path" "$skip_partial_hash"
+  fi
 }

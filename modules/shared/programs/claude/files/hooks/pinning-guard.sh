@@ -85,7 +85,7 @@ case "$TOOL_NAME" in
 
     _scan_text_file "${OLD_STR:-}" "$SCAN_DIR/old.txt"
     _scan_text_file "$NEW_STR" "$SCAN_DIR/new.txt"
-    findings="$(pinning_new_findings_text_for_path "$SCAN_DIR/old.txt" "$SCAN_DIR/new.txt" "$FILE_PATH")"
+    findings="$(pinning_guard_findings_text_for_path "$SCAN_DIR/old.txt" "$SCAN_DIR/new.txt" "$FILE_PATH")"
     if [ -n "$findings" ]; then
       _deny "$TOOL_NAME" "$FILE_PATH" "$findings"
     fi
@@ -103,7 +103,7 @@ case "$TOOL_NAME" in
       : > "$SCAN_DIR/old.txt"
     fi
     _scan_text_file "$CONTENT" "$SCAN_DIR/new.txt"
-    findings="$(pinning_new_findings_text_for_path "$SCAN_DIR/old.txt" "$SCAN_DIR/new.txt" "$FILE_PATH")"
+    findings="$(pinning_guard_findings_text_for_path "$SCAN_DIR/old.txt" "$SCAN_DIR/new.txt" "$FILE_PATH")"
     if [ -n "$findings" ]; then
       _deny "$TOOL_NAME" "$FILE_PATH" "$findings"
     fi
@@ -118,7 +118,7 @@ case "$TOOL_NAME" in
     OLD_SOURCE=$(printf '%s' "$INPUT" | jq -r '.tool_input.old_source // .tool_input.old_string // empty' 2>/dev/null)
     _scan_text_file "${OLD_SOURCE:-}" "$SCAN_DIR/old.txt"
     _scan_text_file "$NEW_SOURCE" "$SCAN_DIR/new.txt"
-    findings="$(pinning_new_findings_text_for_path "$SCAN_DIR/old.txt" "$SCAN_DIR/new.txt" "$FILE_PATH")"
+    findings="$(pinning_guard_findings_text_for_path "$SCAN_DIR/old.txt" "$SCAN_DIR/new.txt" "$FILE_PATH")"
     if [ -n "$findings" ]; then
       _deny "$TOOL_NAME" "$FILE_PATH" "$findings"
     fi
