@@ -178,6 +178,16 @@ _pinning_simple_records() {
       ' || true
 }
 
+# Structured findings API. Output: TSV records, one per match.
+# Format: <category_code>\t<label>\t<line>:<token>
+# - category_code: stable identifier (A/B/C/D) — callers branch on this
+#   without parsing the human-readable label, which keeps display-string
+#   changes from breaking branching logic.
+# - label: human-readable category label (sourced from PINNING_PATTERN_*_LABEL)
+# - line:token: 1-based line number from grep -n + matched token
+# Second arg `skip_partial_hash` (truthy) suppresses D records — used by the
+# git revert/cherry-pick exception so callers never need to post-process
+# rendered text to remove partial-hash entries.
 pinning_findings_records() {
   local scan_file="$1"
   local skip_partial_hash="${2:-}"
@@ -190,16 +200,8 @@ pinning_findings_records() {
   fi
 }
 
-# Structured findings API. Output: TSV records, one per match.
-# Format: <category_code>\t<label>\t<line>:<token>
-# - category_code: stable identifier (A/B/C/D) — callers branch on this
-#   without parsing the human-readable label, which keeps display-string
-#   changes from breaking branching logic.
-# - label: human-readable category label (sourced from PINNING_PATTERN_*_LABEL)
-# - line:token: 1-based line number from grep -n + matched token
-# Second arg `skip_partial_hash` (truthy) suppresses D records — used by the
-# git revert/cherry-pick exception so callers never need to post-process
-# rendered text to remove partial-hash entries.
+# Path-aware records keep the generic TSV format. PRD/plan paths suppress only
+# category A; categories B/C/D remain visible there.
 pinning_findings_records_for_path() {
   local scan_file="$1"
   local path="$2"

@@ -1029,6 +1029,7 @@ _materialize_pretooluse_fixture() {
   local materialized="$fixture"
   if grep -q "__SANDBOX_EXISTING_.*_MD__" "$fixture"; then
     materialized="$sandbox/$(basename "$fixture")"
+    local materialized_meta="$materialized.with-meta"
     local placeholders=(
       "__SANDBOX_EXISTING_PINNED_MD__"
       "__SANDBOX_EXISTING_PRD_MD__"
@@ -1044,13 +1045,15 @@ _materialize_pretooluse_fixture() {
       mkdir -p "$(dirname "${paths[$i]}")"
       sed_args+=(-e "s#${placeholders[$i]}#${paths[$i]}#g")
     done
-    sed "${sed_args[@]}" "$fixture" > "$materialized"
+    sed "${sed_args[@]}" "$fixture" > "$materialized_meta"
     sed "${sed_args[@]}" "${fixture%.json}.expected" > "${materialized%.json}.expected"
     for i in "${!placeholders[@]}"; do
       if grep -q "${placeholders[$i]}" "$fixture"; then
-        jq -r '.tool_input.old_string // empty' "$materialized" > "${paths[$i]}"
+        jq -r '._fixture_existing_content // .tool_input.old_string // empty' "$materialized_meta" > "${paths[$i]}"
       fi
     done
+    jq 'del(._fixture_existing_content)' "$materialized_meta" > "$materialized"
+    rm -f "$materialized_meta"
   fi
   printf '%s\n' "$materialized"
 }
