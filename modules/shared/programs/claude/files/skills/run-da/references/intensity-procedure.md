@@ -74,7 +74,7 @@ modifier `full`은 Review Intensity를 건너뛰고 exhaustive 8-domain path로 
    - SKIP 판단 근거 (위 체크리스트 표 인용)
    - "DA를 생략해도 괜찮겠습니까?"
 2. 사용자가 승인하면 DA를 생략하고 해당 모드(for_plan/for_pr)를 종료하여 상위 워크플로로 복귀한다.
-3. 사용자가 거부하면 LITE 또는 FULL로 승격하여 DA를 진행한다. 자동 호출자 handoff에 이미 `SKIP rejected`가 기록되어 있으면 같은 질문을 반복하지 않고 이 승격 경로로 바로 진입한다.
+3. 사용자가 거부하면 LITE 또는 FULL로 승격하여 DA를 진행한다. 자동 호출자 handoff에 이미 `SKIP rejected`가 기록되어 있고 freshness validation을 통과한 경우에만 같은 질문을 반복하지 않고 이 승격 경로로 바로 진입한다.
 
 질문 도구를 호출할 수 없는 런타임에서는 [`arbiter-scaling.md`](arbiter-scaling.md)의 "질문 도구 미지원 대응" 섹션을 따른다 (자동 LITE 승격 등).
 
