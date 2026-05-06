@@ -13,7 +13,7 @@ description: |
   'PRD 작성', 'PRD 만들어', 'PRD 업데이트', 'Living PRD', 'phase 계획', '기능 스펙 정리',
   'Discovery Gate 있는 계획서', '구현 감사', '문서 대비 구현 리뷰', '스펙 대비 감사',
   'overbuilt 검사', 'PRD phase 완료 확인'.
-  Takes precedence over domain-specific config skills when the request is a vague feature idea that needs clarification before implementation.
+  Takes precedence over domain-specific config skills only when the request explicitly asks to clarify, plan, or review a vague feature idea before implementation.
   NOT for straightforward implementation plan documents from an already clear spec, such as 'spec 기반으로 구현 계획 작성' or 'implementation plan 문서'.
   NOT for DA (use run-da). NOT for PR 본문 (use create-pr).
   NOT for 산출물 없는 결정 트리 인터뷰 (use grill-me).

@@ -28,6 +28,8 @@ If these references change, this gate follows them. Call-site docs must link her
    - post-implementation: `git diff --stat main...HEAD` and, when needed, actual diff facts.
 2. Apply the Review Intensity checklist exactly as defined by `run-da`.
 3. Record the full checklist table and first-match verdict in the active plan/PRD context or conversation state.
+   - Durable records must use sanitized evidence only. Do not copy raw diff hunk text, secret-looking values, tokens, credentials, or other sensitive literals into plan/PRD markdown.
+   - Raw facts needed only for freshness validation stay in transient handoff context unless they are already safe to persist.
 4. If the verdict is `SKIP`, ask the user with the question tool before skipping.
 5. If the verdict is `LITE` or `FULL`, invoke `/run-da` with the checklist handoff and continue with that intensity.
 
@@ -35,13 +37,13 @@ If these references change, this gate follows them. Call-site docs must link her
 
 | Condition | Action | Durable state |
 |-----------|--------|---------------|
-| User approves SKIP | Do not invoke `/run-da`; treat the automatic gate as completed. | `for_action` plan DA must record `DA State=SKIPPED`, `Resume From=for_action.step7_plan_mode_entry`, and `Last Completed Step=for_action.step6_da_apply`; `for_prd` records the Step 5 outcome in transient context and, after PRD creation, the PRD master `Change Log`; post-implementation records the Step 3 outcome in `Change Log` / resume note, not in plan-mode `DA State`. |
+| User approves SKIP | Do not invoke `/run-da`; treat the automatic gate as completed. | `for_action` plan DA must record `DA State=SKIPPED`, `Resume From=for_action.step7_plan_mode_entry`, and `Last Completed Step=for_action.step6_da_apply`; `for_prd` records the Step 5 outcome in transient context and, after PRD creation, the PRD master `Change Log`; post-implementation records the Step 3 outcome in the active plan `Change Log` or PRD master `Change Log`, sets `Last Completed Step=post_impl.run_da_for_pr`, sets `Resume From=post_impl.parallel_audit`, and does not overwrite plan-mode `DA State`. |
 | User rejects SKIP | Invoke `/run-da` with `SKIP rejected` handoff. `/run-da` must not ask the same SKIP question again; it enters the post-refusal escalation path. | Record escalation, not `SKIPPED`. |
 | Question tool unavailable | Do not skip. Follow the `run-da` fallback policy, which escalates SKIP to LITE for this case. | Record escalation, not `SKIPPED`. |
 
 ## Handoff to `/run-da`
 
-When the gate invokes `/run-da` after preflight, pass the checklist table and outcome as context. A valid handoff includes:
+When the gate invokes `/run-da` after preflight, pass the checklist table and outcome as context. This section is the handoff schema SSOT. A valid handoff includes:
 
 - mode (`for_plan` or `for_pr`)
 - input summary used for the checklist

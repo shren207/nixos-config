@@ -19,7 +19,7 @@
 
 1. **변경 구현**
 2. **구현 커밋** — `/run-da for_pr`의 DA 입력 checkpoint. 기계적 변경(flake.lock 등)이 포함되면 `git diff main...HEAD -- ':!flake.lock'`로 축약 diff 사용.
-3. **`/run-da for_pr`** — 코드 검토 루프. 실행 직전에 [`./run-da-preflight-gate.md`](./run-da-preflight-gate.md)를 적용하며, 사용자 승인 SKIP이면 Step 3을 완료로 기록하고 `/run-da for_pr`을 호출하지 않는다.
+3. **`/run-da for_pr`** — 코드 검토 루프. 실행 직전에 [`./run-da-preflight-gate.md`](./run-da-preflight-gate.md)를 적용하며, 사용자 승인 SKIP이면 Step 3을 완료로 기록하고 `/run-da for_pr`을 호출하지 않는다. 이 SKIP은 Step 3에만 적용되며, Step 4 이후의 비용/실행 여부를 자동으로 줄이지 않는다.
 4. **`/parallel-audit`** — 전수조사.
 5. **Final Multi-Pass Review** — [`./prd/multi-pass-review.md`](./prd/multi-pass-review.md) 체크리스트 수행. 메인 에이전트 직접 수행(fan-out 금지; `run-da` 4-bundle과 축 구분 — Cross-Phase Integration, Validation 선택, Documentation, PRD Closeout은 run-da가 커버하지 않는 영역).
    - **for_prd 모드 추가**: 상세는 [`./task-size-routing.md#review-impl-통합-시점`](./task-size-routing.md#review-impl-통합-시점)이 SSOT (요약: phase-end는 PRD 10-pass + 6-classification 둘 다, Final은 PRD 10-pass + review-impl overlay(6-classification 라벨링 + overbuilt 우선), auto-fix 미사용).

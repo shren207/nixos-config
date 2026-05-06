@@ -60,7 +60,7 @@
 1. 메인 에이전트가 Step 1-4와 Step 5-6 결과를 사용자에게 요약 제시:
    - PRD 후보 신호 (트리거된 tier-1/aux 신호)
    - Resolved evidence + 사용자 답변 + Step 3.5 자문 매트릭스 요약
-   - DA findings + Arbiter 판정 핵심
+   - preflight/DA outcome (승인된 SKIP이면 체크리스트 verdict + 사용자 승인, 아니면 DA findings + Arbiter 판정 핵심)
    - 후보 phase 구조 (3-6개) + 산출물 경로 (`.claude/prds/...`)
    - **Post-Implementation 자동 수행 범위** ([`../references/post-implementation.md`](../references/post-implementation.md) 1~7 — 변경 구현·구현 커밋·`/run-da for_pr`·`/parallel-audit`·Final review·반영 커밋·`/create-pr`).
 2. 승인 요청 도구로 사용자 승인 요청. 사용자가 수정 요청하면 PRD draft/context 또는 후보 phase 구조를 갱신한 뒤 다시 요청.

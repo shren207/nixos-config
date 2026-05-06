@@ -77,7 +77,7 @@ PRD 파일 작성 전의 `for_prd.step5_da` / `for_prd.step6_da_apply`는 durabl
 | `post_impl.review_commit` | 10-pass 반영 커밋 (6번, 수정 발생 시) |
 | `post_impl.create_pr` | `/create-pr` (7번) |
 
-Post-Implementation Step 3 outcome is recorded in the active plan `Change Log` / resume note for `post_impl.run_da_for_pr`. It does not overwrite plan-mode `DA State`, which only tracks Step 5/6 plan DA.
+Post-Implementation Step 3 outcome is recorded in the active plan `Change Log` for for_action work or PRD master `Change Log` for for_prd work. Approved Step 3 SKIP must set `Last Completed Step=post_impl.run_da_for_pr` and `Resume From=post_impl.parallel_audit`. It does not overwrite plan-mode `DA State`, which only tracks Step 5/6 plan DA.
 
 ## Baseline drift 검증 알고리즘
 
