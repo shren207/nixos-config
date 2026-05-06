@@ -68,10 +68,6 @@ case "$TOOL_NAME" in
     ' 2>/dev/null)
     [ -n "$FILE_PATH" ] || exit 0
     pinning_should_check_path "$FILE_PATH" || exit 0
-    SKIP_PATTERN_A=""
-    if pinning_is_prd_or_plan_path "$FILE_PATH"; then
-      SKIP_PATTERN_A=1
-    fi
 
     case "$TOOL_NAME" in
       Edit) TEXT=$(printf '%s' "$INPUT" | jq -r '.tool_input.new_string // empty' 2>/dev/null) ;;
@@ -83,7 +79,7 @@ case "$TOOL_NAME" in
     SCAN_FILE="$SCAN_DIR/scan.txt"
     printf '%s' "$TEXT" > "$SCAN_FILE"
 
-    findings="$(pinning_findings_text "$SCAN_FILE" "" "$SKIP_PATTERN_A")"
+    findings="$(pinning_findings_text_for_path "$SCAN_FILE" "$FILE_PATH")"
     if [ -n "$findings" ]; then
       printf '[pinning-alert] %s on %s 매치:%b\n' "$TOOL_NAME" "$FILE_PATH" "$findings" >&2
     fi
@@ -120,11 +116,7 @@ case "$TOOL_NAME" in
       awk -F'\t' -v target="$p" '$1 == target { print substr($0, length(target) + 2) }' \
         "$SECTIONS_FILE" > "$PATH_SCAN_FILE"
       [ -s "$PATH_SCAN_FILE" ] || continue
-      SKIP_PATTERN_A=""
-      if pinning_is_prd_or_plan_path "$p"; then
-        SKIP_PATTERN_A=1
-      fi
-      findings="$(pinning_findings_text "$PATH_SCAN_FILE" "" "$SKIP_PATTERN_A")"
+      findings="$(pinning_findings_text_for_path "$PATH_SCAN_FILE" "$p")"
       if [ -n "$findings" ]; then
         printf '[pinning-alert] apply_patch on %s 매치:%b\n' "$p" "$findings" >&2
       fi

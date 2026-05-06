@@ -245,3 +245,25 @@ pinning_match_count() {
   local skip_pattern_a="${3:-}"
   pinning_findings_records "$scan_file" "$skip_partial_hash" "$skip_pattern_a" | wc -l | tr -d ' '
 }
+
+pinning_findings_text_for_path() {
+  local scan_file="$1"
+  local path="$2"
+  local skip_partial_hash="${3:-}"
+  local skip_pattern_a=""
+  if pinning_is_prd_or_plan_path "$path"; then
+    skip_pattern_a=1
+  fi
+  pinning_findings_text "$scan_file" "$skip_partial_hash" "$skip_pattern_a"
+}
+
+pinning_match_count_for_path() {
+  local scan_file="$1"
+  local path="$2"
+  local skip_partial_hash="${3:-}"
+  local skip_pattern_a=""
+  if pinning_is_prd_or_plan_path "$path"; then
+    skip_pattern_a=1
+  fi
+  pinning_match_count "$scan_file" "$skip_partial_hash" "$skip_pattern_a"
+}
