@@ -15,7 +15,28 @@
 {
   home-manager.useGlobalPkgs = true;
   home-manager.useUserPackages = true;
+  # home-manager backup 정책 (mkOutOfStoreSymlink atomic-rename collision 회피):
+  #   - backupCommand가 우선. regular file/symlink 충돌은 unlink, directory 충돌은
+  #     timestamped backup으로 보존 (rm -rf 위험 회피).
+  #   - backupFileExtension은 셸 스크립트 안에서 timestamp ext로 재사용되며,
+  #     backupCommand 롤백 시 기존 backup 동작 fallback 역할도 한다.
+  #   - 배경: Claude Code 등 외부 프로세스의 atomic rename(rename(2))으로
+  #     mkOutOfStoreSymlink target이 일반 파일/디렉터리로 변해 다음 nrs에서
+  #     stale .backup collision으로 막히는 사고를 자가 치유한다.
   home-manager.backupFileExtension = "backup";
+  home-manager.backupCommand = pkgs.writeShellScript "hm-cleanup-stale-conflict" ''
+    set -e
+    # home-manager가 인자 없이 호출하는 probe 경로 대비 — default 빈 문자열로 처리.
+    target="''${1:-}"
+    [ -n "$target" ] || exit 0
+    if [ -d "$target" ] && [ ! -L "$target" ]; then
+      mv -- "$target" "$target.''${HOME_MANAGER_BACKUP_EXT:-backup}.$(date +%s)"
+      echo "[home-manager] backed up directory conflict: $target" >&2
+    else
+      echo "[home-manager] cleaning conflict at: $target" >&2
+      rm -f -- "$target"
+    fi
+  '';
 
   # Home Manager 모듈에 nixosConfigPath, nixosConfigDefaultPath, hostType, constants 전달
   home-manager.extraSpecialArgs = {
