@@ -1,4 +1,4 @@
 [pinning-guard] Bash on durable shell command contains volatile review/session metadata:
-  - Bundle finding ID 박제: 'Bundle-N'
+  - Volatile finding ID 박제
          1: Regression-4
 Use stable identifiers or plain natural-language context before retrying.

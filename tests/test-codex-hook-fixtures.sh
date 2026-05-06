@@ -928,7 +928,7 @@ test_stop_notification_helper_equivalence() {
 # Codex apply_patch envelope V4A awk parser의 핵심 분기(*** Move to: rename, multi-file
 # attribution, removeonly added-line filter, backtick HASH_MIN 미만)를 함께 보호한다.
 test_pinning_shared_library_behavioral() {
-  local sandbox scan_file
+  local sandbox scan_file da_symlink_dir
   sandbox=$(new_hook_sandbox)
   scan_file="$sandbox/pinning-shared-scan.txt"
   {
@@ -959,6 +959,10 @@ STUB
   chmod +x "$sandbox/bin-stubs/realpath" "$sandbox/bin-stubs/readlink"
   assert_eq "$(PATH="$sandbox/bin-stubs:${PATH:-/usr/bin:/bin}" pinning_match_count_for_path "$scan_file" "$sandbox/.claude/plans/plan.md")" "3" \
     "[7/lib] PRD/plan path fallback must not require GNU realpath/readlink"
+  assert_eq "$(PATH="$sandbox/bin-stubs:${PATH:-/usr/bin:/bin}"; if pinning_should_check_path "/home/test/repo/scripts/ai/commit-msg-pinning.sh"; then printf check; else printf skip; fi)" "skip" \
+    "[7/lib] should_check fallback must preserve self-exclude paths without GNU realpath/readlink"
+  assert_eq "$(PATH="$sandbox/bin-stubs:${PATH:-/usr/bin:/bin}"; if pinning_should_check_path "/tmp/da-test-abc/scratch.md"; then printf check; else printf skip; fi)" "skip" \
+    "[7/lib] should_check fallback must preserve DA scratch whitelist without GNU realpath/readlink"
   mkdir -p "$sandbox/.claude/plans"
   : > "$sandbox/.claude/plans/existing.md"
   assert_eq "$(PATH="$sandbox/bin-stubs:${PATH:-/usr/bin:/bin}" pinning_match_count_for_path "$scan_file" "$sandbox/.claude/plans/existing.md")" "3" \
@@ -968,6 +972,12 @@ STUB
   ln -s "$sandbox/outside.md" "$sandbox/.claude/prds/symlink.md"
   assert_eq "$(PATH="$sandbox/bin-stubs:${PATH:-/usr/bin:/bin}" pinning_match_count_for_path "$scan_file" "$sandbox/.claude/prds/symlink.md")" "4" \
     "[7/lib] PRD/plan fallback must fail closed for existing symlink targets"
+  da_symlink_dir=$(umask 077 && mktemp -d "${TMPDIR:-/tmp}/da-test-symlink.XXXXXX") \
+    || fail "[7/lib] DA symlink mktemp -d 실패"
+  printf '%s\n' "$da_symlink_dir" >> "$TEST_TMP_FILE"
+  ln -s "$sandbox/outside.md" "$da_symlink_dir/link.md"
+  assert_eq "$(PATH="$sandbox/bin-stubs:${PATH:-/usr/bin:/bin}"; if pinning_should_check_path "$da_symlink_dir/link.md"; then printf check; else printf skip; fi)" "check" \
+    "[7/lib] should_check fallback must fail closed for existing symlink targets"
 }
 
 _assert_pinning_expectation() {
@@ -1094,10 +1104,18 @@ _materialize_pinning_fixture() {
   sed "${sed_args[@]}" "${fixture%.json}.expected" > "${materialized%.json}.expected"
   for i in "${!placeholders[@]}"; do
     if grep -q "${placeholders[$i]}" "$fixture"; then
-      jq -r '._fixture_existing_content // .tool_input.old_string // empty' "$materialized_meta" > "${paths[$i]}"
+      jq -r --arg placeholder "${placeholders[$i]}" '
+        (
+          if (._fixture_existing_content_by_placeholder | type) == "object" then
+            ._fixture_existing_content_by_placeholder[$placeholder]
+          else
+            null
+          end
+        ) // ._fixture_existing_content // .tool_input.old_string // empty
+      ' "$materialized_meta" > "${paths[$i]}"
     fi
   done
-  jq 'del(._fixture_existing_content)' "$materialized_meta" > "$materialized"
+  jq 'del(._fixture_existing_content, ._fixture_existing_content_by_placeholder)' "$materialized_meta" > "$materialized"
   rm -f "$materialized_meta"
   printf '%s\n' "$materialized"
 }
