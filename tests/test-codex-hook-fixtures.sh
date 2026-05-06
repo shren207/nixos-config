@@ -943,6 +943,18 @@ test_pinning_shared_library_behavioral() {
     "[7/lib] outside path must keep PATTERN_A visible"
   assert_eq "$(pinning_match_count_for_path "$scan_file" "$sandbox/.claude/prds/prd.md")" "3" \
     "[7/lib] PRD path must skip only PATTERN_A"
+
+  cat > "$sandbox/bin-stubs/realpath" <<'STUB'
+#!/usr/bin/env bash
+exit 1
+STUB
+  cat > "$sandbox/bin-stubs/readlink" <<'STUB'
+#!/usr/bin/env bash
+exit 1
+STUB
+  chmod +x "$sandbox/bin-stubs/realpath" "$sandbox/bin-stubs/readlink"
+  assert_eq "$(PATH="$sandbox/bin-stubs:${PATH:-/usr/bin:/bin}" pinning_match_count_for_path "$scan_file" "$sandbox/.claude/plans/plan.md")" "3" \
+    "[7/lib] PRD/plan path fallback must not require GNU realpath/readlink"
 }
 
 _assert_pinning_expectation() {

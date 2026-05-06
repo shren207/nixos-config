@@ -60,6 +60,29 @@ pinning_canonicalize_path() {
   printf '%s\n' "$canon"
 }
 
+pinning_canonicalize_existing_parent_path() {
+  local raw="$1"
+  local abs dir suffix parent
+  case "$raw" in
+    /*) abs="$raw" ;;
+    *) abs="$PWD/$raw" ;;
+  esac
+
+  dir="$(dirname "$abs" 2>/dev/null)" || return 1
+  suffix="/$(basename "$abs" 2>/dev/null)" || return 1
+  while [ ! -d "$dir" ]; do
+    [ "$dir" = "/" ] && break
+    suffix="/$(basename "$dir" 2>/dev/null)$suffix" || return 1
+    parent="$(dirname "$dir" 2>/dev/null)" || return 1
+    [ "$parent" != "$dir" ] || break
+    dir="$parent"
+  done
+  [ -d "$dir" ] || return 1
+  (
+    cd -P "$dir" 2>/dev/null && printf '%s%s\n' "$PWD" "$suffix"
+  )
+}
+
 pinning_should_check_path() {
   local raw="$1"
   # Reject path traversal segments at the raw layer so callers cannot
@@ -114,6 +137,9 @@ pinning_is_prd_or_plan_path() {
 
   local path
   path="$(pinning_canonicalize_path "$raw")"
+  if [ -z "$path" ]; then
+    path="$(pinning_canonicalize_existing_parent_path "$raw")"
+  fi
   [ -n "$path" ] || return 1
   case "$path" in
     *'/../'* | '../'* | *'/..' | '..' ) return 1 ;;

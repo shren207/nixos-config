@@ -45,8 +45,9 @@ runner: `tests/test-codex-hook-fixtures.sh`.
 Issue #686 path-aware PATTERN_A fixtures add PRD/plan-path coverage:
 
 - `pinning-claude-write-{prds,plans}-pattern-a-clean.*` and `pinning-codex-applypatch-{prds,plans}-pattern-a-clean.*` prove PATTERN_A-only content is clean under `.claude/prds/` and `.claude/plans/`.
-- `pinning-claude-write-prds-pattern-b-positive.*`, `pinning-claude-write-plans-pattern-c-positive.*`, and `pinning-claude-write-prds-pattern-d-positive.*` prove non-A categories still warn inside PRD/plan paths.
-- `pinning-codex-applypatch-{moveto,multifile}-prds-pattern-a-clean.*` protects Codex `apply_patch` effective-path attribution for the narrow exception.
+- `pinning-claude-write-{prds,plans}-pattern-{b,c,d}-positive.*`, `pinning-codex-applypatch-prds-pattern-{b,d}-positive.*`, and `pinning-codex-applypatch-plans-pattern-c-positive.*` prove non-A categories still warn inside PRD/plan paths.
+- `pinning-codex-applypatch-{moveto,multifile,update}-prds-pattern-a-clean.*` and `pinning-codex-applypatch-mixed-prds-outside-pattern-a-positive.*` protect Codex `apply_patch` effective-path attribution for the narrow exception.
+- `pinning-claude-write-prds-traversal-pattern-a-positive.*` proves traversal-looking PRD paths do not receive the PATTERN_A exception.
 
 ### stdin/ 카테고리 7b fixture (PreToolUse pinning-guard hard-fail, #587)
 
@@ -98,10 +99,12 @@ Issue #686 path-aware PATTERN_A guard fixtures add the explicit matrix:
 | 시나리오 | fixture |
 |----------|---------|
 | PATTERN_A allowed in `.claude/prds/` and `.claude/plans/` | `pretooluse-pinning-guard-claude-write-{prds,plans}-pattern-a-clean.*`, `pretooluse-pinning-guard-codex-applypatch-{prds,plans}-pattern-a-clean.*` |
-| PATTERN_B/C/D still denied in `.claude/prds/` and `.claude/plans/` | `pretooluse-pinning-guard-claude-write-{prds,plans}-pattern-{b,c,d}-deny.*` |
-| Equal-count non-A replacement still denied | `pretooluse-pinning-guard-{claude,codex}-write-{prds,plans}-pattern-*-to-*-deny.*`, `pretooluse-pinning-guard-claude-edit-prds-pattern-b-token-change-deny.*` |
+| PATTERN_B/C/D still denied in `.claude/prds/` and `.claude/plans/` | `pretooluse-pinning-guard-claude-write-{prds,plans}-pattern-{b,c,d}-deny.*`, `pretooluse-pinning-guard-codex-applypatch-prds-pattern-{b,d}-deny.*`, `pretooluse-pinning-guard-codex-applypatch-plans-pattern-c-deny.*` |
+| Equal-count non-A replacement still denied | `pretooluse-pinning-guard-claude-write-prds-pattern-b-to-c-deny.*`, `pretooluse-pinning-guard-codex-write-plans-pattern-c-to-b-deny.*`, `pretooluse-pinning-guard-claude-edit-prds-pattern-b-token-change-deny.*` |
 | Equal-count replacement outside PRD/plan keeps existing count-gate behavior | `pretooluse-pinning-guard-codex-edit-outside-equal-count-clean.*` |
-| Codex `apply_patch` effective path remains correct | `pretooluse-pinning-guard-codex-applypatch-{moveto,multifile}-prds-pattern-a-clean.*` |
+| Codex `apply_patch` effective path remains correct | `pretooluse-pinning-guard-codex-applypatch-{moveto,multifile,update}-prds-pattern-a-clean.*`, `pretooluse-pinning-guard-codex-applypatch-mixed-prds-outside-pattern-a-deny.*` |
+| Traversal-looking PRD/plan paths fail closed | `pinning-claude-write-prds-traversal-pattern-a-positive.*`, `pretooluse-pinning-guard-claude-write-prds-traversal-pattern-a-deny.*` |
+| Edit/Notebook future-compatible PATTERN_A clean paths | `pretooluse-pinning-guard-claude-edit-prds-pattern-a-clean.*`, `pretooluse-pinning-guard-claude-notebook-plans-pattern-a-clean.*`, `pretooluse-pinning-guard-codex-edit-plans-pattern-a-clean.*`, `pretooluse-pinning-guard-codex-notebook-prds-pattern-a-clean.*` |
 
 ### commit-msg/ 카테고리 7c fixture (commit-msg-pinning behavioral)
 
