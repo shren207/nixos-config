@@ -64,7 +64,7 @@
    - 후보 phase 구조 (3-6개) + 산출물 경로 (`.claude/prds/...`)
    - **Post-Implementation 자동 수행 범위** ([`../references/post-implementation.md`](../references/post-implementation.md) 1~7 — 변경 구현·구현 커밋·`/run-da for_pr`·`/parallel-audit`·Final review·반영 커밋·`/create-pr`).
 2. 승인 요청 도구로 사용자 승인 요청. 사용자가 수정 요청하면 PRD draft/context 또는 후보 phase 구조를 갱신한 뒤 다시 요청.
-3. **승인이 곧 Post-Implementation 자동 수행 동의**다 (tracked write·commit·PR write 포함). plan-with-questions의 신뢰 경계는 [`../references/post-implementation.md#신뢰-경계-569-회귀-방지`](../references/post-implementation.md)에 정의된 것과 동일하게 적용된다.
+3. **승인이 곧 Post-Implementation 자동 수행 동의**다 (tracked write·commit·PR write 포함). plan-with-questions의 신뢰 경계는 [`../references/post-implementation.md#신뢰-경계-569-회귀-방지`](../references/post-implementation.md#신뢰-경계-569-회귀-방지)에 정의된 것과 동일하게 적용된다.
 
 ### Step 8: PRD 작성
 

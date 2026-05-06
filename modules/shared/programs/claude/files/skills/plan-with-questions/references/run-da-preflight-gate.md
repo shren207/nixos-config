@@ -35,7 +35,7 @@ If these references change, this gate follows them. Call-site docs must link her
 
 | Condition | Action | Durable state |
 |-----------|--------|---------------|
-| User approves SKIP | Do not invoke `/run-da`; treat the automatic gate as completed. | `for_action` plan DA may record `DA State=SKIPPED`; post-implementation records the Step 3 outcome in `Change Log` / resume note, not in plan-mode `DA State`. |
+| User approves SKIP | Do not invoke `/run-da`; treat the automatic gate as completed. | `for_action` plan DA must record `DA State=SKIPPED`, `Resume From=for_action.step7_plan_mode_entry`, and `Last Completed Step=for_action.step6_da_apply`; `for_prd` records the Step 5 outcome in transient context and, after PRD creation, the PRD master `Change Log`; post-implementation records the Step 3 outcome in `Change Log` / resume note, not in plan-mode `DA State`. |
 | User rejects SKIP | Invoke `/run-da` with `SKIP rejected` handoff. `/run-da` must not ask the same SKIP question again; it enters the post-refusal escalation path. | Record escalation, not `SKIPPED`. |
 | Question tool unavailable | Do not skip. Follow the `run-da` fallback policy, which escalates SKIP to LITE for this case. | Record escalation, not `SKIPPED`. |
 
@@ -49,8 +49,9 @@ When the gate invokes `/run-da` after preflight, pass the checklist table and ou
 - final intensity verdict
 - user approval state when the verdict was `SKIP`
 - freshness fields:
-  - `for_plan`: target plan path plus current plan title/source and changed-file list used for the checklist.
-  - `for_prd`: PRD target path or draft/context label plus candidate phase summary and changed-file list used for the checklist.
-  - `for_pr`: exact `git diff --stat main...HEAD` text used for the checklist.
+  - all checklist input facts used to reach the verdict. If the verdict used more than file names, the handoff must include those plan/diff/PRD facts in comparable form.
+  - `for_plan`: target plan path plus the plan summary/content facts and changed-file list used for the checklist.
+  - `for_prd`: PRD target path or draft/context label plus candidate phase summary, PRD/draft facts, and changed-file list used for the checklist.
+  - `for_pr`: exact `git diff --stat main...HEAD` text and any diff hunk facts or `change_summary` facts used for the checklist.
 
-If the handoff is missing, malformed, or any freshness field differs from the current input, `/run-da` reruns the checklist from current inputs and fail-closes according to its own procedure.
+If the handoff is missing, malformed, any freshness field differs from the current input, or the handoff omits checklist input facts that were used for the verdict, `/run-da` reruns the checklist from current inputs and fail-closes according to its own procedure.
