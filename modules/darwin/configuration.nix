@@ -3,6 +3,7 @@
   config,
   pkgs,
   lib,
+  inputs,
   username,
   hostType,
   constants,
@@ -48,6 +49,10 @@ let
     </dict>'';
 
   asUser = "launchctl asuser \"$(id -u -- ${username})\" sudo --user=${username} --set-home --";
+  islandsDark = import ./programs/vscode/islands-dark.nix {
+    inherit lib pkgs;
+    source = inputs.vscode-dark-islands;
+  };
 in
 {
   imports = [
@@ -89,6 +94,7 @@ in
   fonts.packages = [
     pkgs.nerd-fonts.jetbrains-mono
     pkgs.d2coding
+    islandsDark.fonts.bearSansUi
   ];
 
   # Touch ID for sudo
