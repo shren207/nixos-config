@@ -12,6 +12,11 @@
   ...
 }:
 
+let
+  # backup 확장자 — backupFileExtension(nix)과 backupCommand 셸 스크립트의 fallback 양쪽에
+  # 동일 값으로 흘러야 하므로 한 곳에 binding한다.
+  hmBackupExt = "backup";
+in
 {
   home-manager.useGlobalPkgs = true;
   home-manager.useUserPackages = true;
@@ -28,7 +33,7 @@
   #   - 배경: Claude Code 등 외부 프로세스의 atomic rename(rename(2))으로
   #     mkOutOfStoreSymlink target이 일반 파일/디렉터리로 변해 다음 nrs에서
   #     stale .backup collision으로 막히는 사고를 자가 치유한다.
-  home-manager.backupFileExtension = "backup";
+  home-manager.backupFileExtension = hmBackupExt;
   home-manager.backupCommand = pkgs.writeShellScript "hm-cleanup-stale-conflict" ''
     set -e
     # home-manager activation은 보통 "$targetPath"를 인자로 호출하지만, 메인터넌스 환경에서
@@ -37,7 +42,9 @@
     target="''${1:-}"
     [ -n "$target" ] || exit 0
     if [ -d "$target" ] && [ ! -L "$target" ]; then
-      dest="$target.''${HOME_MANAGER_BACKUP_EXT:-backup}.$(date +%s)"
+      # HOME_MANAGER_BACKUP_EXT는 home-manager가 backupFileExtension에서 export.
+      # fallback은 위 hmBackupExt 동일 값으로 nix interpolation.
+      dest="$target.''${HOME_MANAGER_BACKUP_EXT:-${hmBackupExt}}.$(date +%s)"
       mv -- "$target" "$dest"
       echo "[home-manager] backed up directory conflict: $target -> $dest" >&2
     else
