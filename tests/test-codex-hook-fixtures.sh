@@ -959,6 +959,10 @@ STUB
   chmod +x "$sandbox/bin-stubs/realpath" "$sandbox/bin-stubs/readlink"
   assert_eq "$(PATH="$sandbox/bin-stubs:${PATH:-/usr/bin:/bin}" pinning_match_count_for_path "$scan_file" "$sandbox/.claude/plans/plan.md")" "3" \
     "[7/lib] PRD/plan path fallback must not require GNU realpath/readlink"
+  mkdir -p "$sandbox/.claude/plans"
+  : > "$sandbox/.claude/plans/existing.md"
+  assert_eq "$(PATH="$sandbox/bin-stubs:${PATH:-/usr/bin:/bin}" pinning_match_count_for_path "$scan_file" "$sandbox/.claude/plans/existing.md")" "3" \
+    "[7/lib] PRD/plan path fallback must cover existing regular files"
   mkdir -p "$sandbox/.claude/prds"
   : > "$sandbox/outside.md"
   ln -s "$sandbox/outside.md" "$sandbox/.claude/prds/symlink.md"
@@ -1053,6 +1057,11 @@ _materialize_pinning_fixture() {
   local materialized_meta="$materialized.with-meta"
   local sandbox_sed
   sandbox_sed="$(sed_replacement_escape "$sandbox")"
+  local da_sandbox da_sandbox_sed
+  da_sandbox=$(umask 077 && mktemp -d "${TMPDIR:-/tmp}/da-codex-hook-fixture.XXXXXX") \
+    || fail "DA scratch mktemp -d 실패"
+  printf '%s\n' "$da_sandbox" >> "$TEST_TMP_FILE"
+  da_sandbox_sed="$(sed_replacement_escape "$da_sandbox")"
   local placeholders=(
     "__SANDBOX_EXISTING_PINNED_MD__"
     "__SANDBOX_EXISTING_PRD_MD__"
@@ -1064,6 +1073,8 @@ _materialize_pinning_fixture() {
     "$sandbox/.claude/plans/existing.md"
   )
   local sed_args=(
+    -e "s#/tmp/da-test-abc/#${da_sandbox_sed}/#g"
+    -e "s#/tmp/da-x/../../home/greenhead/Workspace/nixos-config/#${sandbox_sed}/da-x/../repo/#g"
     -e "s#/tmp/fixture-pinning-#${sandbox_sed}/fixture-pinning-#g"
     -e "s#/tmp/fixture-pinning/#${sandbox_sed}/fixture-pinning/#g"
     -e "s#/tmp/fixture-pretooluse-#${sandbox_sed}/fixture-pretooluse-#g"
@@ -1071,6 +1082,7 @@ _materialize_pinning_fixture() {
   local i
 
   mkdir -p \
+    "$sandbox/da-x" \
     "$sandbox/fixture-pinning/.claude/prds" \
     "$sandbox/fixture-pinning/.claude/plans"
   for i in "${!placeholders[@]}"; do
