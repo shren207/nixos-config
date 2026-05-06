@@ -1038,35 +1038,44 @@ $diff_out"
 
 _materialize_pretooluse_fixture() {
   local fixture="$1" sandbox="$2"
-  local materialized="$fixture"
-  if grep -q "__SANDBOX_EXISTING_.*_MD__" "$fixture"; then
-    materialized="$sandbox/$(basename "$fixture")"
-    local materialized_meta="$materialized.with-meta"
-    local placeholders=(
-      "__SANDBOX_EXISTING_PINNED_MD__"
-      "__SANDBOX_EXISTING_PRD_MD__"
-      "__SANDBOX_EXISTING_PLAN_MD__"
-    )
-    local paths=(
-      "$sandbox/existing-pinned.md"
-      "$sandbox/.claude/prds/existing.md"
-      "$sandbox/.claude/plans/existing.md"
-    )
-    local sed_args=() i
-    for i in "${!placeholders[@]}"; do
-      mkdir -p "$(dirname "${paths[$i]}")"
-      sed_args+=(-e "s#${placeholders[$i]}#${paths[$i]}#g")
-    done
-    sed "${sed_args[@]}" "$fixture" > "$materialized_meta"
-    sed "${sed_args[@]}" "${fixture%.json}.expected" > "${materialized%.json}.expected"
-    for i in "${!placeholders[@]}"; do
-      if grep -q "${placeholders[$i]}" "$fixture"; then
-        jq -r '._fixture_existing_content // .tool_input.old_string // empty' "$materialized_meta" > "${paths[$i]}"
-      fi
-    done
-    jq 'del(._fixture_existing_content)' "$materialized_meta" > "$materialized"
-    rm -f "$materialized_meta"
-  fi
+  local materialized
+  materialized="$sandbox/$(basename "$fixture")"
+  local materialized_meta="$materialized.with-meta"
+  local sandbox_sed
+  sandbox_sed="$(printf '%s' "$sandbox" | sed 's/[&#]/\\&/g')"
+  local placeholders=(
+    "__SANDBOX_EXISTING_PINNED_MD__"
+    "__SANDBOX_EXISTING_PRD_MD__"
+    "__SANDBOX_EXISTING_PLAN_MD__"
+  )
+  local paths=(
+    "$sandbox/existing-pinned.md"
+    "$sandbox/.claude/prds/existing.md"
+    "$sandbox/.claude/plans/existing.md"
+  )
+  local sed_args=(
+    -e "s#/tmp/fixture-pinning/#${sandbox_sed}/fixture-pinning/#g"
+    -e "s#/tmp/fixture-pretooluse-#${sandbox_sed}/fixture-pretooluse-#g"
+  )
+  local i
+
+  mkdir -p \
+    "$sandbox/fixture-pinning/.claude/prds" \
+    "$sandbox/fixture-pinning/.claude/plans"
+  for i in "${!placeholders[@]}"; do
+    mkdir -p "$(dirname "${paths[$i]}")"
+    sed_args+=(-e "s#${placeholders[$i]}#${paths[$i]}#g")
+  done
+
+  sed "${sed_args[@]}" "$fixture" > "$materialized_meta"
+  sed "${sed_args[@]}" "${fixture%.json}.expected" > "${materialized%.json}.expected"
+  for i in "${!placeholders[@]}"; do
+    if grep -q "${placeholders[$i]}" "$fixture"; then
+      jq -r '._fixture_existing_content // .tool_input.old_string // empty' "$materialized_meta" > "${paths[$i]}"
+    fi
+  done
+  jq 'del(._fixture_existing_content)' "$materialized_meta" > "$materialized"
+  rm -f "$materialized_meta"
   printf '%s\n' "$materialized"
 }
 

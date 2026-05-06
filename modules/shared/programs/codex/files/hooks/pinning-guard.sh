@@ -134,7 +134,7 @@ case "$TOOL_NAME" in
 
     PATCH_FILE="$SCAN_DIR/patch.txt"
     printf '%s' "$PATCH_TEXT" > "$PATCH_FILE"
-    SECTIONS_FILE="$SCAN_DIR/sections.tsv"
+    SECTIONS_FILE="$SCAN_DIR/sections.records"
     pinning_apply_patch_added_sections "$PATCH_FILE" > "$SECTIONS_FILE"
 
     [ -s "$SECTIONS_FILE" ] || exit 0
@@ -143,13 +143,12 @@ case "$TOOL_NAME" in
       [ -n "$path" ] || continue
       pinning_should_check_path "$path" || continue
       PATH_SCAN_FILE=$(mktemp "$SCAN_DIR/scan-XXXXXX")
-      awk -F'\t' -v target="$path" '$1 == target { print substr($0, length(target) + 2) }' \
-        "$SECTIONS_FILE" > "$PATH_SCAN_FILE"
+      pinning_apply_patch_section_lines_for_path "$SECTIONS_FILE" "$path" > "$PATH_SCAN_FILE"
       [ -s "$PATH_SCAN_FILE" ] || continue
       findings="$(pinning_findings_text_for_path "$PATH_SCAN_FILE" "$path")"
       [ -n "$findings" ] || continue
       _deny "$TOOL_NAME" "$path" "$findings"
-    done < <(awk -F'\t' '{print $1}' "$SECTIONS_FILE" | sort -u)
+    done < <(pinning_apply_patch_section_paths "$SECTIONS_FILE")
     ;;
 esac
 

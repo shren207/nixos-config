@@ -95,9 +95,10 @@ case "$TOOL_NAME" in
     PATCH_FILE="$SCAN_DIR/patch.txt"
     printf '%s' "$PATCH_TEXT" > "$PATCH_FILE"
 
-    # shared helper가 파일별 added line을 분리한다. 출력: <path>\t<line> per line.
+    # shared helper가 파일별 added line을 분리한다. 출력은 length-prefixed records이며,
+    # companion helper로 path와 line을 꺼낸다.
     # `*** Move to: <newpath>`는 current section의 effective path를 새 경로로 갱신한다.
-    SECTIONS_FILE="$SCAN_DIR/sections.tsv"
+    SECTIONS_FILE="$SCAN_DIR/sections.records"
     pinning_apply_patch_added_sections "$PATCH_FILE" > "$SECTIONS_FILE"
 
     [ -s "$SECTIONS_FILE" ] || exit 0
@@ -107,14 +108,13 @@ case "$TOOL_NAME" in
     # 초과하면 redirection이 'File name too long'으로 실패하고 set -e로 hook이 exit 1이 되어
     # warn-only 계약을 위반한다 (#603 DA for_pr R2 Correctness-1/Regression-1). path는 보고용
     # 변수로만 유지하고 scan 파일은 mktemp으로 익명 basename을 받는다.
-    awk -F'\t' '{print $1}' "$SECTIONS_FILE" | sort -u | while IFS= read -r p; do
+    pinning_apply_patch_section_paths "$SECTIONS_FILE" | while IFS= read -r p; do
       [ -n "$p" ] || continue
       if ! pinning_should_check_path "$p"; then
         continue
       fi
       PATH_SCAN_FILE=$(mktemp "$SCAN_DIR/scan-XXXXXX")
-      awk -F'\t' -v target="$p" '$1 == target { print substr($0, length(target) + 2) }' \
-        "$SECTIONS_FILE" > "$PATH_SCAN_FILE"
+      pinning_apply_patch_section_lines_for_path "$SECTIONS_FILE" "$p" > "$PATH_SCAN_FILE"
       [ -s "$PATH_SCAN_FILE" ] || continue
       findings="$(pinning_findings_text_for_path "$PATH_SCAN_FILE" "$p")"
       if [ -n "$findings" ]; then

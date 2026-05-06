@@ -154,6 +154,12 @@ pinning_is_prd_or_plan_path() {
 pinning_apply_patch_added_sections() {
   local patch_file="$1"
   awk '
+    function emit_added_line() {
+      # Record format: <path-length><TAB><path><added-line>
+      # The length prefix keeps paths containing tabs from corrupting path
+      # attribution. Companion helpers below parse this exact format.
+      printf "%d\t%s%s\n", length(path), path, line
+    }
     /^\*\*\* (Update|Add|Delete) File: / {
       path = $0
       sub(/^\*\*\* [A-Za-z]+ File: /, "", path)
@@ -169,9 +175,39 @@ pinning_apply_patch_added_sections() {
     path != "" && /^\+/ && !/^\*\*\*/ {
       line = $0
       sub(/^\+/, "", line)
-      printf "%s\t%s\n", path, line
+      emit_added_line()
     }
   ' "$patch_file"
+}
+
+pinning_apply_patch_section_paths() {
+  local sections_file="$1"
+  awk '
+    {
+      sep = index($0, "\t")
+      if (sep == 0) next
+      len = substr($0, 1, sep - 1) + 0
+      rest = substr($0, sep + 1)
+      print substr(rest, 1, len)
+    }
+  ' "$sections_file" | sort -u
+}
+
+pinning_apply_patch_section_lines_for_path() {
+  local sections_file="$1"
+  local target_path="$2"
+  awk -v target="$target_path" '
+    {
+      sep = index($0, "\t")
+      if (sep == 0) next
+      len = substr($0, 1, sep - 1) + 0
+      rest = substr($0, sep + 1)
+      path = substr(rest, 1, len)
+      if (path == target) {
+        print substr(rest, len + 1)
+      }
+    }
+  ' "$sections_file"
 }
 
 pinning_sanitize_partial_hash_input() {
@@ -226,17 +262,28 @@ pinning_findings_records() {
   fi
 }
 
+_pinning_findings_records_for_prd_state() {
+  local scan_file="$1"
+  local skip_partial_hash="${2:-}"
+  local is_prd_or_plan="${3:-}"
+  if [ -n "$is_prd_or_plan" ]; then
+    pinning_findings_records "$scan_file" "$skip_partial_hash" | awk -F'\t' '$1 != "A"'
+  else
+    pinning_findings_records "$scan_file" "$skip_partial_hash"
+  fi
+}
+
 # Path-aware records keep the generic TSV format. PRD/plan paths suppress only
 # category A; categories B/C/D remain visible there.
 pinning_findings_records_for_path() {
   local scan_file="$1"
   local path="$2"
   local skip_partial_hash="${3:-}"
+  local is_prd_or_plan=""
   if pinning_is_prd_or_plan_path "$path"; then
-    pinning_findings_records "$scan_file" "$skip_partial_hash" | awk -F'\t' '$1 != "A"'
-  else
-    pinning_findings_records "$scan_file" "$skip_partial_hash"
+    is_prd_or_plan=1
   fi
+  _pinning_findings_records_for_prd_state "$scan_file" "$skip_partial_hash" "$is_prd_or_plan"
 }
 
 # Compatibility wrapper: render PATTERN_D records as the legacy indented
@@ -274,24 +321,48 @@ pinning_findings_text() {
   pinning_findings_records "$scan_file" "$skip_partial_hash" | _pinning_render_records
 }
 
+_pinning_findings_text_for_prd_state() {
+  local scan_file="$1"
+  local skip_partial_hash="${2:-}"
+  local is_prd_or_plan="${3:-}"
+  _pinning_findings_records_for_prd_state "$scan_file" "$skip_partial_hash" "$is_prd_or_plan" \
+    | _pinning_render_records
+}
+
 pinning_match_count() {
   local scan_file="$1"
   local skip_partial_hash="${2:-}"
   pinning_findings_records "$scan_file" "$skip_partial_hash" | wc -l | tr -d ' '
 }
 
+_pinning_match_count_for_prd_state() {
+  local scan_file="$1"
+  local skip_partial_hash="${2:-}"
+  local is_prd_or_plan="${3:-}"
+  _pinning_findings_records_for_prd_state "$scan_file" "$skip_partial_hash" "$is_prd_or_plan" \
+    | wc -l | tr -d ' '
+}
+
 pinning_findings_text_for_path() {
   local scan_file="$1"
   local path="$2"
   local skip_partial_hash="${3:-}"
-  pinning_findings_records_for_path "$scan_file" "$path" "$skip_partial_hash" | _pinning_render_records
+  local is_prd_or_plan=""
+  if pinning_is_prd_or_plan_path "$path"; then
+    is_prd_or_plan=1
+  fi
+  _pinning_findings_text_for_prd_state "$scan_file" "$skip_partial_hash" "$is_prd_or_plan"
 }
 
 pinning_match_count_for_path() {
   local scan_file="$1"
   local path="$2"
   local skip_partial_hash="${3:-}"
-  pinning_findings_records_for_path "$scan_file" "$path" "$skip_partial_hash" | wc -l | tr -d ' '
+  local is_prd_or_plan=""
+  if pinning_is_prd_or_plan_path "$path"; then
+    is_prd_or_plan=1
+  fi
+  _pinning_match_count_for_prd_state "$scan_file" "$skip_partial_hash" "$is_prd_or_plan"
 }
 
 # Intermediate schema for the delta helper:
@@ -304,10 +375,23 @@ pinning_new_findings_records_for_path() {
   local new_scan_file="$2"
   local path="$3"
   local skip_partial_hash="${4:-}"
+  local is_prd_or_plan=""
+  if pinning_is_prd_or_plan_path "$path"; then
+    is_prd_or_plan=1
+  fi
+  _pinning_new_findings_records_for_prd_state \
+    "$old_scan_file" "$new_scan_file" "$skip_partial_hash" "$is_prd_or_plan"
+}
+
+_pinning_new_findings_records_for_prd_state() {
+  local old_scan_file="$1"
+  local new_scan_file="$2"
+  local skip_partial_hash="${3:-}"
+  local is_prd_or_plan="${4:-}"
   {
-    pinning_findings_records_for_path "$old_scan_file" "$path" "$skip_partial_hash" \
+    _pinning_findings_records_for_prd_state "$old_scan_file" "$skip_partial_hash" "$is_prd_or_plan" \
       | awk -F'\t' '{ token = $3; sub(/^[0-9]+: /, "", token); print "OLD\t" $1 "\t" token }'
-    pinning_findings_records_for_path "$new_scan_file" "$path" "$skip_partial_hash" \
+    _pinning_findings_records_for_prd_state "$new_scan_file" "$skip_partial_hash" "$is_prd_or_plan" \
       | awk -F'\t' '{ token = $3; sub(/^[0-9]+: /, "", token); print "NEW\t" $1 "\t" $2 "\t" $3 "\t" token }'
   } | awk -F'\t' '
     $1 == "OLD" {
@@ -326,13 +410,27 @@ pinning_new_findings_records_for_path() {
   '
 }
 
+_pinning_new_findings_text_for_prd_state() {
+  local old_scan_file="$1"
+  local new_scan_file="$2"
+  local skip_partial_hash="${3:-}"
+  local is_prd_or_plan="${4:-}"
+  _pinning_new_findings_records_for_prd_state \
+      "$old_scan_file" "$new_scan_file" "$skip_partial_hash" "$is_prd_or_plan" \
+    | _pinning_render_records
+}
+
 pinning_new_findings_text_for_path() {
   local old_scan_file="$1"
   local new_scan_file="$2"
   local path="$3"
   local skip_partial_hash="${4:-}"
-  pinning_new_findings_records_for_path "$old_scan_file" "$new_scan_file" "$path" "$skip_partial_hash" \
-    | _pinning_render_records
+  local is_prd_or_plan=""
+  if pinning_is_prd_or_plan_path "$path"; then
+    is_prd_or_plan=1
+  fi
+  _pinning_new_findings_text_for_prd_state \
+    "$old_scan_file" "$new_scan_file" "$skip_partial_hash" "$is_prd_or_plan"
 }
 
 pinning_guard_findings_text_for_path() {
@@ -340,15 +438,21 @@ pinning_guard_findings_text_for_path() {
   local new_scan_file="$2"
   local path="$3"
   local skip_partial_hash="${4:-}"
+  local is_prd_or_plan=""
   if pinning_is_prd_or_plan_path "$path"; then
-    pinning_new_findings_text_for_path "$old_scan_file" "$new_scan_file" "$path" "$skip_partial_hash"
+    is_prd_or_plan=1
+  fi
+
+  if [ -n "$is_prd_or_plan" ]; then
+    _pinning_new_findings_text_for_prd_state \
+      "$old_scan_file" "$new_scan_file" "$skip_partial_hash" "$is_prd_or_plan"
     return
   fi
 
   local old_count new_count
-  old_count="$(pinning_match_count_for_path "$old_scan_file" "$path" "$skip_partial_hash")"
-  new_count="$(pinning_match_count_for_path "$new_scan_file" "$path" "$skip_partial_hash")"
+  old_count="$(_pinning_match_count_for_prd_state "$old_scan_file" "$skip_partial_hash" "$is_prd_or_plan")"
+  new_count="$(_pinning_match_count_for_prd_state "$new_scan_file" "$skip_partial_hash" "$is_prd_or_plan")"
   if [ "$new_count" -gt "$old_count" ]; then
-    pinning_findings_text_for_path "$new_scan_file" "$path" "$skip_partial_hash"
+    _pinning_findings_text_for_prd_state "$new_scan_file" "$skip_partial_hash" "$is_prd_or_plan"
   fi
 }
