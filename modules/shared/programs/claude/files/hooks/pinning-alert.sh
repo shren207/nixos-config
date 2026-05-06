@@ -42,6 +42,10 @@ FILE_PATH=$(printf '%s' "$INPUT" | jq -r '
 [ -n "$FILE_PATH" ] || exit 0
 
 pinning_should_check_path "$FILE_PATH" || exit 0
+SKIP_PATTERN_A=""
+if pinning_is_prd_or_plan_path "$FILE_PATH"; then
+  SKIP_PATTERN_A=1
+fi
 
 # 검사 대상 텍스트 추출
 TEXT=""
@@ -57,7 +61,7 @@ SCAN_FILE=$(mktemp "${TMPDIR:-/tmp}/pinning-scan-XXXXXX") || exit 0
 trap 'rm -f "$SCAN_FILE"' EXIT
 printf '%s' "$TEXT" > "$SCAN_FILE"
 
-findings="$(pinning_findings_text "$SCAN_FILE")"
+findings="$(pinning_findings_text "$SCAN_FILE" "" "$SKIP_PATTERN_A")"
 
 if [ -n "$findings" ]; then
   printf '[pinning-alert] %s on %s 매치:%b\n' "$TOOL_NAME" "$FILE_PATH" "$findings" >&2

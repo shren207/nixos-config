@@ -74,9 +74,9 @@ _scan_text_file() {
 }
 
 _count_text() {
-  local text="$1" scan_file="$2"
+  local text="$1" scan_file="$2" skip_pattern_a="${3:-}"
   _scan_text_file "$text" "$scan_file"
-  pinning_match_count "$scan_file"
+  pinning_match_count "$scan_file" "" "$skip_pattern_a"
 }
 
 case "$TOOL_NAME" in
@@ -102,6 +102,10 @@ case "$TOOL_NAME" in
     ' 2>/dev/null)
     [ -n "$FILE_PATH" ] || exit 0
     pinning_should_check_path "$FILE_PATH" || exit 0
+    SKIP_PATTERN_A=""
+    if pinning_is_prd_or_plan_path "$FILE_PATH"; then
+      SKIP_PATTERN_A=1
+    fi
 
     OLD_COUNT=0
     NEW_COUNT=0
@@ -111,30 +115,30 @@ case "$TOOL_NAME" in
         NEW_STR=$(printf '%s' "$INPUT" | jq -r '.tool_input.new_string // empty' 2>/dev/null)
         [ -n "$NEW_STR" ] || exit 0
         if [ -n "$OLD_STR" ]; then
-          OLD_COUNT=$(_count_text "$OLD_STR" "$SCAN_DIR/old.txt")
+          OLD_COUNT=$(_count_text "$OLD_STR" "$SCAN_DIR/old.txt" "$SKIP_PATTERN_A")
         fi
-        NEW_COUNT=$(_count_text "$NEW_STR" "$SCAN_DIR/new.txt")
+        NEW_COUNT=$(_count_text "$NEW_STR" "$SCAN_DIR/new.txt" "$SKIP_PATTERN_A")
         ;;
       Write)
         CONTENT=$(printf '%s' "$INPUT" | jq -r '.tool_input.content // empty' 2>/dev/null)
         [ -n "$CONTENT" ] || exit 0
-        NEW_COUNT=$(_count_text "$CONTENT" "$SCAN_DIR/new.txt")
+        NEW_COUNT=$(_count_text "$CONTENT" "$SCAN_DIR/new.txt" "$SKIP_PATTERN_A")
         if [ -f "$FILE_PATH" ]; then
-          OLD_COUNT=$(_count_text "$(cat "$FILE_PATH")" "$SCAN_DIR/old.txt")
+          OLD_COUNT=$(_count_text "$(cat "$FILE_PATH")" "$SCAN_DIR/old.txt" "$SKIP_PATTERN_A")
         fi
         ;;
       NotebookEdit)
         NEW_SOURCE=$(printf '%s' "$INPUT" | jq -r '.tool_input.new_source // empty' 2>/dev/null)
         [ -n "$NEW_SOURCE" ] || exit 0
         OLD_SOURCE=$(printf '%s' "$INPUT" | jq -r '.tool_input.old_source // .tool_input.old_string // empty' 2>/dev/null)
-        NEW_COUNT=$(_count_text "$NEW_SOURCE" "$SCAN_DIR/new.txt")
+        NEW_COUNT=$(_count_text "$NEW_SOURCE" "$SCAN_DIR/new.txt" "$SKIP_PATTERN_A")
         if [ -n "$OLD_SOURCE" ]; then
-          OLD_COUNT=$(_count_text "$OLD_SOURCE" "$SCAN_DIR/old.txt")
+          OLD_COUNT=$(_count_text "$OLD_SOURCE" "$SCAN_DIR/old.txt" "$SKIP_PATTERN_A")
         fi
         ;;
     esac
     if [ "$NEW_COUNT" -gt "$OLD_COUNT" ]; then
-      findings="$(pinning_findings_text "$SCAN_DIR/new.txt")"
+      findings="$(pinning_findings_text "$SCAN_DIR/new.txt" "" "$SKIP_PATTERN_A")"
       _deny "$TOOL_NAME" "$FILE_PATH" "$findings"
     fi
     ;;
@@ -145,25 +149,7 @@ case "$TOOL_NAME" in
     PATCH_FILE="$SCAN_DIR/patch.txt"
     printf '%s' "$PATCH_TEXT" > "$PATCH_FILE"
     SECTIONS_FILE="$SCAN_DIR/sections.tsv"
-    awk '
-      /^\*\*\* (Update|Add|Delete) File: / {
-        path = $0
-        sub(/^\*\*\* [A-Za-z]+ File: /, "", path)
-        next
-      }
-      /^\*\*\* Move to: / {
-        newpath = $0
-        sub(/^\*\*\* Move to: /, "", newpath)
-        path = newpath
-        next
-      }
-      /^\*\*\* End Patch/ { path = ""; next }
-      path != "" && /^\+/ && !/^\*\*\*/ {
-        line = $0
-        sub(/^\+/, "", line)
-        printf "%s\t%s\n", path, line
-      }
-    ' "$PATCH_FILE" > "$SECTIONS_FILE"
+    pinning_apply_patch_added_sections "$PATCH_FILE" > "$SECTIONS_FILE"
 
     [ -s "$SECTIONS_FILE" ] || exit 0
 
@@ -174,7 +160,11 @@ case "$TOOL_NAME" in
       awk -F'\t' -v target="$path" '$1 == target { print substr($0, length(target) + 2) }' \
         "$SECTIONS_FILE" > "$PATH_SCAN_FILE"
       [ -s "$PATH_SCAN_FILE" ] || continue
-      findings="$(pinning_findings_text "$PATH_SCAN_FILE")"
+      SKIP_PATTERN_A=""
+      if pinning_is_prd_or_plan_path "$path"; then
+        SKIP_PATTERN_A=1
+      fi
+      findings="$(pinning_findings_text "$PATH_SCAN_FILE" "" "$SKIP_PATTERN_A")"
       [ -n "$findings" ] || continue
       _deny "$TOOL_NAME" "$path" "$findings"
     done < <(awk -F'\t' '{print $1}' "$SECTIONS_FILE" | sort -u)

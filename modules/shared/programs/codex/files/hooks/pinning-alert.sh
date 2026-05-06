@@ -68,6 +68,10 @@ case "$TOOL_NAME" in
     ' 2>/dev/null)
     [ -n "$FILE_PATH" ] || exit 0
     pinning_should_check_path "$FILE_PATH" || exit 0
+    SKIP_PATTERN_A=""
+    if pinning_is_prd_or_plan_path "$FILE_PATH"; then
+      SKIP_PATTERN_A=1
+    fi
 
     case "$TOOL_NAME" in
       Edit) TEXT=$(printf '%s' "$INPUT" | jq -r '.tool_input.new_string // empty' 2>/dev/null) ;;
@@ -79,7 +83,7 @@ case "$TOOL_NAME" in
     SCAN_FILE="$SCAN_DIR/scan.txt"
     printf '%s' "$TEXT" > "$SCAN_FILE"
 
-    findings="$(pinning_findings_text "$SCAN_FILE")"
+    findings="$(pinning_findings_text "$SCAN_FILE" "" "$SKIP_PATTERN_A")"
     if [ -n "$findings" ]; then
       printf '[pinning-alert] %s on %s 매치:%b\n' "$TOOL_NAME" "$FILE_PATH" "$findings" >&2
     fi
@@ -95,30 +99,10 @@ case "$TOOL_NAME" in
     PATCH_FILE="$SCAN_DIR/patch.txt"
     printf '%s' "$PATCH_TEXT" > "$PATCH_FILE"
 
-    # awk로 파일별 added line을 분리. 출력: <path>\t<line> per line.
-    # path는 다음 헤더가 나오기 전까지 유지. End Patch 또는 새 File 헤더에서 reset.
-    # `*** Move to: <newpath>`를 만나면 current section의 effective path를 새 경로로 갱신
-    # (V4A rename 케이스: old.txt → new.md에서 새 산출물의 확장자 기준 eligibility 판단 — 이슈 #603 R3 Correctness-1/Regression-1).
+    # shared helper가 파일별 added line을 분리한다. 출력: <path>\t<line> per line.
+    # `*** Move to: <newpath>`는 current section의 effective path를 새 경로로 갱신한다.
     SECTIONS_FILE="$SCAN_DIR/sections.tsv"
-    awk '
-      /^\*\*\* (Update|Add|Delete) File: / {
-        path = $0
-        sub(/^\*\*\* [A-Za-z]+ File: /, "", path)
-        next
-      }
-      /^\*\*\* Move to: / {
-        newpath = $0
-        sub(/^\*\*\* Move to: /, "", newpath)
-        path = newpath
-        next
-      }
-      /^\*\*\* End Patch/ { path = ""; next }
-      path != "" && /^\+/ && !/^\*\*\*/ {
-        line = $0
-        sub(/^\+/, "", line)
-        printf "%s\t%s\n", path, line
-      }
-    ' "$PATCH_FILE" > "$SECTIONS_FILE"
+    pinning_apply_patch_added_sections "$PATCH_FILE" > "$SECTIONS_FILE"
 
     [ -s "$SECTIONS_FILE" ] || exit 0
 
@@ -136,7 +120,11 @@ case "$TOOL_NAME" in
       awk -F'\t' -v target="$p" '$1 == target { print substr($0, length(target) + 2) }' \
         "$SECTIONS_FILE" > "$PATH_SCAN_FILE"
       [ -s "$PATH_SCAN_FILE" ] || continue
-      findings="$(pinning_findings_text "$PATH_SCAN_FILE")"
+      SKIP_PATTERN_A=""
+      if pinning_is_prd_or_plan_path "$p"; then
+        SKIP_PATTERN_A=1
+      fi
+      findings="$(pinning_findings_text "$PATH_SCAN_FILE" "" "$SKIP_PATTERN_A")"
       if [ -n "$findings" ]; then
         printf '[pinning-alert] apply_patch on %s 매치:%b\n' "$p" "$findings" >&2
       fi

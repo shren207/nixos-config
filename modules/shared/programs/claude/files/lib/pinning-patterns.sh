@@ -104,6 +104,50 @@ pinning_should_check_path() {
   return 0
 }
 
+pinning_is_prd_or_plan_path() {
+  local raw="$1"
+  # Keep this helper fail-closed. It grants a narrow category skip, so path
+  # traversal must not be normalized into an allowed PRD/plan segment.
+  case "$raw" in
+    *'/../'* | '../'* | *'/..' | '..' ) return 1 ;;
+  esac
+
+  local path
+  path="$(pinning_canonicalize_path "$raw")"
+  [ -n "$path" ] || return 1
+  case "$path" in
+    *'/../'* | '../'* | *'/..' | '..' ) return 1 ;;
+  esac
+
+  case "$path" in
+    */.claude/prds/* | */.claude/plans/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+pinning_apply_patch_added_sections() {
+  local patch_file="$1"
+  awk '
+    /^\*\*\* (Update|Add|Delete) File: / {
+      path = $0
+      sub(/^\*\*\* [A-Za-z]+ File: /, "", path)
+      next
+    }
+    /^\*\*\* Move to: / {
+      newpath = $0
+      sub(/^\*\*\* Move to: /, "", newpath)
+      path = newpath
+      next
+    }
+    /^\*\*\* End Patch/ { path = ""; next }
+    path != "" && /^\+/ && !/^\*\*\*/ {
+      line = $0
+      sub(/^\+/, "", line)
+      printf "%s\t%s\n", path, line
+    }
+  ' "$patch_file"
+}
+
 pinning_sanitize_partial_hash_input() {
   local scan_file="$1"
   sed -E "s#${PATTERN_GITHUB_ATTACHMENT_ASSET_URL}#__GITHUB_ATTACHMENT_ASSET_URL__\\1#g" "$scan_file"
@@ -144,11 +188,17 @@ _pinning_simple_records() {
 # Second arg `skip_partial_hash` (truthy) suppresses D records — used by the
 # git revert/cherry-pick exception so callers never need to post-process
 # rendered text to remove partial-hash entries.
+# Third arg `skip_pattern_a` (truthy) suppresses PATTERN_A records only. It is
+# for path-aware PRD/plan round-counter allowances and must never suppress
+# PATTERN_B/C/D.
 pinning_findings_records() {
   local scan_file="$1"
   local skip_partial_hash="${2:-}"
+  local skip_pattern_a="${3:-}"
 
-  _pinning_simple_records "$scan_file" "A" "$PATTERN_A" "$PINNING_PATTERN_A_LABEL"
+  if [ -z "$skip_pattern_a" ]; then
+    _pinning_simple_records "$scan_file" "A" "$PATTERN_A" "$PINNING_PATTERN_A_LABEL"
+  fi
   _pinning_simple_records "$scan_file" "B" "$PATTERN_B" "$PINNING_PATTERN_B_LABEL"
   _pinning_simple_records "$scan_file" "C" "$PATTERN_C" "$PINNING_PATTERN_C_LABEL"
   if [ -z "$skip_partial_hash" ]; then
@@ -168,11 +218,13 @@ pinning_partial_hash_report() {
 # Render records as human-readable findings text. Output preserves the legacy
 # layout (label line per category followed by indented `<line>: <token>`
 # evidence lines). Second arg `skip_partial_hash` (truthy) suppresses D output.
+# Third arg `skip_pattern_a` (truthy) suppresses PATTERN_A output only.
 pinning_findings_text() {
   local scan_file="$1"
   local skip_partial_hash="${2:-}"
+  local skip_pattern_a="${3:-}"
   local records
-  records="$(pinning_findings_records "$scan_file" "$skip_partial_hash")"
+  records="$(pinning_findings_records "$scan_file" "$skip_partial_hash" "$skip_pattern_a")"
   [ -n "$records" ] || return 0
   printf '%s\n' "$records" | awk -F'\t' -v indent="$PINNING_REPORT_INDENT" '
     BEGIN { last_code = "" }
@@ -189,5 +241,7 @@ pinning_findings_text() {
 
 pinning_match_count() {
   local scan_file="$1"
-  pinning_findings_records "$scan_file" | wc -l | tr -d ' '
+  local skip_partial_hash="${2:-}"
+  local skip_pattern_a="${3:-}"
+  pinning_findings_records "$scan_file" "$skip_partial_hash" "$skip_pattern_a" | wc -l | tr -d ' '
 }
