@@ -11,8 +11,44 @@ let
   packageJson = builtins.fromJSON (builtins.readFile "${source}/package.json");
   settingsJson = builtins.fromJSON (builtins.readFile "${source}/settings.json");
 
-  uniqueId = "${packageJson.publisher}.${packageJson.name}";
+  expectedPublisher = "bwya77";
+  expectedName = "islands-dark";
+  uniqueId = "${expectedPublisher}.${expectedName}";
+  packageVersion =
+    if packageJson.publisher != expectedPublisher || packageJson.name != expectedName then
+      throw "Unexpected Islands Dark extension id: ${packageJson.publisher}.${packageJson.name}"
+    else if builtins.match "[0-9]+\\.[0-9]+\\.[0-9]+" packageJson.version == null then
+      throw "Unexpected Islands Dark extension version: ${packageJson.version}"
+    else
+      packageJson.version;
+
   stylesheet = settingsJson."custom-ui-style.stylesheet" or { };
+
+  assertCssFragment =
+    role: text:
+    let
+      lowerText = lib.toLower text;
+      blockedExternal = lib.any (needle: lib.hasInfix needle lowerText) [
+        "@import"
+        "url("
+        "http://"
+        "https://"
+        "file://"
+      ];
+      blockedStructure = lib.any (needle: lib.hasInfix needle text) [
+        "{"
+        "}"
+        ";"
+        "/*"
+        "*/"
+        "\n"
+        "\r"
+      ];
+    in
+    if blockedExternal || blockedStructure then
+      throw "Islands Dark stylesheet contains blocked CSS ${role}: ${text}"
+    else
+      text;
 
   unsupportedStylesheetEntries = lib.filterAttrs (
     selector: rules: !(builtins.isAttrs rules) && !(lib.hasPrefix "//" selector)
@@ -28,15 +64,9 @@ let
     value:
     let
       type = builtins.typeOf value;
-      assertLocalCssValue =
-        text:
-        if (builtins.match ".*(@import|url\\(|https?://|file://).*" text) != null then
-          throw "Islands Dark stylesheet contains a blocked external/local resource reference: ${text}"
-        else
-          text;
     in
     if type == "string" then
-      assertLocalCssValue value
+      assertCssFragment "value" value
     else if type == "int" || type == "float" || type == "bool" then
       toString value
     else
@@ -46,9 +76,11 @@ let
   # Keep this path for self-contained declarations that do not depend on equal-specificity cascade order.
   cssText = builtins.concatStringsSep "\n" (
     lib.mapAttrsToList (selector: rules: ''
-      ${selector} {
+      ${assertCssFragment "selector" selector} {
       ${builtins.concatStringsSep "\n" (
-        lib.mapAttrsToList (prop: value: "  ${prop}: ${cssValueToString value};") rules
+        lib.mapAttrsToList (
+          prop: value: "  ${assertCssFragment "property" prop}: ${cssValueToString value};"
+        ) rules
       )}
       }
     '') cssRules
@@ -57,8 +89,8 @@ let
   cssFile = pkgs.writeText "islands-dark-vscode.css" cssText;
 
   extension = pkgs.stdenvNoCC.mkDerivation {
-    pname = "vscode-extension-${packageJson.publisher}-${packageJson.name}";
-    version = packageJson.version;
+    pname = "vscode-extension-${expectedPublisher}-${expectedName}";
+    version = packageVersion;
     src = source;
 
     installPhase = ''
@@ -77,15 +109,15 @@ let
 
     passthru = {
       vscodeExtUniqueId = uniqueId;
-      vscodeExtPublisher = packageJson.publisher;
-      vscodeExtName = packageJson.name;
+      vscodeExtPublisher = expectedPublisher;
+      vscodeExtName = expectedName;
     };
   };
 
   fonts = {
     bearSansUi = pkgs.stdenvNoCC.mkDerivation {
       pname = "bear-sans-ui";
-      version = packageJson.version;
+      version = packageVersion;
       src = "${source}/fonts";
 
       installPhase = ''

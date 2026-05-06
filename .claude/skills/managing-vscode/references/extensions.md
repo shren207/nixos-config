@@ -138,6 +138,18 @@ nrs
 
 이 테마의 glass/floating UI 스타일은 `modules/darwin/programs/vscode/islands-dark.nix`에서 VSCode package를 빌드 시 patch하여 적용한다. 런타임에 VSCode 설치 파일을 수정하는 Custom UI Style extension 경로는 Nix store read-only 모델과 맞지 않으므로 사용하지 않는다.
 
+### Custom pinned source 제거/교체 체크리스트
+
+Custom pinned source는 단순히 `profiles.default.extensions` 항목만 제거하면 불완전하다.
+Islands Dark를 제거하거나 다른 custom source로 교체할 때는 아래 결합 지점을 함께 정리한다.
+
+- `flake.nix` / `flake.lock`: `vscode-dark-islands` input 제거 또는 교체
+- `modules/darwin/programs/vscode/default.nix`: `islandsDark.package`와 `islandsDark.extension` 연결 제거 또는 교체
+- `modules/darwin/programs/vscode/islands-dark.nix`: helper 삭제 또는 새 source 전용 helper로 교체
+- `modules/darwin/configuration.nix`: `islandsDark.fonts.bearSansUi` font 등록 제거 또는 교체
+- `modules/darwin/programs/vscode/files/settings.json`: `workbench.colorTheme`를 설치된 테마로 되돌림
+- 검증: `nix flake check`, 양쪽 Darwin system dry-run, VSCode package build에서 CSS patch marker 확인 또는 제거 확인
+
 ### 권장 워크플로우
 
 ```bash
