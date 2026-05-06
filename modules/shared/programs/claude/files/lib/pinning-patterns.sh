@@ -137,7 +137,7 @@ pinning_is_prd_or_plan_path() {
 
   local path
   path="$(pinning_canonicalize_path "$raw")"
-  if [ -z "$path" ] && [ ! -e "$raw" ] && [ ! -L "$raw" ]; then
+  if [ -z "$path" ] && [ ! -L "$raw" ]; then
     path="$(pinning_canonicalize_existing_parent_path "$raw")"
   fi
   [ -n "$path" ] || return 1
@@ -352,18 +352,14 @@ pinning_findings_text_for_path() {
   local scan_file="$1"
   local path="$2"
   local skip_partial_hash="${3:-}"
-  local is_prd_or_plan
-  is_prd_or_plan="$(_pinning_prd_or_plan_state_for_path "$path")"
-  _pinning_findings_text_for_prd_or_plan_state "$scan_file" "$skip_partial_hash" "$is_prd_or_plan"
+  pinning_findings_records_for_path "$scan_file" "$path" "$skip_partial_hash" | _pinning_render_records
 }
 
 pinning_match_count_for_path() {
   local scan_file="$1"
   local path="$2"
   local skip_partial_hash="${3:-}"
-  local is_prd_or_plan
-  is_prd_or_plan="$(_pinning_prd_or_plan_state_for_path "$path")"
-  _pinning_match_count_for_prd_or_plan_state "$scan_file" "$skip_partial_hash" "$is_prd_or_plan"
+  pinning_findings_records_for_path "$scan_file" "$path" "$skip_partial_hash" | wc -l | tr -d ' '
 }
 
 # Intermediate schema for the delta helper:

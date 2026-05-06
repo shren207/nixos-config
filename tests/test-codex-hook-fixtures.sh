@@ -982,7 +982,7 @@ $diff_out"
 test_pinning_alert_behavioral() {
   local hook_claude="$REPO_ROOT/modules/shared/programs/claude/files/hooks/pinning-alert.sh"
   local hook_codex="$REPO_ROOT/modules/shared/programs/codex/files/hooks/pinning-alert.sh"
-  local fixture sandbox stderr_log hook exit_code
+  local fixture sandbox materialized stderr_log hook exit_code
 
   for fixture in "$FIXTURE_DIR"/stdin/pinning-*.json; do
     assert_file_exists "${fixture%.json}.expected" "7/$(basename "$fixture")"
@@ -993,6 +993,7 @@ test_pinning_alert_behavioral() {
     # pinning-alert.sh는 sandbox 내부 hook copy가 아닌 repo root path를 직접 호출하지만 env 격리
     # 계약은 카테고리 6 helper와 단일 source를 공유한다.
     sandbox=$(new_hook_sandbox)
+    materialized="$(_materialize_pinning_fixture "$fixture" "$sandbox")"
     stderr_log="$sandbox/pinning-stderr.log"
 
     case "$(basename "$fixture")" in
@@ -1001,13 +1002,13 @@ test_pinning_alert_behavioral() {
       *) fail "[7] unexpected fixture name: $(basename "$fixture")" ;;
     esac
 
-    if _exec_with_sandbox_env "$sandbox" "" "$hook" < "$fixture" 2>"$stderr_log"; then
+    if _exec_with_sandbox_env "$sandbox" "" "$hook" < "$materialized" 2>"$stderr_log"; then
       exit_code=0
     else
       exit_code=$?
     fi
     assert_eq "$exit_code" "0" "[7] $(basename "$fixture"): warn-only contract 위반 (exit must be 0)"
-    _assert_pinning_expectation "$fixture" "$stderr_log"
+    _assert_pinning_expectation "$materialized" "$stderr_log"
   done
 }
 
@@ -1045,7 +1046,7 @@ $diff_out"
   fi
 }
 
-_materialize_pretooluse_fixture() {
+_materialize_pinning_fixture() {
   local fixture="$1" sandbox="$2"
   local materialized
   materialized="$sandbox/$(basename "$fixture")"
@@ -1097,7 +1098,7 @@ test_pretooluse_pinning_guard_behavioral() {
     assert_file_exists "${fixture%.json}.expected" "7b/$(basename "$fixture")"
 
     sandbox=$(new_hook_sandbox)
-    materialized="$(_materialize_pretooluse_fixture "$fixture" "$sandbox")"
+    materialized="$(_materialize_pinning_fixture "$fixture" "$sandbox")"
     stdout_log="$sandbox/pretooluse-stdout.log"
     stderr_log="$sandbox/pretooluse-stderr.log"
     reason_log="$sandbox/pretooluse-reason.log"
