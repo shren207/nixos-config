@@ -45,7 +45,7 @@ runner: `tests/test-codex-hook-fixtures.sh`.
 Issue #686 path-aware PATTERN_A fixtures add PRD/plan-path coverage:
 
 - `pinning-claude-write-{prds,plans}-pattern-a-clean.*` and `pinning-codex-applypatch-{prds,plans}-pattern-a-clean.*` prove PATTERN_A-only content is clean under `.claude/prds/` and `.claude/plans/`.
-- `pinning-claude-write-{prds,plans}-pattern-{b,c,d}-positive.*`, `pinning-codex-applypatch-prds-pattern-{b,d}-positive.*`, and `pinning-codex-applypatch-plans-pattern-c-positive.*` prove non-A categories still warn inside PRD/plan paths.
+- `pinning-claude-write-prds-pattern-{b,d}-positive.*`, `pinning-claude-write-plans-pattern-c-positive.*`, `pinning-codex-applypatch-prds-pattern-{b,d}-positive.*`, and `pinning-codex-applypatch-plans-pattern-c-positive.*` prove non-A categories still warn inside PRD/plan paths.
 - `pinning-codex-applypatch-{moveto,multifile,update}-prds-pattern-a-clean.*` and `pinning-codex-applypatch-mixed-prds-outside-pattern-a-positive.*` protect Codex `apply_patch` effective-path attribution for the narrow exception.
 - `pinning-claude-write-prds-traversal-pattern-a-positive.*` proves traversal-looking PRD paths do not receive the PATTERN_A exception.
 
