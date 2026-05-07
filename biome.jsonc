@@ -1,0 +1,16 @@
+{
+	"overrides": [
+		{
+			"includes": ["modules/darwin/programs/vscode/files/settings.json"],
+			"json": {
+				"parser": {
+					"allowComments": true,
+					"allowTrailingCommas": true
+				},
+				"formatter": {
+					"enabled": false
+				}
+			}
+		}
+	]
+}
