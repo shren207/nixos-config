@@ -117,7 +117,9 @@ in
 
   programs.vscode = {
     enable = true;
-    package = islandsDark.package;
+    # Keep the notarized app bundle untouched; patching VSCode resources breaks
+    # macOS code-signing sealed resource checks.
+    package = pkgs.vscode;
     mutableExtensionsDir = false;
 
     profiles.default = {

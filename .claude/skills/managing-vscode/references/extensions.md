@@ -83,7 +83,7 @@ nrs
 **선택 방법:**
 1. 먼저 https://open-vsx.org 에서 검색
 2. 없으면 https://marketplace.visualstudio.com 사용
-3. Marketplace/Open-VSX에 없거나 upstream source patch/font/CSS까지 함께 고정해야 하면 custom pinned source 사용
+3. Marketplace/Open-VSX에 없거나 upstream source/font/CSS contract까지 함께 고정해야 하면 custom pinned source 사용
 
 ## 확장 ID 찾는 방법
 
@@ -136,7 +136,7 @@ nix flake update vscode-dark-islands
 nrs
 ```
 
-이 테마의 glass/floating UI 스타일은 `modules/darwin/programs/vscode/islands-dark.nix`에서 VSCode package를 빌드 시 patch하여 적용한다. 런타임에 VSCode 설치 파일을 수정하는 Custom UI Style extension 경로는 Nix store read-only 모델과 맞지 않으므로 사용하지 않는다.
+이 테마의 upstream glass/floating UI CSS는 `modules/darwin/programs/vscode/islands-dark.nix`에서 contract guard로 검증만 한다. VSCode.app 내부 CSS를 빌드 시 직접 수정하면 macOS code-signing sealed resource 검증이 깨지므로, 현재 Home Manager 구성은 notarized `pkgs.vscode` bundle을 그대로 사용하고 color theme extension과 Bear Sans UI font만 선언적으로 설치한다. 런타임에 VSCode 설치 파일을 수정하는 Custom UI Style extension 경로도 Nix store read-only 모델과 맞지 않으므로 사용하지 않는다.
 
 ### Custom pinned source 제거/교체 체크리스트
 
@@ -144,11 +144,11 @@ Custom pinned source는 단순히 `profiles.default.extensions` 항목만 제거
 Islands Dark를 제거하거나 다른 custom source로 교체할 때는 아래 결합 지점을 함께 정리한다.
 
 - `flake.nix` / `flake.lock`: `vscode-dark-islands` input 제거 또는 교체
-- `modules/darwin/programs/vscode/default.nix`: `islandsDark.package`와 `islandsDark.extension` 연결 제거 또는 교체
+- `modules/darwin/programs/vscode/default.nix`: `islandsDark.extension` 연결 제거 또는 교체
 - `modules/darwin/programs/vscode/islands-dark.nix`: helper 삭제 또는 새 source 전용 helper로 교체
 - `modules/darwin/configuration.nix`: `islandsDark.fonts.bearSansUi` font 등록 제거 또는 교체
 - `modules/darwin/programs/vscode/files/settings.json`: `workbench.colorTheme`를 설치된 테마로 되돌림
-- 검증: `nix flake check`, 양쪽 Darwin system dry-run, VSCode package build에서 CSS patch marker 확인 또는 제거 확인
+- 검증: `nix flake check`, 양쪽 Darwin system dry-run, VSCode extension build에서 CSS contract guard 확인, `codesign`/`spctl`로 VSCode.app 서명 유지 확인
 
 ### 권장 워크플로우
 

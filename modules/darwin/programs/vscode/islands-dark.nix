@@ -1,10 +1,10 @@
 # Islands Dark VSCode theme integration.
-# Keep source packaging and VSCode CSS patching out of the main HM module.
+# Keep source packaging, font packaging, and upstream CSS contract guards out of
+# the main HM module.
 {
   lib,
   pkgs,
   source,
-  vscodePackage ? pkgs.vscode,
 }:
 
 let
@@ -22,7 +22,17 @@ let
     else
       packageJson.version;
 
-  stylesheet = settingsJson."custom-ui-style.stylesheet" or { };
+  rawStylesheet =
+    if builtins.hasAttr "custom-ui-style.stylesheet" settingsJson then
+      settingsJson."custom-ui-style.stylesheet"
+    else
+      throw "Islands Dark settings.json is missing custom-ui-style.stylesheet";
+
+  stylesheet =
+    if builtins.isAttrs rawStylesheet then
+      rawStylesheet
+    else
+      throw "Islands Dark custom-ui-style.stylesheet must be a JSON object";
 
   assertCssFragment =
     role: text:
@@ -58,7 +68,9 @@ let
     if unsupportedStylesheetEntries != { } then
       throw "Islands Dark stylesheet contains unsupported non-object entries: ${lib.concatStringsSep ", " (builtins.attrNames unsupportedStylesheetEntries)}"
     else
-      lib.filterAttrs (_selector: rules: builtins.isAttrs rules) stylesheet;
+      lib.filterAttrs (
+        selector: rules: builtins.isAttrs rules && !(lib.hasPrefix "//" selector)
+      ) stylesheet;
 
   cssValueToString =
     value:
@@ -73,18 +85,27 @@ let
       throw "Islands Dark stylesheet contains unsupported CSS value type: ${type}";
 
   # Nix JSON parsing stores objects as attrsets, so selector/property source order is not preserved.
-  # Keep this path for self-contained declarations that do not depend on equal-specificity cascade order.
-  cssText = builtins.concatStringsSep "\n" (
-    lib.mapAttrsToList (selector: rules: ''
-      ${assertCssFragment "selector" selector} {
-      ${builtins.concatStringsSep "\n" (
-        lib.mapAttrsToList (
-          prop: value: "  ${assertCssFragment "property" prop}: ${cssValueToString value};"
-        ) rules
-      )}
-      }
-    '') cssRules
-  );
+  # Keep this path only as a contract guard for self-contained declarations.
+  cssText =
+    let
+      text = builtins.concatStringsSep "\n" (
+        lib.mapAttrsToList (selector: rules: ''
+          ${assertCssFragment "selector" selector} {
+          ${builtins.concatStringsSep "\n" (
+            lib.mapAttrsToList (
+              prop: value: "  ${assertCssFragment "property" prop}: ${cssValueToString value};"
+            ) rules
+          )}
+          }
+        '') cssRules
+      );
+    in
+    if cssRules == { } then
+      throw "Islands Dark stylesheet does not contain any CSS rules"
+    else if !(lib.hasInfix "--islands-panel-radius" text) then
+      throw "Islands Dark stylesheet is missing expected --islands-panel-radius marker"
+    else
+      text;
 
   cssFile = pkgs.writeText "islands-dark-vscode.css" cssText;
 
@@ -104,10 +125,15 @@ let
         cp icon.png "$extension_dir/"
       fi
 
+      # Force evaluation/build of the generated CSS contract guard. The signed
+      # VSCode app bundle is intentionally not patched here.
+      test -s ${cssFile}
+
       runHook postInstall
     '';
 
     passthru = {
+      islandsDarkCssFile = cssFile;
       vscodeExtUniqueId = uniqueId;
       vscodeExtPublisher = expectedPublisher;
       vscodeExtName = expectedName;
@@ -131,24 +157,11 @@ let
     };
   };
 
-  package = vscodePackage.overrideAttrs (old: {
-    postInstall = (old.postInstall or "") + ''
-      css_count=$(find "$out" -path '*/workbench.desktop.main.css' -type f -print | wc -l | tr -d ' ')
-      if [ "$css_count" -ne 1 ]; then
-        echo "Expected exactly one workbench.desktop.main.css in VSCode output, found $css_count" >&2
-        find "$out" -path '*/workbench.desktop.main.css' -type f -print >&2
-        exit 1
-      fi
-
-      css_file=$(find "$out" -path '*/workbench.desktop.main.css' -type f -print | head -n 1)
-      cat ${cssFile} >> "$css_file"
-    '';
-  });
 in
 {
   inherit
+    cssFile
     extension
     fonts
-    package
     ;
 }
