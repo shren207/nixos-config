@@ -170,15 +170,6 @@ new_hook_sandbox() {
   cp -L "$PINNING_LIB_REPO_FILE" "$sandbox/home/.codex/lib/"
   cp -L "$PINNING_LIB_REPO_FILE" "$sandbox/home/.claude/lib/"
 
-  # macOS 외부 채널 차단: Darwin runner의 host PATH가 fixture에 누수되어 sandbox 안의 hook이
-  # 실제 Hammerspoon 알림을 발사하지 않도록, sandbox/bin-stubs를 PATH 최우선으로 두어
-  # `hs` 호출이 항상 exit 1로 빠지게 한다.
-  cat > "$sandbox/bin-stubs/hs" <<'STUB'
-#!/usr/bin/env bash
-exit 1
-STUB
-  chmod +x "$sandbox/bin-stubs/hs"
-
   printf '%s\n' "$sandbox"
 }
 
@@ -821,7 +812,7 @@ test_pinning_alert_behavioral() {
     # _exec_with_sandbox_env로 sandbox 격리 env(CLAUDECODE/CODEX_PROGRAMMATIC unset, sandbox
     # bin-stubs PATH prepend, HOME/XDG/CODEX_HOME sandbox 강제)를 적용해 host 상태 누수를 차단한다.
     # pinning-alert.sh는 sandbox 내부 hook copy가 아닌 repo root path를 직접 호출하지만 env 격리
-    # 계약은 카테고리 6 helper와 단일 source를 공유한다.
+    # 계약은 _exec_with_sandbox_env helper와 단일 source를 공유한다.
     sandbox=$(new_hook_sandbox)
     materialized="$(_materialize_pinning_fixture "$fixture" "$sandbox")"
     stderr_log="$sandbox/pinning-stderr.log"
