@@ -13,6 +13,18 @@ description: |
 
 이 스킬은 인터뷰 기반이므로 질문 도구가 필수다. 런타임 도구·용어·미지원 대응은 [`references/runtime-boundaries.md`](./references/runtime-boundaries.md)가 SSOT다.
 
+## 약어 (Abbreviation)
+
+- **D1**: 라운드당 1개 질문 (`questions` 배열 길이 1 강제).
+- **D2**: 사용자 노출은 `user_facing` layer만 — `technical_matrix`는 LLM 내부 D4 입력 전용.
+- **D4**: 합의 알고리즘 4단계 — 후보가 정확히 1개로 좁혀진 합의 PASS 옵션에만 `(Recommended)` 라벨 부착.
+- **FR-1**: D1 정책의 functional requirement label.
+- **FR-2**: D2 정책 label.
+- **FR-4**: judgment-first 라운드 라벨 절대 금지 정책 label.
+- **FR-5**: 트레이드오프 라운드 D4 합의 알고리즘 호출 정책 label.
+- **FR-7**: D4 hard rule — 합의 미달 옵션의 `(Recommended)` 문자열 강제 제거 정책 label.
+- 미사용 번호: `D3` / `D5`~`D9`, `FR-3` / `FR-6` 은 결번(폐기되었거나 한 번도 부여되지 않음). 신규 정책 도입 시에도 위 결번을 재사용하지 않는다.
+
 ## Invariants (예외 없이 적용)
 
 1. **질문 도구 의무**: 사용자에게 질문할 때는 질문 도구를 사용한다. 미지원 시 BLOCKED 처리 ([`references/runtime-boundaries.md`](./references/runtime-boundaries.md#질문-도구-미지원-대응)).
@@ -67,7 +79,7 @@ description: |
 
 - **for_action**: [`modes/for_action.md`](./modes/for_action.md) — Step 1 (이슈 유효성) → 2 (탐색+재현) → 3 (질문 수집) → **3.5 (트레이드오프 1+ 시 외부 자문, background 병렬)** → 4 (사용자 질문) → **4.5 (공식 plan 파일 초기화)** → 5-6 (DA + 같은 파일 반영) → 7 (계획 추적 진입 + 기존 파일 바인딩) → 8 (계획 파일 review/refine) → 9 (승인 요청).
 - **for_issue**: [`modes/for_issue.md`](./modes/for_issue.md) — Step I-1 (fan-out) → I-2 (fan-in) → I-3 (블랙박스 체크리스트) → **I-3.5 (외부 자문, 트레이드오프 있을 시)** → I-4 (스무고개 루프) → I-5 (이슈 생성) → I-6 (for_action 전환 제안).
-- **for_prd**: [`modes/for_prd.md`](./modes/for_prd.md) — `for_action` Step 1-4와 Step 5-6의 인터뷰·자문·DA 흐름을 차용하되 Step 4.5 plan 파일 초기화는 건너뛰고, Step 7에서 사용자 승인 + Step 8에서 `.claude/prds/`에 PRD 파일 직접 작성. Implementation 단계에서 phase 종료 시 6-classification, Final에서 PRD 10-pass + review-impl overlay (6-classification + overbuilt 우선).
+- **for_prd**: [`modes/for_prd.md`](./modes/for_prd.md) — `for_action` Step 1-4와 Step 5-6의 인터뷰·자문·DA 흐름을 P1~P9로 순차 시프트하여 차용. **for_action Step 4.5(plan 파일 초기화)는 for_prd에서 skip**되고, P8에서 사용자 승인 + P9에서 `.claude/prds/`에 PRD 파일 직접 작성. Implementation 단계에서 phase 종료 시 6-classification, Final에서 PRD 10-pass + review-impl overlay (6-classification + overbuilt 우선).
 
 승인 후 자동 절차는 [`references/post-implementation.md`](./references/post-implementation.md) 1~7번을 따른다 (사용자 stop·하위 스킬 BLOCKED 외에는 자유 생략 금지 — #453/#569 회귀 방지).
 
@@ -85,7 +97,6 @@ description: |
 | [`references/plan-file-template.md`](./references/plan-file-template.md)       | 14 metadata 필드 + Decision Log SSOT                                                                       |
 | [`references/resume-state.md`](./references/resume-state.md)                   | Resume From enum 카탈로그 + baseline drift 검증                                                            |
 | [`references/task-size-routing.md`](./references/task-size-routing.md)         | for_prd 자동 트리거 알고리즘 + 산출물 경로 + review-impl 통합 시점                                         |
-| [`references/bias-measurement.md`](./references/bias-measurement.md)           | 4축 grep + 4 metric (baseline은 `scripts/ai/measure-anchoring-bias.sh` 실행으로 동적 산출 — script가 SSOT) |
 
 PRD / review references (모든 모드 공용 또는 for_prd 전용):
 

@@ -1,6 +1,6 @@
 # Post-Implementation (승인 후 자동 수행)
 
-`for_action` 모드에서 사용자가 계획을 승인하면 (승인 요청 도구 통과 시), 구현 완료 후 다음을 순차 수행한다. 추가 사용자 지시 없이 1번부터 7번까지 진행한다. 각 단계에서 reviewer/auditor/체크리스트 수행자는 read-only이며, tracked write·commit·push는 메인 에이전트 전용이다. 상세 권한 계약은 [`../../run-da/references/hardening-contract.md`](../../run-da/references/hardening-contract.md) `Codex 세션 하드닝 계약`을 따른다.
+`for_action` 모드에서 plan 승인이 통과하거나 `for_prd` 모드에서 PRD 작성 승인이 통과하면, 구현 완료 후 다음을 순차 수행한다. **`for_issue` 모드에는 적용되지 않는다** (산출물이 이슈 + LLM 이행 가이드). 추가 사용자 지시 없이 1번부터 7번까지 진행한다. 각 단계에서 reviewer/auditor/체크리스트 수행자는 read-only이며, tracked write·commit·push는 메인 에이전트 전용이다. 상세 권한 계약은 [`../../run-da/references/hardening-contract.md`](../../run-da/references/hardening-contract.md) `Codex 세션 하드닝 계약`을 따른다.
 
 ## 자동 진행 정책 (non-stop)
 
