@@ -63,6 +63,8 @@ gh issue view <number> --json title,body,labels,assignees,comments
 gh issue view <url> --json title,body,labels,assignees,comments
 ```
 
+**bare 번호 입력 시 cwd 확인 필수**: `$ARGUMENTS`가 `123`, `#123` 같은 bare 번호이고 `gh repo view --json nameWithOwner -q .nameWithOwner`로 확인한 cwd repo가 handoff 대상 repo와 다를 가능성이 있으면, 질문 도구로 사용자에게 이슈 URL(`https://github.com/owner/repo/issues/N` 형태)을 재확인받은 뒤 그 URL로 `gh issue view`를 재실행한다. 확인 없이 진행하면 cwd repo의 동일 번호 이슈에 잘못 코멘트가 게시될 수 있다.
+
 이슈 본문, 라벨, 기존 코멘트를 분석하여 작업 범위를 파악한다.
 
 ### Step 2: 복잡도 판단

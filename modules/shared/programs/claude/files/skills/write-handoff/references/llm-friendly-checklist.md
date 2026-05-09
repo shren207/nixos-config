@@ -114,7 +114,7 @@
 학술 (2023-2025):
 
 - [Chain-of-Verification (arXiv 2309.11495)](https://arxiv.org/abs/2309.11495) — 초안 → 검증 질문 → 독립 답변 → 재작성 (E2).
-- [Lost in the Middle (TACL 2024)](https://direct.mit.edu/tacl/article/doi/10.1162/tacl_a_00638/119630/Lost-in-the-Middle-How-Language-Models-Use-Long) — primacy/recency bias (D1, D2).
+- [Lost in the Middle (TACL 2024)](https://direct.mit.edu/tacl/article/doi/10.1162/tacl_a_00638/119630/Lost-in-the-Middle-How-Language-Models-Use-Long) — primacy bias (D1).
 - [Learning Fine-Grained Grounded Citations (ACL Findings 2024)](https://aclanthology.org/2024.findings-acl.838/) — fine-grained quote grounding (B1).
 - [Self-Alignment for Factuality (ACL 2024)](https://aclanthology.org/2024.acl-long.107/) — self-evaluation 기반 factuality alignment (E2).
 - [Document Structure in Long Document Transformers (EACL 2024)](https://aclanthology.org/2024.eacl-long.64/) — heading depth / section 경계 (D3).
