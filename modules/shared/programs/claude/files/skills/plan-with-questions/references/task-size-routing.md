@@ -6,9 +6,9 @@
 
 ## 자동 트리거 신호
 
-가장 큰 변화: **단일 tier-1 hit만으로 트리거하지 않는다**. `Phase ≥4`는 단독으로 트리거하지만, "다중 도메인"은 보조 신호 1+와 결합될 때만 승격한다 (over-triggering 방지 — small config change가 Living PRD로 무거워지는 회귀 차단).
+가장 큰 변화: **단독 트리거 신호 하나만으로 트리거하지 않는다**. `Phase ≥4`는 단독으로 트리거하지만, "다중 도메인"은 보조 신호 1+와 결합될 때만 승격한다 (over-triggering 방지 — small config change가 Living PRD로 무거워지는 회귀 차단).
 
-### 강한 단일 신호 (단독 트리거)
+### 단독 트리거 신호 (혼자만 있어도 트리거)
 
 - **Phase ≥4**: 의존성 순서 phase가 4개 이상 필요. [`./prd/file-mode-selection.md`](./prd/file-mode-selection.md)의 Single/Split 판정 룰과 일치. 단독으로 PRD 트리거.
 - **명시적 PRD/spec 요청**: 사용자가 `for_prd`, `PRD`, `spec`, `명세`, `phase plan` 같은 PRD-naming을 명시 사용한 경우. 단독 트리거.
@@ -47,17 +47,17 @@ def should_trigger_prd(step12_result):
     if step12_result.estimated_phases >= 4:
         return "trigger"
     multi_domain = step12_result.distinct_domain_count >= 2
-    aux_hits = count_auxiliary_signals(step12_result)
-    if multi_domain and aux_hits >= 1:
+    auxiliary_signal_hits = count_auxiliary_signals(step12_result)
+    if multi_domain and auxiliary_signal_hits >= 1:
         return "trigger"
     return "no_trigger"
 ```
 
 핵심 차이 (이전 버전 대비):
 - 이전: `phase>=4 OR multi_domain >= 2` → 단일 hit으로 트리거 (over-trigger 위험).
-- 현재: `phase>=4` 단독 OR (`multi_domain` AND `aux >= 1`) — 다중 도메인은 항상 보조 신호와 결합.
+- 현재: `phase>=4` 단독 OR (`multi_domain` AND `보조 신호 >= 1`) — 다중 도메인은 항상 보조 신호와 결합.
 
-메인 LLM이 Step 1-2 결과를 보고 위 알고리즘을 적용. tier-1 신호는 명확하므로 직접 식별. tier-2의 "예상 소요일"은 메인 LLM의 추정으로, **보수적 기각**(under-trigger보다 명시적 사용자 요청 시 PRD 진입을 신뢰).
+메인 LLM이 Step 1-2 결과를 보고 위 알고리즘을 적용. 단독 트리거 신호는 명확하므로 직접 식별. 보조 신호 중 "예상 소요일"은 메인 LLM의 추정으로, **보수적 기각**(under-trigger보다 명시적 사용자 요청 시 PRD 진입을 신뢰).
 
 ## opt-out 알림 메시지
 

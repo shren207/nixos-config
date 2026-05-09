@@ -47,7 +47,7 @@
 ### P1-P5 + P6-P7 (for_action Step 1-4 + for_action Step 5-6 차용)
 
 [`for_action.md`](./for_action.md)의 for_action Step 1-4와 for_action Step 5-6 핵심 절차를 따른다. for_prd 단계 식별자는 `P1`~`P9`로 순차 시프트한다 (for_action `Step 7`과의 식별자 충돌 방지). 차이점:
-- **P1** (for_action Step 1 차용): tier-1/aux 신호 1차 평가 (자동 트리거 가능성 검토).
+- **P1** (for_action Step 1 차용): 단독 트리거 신호와 보조 신호의 1차 평가 (자동 트리거 가능성 검토).
 - **P2** (for_action Step 2 차용): 트리거 결정 시 사용자에게 알림 + opt-out 확인. 사용자 동의 시 Mode 전환 (`for_action` → `for_prd`).
 - **P3** (for_action Step 3 차용): 질문 수집 / 불명확점 정리 — for_action Step 3과 동일 정책 (요구사항 불명확점·트레이드오프·사이드이펙트·인지 상태·XY Problem). PRD 컨텍스트에서는 phase 구조 후보도 함께 모은다.
 - **P4** (for_action Step 3.5 차용): 자문 입력에 phase 구조 후보를 포함 (PRD는 phase 단위 결정이 핵심). 자문 출력의 두 layer schema(`technical_matrix` + `user_facing`)와 텍스트 복구 규칙은 [`../references/consulting-step.md`](../references/consulting-step.md) SSOT를 그대로 따른다.
@@ -62,7 +62,7 @@
 **PRD 파일 작성 전에 명시 승인 게이트 필수** (`for_action` Step 9와 등가). 자동 PRD opt-out 동의가 곧장 commit/PR write 동의로 확장되는 회귀를 방지한다 (#569 류 회귀):
 
 1. 메인 에이전트가 P1-P5와 P6-P7 결과를 사용자에게 요약 제시:
-   - PRD 후보 신호 (트리거된 tier-1/aux 신호)
+   - PRD 후보 신호 (트리거 근거가 된 단독 트리거 신호 또는 보조 신호)
    - Resolved evidence + 사용자 답변 + P4 자문 매트릭스 요약
    - preflight/DA outcome (승인된 SKIP이면 체크리스트 verdict + 사용자 승인, 아니면 DA findings + Arbiter 판정 핵심)
    - 후보 phase 구조 (3-6개) + 산출물 경로 (`.claude/prds/...`)
