@@ -79,7 +79,7 @@ description: |
 
 - **for_action**: [`modes/for_action.md`](./modes/for_action.md) — Step 1 (이슈 유효성) → 2 (탐색+재현) → 3 (질문 수집) → **3.5 (트레이드오프 1+ 시 외부 자문, background 병렬)** → 4 (사용자 질문) → **4.5 (공식 plan 파일 초기화)** → 5-6 (DA + 같은 파일 반영) → 7 (계획 추적 진입 + 기존 파일 바인딩) → 8 (계획 파일 review/refine) → 9 (승인 요청).
 - **for_issue**: [`modes/for_issue.md`](./modes/for_issue.md) — Step I-1 (fan-out) → I-2 (fan-in) → I-3 (블랙박스 체크리스트) → **I-3.5 (외부 자문, 트레이드오프 있을 시)** → I-4 (스무고개 루프) → I-5 (이슈 생성) → I-6 (for_action 전환 제안).
-- **for_prd**: [`modes/for_prd.md`](./modes/for_prd.md) — `for_action` Step 1-4와 Step 5-6의 인터뷰·자문·DA 흐름을 P1~P9로 순차 시프트하여 차용. **for_action Step 4.5(plan 파일 초기화)는 for_prd에서 skip**되고, P8에서 사용자 승인 + P9에서 `.claude/prds/`에 PRD 파일 직접 작성. Implementation 단계에서 phase 종료 시 6-classification, Final에서 PRD 10-pass + review-impl overlay (6-classification + overbuilt 우선).
+- **for_prd**: [`modes/for_prd.md`](./modes/for_prd.md) — `for_action`의 인터뷰·자문·DA 흐름을 차용하되 단계 식별자를 P-enum으로 시프트한다. 매핑: P1=Step 1, P2=Step 2, P3=Step 3, P4=Step 3.5, P5=Step 4, **for_action Step 4.5(plan 파일 초기화)는 skip**, P6=Step 5, P7=Step 6, **P8=사용자 승인 게이트(for_prd 전용)**, **P9=`.claude/prds/`에 PRD 파일 직접 작성(for_prd 전용)**. Implementation 단계에서 phase 종료 시 6-classification, Final에서 PRD 10-pass + review-impl overlay (6-classification + overbuilt 우선).
 
 승인 후 자동 절차는 [`references/post-implementation.md`](./references/post-implementation.md) 1~7번을 따른다 (사용자 stop·하위 스킬 BLOCKED 외에는 자유 생략 금지 — #453/#569 회귀 방지).
 

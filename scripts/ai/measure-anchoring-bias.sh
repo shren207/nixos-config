@@ -15,10 +15,11 @@
 # is the canonical source. The doc table is illustrative; PAT_* arrays here
 # are authoritative.
 #
-# Scope: this script measures TRANSCRIPT anchoring signals only. Source-side
-# label sanitization is enforced by the D4 hard rule defined in
-# references/consulting-step.md sections "D4 hard rule" and
-# "Anti-anchoring 4 규칙".
+# Scope: this script measures TRANSCRIPT anchoring signals only. It does not
+# validate source-side label sanitization. The source-side D4 hard rule policy
+# is defined (not statically enforced) in modules/shared/programs/claude/
+# files/skills/plan-with-questions/references/consulting-step.md sections
+# "D4 hard rule" and "Anti-anchoring 4 규칙".
 #
 # Usage:
 #   ./scripts/ai/measure-anchoring-bias.sh             # default mtime=-60

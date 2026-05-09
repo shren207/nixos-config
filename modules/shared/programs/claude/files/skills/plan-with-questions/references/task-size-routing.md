@@ -91,11 +91,11 @@ def should_trigger_prd(step12_result):
 
 자동 트리거 조건이 `Phase ≥4`이면 보통 split이 자연스럽다. 사용자가 "single로 유지해" 또는 "split으로 나눠줘"라고 명시하면 그 지시를 우선한다.
 
-file-mode-selection 규약을 plan-with-questions가 직접 적용한다. 본 모드는 트리거 + Step 1-4 인터뷰·자문 + Step 5-6 DA 완료 후 `.claude/prds/`에 직접 작성한다. `for_action` Step 4.5 plan 파일 초기화는 건너뛰며, plan-with-questions는 `.claude/plans/` 사본을 만들지 않는다.
+file-mode-selection 규약을 plan-with-questions가 직접 적용한다. 본 모드는 트리거 + P1-P5 인터뷰·자문 + P6-P7 DA 완료 후 `.claude/prds/`에 직접 작성한다. `for_action` Step 4.5 plan 파일 초기화는 건너뛰며, plan-with-questions는 `.claude/plans/` 사본을 만들지 않는다.
 
 ## review-impl 통합 시점
 
-Post-Impl 5번 Final Multi-Pass Review는 **모든 모드에서 mandatory**다 ([`./post-implementation.md`](./post-implementation.md) Step 5). PRD/spec 산출물 부재 같은 mode-specific 조건은 일부 항목을 `N/A`로 skip할 수 있을 뿐, 단계 자체를 생략하지 않는다.
+Post-Impl 5번 Final Multi-Pass Review는 **`for_action` / `for_prd` 모드에서 mandatory**다 ([`./post-implementation.md`](./post-implementation.md) Step 5). `for_issue` 모드에는 Post-Implementation 7단계 자체가 적용되지 않으므로 Final review도 호출되지 않는다 ([`./post-implementation.md`](./post-implementation.md) 첫 단락 SSOT). PRD/spec 산출물 부재 같은 mode-specific 조건은 일부 항목을 `N/A`로 skip할 수 있을 뿐, 단계 자체를 생략하지 않는다.
 
 | 모드 | Phase-end 10-pass (prd) | 6-classification 적용 시점 | Post-Impl 5번 Final review 구성 | auto-fix |
 |------|--------------------------|----------------------------|---------------------------------|----------|
