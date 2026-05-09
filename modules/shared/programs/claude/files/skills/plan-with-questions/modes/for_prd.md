@@ -19,7 +19,7 @@
 | [`../references/prd/file-mode-selection.md`](../references/prd/file-mode-selection.md) | Single vs Split 자동 판정 |
 | [`../references/validation-paths.md`](../references/validation-paths.md) | validation-path catalog (모든 모드 공통, 평면 위치 — path 수는 catalog enumeration 섹션에서 확인) |
 | [`../references/prd/multi-pass-review.md`](../references/prd/multi-pass-review.md) | Final 10-pass review (Post-Implementation 5번) |
-| [`../references/review-impl/requirement-status.md`](../references/review-impl/requirement-status.md) | phase 종료 시 6-classification taxonomy (requirement → 구현 매핑, auto-fix 미사용) |
+| [`../references/review-impl/requirement-status.md`](../references/review-impl/requirement-status.md) | phase 종료 시 6-classification taxonomy (requirement → 구현 매핑, auto-fix는 적용하지 않음) |
 | [`../references/review-impl/implementation-review.md`](../references/review-impl/implementation-review.md) | Final review 시 PRD 10-pass에 얹는 review-impl overlay (6-classification 라벨링 + overbuilt 우선 분류 delta) |
 
 ## 산출물 경로
@@ -36,7 +36,7 @@
 - **PRD 작성 의도 카테고리 — 신규 PRD**: 기존 `.claude/prds/prd-<feature>.md` 부재 시 본 모드 P1-P9 전체 흐름 (인터뷰·자문·DA → 사용자 승인 → P9에서 신규 PRD 작성).
 - **PRD 작성 의도 카테고리 — 기존 PRD 갱신**: `.claude/prds/prd-<feature>.md` 존재 시 기존 파일을 read한 뒤 갱신 흐름 (Discovery 결과로 영향받는 phase/section만 수정, 완료 체크박스 + 사용자 수정 보존).
 - **review-impl 의도 카테고리**:
-  - **이슈 ref 있을 시**: for_action 모드로 진입. for_action 승인 후 Post-Implementation 5번 Final review 단계에서 [`../references/prd/multi-pass-review.md`](../references/prd/multi-pass-review.md)의 PRD 10-pass + [`../references/review-impl/implementation-review.md`](../references/review-impl/implementation-review.md) overlay(6-classification 라벨링 + overbuilt 우선 분류) 적용 (auto-fix 미사용, NG-2).
+  - **이슈 ref 있을 시**: for_action 모드로 진입. for_action 승인 후 Post-Implementation 5번 Final review 단계에서 [`../references/prd/multi-pass-review.md`](../references/prd/multi-pass-review.md)의 PRD 10-pass + [`../references/review-impl/implementation-review.md`](../references/review-impl/implementation-review.md) overlay(6-classification 라벨링 + overbuilt 우선 분류) 적용 (auto-fix는 적용하지 않음 — NG-2).
   - **텍스트 설명만**: for_issue 모드로 진입하여 이슈 생성. for_issue 자체에는 Post-Implementation 7단계가 적용되지 않으므로 Final review가 즉시 실행되지 않는다. Step I-6에서 사용자가 후속으로 for_action 진입을 선택하면 그 사이클의 Post-Implementation 5번에서 PRD 10-pass + review-impl overlay가 적용된다.
   - **for_prd phase-end review**: phase-template의 10-pass와 통합 적용.
 
@@ -50,8 +50,8 @@
 - **P1** (for_action Step 1 차용): tier-1/aux 신호 1차 평가 (자동 트리거 가능성 검토).
 - **P2** (for_action Step 2 차용): 트리거 결정 시 사용자에게 알림 + opt-out 확인. 사용자 동의 시 Mode 전환 (`for_action` → `for_prd`).
 - **P3** (for_action Step 3 차용): 질문 수집 / 불명확점 정리 — for_action Step 3과 동일 정책 (요구사항 불명확점·트레이드오프·사이드이펙트·인지 상태·XY Problem). PRD 컨텍스트에서는 phase 구조 후보도 함께 모은다.
-- **P4** (for_action Step 3.5 차용): 자문 입력에 phase 구조 후보를 포함 (PRD는 phase 단위 결정이 핵심). 자문 출력의 두 layer schema(`technical_matrix` + `user_facing`)와 D2 fallback 규칙은 [`../references/consulting-step.md`](../references/consulting-step.md) SSOT를 그대로 따른다.
-- **P5 (D1/D2/D4 동일 적용)** (for_action Step 4 차용): for_action Step 4의 정책을 그대로 차용 — 라운드당 `questions` 배열 길이 1 (D1), 사용자 노출은 `user_facing` layer만 (D2), 트레이드오프 라운드는 D4 합의 알고리즘 4단계 호출 + 후보가 정확히 1개로 좁혀진 합의 PASS 옵션에만 `(Recommended)` 부착, judgment-first 사전 라운드는 D4 미실행 + 라벨 절대 금지, fallback enum(D4_FALLBACK_A/B/C/C_MULTI) 발생 시 사용자에게는 평이 한국어 문구만 노출. for_prd는 별도 사본을 두지 않고 [`for_action.md` Step 4](./for_action.md#step-4-사용자에게-질문-일반-모드)를 callsite로 인용한다 — 모든 phase 인터뷰가 동일 정책 적용을 받는다 (PRD가 multi-phase여도 D1 라운드당 1개는 유지).
+- **P4** (for_action Step 3.5 차용): 자문 입력에 phase 구조 후보를 포함 (PRD는 phase 단위 결정이 핵심). 자문 출력의 두 layer schema(`technical_matrix` + `user_facing`)와 텍스트 복구 규칙은 [`../references/consulting-step.md`](../references/consulting-step.md) SSOT를 그대로 따른다.
+- **P5 (질문 정책 동일 적용)** (for_action Step 4 차용): for_action Step 4의 정책을 그대로 차용 — 라운드당 `questions` 배열 길이 하나, 사용자 노출은 `user_facing` layer만, 트레이드오프 라운드는 추천 라벨 합의 알고리즘 4단계 호출 + 후보가 정확히 1개로 좁혀진 합의 통과 옵션에만 `(Recommended)` 부착, judgment-first 사전 라운드는 합의 알고리즘 미실행 + 라벨 절대 금지, fallback 발생 시 사용자에게는 평이 한국어 문구만 노출. for_prd는 별도 사본을 두지 않고 [`for_action.md` Step 4](./for_action.md#step-4-사용자에게-질문-일반-모드)를 callsite로 인용한다 — 모든 phase 인터뷰가 동일 정책 적용을 받는다 (PRD가 multi-phase여도 라운드당 하나의 질문은 유지).
 - **for_action Step 4.5(plan 파일 초기화)는 for_prd에서 skip**된다. `for_prd`는 `.claude/plans/` 파일과 plan-file-template 14 metadata를 만들지 않는다. for_prd는 정수 P-enum만 사용하며 `.5` suffix를 도입하지 않는다.
 - **P6 DA** (for_action Step 5 차용): 기본은 [`../references/run-da-preflight-gate.md`](../references/run-da-preflight-gate.md) 적용 후 `/run-da for_plan` 호출 — preflight gate가 `run-da` Review Intensity 체크리스트를 기계적으로 적용하고, 승인된 SKIP이 아니면 `/run-da for_plan`으로 진행한다. DA 입력은 PRD draft/context, candidate phase structure, P1-P5 evidence이며 plan 파일 path가 아니다. phase 4+ 복잡 plan에서 사용자가 명시적으로 exhaustive review를 원하면 `/run-da for_plan full` 사용 (full modifier는 인라인 체크리스트를 우회하고 8 도메인 강제). 두 의미는 다르다.
 - **P7 DA 반영** (for_action Step 6 차용): DA 결과는 PRD draft/context와 후보 phase 구조에 반영한다. PRD 작성 후에는 PRD master `Change Log`와, split mode에서 특정 phase가 영향받는 경우 해당 phase의 `Discoveries / Decisions`에 반영 이력을 남긴다.

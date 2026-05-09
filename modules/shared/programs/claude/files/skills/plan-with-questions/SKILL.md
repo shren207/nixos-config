@@ -13,28 +13,16 @@ description: |
 
 이 스킬은 인터뷰 기반이므로 질문 도구가 필수다. 런타임 도구·용어·미지원 대응은 [`references/runtime-boundaries.md`](./references/runtime-boundaries.md)가 SSOT다.
 
-## 약어 (Abbreviation)
-
-- **D1**: 라운드당 1개 질문 (`questions` 배열 길이 1 강제).
-- **D2**: 사용자 노출은 `user_facing` layer만 — `technical_matrix`는 LLM 내부 D4 입력 전용.
-- **D4**: 합의 알고리즘 4단계 — 후보가 정확히 1개로 좁혀진 합의 PASS 옵션에만 `(Recommended)` 라벨 부착.
-- **FR-1**: D1 정책의 functional requirement label.
-- **FR-2**: D2 정책 label.
-- **FR-4**: judgment-first 라운드 라벨 절대 금지 정책 label.
-- **FR-5**: 트레이드오프 라운드 D4 합의 알고리즘 호출 정책 label.
-- **FR-7**: D4 hard rule — 합의 미달 옵션의 `(Recommended)` 문자열 강제 제거 정책 label.
-- 미사용 번호: `D3` / `D5`~`D9`, `FR-3` / `FR-6` 은 결번(폐기되었거나 한 번도 부여되지 않음). 신규 정책 도입 시에도 위 결번을 재사용하지 않는다.
-
 ## Invariants (예외 없이 적용)
 
 1. **질문 도구 의무**: 사용자에게 질문할 때는 질문 도구를 사용한다. 미지원 시 BLOCKED 처리 ([`references/runtime-boundaries.md`](./references/runtime-boundaries.md#질문-도구-미지원-대응)).
 2. **Black-box zero**: 계획에 모호한 부분이 남아 있으면 완성이 아니다. 사용자에게 묻기 전에 코드베이스를 충분히 탐색하여 스스로 답할 수 있는 질문은 걸러낸다.
 3. **YAGNI/NGMI 제1원칙**: 계획의 각 단계에서 "이게 정말 필요한가?"를 반복 검증한다. 자동 `run-da` review gate는 [`references/run-da-preflight-gate.md`](./references/run-da-preflight-gate.md)를 통해서만 SKIP 후보가 될 수 있으며, 자유 추론이나 silent skip은 금지한다.
-4. **선 계획 파일 초기화 / 후 계획 추적**: for_action 모드에서 Step 1-4는 일반 모드에서 수행하고, Step 4.5에서 공식 `.claude/plans/<slug>.md` 파일을 먼저 초기화한다. Step 5-6 DA는 그 파일을 입력/반영 대상으로 사용하며, 계획 추적 도구 진입은 Step 7에서만 수행한다. for_issue는 계획 추적 도구 미사용, for_prd는 `.claude/plans/` 미사용.
+4. **선 계획 파일 초기화 / 후 계획 추적**: for_action 모드에서 Step 1-4는 일반 모드에서 수행하고, Step 4.5에서 공식 `.claude/plans/<slug>.md` 파일을 먼저 초기화한다. Step 5-6 DA는 그 파일을 입력/반영 대상으로 사용하며, 계획 추적 도구 진입은 Step 7에서만 수행한다. for_issue는 계획 추적 도구를 사용하지 않고, for_prd는 `.claude/plans/`를 사용하지 않는다.
 5. **Single-writer / main-agent-only**: tracked write, branch mutation, commit/push, GitHub write, `wt`/`nrs`/rebuild 계열은 reviewer/auditor subagent가 직접 실행하지 않는다. [`run-da/references/hardening-contract.md`](../run-da/references/hardening-contract.md) `Codex 세션 하드닝 계약` SSOT를 따른다.
-6. **Step 3.5 → Step 4 순서**: 트레이드오프 옵션이 1+이면 Step 3.5 외부 자문을 사용자 질문 전에 호출한다. 자문 결과 도착 후 Step 4에서 anti-anchoring 4 규칙(D4 합의 조건부 라벨·옵션 셔플·user_facing.plain_disqualifier 표시·judgment-first)으로 옵션을 제시한다. 라벨 정책 정본은 Invariant 8 + [`references/consulting-step.md`](./references/consulting-step.md)의 Anti-anchoring 1번/D4 합의 알고리즘 SSOT가 둘 다 동일 의미로 일치한다. **codex exec 호출 명령은 [`references/consulting-step.md`](./references/consulting-step.md#codex-exec-호출-명령-템플릿-ssot)가 단일 SSOT**다 — 본문/모드 파일은 명령을 복제하지 않는다.
+6. **Step 3.5 → Step 4 순서**: 트레이드오프 옵션이 1+이면 Step 3.5 외부 자문을 사용자 질문 전에 호출한다. 자문 결과 도착 후 Step 4에서 anti-anchoring 4 규칙(추천 라벨 합의 조건부 부착·옵션 셔플·user_facing.plain_disqualifier 표시·judgment-first)으로 옵션을 제시한다. 라벨 정책 정본은 Invariant 8 + [`references/consulting-step.md`](./references/consulting-step.md)의 Anti-anchoring 1번/추천 라벨 합의 알고리즘 SSOT가 둘 다 동일 의미로 일치한다. **codex exec 호출 명령은 [`references/consulting-step.md`](./references/consulting-step.md#codex-exec-호출-명령-템플릿-ssot)가 단일 SSOT**다 — 본문/모드 파일은 명령을 복제하지 않는다.
 7. **Living checkbox 갱신 의무**: 각 단계(Phase Discovery Gate, Implementation Checklist, Validation Checklist, Exit Criteria, Phase-end review) 완료 즉시 plan/PRD 본문의 `- [ ]`를 `- [x]`로 갱신한다. **lazy/end-of-session bulk update 금지** — Status·Resume From·Phase Progress 같은 헤더 메타데이터만 갱신하고 본문 체크박스를 미루는 self-optimization은 dogfooding 추적성을 깬다. 메인 LLM이 "헤더 메타데이터만 갱신해도 충분"이라고 자체 판단하지 않는다. for_prd 모드에서 PRD master + active phase 파일의 체크박스는 단계 완료 즉시 본 스킬이 갱신한다.
-8. **라운드당 1개 질문 + D4 hard rule**: 사용자 질문 도구 호출 시 `questions` 배열 길이는 1로 강제한다 (for_action Step 4 / for_issue Step I-4 / for_prd 차용 모두 동일 정책 — D1). 한 라운드에 여러 질문을 묶어 인지 부하를 일으키지 않는다. 트레이드오프 라운드는 [`references/consulting-step.md`](./references/consulting-step.md)의 D4 합의 알고리즘 4단계를 사용자 노출 직전 적용한다. 라벨 부착은 후보가 정확히 1개로 좁혀진 합의 PASS 옵션에만 허용되며, 질문 도구의 `(Recommended)` 자동 권장 convention은 본 스킬 컨텍스트에서 무시한다. judgment-first 사전 라운드는 D4를 실행하지 않으며 어떤 옵션에도 라벨을 부착하지 않는다 (anti-anchoring 효과 보호).
+8. **라운드당 하나의 질문 + 추천 라벨 합의 규칙**: 사용자 질문 도구 호출 시 `questions` 배열 길이는 1로 강제한다 (for_action Step 4 / for_issue Step I-4 / for_prd 차용 모두 동일 정책). 한 라운드에 여러 질문을 묶어 인지 부하를 일으키지 않는다. 트레이드오프 라운드는 [`references/consulting-step.md`](./references/consulting-step.md)의 추천 라벨 합의 알고리즘 4단계를 사용자 노출 직전 적용한다. `(Recommended)` 라벨 부착은 후보가 정확히 1개로 좁혀진 합의 통과 옵션에만 허용되며, 질문 도구의 자동 권장 convention은 본 스킬 컨텍스트에서 무시한다. judgment-first 사전 라운드는 합의 알고리즘을 실행하지 않으며 어떤 옵션에도 라벨을 부착하지 않는다 (anti-anchoring 효과 보호).
 
 ## 모드 판별
 
@@ -70,7 +58,7 @@ description: |
 | 단계 흐름          | [`modes/for_action.md`](./modes/for_action.md)            | [`modes/for_issue.md`](./modes/for_issue.md) | [`modes/for_prd.md`](./modes/for_prd.md)                                                                              |
 | DA                 | preflight gate 후 for_plan 실행 또는 승인된 SKIP (Step 5) | 생략                                         | preflight gate 후 for_plan 실행 또는 승인된 SKIP + phase별 6-classification + Final PRD 10-pass + review-impl overlay |
 | Step 3.5 외부 자문 | 트레이드오프 1+ 항목 시                                   | 트레이드오프 1+ 항목 시                      | 트레이드오프 1+ 항목 시 (PRD 작성 전 1회)                                                                             |
-| 계획 추적 도구     | 사용 (Step 7-9; Step 4.5에서 공식 plan 파일 선초기화)     | 미사용 (산출물이 이슈)                       | 미사용 — PRD 파일이 추적                                                                                              |
+| 계획 추적 도구     | 사용 (Step 7-9; Step 4.5에서 공식 plan 파일 선초기화)     | 사용 안 함 (산출물이 이슈)                   | 사용 안 함 — PRD 파일이 추적                                                                                          |
 | 제1원칙            | YAGNI / NGMI                                              | YAGNI / NGMI                                 | YAGNI / NGMI                                                                                                          |
 
 ## 단계 흐름 — 모드별 분리
@@ -108,7 +96,7 @@ PRD / review references (모든 모드 공용 또는 for_prd 전용):
 | [`./references/prd/phase-template.md`](./references/prd/phase-template.md)                               | for_prd 모드 phase 단위                                                                                       |
 | [`./references/prd/file-mode-selection.md`](./references/prd/file-mode-selection.md)                     | for_prd Single vs Split                                                                                       |
 | [`./references/review-impl/requirement-status.md`](./references/review-impl/requirement-status.md)       | review-impl 6-classification taxonomy (requirement → 구현 매핑)                                               |
-| [`./references/review-impl/implementation-review.md`](./references/review-impl/implementation-review.md) | review-impl overlay (PRD 10-pass에 얹는 6-classification 라벨링 + overbuilt 우선 분류 delta, auto-fix 미사용) |
+| [`./references/review-impl/implementation-review.md`](./references/review-impl/implementation-review.md) | review-impl overlay (PRD 10-pass에 얹는 6-classification 라벨링 + overbuilt 우선 분류 delta, auto-fix는 적용하지 않음) |
 
 ## 주의사항
 
@@ -116,4 +104,4 @@ PRD / review references (모든 모드 공용 또는 for_prd 전용):
 - **자유 생략 금지**: 메인 LLM은 Post-Implementation 1~7 중 어떤 단계도 자유 판단으로 생략하지 않는다. 자동 `/run-da` gate의 SKIP은 [`references/run-da-preflight-gate.md`](./references/run-da-preflight-gate.md)의 체크리스트 + 질문 도구 승인 경로에서만 가능하다. "범위 대비 비용 과도" 같은 메인 LLM 자체 판단은 사용자 stop이 아니다 (#453 회귀 방지).
 - **승인 의미 명확화**: 계획 승인은 Post-Implementation 자동 진행 동의로 간주된다. 그 범위(tracked write·commit·PR write)를 plan Step 8에 명시한다 (#569 회귀 방지).
 - **기존 패턴 존중**: 코드베이스에 이미 확립된 패턴을 파악하고, 계획이 기존 패턴과 일관되도록 한다.
-- **질문은 빠짐없이 — 단 라운드당 1개**: "사용자가 귀찮아하지 않을까" 걱정하지 않는다. 발견한 모든 불명확점을 누락 없이 묻되, Invariant 8에 따라 한 라운드에 1개 질문만 묶는다 (이전 정책 "한번에 모아서 왕복 최소화" 또는 "라운드당 최대 4개"는 폐기됨 — 인지 부하/turn_abort 회귀 방지).
+- **질문은 빠짐없이 — 단 라운드당 하나만**: "사용자가 귀찮아하지 않을까" 걱정하지 않는다. 발견한 모든 불명확점을 누락 없이 묻되, Invariant 8에 따라 한 라운드에 하나의 질문만 둔다. 이유는 인지 부하와 turn_abort 위험을 줄이기 위해서다.
