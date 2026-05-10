@@ -35,6 +35,7 @@ import glob
 import json
 import os
 import platform
+import posixpath
 import re
 import subprocess
 import sys
@@ -109,7 +110,12 @@ SELECTIVE_LINE = re.compile(
     re.I,
 )
 
-# Host path mapping
+# Host path mapping —
+#   command path:    SSH 명령 인자는 `~/.claude/projects` 등 relative tilde 표현을 사용한다
+#                    (remote shell이 expansion). 본 map은 명령 인자에 직접 들어가지 않는다.
+#   validation path: `_allowed_remote_path` boundary check가 본 absolute prefix와 비교하여
+#                    SSH find stdout 비신뢰 line을 검증한다.
+#   corpus path:     `--corpus manifest.json` 모드에서 host 분류 prefix로도 사용한다 (D-6).
 HOST_PATH_MAP = {
     "mac": {
         "claude": "/Users/green/.claude/projects",
@@ -732,8 +738,17 @@ def _allowed_remote_path(host: str, path: str) -> bool:
 
     SSH remote command는 원격 shell이 해석하므로 shell metacharacter (`;`, `$()`,
     newline, backtick, space 등)가 포함된 경로는 명령 인젝션/word-splitting 위험이
-    있다. 따라서 정확한 HOST_PATH_MAP base prefix + .jsonl 확장자 + 제어문자/공백
-    부재만 통과시킨다.
+    있다. 따라서 다음 검사를 통과시킨다:
+
+    1. 제어문자/shell metacharacter/공백 부재.
+    2. `.jsonl` 확장자.
+    3. `posixpath.normpath`로 traversal(`../`) 정규화.
+    4. `posixpath.isabs`로 relative path 폐기 (find stdout 비신뢰).
+    5. `posixpath.commonpath([base_norm, path_norm]) == base_norm` boundary 비교 —
+       sibling-prefix(`/Users/green/.claude/projects-evil/...`)는 commonpath가
+       base_norm와 다르므로 거부. absolute/relative mix는 ValueError → 폐기.
+    6. `path_norm != base_norm`로 base 자체 통과를 차단 (`.jsonl` 확장자 검사가
+       이미 거부하지만 방어적 명시).
     """
     if not isinstance(path, str) or not path:
         return False
@@ -742,9 +757,25 @@ def _allowed_remote_path(host: str, path: str) -> bool:
         return False
     if not path.endswith(".jsonl"):
         return False
+    try:
+        path_norm = posixpath.normpath(path)
+    except Exception:
+        return False
+    if not posixpath.isabs(path_norm):
+        return False
     paths = HOST_PATH_MAP.get(host, {})
     bases = (paths.get("claude", ""), paths.get("codex", ""))
-    return any(b and path.startswith(b + os.sep) for b in bases)
+    for base in bases:
+        if not base:
+            continue
+        base_norm = posixpath.normpath(base)
+        try:
+            if posixpath.commonpath([base_norm, path_norm]) == base_norm and path_norm != base_norm:
+                return True
+        except ValueError:
+            # absolute/relative mix 등 — 폐기
+            continue
+    return False
 
 
 def _validate_remote_path(host: str, path: str) -> None:
@@ -755,13 +786,18 @@ def _validate_remote_path(host: str, path: str) -> None:
 def collect_remote_files(host: str, warnings: list[str]) -> list[str]:
     """원격 호스트에서 jsonl 파일 path glob (subprocess.run 고정 argv).
 
-    원격 find stdout의 path 라인은 비신뢰 입력으로 간주하여, _allowed_remote_path가 통과한
-    line만 수집한다 — 제어문자/shell metacharacter 포함 line은 silently 폐기한다.
+    SSH 명령 인자에는 host-neutral relative tilde 표현 (`~/.claude/projects`,
+    `~/.codex/sessions`)을 사용해 host별 absolute home prefix hardcoded를 피한다.
+    원격 shell이 `~`를 해당 user의 home directory로 expansion한다.
+
+    원격 find stdout의 path 라인은 비신뢰 입력으로 간주하여, `_allowed_remote_path`가
+    통과한 line만 수집한다 — 제어문자/shell metacharacter/relative path/sibling-prefix
+    포함 line은 silently 폐기한다. 검증은 absolute `HOST_PATH_MAP` prefix와의
+    boundary 비교로 수행한다.
     """
     _validate_host(host)
-    paths = HOST_PATH_MAP[host]
     all_files: list[str] = []
-    for base in (paths["claude"], paths["codex"]):
+    for base in ("~/.claude/projects", "~/.codex/sessions"):
         try:
             # SSH는 argv를 single string으로 합쳐 원격 shell에 전달하므로
             # `*.jsonl`을 single-quote로 감싸 원격 glob expansion을 차단한다.
@@ -947,13 +983,27 @@ def main() -> int:
             print(f"ERROR: corpus manifest read failed: {e}", file=sys.stderr)
             return 1
         all_files = manifest.get("files", [])
-        # host 분류는 path prefix로
+        # host 분류는 HOST_PATH_MAP base prefix 순회 (D-6) — 호스트 추가 시 한 곳만 수정.
+        # `/Users/` / `/home/` 단순 prefix 분기는 `HOST_PATH_MAP`에 없는 OS의 fallback으로 보존.
         files_by_host: dict[str, list[str]] = defaultdict(list)
         for f in all_files:
-            if f.startswith("/Users/"):
-                files_by_host["mac"].append(f)
-            elif f.startswith("/home/"):
-                files_by_host["minipc"].append(f)
+            matched = False
+            for host_alias, host_paths in HOST_PATH_MAP.items():
+                for base in (host_paths.get("claude", ""), host_paths.get("codex", "")):
+                    if base and f.startswith(base + os.sep):
+                        files_by_host[host_alias].append(f)
+                        matched = True
+                        break
+                if matched:
+                    break
+            if not matched:
+                # fallback (기존 동작 보존)
+                if f.startswith("/Users/"):
+                    files_by_host["mac"].append(f)
+                elif f.startswith("/home/"):
+                    files_by_host["minipc"].append(f)
+                else:
+                    warnings.append(f"corpus host unclassified: {f}")
         corpus_label = manifest.get("snapshot_id", "pinned")
     else:
         files_by_host = defaultdict(list)
