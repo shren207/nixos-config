@@ -91,6 +91,65 @@ Anki 노트의 원본 이미지가 있으면 retrieveMediaFile로 추출 → 학
 - 시스템 콜 카드 — vDSO, io_uring, KPTI/SMEP/SMAP
 - NIC 카드 — TSO/RSS, DMA ring buffer, Tailscale tun0 (사용자 환경)
 
+### 3-6. 검증된 흔한 코드 버그 — 같은 실수 반복 금지
+
+이전 세션의 학습 페이지 코드에서 실제로 발견되어 PR 리뷰로 잡힌 버그들. 다음 세션에서 새 HTML을 만들 때 *시작부터* 바르게 작성한다.
+
+#### 버그 #1: Stage 4 selfScore 누락 (5개 카드 모두 동일 패턴, PR #712 CodeRabbit 리뷰에서 5건 발견)
+
+**증상**: 자체 점수(`selfScore`)가 마지막 stage(`submit` 누른 시점의 stage)의 자유 서술/입력 답안을 *반영하지 않고* 제출됨. 사용자 입장에서 "내가 답을 다 채웠는데 점수가 안 올랐다"는 혼란.
+
+**원인**: scoring 로직이 `nextStage(n)` 안에만 들어 있어, 마지막 stage에서는 `nextStage`가 호출되지 않으므로(바로 `submitAnswers`가 호출됨) scoring이 누락됨. 첫 세션 채점에서 자체 점수 50 vs 실제 점수 84 같은 큰 갭의 원인.
+
+**잘못된 패턴 (피해야 함)**:
+```javascript
+function nextStage(n) {
+  // 자체 점수: 답이 비지 않은 필드당 +5
+  const cur = document.querySelector('.stage.active');
+  const inputs = cur.querySelectorAll('textarea, input[type="text"]');
+  let added = 0;
+  inputs.forEach(i => { if (i.value.trim().length > 1 && !i.dataset.scored) { added += 5; i.dataset.scored = '1'; } });
+  if (added > 0) setScore(added);
+  // ... stage 전환 ...
+}
+
+async function submitAnswers() {
+  try {
+    const payload = gather();  // ❌ 현재 stage scoring 누락된 채 payload 생성
+    // ...
+  }
+}
+```
+
+**올바른 패턴 (이렇게 작성)**:
+```javascript
+function scoreCurrentStageInputs() {
+  const cur = document.querySelector('.stage.active');
+  if (!cur) return;
+  const inputs = cur.querySelectorAll('textarea, input[type="text"]');
+  let added = 0;
+  inputs.forEach(i => { if (i.value.trim().length > 1 && !i.dataset.scored) { added += 5; i.dataset.scored = '1'; } });
+  if (added > 0) setScore(added);
+}
+
+function nextStage(n) {
+  scoreCurrentStageInputs();
+  // ... stage 전환 ...
+}
+
+async function submitAnswers() {
+  try {
+    scoreCurrentStageInputs();  // ✅ submit 직전에도 현재 stage scoring
+    const payload = gather();
+    // ...
+  }
+}
+```
+
+**적용 원칙**: scoring 같은 사이드이펙트 로직이 *transition 함수에만* 들어 있으면 마지막 stage에서 누락된다. **transition을 통한 호출 + 명시적 직접 호출 양쪽 모두에서 호출 가능한 helper로 추출**한다.
+
+**일반화 가능한 패턴 (다른 비슷한 함정)**: 진행률/타이머 finalize/dirty flag 등 stage 전환 시점에만 갱신되는 데이터가 있다면, 그것도 submit 직전 명시적으로 finalize하는지 점검하라. "transition 함수 안에만 로직이 있다 + 마지막 stage에서는 transition이 안 일어난다" 패턴이 곧 누락 원인.
+
 ## 4. 학습 페이지 구조 (이전 세션의 사실상 표준)
 
 5단계 progress bar + Anki 스타일 다크 모드. 모바일 친화 (vertical layout).

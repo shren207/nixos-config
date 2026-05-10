@@ -368,13 +368,18 @@
     document.getElementById('score').textContent = score;
   }
 
-  function nextStage(n) {
-    // 자체 점수: 답이 비지 않은 필드당 +5
+  function scoreCurrentStageInputs() {
     const cur = document.querySelector('.stage.active');
+    if (!cur) return;
     const inputs = cur.querySelectorAll('textarea, input[type="text"]');
     let added = 0;
     inputs.forEach(i => { if (i.value.trim().length > 3 && !i.dataset.scored) { added += 5; i.dataset.scored = '1'; } });
     if (added > 0) setScore(added);
+  }
+
+  function nextStage(n) {
+    // 자체 점수: 답이 비지 않은 필드당 +5
+    scoreCurrentStageInputs();
 
     document.querySelectorAll('.stage').forEach(s => s.classList.remove('active'));
     document.getElementById('stage' + n).classList.add('active');
@@ -449,6 +454,7 @@
     status.className = 'submit-status pending';
     status.textContent = '⏳ 답안 저장 중...';
     try {
+      scoreCurrentStageInputs();
       const payload = gather();
       const r = await fetch('/submit', {
         method: 'POST',

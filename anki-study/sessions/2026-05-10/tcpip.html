@@ -480,12 +480,17 @@
 
   function setScore(delta) { score += delta; document.getElementById('score').textContent = score; }
 
-  function nextStage(n) {
+  function scoreCurrentStageInputs() {
     const cur = document.querySelector('.stage.active');
+    if (!cur) return;
     const inputs = cur.querySelectorAll('textarea, input[type="text"]');
     let added = 0;
     inputs.forEach(i => { if (i.value.trim().length > 1 && !i.dataset.scored) { added += 3; i.dataset.scored = '1'; } });
     if (added > 0) setScore(added);
+  }
+
+  function nextStage(n) {
+    scoreCurrentStageInputs();
     document.querySelectorAll('.stage').forEach(s => s.classList.remove('active'));
     document.getElementById('stage' + n).classList.add('active');
     for (let i = 0; i < 5; i++) {
@@ -556,6 +561,7 @@
     status.className = 'submit-status pending';
     status.textContent = '⏳ 답안 저장 중...';
     try {
+      scoreCurrentStageInputs();
       const payload = gather();
       const r = await fetch('/submit', {
         method: 'POST',
