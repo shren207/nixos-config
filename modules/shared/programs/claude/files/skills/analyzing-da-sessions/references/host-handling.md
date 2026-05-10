@@ -132,4 +132,4 @@ JSON sidecar의 `warnings` 배열에도 같은 메시지가 들어간다.
 | mac | `/Users/green/.claude/projects/` | `/Users/green/.codex/sessions/` |
 | minipc | `/home/greenhead/.claude/projects/` | `/home/greenhead/.codex/sessions/` |
 
-`--corpus manifest.json` 사용 시 path prefix(`/Users/` 또는 `/home/`)로 host 자동 분류.
+`--corpus manifest.json` 사용 시 위 표의 `HOST_PATH_MAP` base prefix를 우선 순회하여 host를 분류한다. 미매칭 path는 `warnings` 누적 후 처리에서 제외 — 새 host 지원은 `HOST_PATH_MAP` 추가가 정답이다 (silent host 배정 회피).

@@ -151,12 +151,16 @@ def test_allowed_remote_path_boundary_check(analyze_module):
     ) is False
 
 
-def test_worker_pool_partial_result(analyze_module, monkeypatch):
-    """worker pool에서 일부 SSH cat이 실패해도 정상 결과는 유지되고 warning이 누적됨을 검증.
+def test_analyze_remote_session_partial_fetch_result(analyze_module, monkeypatch):
+    """`analyze_remote_session()`이 SSH cat 실패 시 None + warning, 성공 시 분석 dict를
+    반환하는 partial result 단위 계약을 검증한다.
 
     `fetch_remote_file`을 monkeypatch하여 일부 path는 None (실패), 일부는 더미 jsonl
-    내용을 반환하도록 한다. `analyze_remote_session`이 None 반환 시 main loop에서
-    sessions에 append되지 않고 warning만 누적되는 계약을 unit으로 검증한다.
+    내용을 반환하도록 한 뒤 `analyze_remote_session()`을 직접 호출한다.
+
+    참고: 본 테스트는 `analyze_remote_session()`의 단위 계약만 검증하며, `main()`의
+    `concurrent.futures.ThreadPoolExecutor` worker pool dispatch 경로는 통과하지
+    않는다. dispatch 경로 자체는 V-1 live 측정과 코드 review로 검증한다.
     """
     warnings: list[str] = []
     fail_path = "/Users/green/.claude/projects/fail.jsonl"

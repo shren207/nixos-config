@@ -39,7 +39,6 @@ import posixpath
 import re
 import subprocess
 import sys
-import threading
 from collections import Counter, defaultdict
 from typing import Any, Iterable
 
@@ -983,8 +982,10 @@ def main() -> int:
             print(f"ERROR: corpus manifest read failed: {e}", file=sys.stderr)
             return 1
         all_files = manifest.get("files", [])
-        # host 분류는 HOST_PATH_MAP base prefix 순회 (D-6) — 호스트 추가 시 한 곳만 수정.
-        # `/Users/` / `/home/` 단순 prefix 분기는 `HOST_PATH_MAP`에 없는 OS의 fallback으로 보존.
+        # host 분류는 HOST_PATH_MAP base prefix 순회 — 호스트 추가 시 한 곳만 수정.
+        # 미매칭 path는 silent host 배정 대신 warning만 누적한다 (예전 단순 /Users/-mac
+        # /home/-minipc fallback은 HOST_PATH_MAP 경계를 우회하는 별도 규칙이라 제거 —
+        # 새 host 지원은 HOST_PATH_MAP에 명시 추가가 정답).
         files_by_host: dict[str, list[str]] = defaultdict(list)
         for f in all_files:
             matched = False
@@ -997,13 +998,7 @@ def main() -> int:
                 if matched:
                     break
             if not matched:
-                # fallback (기존 동작 보존)
-                if f.startswith("/Users/"):
-                    files_by_host["mac"].append(f)
-                elif f.startswith("/home/"):
-                    files_by_host["minipc"].append(f)
-                else:
-                    warnings.append(f"corpus host unclassified: {f}")
+                warnings.append(f"corpus host unclassified (HOST_PATH_MAP 미일치): {f}")
         corpus_label = manifest.get("snapshot_id", "pinned")
     else:
         files_by_host = defaultdict(list)
@@ -1014,13 +1009,10 @@ def main() -> int:
                 files_by_host[host] = collect_remote_files(host, warnings)
         corpus_label = "live"
 
-    # 분석 — host 순차 처리, remote host는 ControlMaster preflight 후 worker pool dispatch
+    # 분석 — host 순차 처리, remote host는 ControlMaster preflight 후 worker pool dispatch.
+    # 각 worker는 local warnings list로 분리 수집한 뒤 main thread에서 path 순으로 merge
+    # 한다 (warning ordering deterministic 보장).
     sessions: list[dict] = []
-    warnings_lock = threading.Lock()
-
-    def _safe_warn(msg: str) -> None:
-        with warnings_lock:
-            warnings.append(msg)
 
     for host, files in files_by_host.items():
         is_remote = host != cur_host
@@ -1032,34 +1024,44 @@ def main() -> int:
                     sessions.append(result)
             continue
 
-        # remote: ControlMaster preflight + worker pool
+        # remote: ControlMaster preflight + worker pool.
+        # ControlMaster 비활성이면 K=1 강등이 5526 파일 직렬 fetch ≈ 37분으로 5분 timeout
+        # 안에 끝나기 어려우므로 fail-fast로 host 전체 fetch를 skip하고 명시적 warning을
+        # 누적한다. 사용자가 ControlMaster 활성화 (mac nrs 등) 누락을 즉시 인지할 수 있다.
         cm_active = check_controlmaster_active(host, warnings)
-        worker_count = SSH_FETCH_WORKERS if cm_active else 1
         if not cm_active:
             warnings.append(
-                f"host {host}: ControlMaster 비활성 — worker pool을 K=1로 강등 (성능 저하)"
+                f"host {host}: ControlMaster 비활성으로 fetch skip — 활성화 후 재실행 필요"
+                f" (직렬 fallback은 5분 budget 안에 완료 불가능). minipc는 nrs, mac은 사용자 수동 nrs."
             )
+            continue
 
-        # remote_warnings는 worker별로 따로 받지 않고 동일 list를 lock으로 보호
-        def _fetch_one(p: str) -> tuple[str, dict | None]:
-            res = analyze_remote_session(host, p, warnings)  # warnings는 lock 없이도 누적되나, 안전을 위해 _safe_warn 우회 사용
-            return (p, res)
+        # remote_warnings는 worker별로 분리 수집 후 main thread에서 path 순으로 merge.
+        # CPython GIL이 list.append를 atomic하게 보장하지만 worker 간 순서가 비결정적이므로
+        # 별도 list로 받아 deterministic ordering을 강제한다.
+        def _fetch_one(p: str) -> tuple[str, dict | None, list[str]]:
+            local_warnings: list[str] = []
+            res = analyze_remote_session(host, p, local_warnings)
+            return (p, res, local_warnings)
 
-        host_results: list[tuple[str, dict | None]] = []
-        with concurrent.futures.ThreadPoolExecutor(max_workers=worker_count) as executor:
+        host_results: list[tuple[str, dict | None, list[str]]] = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=SSH_FETCH_WORKERS) as executor:
             futures = {executor.submit(_fetch_one, p): p for p in files}
             for fut in concurrent.futures.as_completed(futures):
                 try:
                     host_results.append(fut.result())
                 except Exception as e:
                     p = futures[fut]
-                    _safe_warn(f"host {host}: worker exception for {p}: {type(e).__name__}: {e}")
+                    host_results.append((p, None, [
+                        f"host {host}: worker exception for {p}: {type(e).__name__}: {e}"
+                    ]))
 
-        # path 기준 정렬 후 sessions append (deterministic ordering)
-        host_results.sort(key=lambda pair: pair[0])
-        for _, result in host_results:
+        # path 기준 정렬 후 sessions append + warnings merge (deterministic ordering).
+        host_results.sort(key=lambda triple: triple[0])
+        for _, result, local_warnings in host_results:
             if result is not None:
                 sessions.append(result)
+            warnings.extend(local_warnings)
 
     # aggregate
     agg = build_aggregate(sessions, args.hosts, corpus_label, warnings)
