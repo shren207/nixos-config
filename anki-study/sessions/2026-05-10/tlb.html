@@ -329,8 +329,7 @@
           (Q1 답) 옛날에는 문맥 교환 시 <strong>TLB 전체 flush</strong>가 필요했어 — 다른 프로세스의 PTE를 그대로 쓰면 메모리 보호가 깨지니까.
           하지만 매번 flush는 비용이 크다 (TLB가 다시 채워지는 동안 미스 폭증).
           → 해결책: <strong>ASID/PCID</strong> (Address Space Identifier / Process Context ID).
-          각 PTE에 프로세스 ID를 태그로 붙여서 TLB에 여러 프로세스의 PTE가 공존 가능.
-          x86은 PCID, ARM은 ASID. 이 덕에 같은 프로세스로 돌아와도 TLB 미스가 적음.
+          <strong>TLB entry 자체에 address-space 태그</strong>를 붙여 여러 프로세스의 매핑이 같은 TLB에 공존 가능 (PTE 자체에 박는 게 아니라 TLB lookup 시 태그가 일치해야 hit). x86은 CR3 PCID 필드로 활성, ARM은 ASID로 동일 효과. 이 덕에 같은 프로세스로 돌아와도 TLB 미스가 적음.
         </div>
 
         <div class="answer-block deep">

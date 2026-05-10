@@ -399,7 +399,7 @@
     if (!cur) return;
     const inputs = cur.querySelectorAll('textarea, input[type="text"]');
     let added = 0;
-    inputs.forEach(i => { if (i.value.trim().length > 3 && !i.dataset.scored) { added += 5; i.dataset.scored = '1'; } });
+    inputs.forEach(i => { if (i.value.trim().length > 0 && !i.dataset.scored) { added += 5; i.dataset.scored = '1'; } });
     if (added > 0) setScore(added);
   }
 
