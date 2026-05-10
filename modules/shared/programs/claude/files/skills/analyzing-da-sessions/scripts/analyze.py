@@ -855,7 +855,7 @@ def check_controlmaster_active(host: str, warnings: list[str]) -> bool:
     `ssh -O check <host>`는 master 부재 시 실패한다. 따라서 실패 시 일반 `ssh <host> true`로
     master 생성 시도 후 다시 `-O check`로 확인하는 2단계 sequence로 구성한다.
 
-    返回值이 False이면 worker pool은 K=1로 강등된다 (degrade fallback).
+    반환값이 False이면 caller가 해당 host fetch를 skip한다 (fail-fast).
     """
     _validate_host(host)
     try:
@@ -879,12 +879,12 @@ def check_controlmaster_active(host: str, warnings: list[str]) -> bool:
         )
         if gen.returncode != 0:
             warnings.append(
-                f"host {host}: ssh true (ControlMaster 생성 시도) 실패 (rc={gen.returncode}) — degrade to K=1"
+                f"host {host}: ssh true (ControlMaster 생성 시도) 실패 (rc={gen.returncode}) — fetch skip"
             )
             return False
     except (subprocess.TimeoutExpired, FileNotFoundError):
         warnings.append(
-            f"host {host}: ssh true 시간 초과 또는 binary 부재 — degrade to K=1"
+            f"host {host}: ssh true 시간 초과 또는 binary 부재 — fetch skip"
         )
         return False
     # 재확인
@@ -900,7 +900,7 @@ def check_controlmaster_active(host: str, warnings: list[str]) -> bool:
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
     warnings.append(
-        f"host {host}: ControlMaster 재확인 실패 — degrade to K=1 (handshake 비용 잔존)"
+        f"host {host}: ControlMaster 재확인 실패 — fetch skip"
     )
     return False
 
@@ -986,19 +986,24 @@ def main() -> int:
         # 미매칭 path는 silent host 배정 대신 warning만 누적한다 (예전 단순 /Users/-mac
         # /home/-minipc fallback은 HOST_PATH_MAP 경계를 우회하는 별도 규칙이라 제거 —
         # 새 host 지원은 HOST_PATH_MAP에 명시 추가가 정답).
+        # live mode와 동일하게 (a) /subagents/ 하위는 wrapper output이라 제외하고
+        # (b) --hosts whitelist 밖 host로 분류된 path는 분석에서 제외한다.
         files_by_host: dict[str, list[str]] = defaultdict(list)
         for f in all_files:
-            matched = False
+            if "/subagents/" in f:
+                continue
+            matched_host = None
             for host_alias, host_paths in HOST_PATH_MAP.items():
                 for base in (host_paths.get("claude", ""), host_paths.get("codex", "")):
                     if base and f.startswith(base + os.sep):
-                        files_by_host[host_alias].append(f)
-                        matched = True
+                        matched_host = host_alias
                         break
-                if matched:
+                if matched_host is not None:
                     break
-            if not matched:
+            if matched_host is None:
                 warnings.append(f"corpus host unclassified (HOST_PATH_MAP 미일치): {f}")
+            elif matched_host in args.hosts:
+                files_by_host[matched_host].append(f)
         corpus_label = manifest.get("snapshot_id", "pinned")
     else:
         files_by_host = defaultdict(list)
