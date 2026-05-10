@@ -29,6 +29,7 @@ Output:
 """
 
 import argparse
+import concurrent.futures
 import datetime
 import glob
 import json
@@ -37,6 +38,7 @@ import platform
 import re
 import subprocess
 import sys
+import threading
 from collections import Counter, defaultdict
 from typing import Any, Iterable
 
@@ -126,6 +128,8 @@ SEVERITY_LOOKAHEAD_CHARS = 1000  # finding_id 등장 위치 기준 뒤쪽 탐색
 SSH_FIND_TIMEOUT_SECONDS = 60  # 원격 호스트의 find 명령 timeout
 SSH_CAT_TIMEOUT_SECONDS = 120  # 원격 호스트의 cat 명령 timeout
 FLEISS_KAPPA_TIMEOUT_SECONDS = 60  # fleiss-kappa.py helper 호출 timeout (현재 v1에서는 미사용)
+SSH_FETCH_WORKERS = 8  # 원격 호스트당 동시 SSH cat worker 수 (host 순차 처리, host당 K=8 병렬)
+SSH_CONTROLMASTER_CHECK_TIMEOUT_SECONDS = 10  # ssh -O check / ssh true preflight timeout
 
 
 def current_host() -> str:
@@ -810,6 +814,62 @@ def fetch_remote_file(host: str, path: str, warnings: list[str]) -> str | None:
     return proc.stdout
 
 
+def check_controlmaster_active(host: str, warnings: list[str]) -> bool:
+    """ControlMaster master socket이 활성인지 확인. 비활성이면 master 생성을 1회 시도 후 재확인.
+
+    `ssh -O check <host>`는 master 부재 시 실패한다. 따라서 실패 시 일반 `ssh <host> true`로
+    master 생성 시도 후 다시 `-O check`로 확인하는 2단계 sequence로 구성한다.
+
+    返回值이 False이면 worker pool은 K=1로 강등된다 (degrade fallback).
+    """
+    _validate_host(host)
+    try:
+        proc = subprocess.run(
+            ["ssh", "-O", "check", host],
+            capture_output=True,
+            text=True,
+            timeout=SSH_CONTROLMASTER_CHECK_TIMEOUT_SECONDS,
+        )
+        if proc.returncode == 0:
+            return True
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    # master 부재로 추정 — `ssh true`로 master 생성 시도
+    try:
+        gen = subprocess.run(
+            ["ssh", host, "true"],
+            capture_output=True,
+            text=True,
+            timeout=SSH_CONTROLMASTER_CHECK_TIMEOUT_SECONDS,
+        )
+        if gen.returncode != 0:
+            warnings.append(
+                f"host {host}: ssh true (ControlMaster 생성 시도) 실패 (rc={gen.returncode}) — degrade to K=1"
+            )
+            return False
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        warnings.append(
+            f"host {host}: ssh true 시간 초과 또는 binary 부재 — degrade to K=1"
+        )
+        return False
+    # 재확인
+    try:
+        re_check = subprocess.run(
+            ["ssh", "-O", "check", host],
+            capture_output=True,
+            text=True,
+            timeout=SSH_CONTROLMASTER_CHECK_TIMEOUT_SECONDS,
+        )
+        if re_check.returncode == 0:
+            return True
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    warnings.append(
+        f"host {host}: ControlMaster 재확인 실패 — degrade to K=1 (handshake 비용 잔존)"
+    )
+    return False
+
+
 def analyze_remote_session(host: str, path: str, warnings: list[str]) -> dict | None:
     """원격 jsonl을 fetch하여 임시 파일에 쓰고 analyze_session 호출."""
     content = fetch_remote_file(host, path, warnings)
@@ -904,19 +964,50 @@ def main() -> int:
                 files_by_host[host] = collect_remote_files(host, warnings)
         corpus_label = "live"
 
-    # 분석
+    # 분석 — host 순차 처리, remote host는 ControlMaster preflight 후 worker pool dispatch
     sessions: list[dict] = []
+    warnings_lock = threading.Lock()
+
+    def _safe_warn(msg: str) -> None:
+        with warnings_lock:
+            warnings.append(msg)
+
     for host, files in files_by_host.items():
-        for path in files:
-            if host == cur_host or args.corpus:
-                # corpus 모드는 절대 path가 현재 머신에서 read 가능한 경우만 처리
-                if args.corpus and host != cur_host:
-                    # corpus의 다른 호스트 파일은 SSH로 fetch
-                    result = analyze_remote_session(host, path, warnings)
-                else:
-                    result = analyze_session(path)
-            else:
-                result = analyze_remote_session(host, path, warnings)
+        is_remote = host != cur_host
+        if not is_remote:
+            # local: 직렬 처리 (파일 read는 빠름, 동시성 이득 미미)
+            for path in files:
+                result = analyze_session(path)
+                if result is not None:
+                    sessions.append(result)
+            continue
+
+        # remote: ControlMaster preflight + worker pool
+        cm_active = check_controlmaster_active(host, warnings)
+        worker_count = SSH_FETCH_WORKERS if cm_active else 1
+        if not cm_active:
+            warnings.append(
+                f"host {host}: ControlMaster 비활성 — worker pool을 K=1로 강등 (성능 저하)"
+            )
+
+        # remote_warnings는 worker별로 따로 받지 않고 동일 list를 lock으로 보호
+        def _fetch_one(p: str) -> tuple[str, dict | None]:
+            res = analyze_remote_session(host, p, warnings)  # warnings는 lock 없이도 누적되나, 안전을 위해 _safe_warn 우회 사용
+            return (p, res)
+
+        host_results: list[tuple[str, dict | None]] = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=worker_count) as executor:
+            futures = {executor.submit(_fetch_one, p): p for p in files}
+            for fut in concurrent.futures.as_completed(futures):
+                try:
+                    host_results.append(fut.result())
+                except Exception as e:
+                    p = futures[fut]
+                    _safe_warn(f"host {host}: worker exception for {p}: {type(e).__name__}: {e}")
+
+        # path 기준 정렬 후 sessions append (deterministic ordering)
+        host_results.sort(key=lambda pair: pair[0])
+        for _, result in host_results:
             if result is not None:
                 sessions.append(result)
 
