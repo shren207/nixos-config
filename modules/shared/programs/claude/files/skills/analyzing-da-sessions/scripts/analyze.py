@@ -1024,6 +1024,11 @@ def main() -> int:
                     sessions.append(result)
             continue
 
+        # 빈 remote files list (예: corpus 모드에서 해당 host 미분류 파일)는 ControlMaster
+        # preflight 비용 (~30s timeout)을 회피해 즉시 다음 host로 진행한다.
+        if not files:
+            continue
+
         # remote: ControlMaster preflight + worker pool.
         # ControlMaster 비활성이면 K=1 강등이 5526 파일 직렬 fetch ≈ 37분으로 5분 timeout
         # 안에 끝나기 어려우므로 fail-fast로 host 전체 fetch를 skip하고 명시적 warning을

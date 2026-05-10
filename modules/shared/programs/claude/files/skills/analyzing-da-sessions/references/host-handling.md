@@ -93,7 +93,7 @@ remote `find` stdout의 path line은 **비신뢰 입력**으로 간주. 각 line
 absolute prefix는 다음 두 용도로만 사용한다:
 
 1. **Validation path**: `_allowed_remote_path`가 SSH find stdout (비신뢰 입력) 각 line을 검증할 때 boundary 비교 기준으로 사용한다. `posixpath.normpath` + `posixpath.commonpath([base_norm, path_norm]) == base_norm` 비교로 sibling-prefix (`/Users/green/.claude/projects-evil/...`), traversal (`../../etc/shadow`), relative path (find stdout이 비정상으로 relative line을 내보낸 경우)를 모두 거부한다.
-2. **Corpus path**: `--corpus manifest.json` 모드에서 host 분류 prefix로도 사용한다 (`HOST_PATH_MAP` base prefix 순회 + 기존 `/Users/` `/home/` simple prefix fallback).
+2. **Corpus path**: `--corpus manifest.json` 모드에서 host 분류 prefix로도 사용한다 (`HOST_PATH_MAP` base prefix 순회). 미매칭 path는 silent host 배정 대신 warning만 누적한다 — 새 host 지원은 `HOST_PATH_MAP`에 명시 추가가 정답이다.
 
 이 역할 분리는 PR review thread의 `HOST_PATH_MAP` fragility 질문에 답한다 — 명령 구성에서는 hardcoded prefix를 제거하지만, 보안 경계와 corpus host inference에는 absolute prefix가 SSOT로 남는다 (host model 중앙화는 별도 PR로 분리, 본 reference의 NG-3 참조).
 
@@ -103,6 +103,7 @@ absolute prefix는 다음 두 용도로만 사용한다:
 - `find <prefix> -type f -name "*.jsonl"` (path glob)
 - `cat <path>` (파일 내용 read)
 - `stat <path>` (파일 메타 — 선택)
+- `true` (ControlMaster master 생성/활성 확인용 transport control). `ssh -O check <host>` 자체는 client 측 multiplex control이며 원격 명령을 실행하지 않는다.
 
 `rm`, `mv`, `mkdir`, `git`, `curl`, `wget` 등은 사용하지 않는다 (read-only 분석 의도).
 
