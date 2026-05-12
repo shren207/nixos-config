@@ -515,11 +515,10 @@ if [ -n "$CWD_CANONICAL" ]; then
   CWD_URL=""
   if ! $IS_SSH; then
     CWD_URL_PATH=$(percent_encode_segment "$CWD_CANONICAL")
-    # CWD URL — vscode://file/<path>/ 진단 검증용 임시 복귀.
-    # 가설: Claude Code TUI(CLAUDE_CODE_NO_FLICKER fullscreen 모드)가 mouse capture로
-    # 일반 Cmd+클릭을 가로챔. Cmd+Shift+클릭이 escape hatch → Ghostty가 OSC 8 dispatch.
-    # 사용자 Cmd+Shift+클릭 시 VSCode 열리면 가설 확정 → Fix A/B 결정.
-    CWD_URL="vscode://file${CWD_URL_PATH}/"
+    # ?windowId=_blank — vscode:// URL handler는 window.openFoldersInNewWindow 설정을
+    # 따르지 않고 기본적으로 마지막 활성 창을 덮어쓴다. query param이 공식 해결책으로
+    # 항상 새 창을 강제한다 (microsoft/vscode#141548, 머지 commit bcc2da6).
+    CWD_URL="vscode://file${CWD_URL_PATH}/?windowId=_blank"
   fi
 else
   # 검증 실패: 텍스트만 표시. control 문자가 들어와 fallback으로 escape 주입되는 것 방지
