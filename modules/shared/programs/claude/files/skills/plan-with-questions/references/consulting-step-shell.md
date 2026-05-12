@@ -84,7 +84,9 @@ CODEX_EXEC_TIMEOUT_SECONDS=1800 env CODEX_PROGRAMMATIC=1 codex-exec-supervised \
 
 ### 셸 호출 3: 결과 검증 + 명시 cleanup (foreground)
 
-**Schema 키 set의 dual-source 계약**: 아래 셸 호출 3 의 `jq -e` 검증은 schema의 7개 `technical_matrix` 키 (`요구충족`, `구현비용`, `되돌리기쉬움`, `운영위험`, `검증가능성`, `주요unknown`, `비용시간추정`) 와 `disqualifiers`, `evidence_gaps`, `user_facing` 4 필드 (`label`, `description`, `analogy`, `plain_disqualifier`) 를 하드코딩한다. 이는 shell mechanics 파일이지만 schema 검증 책임도 함께 짊어진다는 명시 계약이다 (machine validation snippet의 SSOT). [`consulting-step.md`](./consulting-step.md) 의 출력 JSON schema 섹션 (정의 SSOT) 이 변경되면 본 jq 검증도 함께 갱신해야 한다 (manual sync contract).
+**Schema 키 set의 executable validator mirror**: 아래 셸 호출 3 의 `jq -e` 검증은 schema의 7개 `technical_matrix` 키 (`요구충족`, `구현비용`, `되돌리기쉬움`, `운영위험`, `검증가능성`, `주요unknown`, `비용시간추정`) 와 `disqualifiers`, `evidence_gaps`, `user_facing` 4 필드 (`label`, `description`, `analogy`, `plain_disqualifier`) 를 하드코딩한다.
+
+**schema 정의의 단일 SSOT는 [`consulting-step.md`](./consulting-step.md)** 의 출력 JSON schema 섹션이며, 본 jq 스니펫은 그 schema의 **executable mirror** 다 (SSOT 자체가 아니라 mirror 책임). schema 정의가 변경되면 본 mirror도 함께 갱신해야 한다 (manual sync contract). 자동 검증 강화는 별도 follow-up (예: `verify-ai-compat.sh`에 schema key set drift 검증 추가).
 
 
 ```zsh
