@@ -60,7 +60,7 @@ verdict 가 `SKIP` 일 때의 세 가지 분기:
 - **Action** — skip 하지 않는다. `run-da` 의 fallback 정책을 따른다. 본 case 의 SKIP 은 LITE 로 escalation 된다.
 - **Durable state** — escalation 을 기록하며 `SKIPPED` 는 기록하지 않는다.
 
-## `/run-da` 로의 handoff
+## Handoff to `/run-da`
 
 preflight 통과 후 gate 가 `/run-da` 를 invoke 할 때 체크리스트 표와 outcome 을 context 로 전달한다. 본 섹션이 handoff schema 의 단일 SSOT 다.
 

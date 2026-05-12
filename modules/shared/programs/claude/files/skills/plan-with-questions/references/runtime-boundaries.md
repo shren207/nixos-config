@@ -65,7 +65,7 @@ Direct Codex 세션에서 `$plan-with-questions` 호출이 내부 native subagen
 
 이 표는 plan-with-questions 고유 행만 정의한다. 사용자 질문, fan-out, 파일 읽기와 편집의 단일 SSOT 는 [run-da 런타임 도구 매핑 표](../../run-da/references/runtime-mapping.md#런타임-도구-매핑) 다 (중복 복제 금지).
 
-**미지원 런타임 처리**: headless 세션은 본 표의 어떤 행에도 도달하지 않는다 (Step 4 / Step I-4 에서 질문 도구 호출 시점에 BLOCKED). 상세는 위 "지원 런타임" 표와 아래 "질문 도구 미지원 대응" 섹션이 단일 소스다.
+**미지원 런타임 처리**: headless 세션은 본 표의 어떤 행에도 도달하지 않는다 (Step 4 / Step I-4 에서 질문 도구 호출 시점에 BLOCKED). 상세 SSOT 는 위 "지원 런타임" 표와 아래 "질문 도구 미지원 대응" 섹션이다.
 
 | 행동 | Claude Code 세션 | Codex 세션 |
 |------|------------------|------------|

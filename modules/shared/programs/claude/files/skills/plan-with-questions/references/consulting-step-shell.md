@@ -81,6 +81,9 @@ CODEX_EXEC_TIMEOUT_SECONDS=1800 env CODEX_PROGRAMMATIC=1 codex-exec-supervised \
 
 ### 셸 호출 3: 결과 검증 + 명시 cleanup (foreground)
 
+**Schema 키 set 의 dual-source 계약**: 아래 셸 호출 3 의 `jq -e` 검증은 schema 의 7개 `technical_matrix` 키 (`요구충족`, `구현비용`, `되돌리기쉬움`, `운영위험`, `검증가능성`, `주요unknown`, `비용시간추정`) 와 `disqualifiers`, `evidence_gaps`, `user_facing` 4 필드 (`label`, `description`, `analogy`, `plain_disqualifier`) 를 하드코딩한다. 이는 shell mechanics 파일이지만 schema 검증 책임도 함께 짊어진다는 명시 계약이다 (machine validation snippet 의 SSOT). [`consulting-step.md`](./consulting-step.md) 의 출력 JSON schema 섹션 (정의 SSOT) 이 변경되면 본 jq 검증도 함께 갱신해야 한다 (manual sync contract).
+
+
 ```zsh
 CONSULT_DIR=/tmp/consult-c4a35fc4-AbCdEf
 CONSULT_PARENT=$(dirname "$CONSULT_DIR")
@@ -136,7 +139,7 @@ rm -rf -- "$CONSULT_DIR"
 
 fallback 사용자 노출 평이 문구의 단일 SSOT 는 [`consulting-step.md`](./consulting-step.md#fallback-enum-내부-decision-log-전용-사용자-노출-금지) 의 "Fallback enum" 표다. 위 echo 메시지의 식별자 (`D4_FALLBACK_A`, `D4_FALLBACK_B`) 는 내부 Decision Log 용이며 사용자에게 노출하지 않는다.
 
-**`trap` 사용 금지** — 셸 호출이 분리되어 있어 trap 이 호출 1 종료 시점에 발동하면 호출 2 이전에 디렉토리가 삭제된다. 명시적 `rm -rf` 한 번이 정본이다.
+**`trap` 사용 금지** — 셸 호출이 분리되어 있어 trap 이 호출 1 종료 시점에 발동하면 호출 2 이전에 디렉토리가 삭제된다. 명시적 `rm -rf` 한 번이 SSOT 다.
 
 ## Durable output 에 임시 경로 박제 금지 (회귀 방지)
 

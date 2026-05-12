@@ -42,7 +42,7 @@ Step 3.5 자문 결과를 사용자에게 표시할 때는 [`consulting-step.md`
 
 - AskUserQuestion 도구 description 의 추천 라벨 자동 권장은 본 스킬 컨텍스트에서 무시한다.
 - 사용자 노출 직전 옵션 dict 에서 합의 미달 옵션의 `(Recommended)` 문자열 또는 등가 표시가 발견되면 강제 제거한다.
-- 본 규칙의 단일 SSOT 는 [`consulting-step.md`](./consulting-step.md) 의 합의 미달 라벨 제거 단락과 SKILL.md 의 Invariant 8 이다. 본 patterns 섹션은 그 SSOT 를 callsite 로 강제한다.
+- 본 규칙의 단일 SSOT 는 [`consulting-step.md`](./consulting-step.md) 의 합의 미달 라벨 제거 단락이다. SKILL.md 의 Invariant 8 은 요약 callsite 다. 본 patterns 섹션은 SSOT 를 callsite 로 강제한다.
 
 ### judgment-first 라운드 라벨 금지
 

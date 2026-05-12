@@ -97,14 +97,16 @@ Step 3.5 는 Step 5 의 DA 와 목적이 다르다. Step 3.5 는 사용자에게
 
 ### 트레이드오프 라운드 정책
 
-트레이드오프 라운드에서 적용되는 정책의 단일 SSOT 는 [`../references/consulting-step.md`](../references/consulting-step.md) 다. 본 mode 파일은 정책 본문을 복제하지 않는다. 메인 LLM 은 사용자 노출 직전 SSOT 의 다음 알고리즘과 규칙을 순서대로 실행한다:
+트레이드오프 라운드에서 적용되는 정책의 단일 SSOT 는 [`../references/consulting-step.md`](../references/consulting-step.md) 다. 본 mode 파일은 정책 본문을 복제하지 않는다.
 
-- **추천 라벨 합의 알고리즘 4단계** — 합의 통과 옵션에만 `(Recommended)` 라벨을 부착한다. 어느 단계든 fail 시 라벨을 부착하지 않는다.
-- **사용자 노출 레이어 제한** — SSOT 의 `user_facing` layer (label, description, analogy, plain_disqualifier) 만 사용자에게 표시한다. `technical_matrix` 와 raw `disqualifiers` 는 메인 LLM 내부 합의 알고리즘 입력으로만 사용하고 사용자에게 노출하지 않는다.
-- **`user_facing` 누락 시 텍스트 복구 4단계** — 자문 출력에 `user_facing` layer 가 누락 또는 부분 누락되면 텍스트 복구 4단계로 graceful degrade 한다. 사용자 노출 문구와 stage 정의도 SSOT 의 "Fallback enum" 표를 인용한다. 본 복구는 텍스트 출처 표기일 뿐 `(Recommended)` 라벨 부착 여부와는 다른 축이다.
-- **Fallback 사용자 보고 문구** — fallback 발생 시 사용자에게 노출할 평이 한국어 문구는 SSOT 의 "Fallback enum" 표 그대로 사용한다. 내부 Decision Log 식별자는 사용자에게 노출하지 않는다.
-- **judgment-first 라운드 라벨 금지** — 트레이드오프 옵션 제시 직전 사용자 기준을 묻는 judgment-first 사전 라운드는 합의 알고리즘을 실행하지 않는다. 어떤 옵션에도 `(Recommended)` 라벨을 부착하지 않으며, `user_facing.label` 만으로 기준을 평이하게 표시한다. anti-anchoring 효과를 source 에서 보호하기 위함이다.
-- **합의 미달 라벨 제거 규칙** — 질문 도구 description 의 추천 라벨 자동 권장은 본 스킬 컨텍스트에서 무시한다. 사용자 노출 직전 옵션 dict 에서 합의 미달 옵션의 `(Recommended)` 문자열 또는 등가 표시가 발견되면 강제 제거한다. SKILL.md Invariant 8 과 동일 정책이다.
+메인 LLM 은 사용자 노출 직전 SSOT 의 다음 6개 절차를 순서대로 적용한다 (각 절차의 본문 풀이는 SSOT 만 본다):
+
+- 추천 라벨 합의 알고리즘 4단계
+- 사용자 노출 레이어 제한 (`user_facing` layer 만 노출)
+- `user_facing` 누락 시 텍스트 복구 4단계
+- Fallback 사용자 보고 문구 (SSOT 의 "Fallback enum" 표)
+- judgment-first 라운드 라벨 금지
+- 합의 미달 라벨 제거 규칙 (SKILL.md Invariant 8 과 동일)
 
 질문 패턴과 anti-anchoring 표시 규칙의 단일 SSOT 는 [`../references/output-templates.md`](../references/output-templates.md#step-4--step-i-4-질문-패턴) 다.
 

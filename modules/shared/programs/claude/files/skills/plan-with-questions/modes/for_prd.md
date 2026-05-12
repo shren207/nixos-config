@@ -2,7 +2,7 @@
 
 `plan-with-questions` 의 인터뷰, 검증, 자동 트리거 흐름을 거친 뒤 PRD 규약을 따라 **`.claude/prds/` 에 PRD 파일을 직접 작성**하는 모드다.
 
-핵심 설계: PRD 정본은 `.claude/prds/` 디렉토리에 있다. 본 모드가 (a) 자동 트리거와 opt-out, (b) P1-P5 인터뷰 / 자문과 P6-P7 DA, (c) PRD 작성과 갱신을 모두 담당한다. `.claude/plans/` 사본은 만들지 않는다 (단일 SSOT 유지).
+핵심 설계: PRD 의 단일 SSOT 는 `.claude/prds/` 디렉토리다. 본 모드가 (a) 자동 트리거와 opt-out, (b) P1-P5 인터뷰 / 자문과 P6-P7 DA, (c) PRD 작성과 갱신을 모두 담당한다. `.claude/plans/` 사본은 만들지 않는다 (단일 SSOT 유지).
 
 ## 진입 조건
 

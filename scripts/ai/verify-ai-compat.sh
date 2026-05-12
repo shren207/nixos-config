@@ -753,12 +753,12 @@ require_contract_text \
 
 require_contract_text \
   "modules/shared/programs/claude/files/skills/plan-with-questions/references/fanout-fanin.md" \
-  "consulting-step.md#codex-exec-호출-명령-템플릿-ssot" \
+  "consulting-step-shell.md" \
   "plan-with-questions Step 3.5 consult SSOT pointer"
 
 require_contract_text \
   "modules/shared/programs/claude/files/skills/plan-with-questions/references/fanout-fanin.md" \
-  "delegation-denied fallback이 아니다" \
+  "delegation-denied fallback 이 아니다" \
   "plan-with-questions Step 3.5 consult is not fallback"
 
 require_contract_text \
