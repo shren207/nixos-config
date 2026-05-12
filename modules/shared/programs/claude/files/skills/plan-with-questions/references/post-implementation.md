@@ -2,7 +2,7 @@
 
 `for_action` 모드에서 plan 승인이 통과하거나 `for_prd` 모드에서 PRD 작성 승인이 통과하면, 구현 완료 후 다음을 순차 수행한다.
 
-**`for_issue` 모드에는 적용되지 않는다** (산출물이 이슈 + LLM 이행 가이드).
+`for_issue` 모드에는 적용되지 않는다 (산출물이 이슈 + LLM 이행 가이드).
 
 추가 사용자 지시 없이 1번부터 7번까지 진행한다. 각 단계에서 reviewer, auditor, 체크리스트 수행자는 read-only이며, tracked write, commit, push는 메인 에이전트 전용이다. 상세 권한 계약의 단일 SSOT는 [`../../run-da/references/hardening-contract.md`](../../run-da/references/hardening-contract.md) 의 "Codex 세션 하드닝 계약" 절이다.
 
@@ -21,15 +21,15 @@
 
 ## 7단계
 
-1. **변경 구현**
-2. **구현 커밋** — `/run-da for_pr` 의 DA 입력 checkpoint 다. 기계적 변경 (flake.lock 등) 이 포함되면 `git diff main...HEAD -- ':!flake.lock'` 로 축약 diff를 사용한다.
-3. **`/run-da for_pr`** — 코드 검토 루프. 실행 직전에 [`run-da-preflight-gate.md`](./run-da-preflight-gate.md) 를 적용한다. 사용자 승인 SKIP이면 Step 3 을 완료로 기록하고 `/run-da for_pr` 을 호출하지 않는다. 이 SKIP은 Step 3 에만 적용되며, Step 4 이후의 비용 또는 실행 여부를 자동으로 줄이지 않는다.
-4. **`/parallel-audit`** — 전수조사.
-5. **Final Multi-Pass Review** — [`prd/multi-pass-review.md`](./prd/multi-pass-review.md) 체크리스트를 수행한다. 메인 에이전트가 직접 수행한다 (fan-out 금지). `run-da` 의 4-bundle 과는 축이 다르다 — Cross-Phase Integration, Validation 선택, Documentation, PRD Closeout은 run-da가 커버하지 않는 영역이다.
-   - **for_prd 모드 추가** — 상세의 단일 SSOT는 [`task-size-routing.md#review-impl-통합-시점`](./task-size-routing.md#review-impl-통합-시점) 이다. 요약하면 phase-end는 PRD 10-pass + 6-classification 둘 다, Final은 PRD 10-pass + review-impl overlay (6-classification 라벨링 + overbuilt 우선) 다. auto-fix는 적용하지 않는다.
-   - **PRD Closeout 항목** — 작업 입력 또는 현재 diff에 `.claude/prds/` 파일이 포함된 경우에만 수행한다. **`for_prd` 모드는 산출물 경로가 `.claude/prds/` 이므로 PRD Closeout이 자동 활성화된다.** `for_action` 의 단순 plan 작업에서만 항목 skip과 skip 근거 기록을 한다.
-6. **10-pass 반영 커밋** (수정 발생 시) — 논리 단위로 분할 커밋 허용.
-7. **`/create-pr`** — main 브랜치 대상 PR 생성.
+1. 변경 구현
+2. 구현 커밋: `/run-da for_pr` 의 DA 입력 checkpoint 다. 기계적 변경 (flake.lock 등) 이 포함되면 `git diff main...HEAD -- ':!flake.lock'` 로 축약 diff를 사용한다.
+3. `/run-da for_pr`: 코드 검토 루프. 실행 직전에 [`run-da-preflight-gate.md`](./run-da-preflight-gate.md) 를 적용한다. 사용자 승인 SKIP이면 Step 3 을 완료로 기록하고 `/run-da for_pr` 을 호출하지 않는다. 이 SKIP은 Step 3 에만 적용되며, Step 4 이후의 비용 또는 실행 여부를 자동으로 줄이지 않는다.
+4. `/parallel-audit`: 전수조사.
+5. Final Multi-Pass Review: [`prd/multi-pass-review.md`](./prd/multi-pass-review.md) 체크리스트를 수행한다. 메인 에이전트가 직접 수행한다 (fan-out 금지). `run-da` 의 4-bundle 과는 축이 다르다 — Cross-Phase Integration, Validation 선택, Documentation, PRD Closeout은 run-da가 커버하지 않는 영역이다.
+   - for_prd 모드 추가: 상세의 단일 SSOT는 [`task-size-routing.md#review-impl-통합-시점`](./task-size-routing.md#review-impl-통합-시점) 이다. 요약하면 phase-end는 PRD 10-pass + 6-classification 둘 다, Final은 PRD 10-pass + review-impl overlay (6-classification 라벨링 + overbuilt 우선) 다. auto-fix는 적용하지 않는다.
+   - PRD Closeout 항목: 작업 입력 또는 현재 diff에 `.claude/prds/` 파일이 포함된 경우에만 수행한다. `for_prd` 모드는 산출물 경로가 `.claude/prds/` 이므로 PRD Closeout이 자동 활성화된다. `for_action` 의 단순 plan 작업에서만 항목 skip과 skip 근거 기록을 한다.
+6. 10-pass 반영 커밋 (수정 발생 시) — 논리 단위로 분할 커밋 허용.
+7. `/create-pr`: main 브랜치 대상 PR 생성.
 
 단계 생략은 아래 신뢰 경계의 허용 사유가 있을 때만 가능하다.
 

@@ -7,14 +7,14 @@ plan-with-questions의 런타임 지원, 용어, 도구 매핑, 미지원 대응
 | 런타임 | 지원 여부 |
 |--------|----------|
 | Claude Code 세션 | 완전 지원 |
-| Codex 세션 | **지원** (페이로드 가이드는 아래 섹션 참조) |
+| Codex 세션 | 지원 (페이로드 가이드는 아래 섹션 참조) |
 | headless 세션 (CI, `claude -p`, `codex exec`) | BLOCKED (아래 "질문 도구 미지원 대응" 섹션 참조) |
 
 codex 환경 가정과 활성화 절차의 단일 SSOT는 [`.claude/skills/configuring-codex/SKILL.md`](../../../.claude/skills/configuring-codex/SKILL.md) 다.
 
 ### Codex 일반 셸 sandbox 한계 (Step 3.5 관련)
 
-`Step 3.5` 의 `codex exec --sandbox read-only` 는 **모델 shell의 파일시스템 write 만** 차단한다. 다음은 차단하지 않는다:
+`Step 3.5` 의 `codex exec --sandbox read-only` 는 모델 shell의 파일시스템 write만 차단한다. 다음은 차단하지 않는다:
 
 - `~/.config`, `~/.ssh`, `~/.codex`, `/run/agenix` (NixOS) 등 secret 경로의 read.
 - 외부 API 호출 (네트워크 차단 아님).
@@ -24,17 +24,17 @@ codex 환경 가정과 활성화 절차의 단일 SSOT는 [`.claude/skills/confi
 
 ### `request_user_input` 페이로드 가이드
 
-`request_user_input` 의 옵션 개수 또는 Recommended 라벨은 **schema 또는 server enforcement가 아니라 codex tool description의 LLM convention** 이다. 출처:
+`request_user_input` 의 옵션 개수 또는 Recommended 라벨은 schema 또는 server enforcement가 아니라 codex tool description의 LLM convention이다. 출처:
 
 - `codex-rs/tools/src/request_user_input_tool.rs` 의 JSON Schema description 문자열에 "2-3 choices", "questions ... do not exceed 3", "recommended option first" 가이드라인이 박혀 있다 (LLM이 자발적으로 따른다).
-- `codex-rs/core/templates/collaboration_mode/plan.md` 는 "**2-4 options + recommended default**" 를 요구한다. `default.md` 는 별도 옵션 개수 또는 라벨 지침이 없다 (mode 별 prompt template 차이가 있다).
+- `codex-rs/core/templates/collaboration_mode/plan.md` 는 "2-4 options + recommended default" 를 요구한다. `default.md` 는 별도 옵션 개수 또는 라벨 지침이 없다 (mode 별 prompt template 차이가 있다).
 - TUI는 첫 옵션을 기본 선택 (커서) 으로 표시하지만 자동 `(Recommended)` 라벨을 부여하지는 않는다.
 - JSON schema (`ToolRequestUserInputOption`, `ToolRequestUserInputQuestion`) 와 `normalize_request_user_input_args` 에는 array-level `maxItems` 또는 `recommended` property가 없다 (PR #617 fact-check 결과).
 
 본 스킬의 운영 정책:
 
-1. **라운드당 하나의 질문** — `request_user_input` 또는 `AskUserQuestion` 호출 시 `questions` 배열 길이는 1 로 고정한다. for_action과 for_issue와 for_prd 모두 동일 정책이며 별도 자동 축소 로직이 필요 없다. tool description의 "2-3 choices" 가이드는 한 question 내 options 개수에 적용되며, 본 정책의 questions 배열 길이와는 별개 차원이다.
-2. **Step 3.5 추천 라벨 — 합의 알고리즘 호출** — tool description은 "recommended option first" 를 권고하지만 본 스킬은 [`consulting-step.md`](./consulting-step.md) 의 추천 라벨 합의 알고리즘 4단계 (schema 한계 내 보수적 합의 정의) 를 적용한다. 후보가 정확히 1개로 좁혀진 합의 통과 옵션에만 `(Recommended)` 라벨을 부착한다. 합의 미달 옵션에는 어떤 fallback 에서도 라벨을 부착하지 않으며, 옵션 dict에서 라벨 문자열이 발견되면 강제 제거한다. 옵션 순서는 `decision_id` 기반 stable shuffle로 결정한다 (anti-anchoring 2번 규칙 보존). 본 정책은 codex 또는 AskUserQuestion tool description의 LLM convention에 대한 로컬 정책 override 다.
+1. 라운드당 하나의 질문: `request_user_input` 또는 `AskUserQuestion` 호출 시 `questions` 배열 길이는 1 로 고정한다. for_action과 for_issue와 for_prd 모두 동일 정책이며 별도 자동 축소 로직이 필요 없다. tool description의 "2-3 choices" 가이드는 한 question 내 options 개수에 적용되며, 본 정책의 questions 배열 길이와는 별개 차원이다.
+2. Step 3.5 추천 라벨 — 합의 알고리즘 호출: tool description은 "recommended option first" 를 권고하지만 본 스킬은 [`consulting-step.md`](./consulting-step.md) 의 추천 라벨 합의 알고리즘 4단계 (schema 한계 내 보수적 합의 정의) 를 적용한다. 후보가 정확히 1개로 좁혀진 합의 통과 옵션에만 `(Recommended)` 라벨을 부착한다. 합의 미달 옵션에는 어떤 fallback 에서도 라벨을 부착하지 않으며, 옵션 dict에서 라벨 문자열이 발견되면 강제 제거한다. 옵션 순서는 `decision_id` 기반 stable shuffle로 결정한다 (anti-anchoring 2번 규칙 보존). 본 정책은 codex 또는 AskUserQuestion tool description의 LLM convention에 대한 로컬 정책 override 다.
 
 ### for_action과 for_issue와 for_prd의 라운드 정책 통일
 
@@ -48,7 +48,7 @@ PR `openai/codex#12735` 는 collaboration mode 가용성만 확장하고 tool sp
 
 ## 용어 정책
 
-이 스킬은 Claude Code 세션과 Codex 세션 양쪽에서 호출된다. 본문은 **도구-중립 용어** 를 쓴다. 런타임별 실제 도구 binding의 단일 SSOT는 [run-da의 "런타임 도구 매핑" 표](../../run-da/references/runtime-mapping.md#런타임-도구-매핑) 다 (중복 복제 금지).
+이 스킬은 Claude Code 세션과 Codex 세션 양쪽에서 호출된다. 본문은 도구-중립 용어 를 쓴다. 런타임별 실제 도구 binding의 단일 SSOT는 [run-da의 "런타임 도구 매핑" 표](../../run-da/references/runtime-mapping.md#런타임-도구-매핑) 다 (중복 복제 금지).
 
 Direct Codex 세션에서 `$plan-with-questions` 호출이 내부 native subagent fan-out explicit delegation으로 취급되는 권한 계약과, `codex-exec-supervised` fallback 승인 경계의 단일 SSOT는 [run-da `hardening-contract.md` 의 `Skill-internal fan-out authorization` 절](../../run-da/references/hardening-contract.md#skill-internal-fan-out-authorization) 이다. 본 문서는 plan-with-questions 고유의 질문 / 승인 / plan 파일 lifecycle만 정의한다.
 
@@ -59,13 +59,13 @@ Direct Codex 세션에서 `$plan-with-questions` 호출이 내부 native subagen
 | 파일 읽기 / 검색 지시 | "파일 읽기 도구" (또는 명시적 셸 명령 `rg -n` / `sed -n` / `find`) |
 | 파일 편집 지시 | "파일 편집 도구" |
 
-"승인 요청 도구" 는 **plan-with-questions 국소 용어** 다 (run-da의 SSOT에 미정의. sibling 자동 전파 대상이 아니다).
+"승인 요청 도구" 는 plan-with-questions 국소 용어 다 (run-da의 SSOT에 미정의. sibling 자동 전파 대상이 아니다).
 
 ## 런타임 도구 매핑 (plan-with-questions 고유)
 
 이 표는 plan-with-questions 고유 행만 정의한다. 사용자 질문, fan-out, 파일 읽기와 편집의 단일 SSOT는 [run-da 런타임 도구 매핑 표](../../run-da/references/runtime-mapping.md#런타임-도구-매핑) 다 (중복 복제 금지).
 
-**미지원 런타임 처리**: headless 세션은 본 표의 어떤 행에도 도달하지 않는다 (Step 4 / Step I-4에서 질문 도구 호출 시점에 BLOCKED). 상세 SSOT는 위 "지원 런타임" 표와 아래 "질문 도구 미지원 대응" 섹션이다.
+미지원 런타임 처리: headless 세션은 본 표의 어떤 행에도 도달하지 않는다 (Step 4 / Step I-4에서 질문 도구 호출 시점에 BLOCKED). 상세 SSOT는 위 "지원 런타임" 표와 아래 "질문 도구 미지원 대응" 섹션이다.
 
 | 행동 | Claude Code 세션 | Codex 세션 |
 |------|------------------|------------|
@@ -80,9 +80,9 @@ Direct Codex 세션에서 `$plan-with-questions` 호출이 내부 native subagen
 
 본문의 "계획 추적 도구", "파일 편집 도구", "승인 요청 도구" 는 위 표의 런타임별 실제 도구를 가리킨다. 최종 산출물은 모드별로 다르다:
 
-- **for_action 모드** — `.claude/plans/<slug>.md` 계획 파일.
-- **for_prd 모드** — `.claude/prds/prd-<feature>.md` (split mode 면 `.claude/prds/prd-<feature>/phase-NN-<name>.md` 도 함께). for_prd 모드가 PRD 규약 ([`prd/prd-master-template.md`](./prd/prd-master-template.md) + [`prd/phase-template.md`](./prd/phase-template.md)) 을 따라 직접 작성한다. 별도 plan 사본은 만들지 않는다.
-- **for_issue 모드** — 산출물이 등록된 이슈. 계획 파일은 없다.
+- for_action 모드: `.claude/plans/<slug>.md` 계획 파일.
+- for_prd 모드: `.claude/prds/prd-<feature>.md` (split mode 면 `.claude/prds/prd-<feature>/phase-NN-<name>.md` 도 함께). for_prd 모드가 PRD 규약 ([`prd/prd-master-template.md`](./prd/prd-master-template.md) + [`prd/phase-template.md`](./prd/phase-template.md)) 을 따라 직접 작성한다. 별도 plan 사본은 만들지 않는다.
+- for_issue 모드: 산출물이 등록된 이슈. 계획 파일은 없다.
 
 `for_prd` 는 위 표의 Step 4.5 plan 파일 초기화 행을 사용하지 않는다. PRD mode의 승인 / 작성 lifecycle의 단일 SSOT는 [`../modes/for_prd.md`](../modes/for_prd.md) 이며 `.claude/prds/` 만 산출물로 사용한다.
 
@@ -90,7 +90,7 @@ Direct Codex 세션에서 `$plan-with-questions` 호출이 내부 native subagen
 
 이 섹션은 Step 4, Step I-4, Step 7 에서 참조되는 BLOCKED 처리 정책의 단일 SSOT 다.
 
-현재 런타임에서 질문 도구를 호출할 수 없으면 (headless 세션 등 stdin 입력 불가 환경) plan-with-questions는 **BLOCKED 처리**한다. 인터뷰 기반 스킬의 본질상 사용자 입력 없는 자동 진행이 불가능하므로 자동 전이를 채택하지 않는다.
+현재 런타임에서 질문 도구를 호출할 수 없으면 (headless 세션 등 stdin 입력 불가 환경) plan-with-questions는 BLOCKED 처리한다. 인터뷰 기반 스킬의 본질상 사용자 입력 없는 자동 진행이 불가능하므로 자동 전이를 채택하지 않는다.
 
 처리 절차:
 
@@ -98,6 +98,6 @@ Direct Codex 세션에서 `$plan-with-questions` 호출이 내부 native subagen
 2. 스킬 절차를 종료한다.
 3. 사용자가 새 메시지에서 명시 재개 ("계속 진행" 등) 하거나 질문 도구 지원 런타임으로 전환할 때까지 자동 재개하지 않는다.
 
-**지원 런타임 전환 방법** — Claude Code 세션 또는 Codex 세션을 사용한다.
+지원 런타임 전환 방법: Claude Code 세션 또는 Codex 세션을 사용한다.
 
 이 정책은 [run-da의 "질문 도구 미지원 대응"](../../run-da/references/arbiter-scaling.md#질문-도구-미지원-대응) 섹션과 결을 같이 한다. 다만 plan-with-questions 인터뷰 컨텍스트 전용으로 적용 규칙이 다르다 (자동 승격, LITE 승격, 5라운드 종료 같은 DA 흐름 규칙은 적용하지 않는다).

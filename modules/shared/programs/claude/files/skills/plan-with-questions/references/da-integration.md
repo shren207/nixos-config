@@ -14,9 +14,9 @@
 
 3-way 분기:
 
-- **Codex 세션** — native subagent.
-- **Claude Code 세션** — codex exec (사전점검 후 불가 시 Agent tool fallback).
-- **headless 세션** — codex exec.
+- Codex 세션: native subagent.
+- Claude Code 세션: codex exec (사전점검 후 불가 시 Agent tool fallback).
+- headless 세션: codex exec.
 
 ### 기본 경로는 lean default
 
@@ -58,11 +58,11 @@ Step 4.5 의 plan 파일이 없거나 SSOT path가 `.claude/plans/` 밖이면 `/
 
 `/run-da for_plan` 실행 직전과 직후의 plan 파일 상태 전이:
 
-- **실행 직전** — 같은 plan 파일의 `DA State` 를 `RUNNING` 으로 바꾼다. `Change Log` 에는 외부 검토가 시작됐다는 자연어 상태만 기록한다. 개별 run의 상관관계 값은 live session memory 또는 scratch 에만 두고 durable markdown에는 쓰지 않는다.
-- **verdict 수신 직후 (Step 6 반영 전)** — `DA State=APPLYING`, `Resume From=for_action.step6_da_apply` 로 갱신한다. durable verdict summary 또는 stable artifact name을 `Change Log` 에 기록한다.
-- **Step 6 반영 조건** — 같은 active session에서 runtime-only 상관관계가 현재 verdict 임을 확인할 수 있을 때만 반영한다.
-- **세션 재개 후 상관관계 확인 불가** — 세션이 재개됐는데 상관관계를 확인할 수 없거나 verdict 기록이 불충분하면 같은 plan 파일을 입력으로 외부 검토를 재실행한다. 늦게 도착한 이전 verdict는 stale result 로만 기록하고 적용하지 않는다.
-- **승인된 SKIP** — preflight gate에서 사용자 승인 SKIP이 완료되면 다음을 기록한다:
+- 실행 직전: 같은 plan 파일의 `DA State` 를 `RUNNING` 으로 바꾼다. `Change Log` 에는 외부 검토가 시작됐다는 자연어 상태만 기록한다. 개별 run의 상관관계 값은 live session memory 또는 scratch 에만 두고 durable markdown에는 쓰지 않는다.
+- verdict 수신 직후 (Step 6 반영 전): `DA State=APPLYING`, `Resume From=for_action.step6_da_apply` 로 갱신한다. durable verdict summary 또는 stable artifact name을 `Change Log` 에 기록한다.
+- Step 6 반영 조건: 같은 active session에서 runtime-only 상관관계가 현재 verdict 임을 확인할 수 있을 때만 반영한다.
+- 세션 재개 후 상관관계 확인 불가: 세션이 재개됐는데 상관관계를 확인할 수 없거나 verdict 기록이 불충분하면 같은 plan 파일을 입력으로 외부 검토를 재실행한다. 늦게 도착한 이전 verdict는 stale result 로만 기록하고 적용하지 않는다.
+- 승인된 SKIP: preflight gate에서 사용자 승인 SKIP이 완료되면 다음을 기록한다:
   - `DA State=SKIPPED`
   - `Resume From=for_action.step7_plan_mode_entry`
   - `Last Completed Step=for_action.step6_da_apply`
@@ -105,6 +105,6 @@ plan의 `Change Log` 항목에 사용할 guard-safe 예시:
 
 ### DA 결과 반영 target
 
-- **for_action 모드** — Step 4.5 에서 만든 같은 plan 파일을 편집한다. 중요 변경, confirmed rejection, BLOCKED / NEEDS_USER 전이는 `Decision Log` 에 ADR 미니 형식으로 기록한다. 상세 형식의 단일 SSOT는 [`plan-file-template.md`](./plan-file-template.md) 의 Decision Log 섹션이다. 반영 완료 후 `DA State` 를 `CONFIRMED` / `SKIPPED` / `BLOCKED` / `NEEDS_USER` 중 하나로 기록한다.
-- **for_prd 모드** — PRD draft 또는 context와 candidate phase structure에 DA 결과를 반영한다. PRD 파일 작성 후에는 PRD master의 `Change Log` 에 반영 이력을 남긴다. split mode에서 특정 phase가 영향받는 경우 해당 phase의 `Discoveries / Decisions` 에도 남긴다. `.claude/plans/` 파일을 만들지 않는다.
-- **for_prd의 P6 / P7 resume** — PRD 파일 작성 전 세션이 끊기면 durable DA artifact가 없다. 따라서 `for_prd.p6_da` 부터 재실행하고, 이전 transient verdict는 적용하지 않는다.
+- for_action 모드: Step 4.5 에서 만든 같은 plan 파일을 편집한다. 중요 변경, confirmed rejection, BLOCKED / NEEDS_USER 전이는 `Decision Log` 에 ADR 미니 형식으로 기록한다. 상세 형식의 단일 SSOT는 [`plan-file-template.md`](./plan-file-template.md) 의 Decision Log 섹션이다. 반영 완료 후 `DA State` 를 `CONFIRMED` / `SKIPPED` / `BLOCKED` / `NEEDS_USER` 중 하나로 기록한다.
+- for_prd 모드: PRD draft 또는 context와 candidate phase structure에 DA 결과를 반영한다. PRD 파일 작성 후에는 PRD master의 `Change Log` 에 반영 이력을 남긴다. split mode에서 특정 phase가 영향받는 경우 해당 phase의 `Discoveries / Decisions` 에도 남긴다. `.claude/plans/` 파일을 만들지 않는다.
+- for_prd의 P6 / P7 resume: PRD 파일 작성 전 세션이 끊기면 durable DA artifact가 없다. 따라서 `for_prd.p6_da` 부터 재실행하고, 이전 transient verdict는 적용하지 않는다.
