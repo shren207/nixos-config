@@ -717,7 +717,7 @@ if [ -n "$LAST_STOP_FILE" ] && [ -f "$LAST_STOP_FILE" ]; then
   if [ -n "$last_stop" ] 2>/dev/null; then
     if [ "$last_stop" = "0" ]; then
       file_mtime=$(stat -c %Y "$LAST_STOP_FILE" 2>/dev/null \
-                || stat -f %m "$LAST_STOP_FILE" 2>/dev/null || echo 0)
+                || /usr/bin/stat -f %m "$LAST_STOP_FILE" 2>/dev/null || echo 0)
       elapsed=$((NOW - file_mtime))
       remaining=$((CACHE_TTL - elapsed))
       render_cache_ttl "$remaining"
