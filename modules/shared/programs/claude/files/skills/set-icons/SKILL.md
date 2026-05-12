@@ -158,7 +158,7 @@ tmp=$(mktemp) && jq --arg path "$MEMO_FILE" \
 
 Stop hook(`record-last-session.sh`)이 매 턴 종료에 `~/.claude/status-icons/.last-session-<sha1(cwd)>` 마커 파일에 `session_id`를 atomic write한다. SessionStart hook은 새 sid에 sidecar가 없을 때 **같은 cwd의 마커**만 조회하므로, 동시에 진행 중인 다른 워크트리/프로젝트 세션과 아이콘이 섞이지 않는다.
 
-Retention 30일은 `hooks/lib/session-state.sh`의 `SESSION_ARTIFACT_RETENTION_DAYS` 단일 상수가 status JSON / memo / 마커 세 종류에 동일 적용한다. 마커도 같은 retention의 대상이므로 cwd 활동이 끊긴 후 30일 지나면 자동 청소되어 orphaned cwd가 무한 누적되지 않는다.
+Retention 30일은 `~/.claude/lib/session-state.sh`의 `SESSION_ARTIFACT_RETENTION_DAYS` 단일 상수가 status JSON / memo / 마커 세 종류에 동일 적용한다. 마커도 같은 retention의 대상이므로 cwd 활동이 끊긴 후 30일 지나면 자동 청소되어 orphaned cwd가 무한 누적되지 않는다.
 
 ## 자주 발생하는 문제
 

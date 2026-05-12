@@ -82,10 +82,18 @@ is_safe_session_id() {
 # - 두 번째 인자는 단일 message 문자열. 호출자가 `k=v k=v` 형태를 그대로 넘긴다.
 #   reader 측에서 `awk '{ts=$1; ev=$2; rest=$0}'` 형태로 파싱하면 첫 두 토큰만
 #   고정 필드, rest는 free-form. 값에 공백이 들어가도 단일 인자라면 한 줄로 기록.
+# - unsafe sid 진단 로그처럼 message에 control 문자(특히 newline)가 포함될
+#   가능성이 있는 호출을 대비해 message를 sanitize한다 — control 문자를
+#   `?`로 치환해 단일 라인 invariant를 강제한다 (tr -d 대신 치환으로 위치
+#   정보를 보존). reader는 한 라인 = 한 이벤트 가정을 안전하게 유지.
 session_hook_log() {
   [ "${CLAUDE_HOOK_DEBUG:-0}" = "1" ] || return 0
   mkdir -p "$SESSION_LOG_DIR" 2>/dev/null || return 0
   chmod 700 "$SESSION_LOG_DIR" 2>/dev/null || true
-  printf '%s %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" "$2" \
+  local msg
+  # POSIX [:cntrl:]는 \n \r \t \0 등 control 문자 전체를 매치. LC_ALL=C로
+  # multibyte 영향 격리. 치환 후 단일 라인 보장.
+  msg=$(printf '%s' "$2" | LC_ALL=C tr '[:cntrl:]' '?')
+  printf '%s %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" "$msg" \
     >> "$SESSION_LOG_DIR/session-hooks.log" 2>/dev/null || true
 }
