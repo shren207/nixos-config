@@ -18,9 +18,9 @@ codex 환경 가정과 활성화 절차의 단일 SSOT는 [`.claude/skills/confi
 
 - `~/.config`, `~/.ssh`, `~/.codex`, `/run/agenix` (NixOS) 등 secret 경로의 read.
 - 외부 API 호출 (네트워크 차단 아님).
-- MCP 또는 connector 로딩 — `--ignore-user-config` + `-C scratch` 로 user와 project config 둘 다 차단해야 완결된다. 호출 명령과 trust boundary flag의 단일 SSOT는 [`consulting-step-shell.md`](./consulting-step-shell.md) 다 (schema와 anti-anchoring 정책은 [`consulting-step.md`](./consulting-step.md)).
+- MCP 또는 connector 로딩 — `--ignore-user-config` + `-C scratch` 로 user와 project config 둘 다 차단해야 완결된다. 호출 명령과 trust boundary flag의 단일 SSOT는 [`consulting-step-shell.md`](./consulting-step-shell.md) 다 (schema와 옵션 표시 정책은 [`consulting-step.md`](./consulting-step.md)).
 
-따라서 Step 3.5 입력에 무엇을 보낼지에 대한 보안 책임은 호출자 (메인 에이전트) 에 있다. repo evidence 중에서 sanitized excerpt만 전달하고, 자문 결과는 untrusted output으로 취급해 Step 4 의 anti-anchoring schema 검증을 거친다.
+따라서 Step 3.5 입력에 무엇을 보낼지에 대한 보안 책임은 호출자 (메인 에이전트) 에 있다. repo evidence 중에서 sanitized excerpt만 전달하고, 자문 결과는 untrusted output으로 취급해 Step 4 의 schema 검증을 거친다.
 
 ### `request_user_input` 페이로드 가이드
 

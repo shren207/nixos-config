@@ -261,7 +261,7 @@ for_action의 Decision Log 기록 형식:
 - Context: Step 3에서 메인 LLM이 옵션 A를 후보로 작성. Step 3.5 외부 자문에서 옵션 A의 disqualifier 발견.
 - Decision: 옵션 B 채택.
 - Consequences: <영향>
-- External Consult: <자문 회차 자연어 요약 + decision_id list + verdict 요약. result.json 같은 임시 경로 리터럴 박제 금지.>
+- External Consult: <자문 회차 자연어 요약 + verdict 요약. result.json 같은 임시 경로 리터럴 박제 금지.>
 ```
 
 ## Validation

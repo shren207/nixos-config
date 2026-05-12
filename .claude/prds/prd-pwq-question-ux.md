@@ -10,9 +10,9 @@
 - PRD File: `.claude/prds/prd-pwq-question-ux.md`
 - Source: https://github.com/greenheadHQ/nixos-config/issues/646
 - Supersedes: `.claude/plans/issue-646-pwq-question-ux.md` (mode 전환 — DL-3에 reference)
-- Superseded by: #738 (Recommended 라벨 합의 알고리즘 + decision_id shuffle + Fallback enum + judgment-first 라벨 금지 정책 일괄 폐기)
-- Superseded scope: 라벨 합의 알고리즘 / anchoring metric 화이트리스트 / 합의 후 라벨 검증 / closeout monitoring 라벨 baseline (F-OQ-2 / F-OQ-3 / SC-2 / SC-4 합의 후 라벨 / SC-5 / FR-5 라벨 합의 / FR-7 / FR-8 / G-3 라벨 부분 / G-6 anchoring metric).
-- Still active: 라운드당 1개 질문 (FR-1 / Invariant 8) / two-layer schema (FR-2 / `technical_matrix` + `user_facing`) / D2 fallback (FR-3 / user_facing 누락 복구 4단계) / `plain_disqualifier` 표시 (FR-4 disqualifier 표시 부분) / 자문 입력 메인 LLM 추천 제외 / 자문 출력 schema sanity (score/ranking/chosen_*/rationale 무시).
+- Superseded by: #738 (Recommended 라벨 합의 알고리즘 + decision_id shuffle + Fallback enum + judgment-first 사전 기준 라운드 + 자체 라벨 금지 + anti-anchoring transcript 측정 인프라 일괄 폐기)
+- Superseded scope: 라벨 합의 알고리즘 / anchoring metric 화이트리스트 / 합의 후 라벨 검증 / closeout monitoring 라벨 baseline / judgment-first 사전 기준 라운드 + 라벨 금지 / transcript 측정 스크립트 삭제 (F-OQ-2 / F-OQ-3 / SC-2 / SC-4 합의 후 라벨 / SC-5 / FR-4 judgment-first / FR-5 라벨 합의 / FR-7 / FR-8 / G-3 라벨 부분 / G-6 anchoring metric / `scripts/ai/measure-anchoring-bias.sh` 삭제 (재생성 금지)).
+- Still active: 라운드당 1개 질문 (FR-1 / Invariant 8) / two-layer schema (FR-2 / `technical_matrix` + `user_facing` 스키마 필드 `plain_disqualifier` 표시 포함) / D2 fallback (FR-3 / user_facing 누락 복구 4단계) / Step 3.5 자문 입력의 "현 상황 적합성 컨텍스트" (FR-6) / 자문 입력 메인 LLM 추천 제외 / 자문 출력 schema sanity (score/ranking/chosen_*/rationale 무시).
 - Purpose: Living PRD / 실행 source of truth. 여기에서 작업을 체크 off 하고, 구현 중 새 사실이 드러나면 이 문서를 갱신하고, 계획이 바뀌면 진행 전에 후속 phase를 수정한다.
 
 ## Problem
