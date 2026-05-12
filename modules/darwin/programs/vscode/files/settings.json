@@ -39,6 +39,7 @@
   "workbench.iconTheme": "a-file-icon-vscode", // 파일 아이콘 테마
   "workbench.activityBar.orientation": "vertical", // 액티비티 바 세로 배치
   "window.commandCenter": true, // 타이틀 바에 커맨드 센터(검색창) 표시
+  "window.openFoldersInNewWindow": "default", // 폴더 열기 휴리스틱 — 단일 폴더 열려있으면 새 창, 다중/빈 창이면 기존. statusline cwd 클릭의 멀티태스킹 지원
 
   // ============================================================================
   // 파일 관리
