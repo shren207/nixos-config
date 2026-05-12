@@ -158,7 +158,7 @@ drift 알고리즘 적용 조건:
 
 다음 세션에서 사용자가 다음 중 하나로 시작하면 재개:
 
-- 명시적: `"`.claude/plans/<path>.md` Resume From부터 이어가자"`
+- 명시적: "`.claude/plans/<path>.md` Resume From부터 이어가자"
 - plan 파일 path만: `".claude/plans/<path>.md"` (메인 LLM이 Status와 Resume From을 읽고 판단)
 - plan-with-questions 직접 재호출 + 같은 이슈 ref: 동일 ref면 기존 plan 발견 후 재개 모드
 
