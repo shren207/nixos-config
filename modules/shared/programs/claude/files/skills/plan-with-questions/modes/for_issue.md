@@ -57,7 +57,7 @@ SSOT 참조:
 3. 남은 항목이 있으면 다음 라운드를 진행한다 (여전히 `questions` 배열 길이 1).
 4. 모든 항목 `[x]` 또는 사용자 "충분" 도달 시 Step I-5로 이동한다.
 
-질문 패턴과 옵션 표시 정책의 단일 SSOT는 [`../references/output-templates.md`](../references/output-templates.md#step-4--step-i-4-질문-패턴) 다.
+질문 패턴의 단일 SSOT는 [`../references/output-templates.md`](../references/output-templates.md#step-4--step-i-4-질문-패턴) 다. 옵션 표시 정책 자체의 단일 SSOT는 [`../references/consulting-step.md`](../references/consulting-step.md) 다.
 
 ## Step I-5: 이슈 생성 [일반 모드]
 
