@@ -98,11 +98,15 @@ validate_transcript_path() {
 
 # session_id 패턴 검증 (UUID 또는 safe filename pattern)
 # 통과: exit 0 / 실패: exit 1
+# 정책은 hooks/lib/session-state.sh의 is_safe_session_id와 동일하게 유지한다 —
+# allowlist + `..` path traversal 차단. hook이 거부하고 statusline은 통과시키는
+# 비대칭이 발생하면 동일 세션을 두 컴포넌트가 다르게 인식한다.
 validate_session_id() {
   local sid=$1
   [ -z "$sid" ] && return 1
   case "$sid" in
     *[!A-Za-z0-9._-]*) return 1 ;;
+    *..*) return 1 ;;
   esac
   return 0
 }

@@ -14,13 +14,22 @@
 # - 글로벌 mtime 기반 탐색은 cross-cwd 누수를 일으키므로 사용하지 않는다.
 #
 # Retention 정책:
-# - SESSION_ARTIFACT_RETENTION_DAYS=30: status-icons JSON, memo MD, marker 파일에
-#   동일 적용. 변경 시 storage 누적 영향 검토.
+# - SESSION_ARTIFACT_RETENTION_DAYS=30 (lib/session-state.sh의 단일 상수):
+#   status-icons JSON, memo MD, marker 파일에 동일 적용. 변경 시 storage 누적
+#   영향 검토.
 
 set -euo pipefail
 umask 077
 
-SESSION_ARTIFACT_RETENTION_DAYS=30
+# 공유 helper. marker 규약·session_id allowlist·debug 로그가 SSOT.
+# pinning-guard.sh와 동일 패턴: 설치된 $HOME/.claude/lib 우선, repo fallback.
+SESSION_STATE_LIB="${SESSION_STATE_LIB:-$HOME/.claude/lib/session-state.sh}"
+if [ ! -f "$SESSION_STATE_LIB" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  SESSION_STATE_LIB="$SCRIPT_DIR/../lib/session-state.sh"
+fi
+# shellcheck source=../lib/session-state.sh disable=SC1091
+. "$SESSION_STATE_LIB"
 
 # jq 필수 — 없으면 graceful skip
 if ! command -v jq >/dev/null 2>&1; then
@@ -53,76 +62,59 @@ if [ -z "$SESSION_ID" ] && [ -n "$TRANSCRIPT" ]; then
       ;;
   esac
 fi
-# 패턴 검증 — sidecar 파일명에 사용되므로 safe filename 보장
-case "$SESSION_ID" in
-  *[!A-Za-z0-9._-]*) SESSION_ID="" ;;
-  *..*) SESSION_ID="" ;;
-esac
-if [ -z "$SESSION_ID" ]; then
+if ! is_safe_session_id "$SESSION_ID"; then
   exit 0
 fi
 
-STATE_DIR="$HOME/.claude/status-icons"
-MEMO_DIR="$HOME/.claude/memos"
-STATE_FILE="$STATE_DIR/$SESSION_ID.json"
-MEMO_FILE="$MEMO_DIR/$SESSION_ID.md"
+STATE_FILE="$SESSION_STATE_DIR/$SESSION_ID.json"
+MEMO_FILE="$SESSION_MEMO_DIR/$SESSION_ID.md"
 
-mkdir -p "$STATE_DIR" "$MEMO_DIR"
-chmod 700 "$STATE_DIR" "$MEMO_DIR" 2>/dev/null || true
+mkdir -p "$SESSION_STATE_DIR" "$SESSION_MEMO_DIR"
+chmod 700 "$SESSION_STATE_DIR" "$SESSION_MEMO_DIR" 2>/dev/null || true
 
-# cwd-encoded marker lookup helper (Stop hook과 동일 인코딩)
-hash_cwd() {
-  if command -v shasum >/dev/null 2>&1; then
-    printf '%s' "$1" | shasum | awk '{print $1}'
-  elif command -v sha1sum >/dev/null 2>&1; then
-    printf '%s' "$1" | sha1sum | awk '{print $1}'
-  fi
-}
-
-# 같은 cwd의 직전 sid sidecar를 deep clone 복원 (성공 시 RESTORED=true)
-# - LAST_SID 검증 (allowlist + 자기 자신 제외)
-# - memo 파일은 원본 내용을 새 sid 파일로 cp (참조 충돌 방지)
-# - status JSON은 통째 복사 + .memo.path만 새 경로로 rewrite
-# - jq 실패 시 fallback은 호출부에서 처리
+# 같은 cwd의 직전 sid sidecar를 deep clone 복원.
+#
+# Invariant:
+# - 성공 시(return 0): STATE_FILE과 MEMO_FILE이 둘 다 valid 상태로 생성.
+# - 실패 시(return 1): STATE_FILE/MEMO_FILE은 부분 쓰기 흔적까지 모두 제거되어
+#   호출부 fallback(`echo '{}' > STATE_FILE`)이 깨끗하게 덮을 수 있다.
+#
+# 보안 정책:
+# - last_state JSON의 .memo.path는 set-icons 스킬을 통해 LLM이 임의로 설정 가능한
+#   user-controlled 값이라 신뢰하지 않는다. memo 파일 경로는 sid에서 결정적으로
+#   파생되므로 last_sid 기반으로 강제 재구성한다(`SESSION_MEMO_DIR/${last_sid}.md`).
+#   이로써 `.memo.path = "$HOME/.ssh/known_hosts"` 류 임의 user-readable 파일을
+#   새 MEMO_FILE로 cp해 LLM context로 누출시키는 표면을 제거한다.
 restore_from_cwd_lineage() {
   [ -z "$CWD" ] && return 1
-  local encoded marker last_sid last_state old_memo
-  encoded=$(hash_cwd "$CWD")
-  [ -z "$encoded" ] && return 1
-  marker="$STATE_DIR/.last-session-${encoded}"
+  local marker last_sid last_state last_memo
+  marker=$(marker_path_for_cwd "$CWD") || return 1
   [ -f "$marker" ] || return 1
   last_sid=$(head -1 "$marker" 2>/dev/null | tr -d '[:space:]') || return 1
-  [ -z "$last_sid" ] && return 1
-  case "$last_sid" in
-    *[!A-Za-z0-9._-]*) return 1 ;;
-    *..*) return 1 ;;
-  esac
+  is_safe_session_id "$last_sid" || return 1
   [ "$last_sid" = "$SESSION_ID" ] && return 1
-  last_state="$STATE_DIR/${last_sid}.json"
+  last_state="$SESSION_STATE_DIR/${last_sid}.json"
   [ -f "$last_state" ] || return 1
 
-  old_memo=$(jq -r '.memo.path // empty' "$last_state" 2>/dev/null) || old_memo=""
-  if [ -n "$old_memo" ] && [ -f "$old_memo" ]; then
-    cp "$old_memo" "$MEMO_FILE"
+  # memo 경로는 sid로 결정적 재구성 — last_state의 .memo.path 신뢰 안 함.
+  last_memo="$SESSION_MEMO_DIR/${last_sid}.md"
+  if [ -f "$last_memo" ]; then
+    cp "$last_memo" "$MEMO_FILE"
   else
-    touch "$MEMO_FILE"
+    : > "$MEMO_FILE"
   fi
-  jq --arg new_memo "$MEMO_FILE" \
-    'if .memo then .memo.path = $new_memo else . end' \
-    "$last_state" > "$STATE_FILE" 2>/dev/null
+  # status JSON 복사 + .memo.path를 새 sid 경로로 rewrite. jq 실패는 명시적
+  # 처리 — 부분 쓰기 STATE_FILE과 새로 만든 MEMO_FILE을 모두 제거하고 return 1.
+  if ! jq --arg new_memo "$MEMO_FILE" \
+       'if .memo then .memo.path = $new_memo else . end' \
+       "$last_state" > "$STATE_FILE" 2>/dev/null; then
+    rm -f "$STATE_FILE" "$MEMO_FILE"
+    return 1
+  fi
+  return 0
 }
 
-# optional debug log — CLAUDE_HOOK_DEBUG=1 일 때만 활성화
-# 실제 source 라벨링/cwd 동작을 실측하기 위한 진단 인프라.
-if [ "${CLAUDE_HOOK_DEBUG:-0}" = "1" ]; then
-  LOG_DIR="$HOME/.claude/logs"
-  mkdir -p "$LOG_DIR" 2>/dev/null || true
-  chmod 700 "$LOG_DIR" 2>/dev/null || true
-  printf '%s session-start src=%s sid=%s cwd=%s state_exists=%s\n' \
-    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$SOURCE" "$SESSION_ID" "$CWD" \
-    "$([ -f "$STATE_FILE" ] && echo y || echo n)" \
-    >> "$LOG_DIR/session-hooks.log" 2>/dev/null || true
-fi
+session_hook_log session-start "src=$SOURCE sid=$SESSION_ID cwd=$CWD state_exists=$([ -f "$STATE_FILE" ] && echo y || echo n)"
 
 case "$SOURCE" in
   startup)
@@ -131,18 +123,20 @@ case "$SOURCE" in
     if [ ! -f "$STATE_FILE" ]; then
       if ! restore_from_cwd_lineage; then
         echo '{}' > "$STATE_FILE"
-        [ ! -f "$MEMO_FILE" ] && touch "$MEMO_FILE"
+        [ ! -f "$MEMO_FILE" ] && : > "$MEMO_FILE"
       fi
     fi
-    [ ! -f "$MEMO_FILE" ] && touch "$MEMO_FILE"
+    [ ! -f "$MEMO_FILE" ] && : > "$MEMO_FILE"
     chmod 600 "$STATE_FILE" "$MEMO_FILE" 2>/dev/null || true
 
-    # 30일 초과 파일 정리 (status-icons + memos + lineage 마커)
-    find "$STATE_DIR" -maxdepth 1 -type f -name '*.json' \
+    # 30일 초과 파일 정리 (status-icons + memos + lineage 마커).
+    # -maxdepth 1 -type f: 디렉토리/심볼릭링크는 정리 대상 외(사용자가 명시적으로
+    # 둔 외부 관리 자원 보호).
+    find "$SESSION_STATE_DIR" -maxdepth 1 -type f -name '*.json' \
       -mtime "+${SESSION_ARTIFACT_RETENTION_DAYS}" -delete 2>/dev/null || true
-    find "$STATE_DIR" -maxdepth 1 -type f -name '.last-session-*' \
+    find "$SESSION_STATE_DIR" -maxdepth 1 -type f -name "${SESSION_MARKER_PREFIX}*" \
       -mtime "+${SESSION_ARTIFACT_RETENTION_DAYS}" -delete 2>/dev/null || true
-    find "$MEMO_DIR" -maxdepth 1 -type f -name '*.md' \
+    find "$SESSION_MEMO_DIR" -maxdepth 1 -type f -name '*.md' \
       -mtime "+${SESSION_ARTIFACT_RETENTION_DAYS}" -delete 2>/dev/null || true
 
     if [ -f "$STATE_FILE" ]; then
@@ -166,7 +160,7 @@ case "$SOURCE" in
     if [ ! -f "$STATE_FILE" ]; then
       if ! restore_from_cwd_lineage; then
         echo '{}' > "$STATE_FILE"
-        [ ! -f "$MEMO_FILE" ] && touch "$MEMO_FILE"
+        [ ! -f "$MEMO_FILE" ] && : > "$MEMO_FILE"
       fi
       chmod 600 "$STATE_FILE" "$MEMO_FILE" 2>/dev/null || true
     fi

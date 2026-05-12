@@ -13,6 +13,16 @@
 set -euo pipefail
 umask 077
 
+# 공유 helper. marker 규약·session_id allowlist·debug 로그가 SSOT.
+# pinning-guard.sh와 동일 패턴: 설치된 $HOME/.claude/lib 우선, repo fallback.
+SESSION_STATE_LIB="${SESSION_STATE_LIB:-$HOME/.claude/lib/session-state.sh}"
+if [ ! -f "$SESSION_STATE_LIB" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  SESSION_STATE_LIB="$SCRIPT_DIR/../lib/session-state.sh"
+fi
+# shellcheck source=../lib/session-state.sh disable=SC1091
+. "$SESSION_STATE_LIB"
+
 if ! command -v jq >/dev/null 2>&1; then
   exit 0
 fi
@@ -37,44 +47,21 @@ if [ -z "$SESSION_ID" ] || [ -z "$CWD" ]; then
   exit 0
 fi
 
-# session_id allowlist (path traversal 방어 — 마커 파일/sidecar 경로에 사용됨)
-case "$SESSION_ID" in
-  *[!A-Za-z0-9._-]*) exit 0 ;;
-  *..*) exit 0 ;;
-esac
+is_safe_session_id "$SESSION_ID" || exit 0
 
-STATE_DIR="$HOME/.claude/status-icons"
-mkdir -p "$STATE_DIR"
-chmod 700 "$STATE_DIR" 2>/dev/null || true
+mkdir -p "$SESSION_STATE_DIR"
+chmod 700 "$SESSION_STATE_DIR" 2>/dev/null || true
 
-# cwd 인코딩 — sha1 hash. macOS는 shasum 우선, Linux는 sha1sum.
-# 둘 다 부재하면 graceful skip (lineage 복원 자체가 비활성).
-hash_cwd() {
-  if command -v shasum >/dev/null 2>&1; then
-    printf '%s' "$1" | shasum | awk '{print $1}'
-  elif command -v sha1sum >/dev/null 2>&1; then
-    printf '%s' "$1" | sha1sum | awk '{print $1}'
-  fi
-}
-ENCODED_CWD=$(hash_cwd "$CWD")
-if [ -z "$ENCODED_CWD" ]; then
-  exit 0
-fi
-MARKER_FILE="$STATE_DIR/.last-session-${ENCODED_CWD}"
+MARKER_FILE=$(marker_path_for_cwd "$CWD") || exit 0
 
-# atomic write — 같은 디렉토리의 mktemp로 cross-device rename 회피
-tmp=$(mktemp "$STATE_DIR/.last-session-XXXXXX")
+# atomic write — 같은 디렉토리의 mktemp로 cross-device rename 회피.
+# mktemp template은 retention cleanup pattern과 동일 prefix를 공유하므로
+# 정리 누락 위험 없음.
+tmp=$(mktemp "$SESSION_STATE_DIR/${SESSION_MARKER_PREFIX}XXXXXX")
 printf '%s\n' "$SESSION_ID" > "$tmp"
 mv "$tmp" "$MARKER_FILE"
 chmod 600 "$MARKER_FILE" 2>/dev/null || true
 
-# optional debug log — CLAUDE_HOOK_DEBUG=1 일 때만 활성화
-if [ "${CLAUDE_HOOK_DEBUG:-0}" = "1" ]; then
-  LOG_DIR="$HOME/.claude/logs"
-  mkdir -p "$LOG_DIR" 2>/dev/null || true
-  chmod 700 "$LOG_DIR" 2>/dev/null || true
-  printf '%s stop sid=%s cwd=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$SESSION_ID" "$CWD" \
-    >> "$LOG_DIR/session-hooks.log" 2>/dev/null || true
-fi
+session_hook_log stop "sid=$SESSION_ID cwd=$CWD"
 
 exit 0
