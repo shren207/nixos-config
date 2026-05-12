@@ -152,7 +152,7 @@ tmp=$(mktemp) && jq --arg path "$MEMO_FILE" \
 | `/clear` | 같은 cwd 마커의 직전 sid에서 sidecar/memo deep clone 복원 |
 | `--resume` / `--continue` | 기존 상태 파일 읽기, 모든 아이콘 유지 |
 | `compact` | 동일하게 상태 재주입 |
-| 30일 초과 | 상태 파일·메모·마커 파일 자동 정리 (1단계 일반 파일만 — 디렉토리/심볼릭링크는 외부 관리 자원 보호 차원에서 제외) |
+| 자동 정리 | 없음 (아카이빙 우선) — sidecar/memo/마커는 사용자가 명시적으로 정리하기 전까지 보존 |
 
 ### Lineage 복원 (cwd 격리)
 
@@ -160,7 +160,7 @@ Stop hook(`record-last-session.sh`)이 매 턴 종료에 `~/.claude/status-icons
 
 SessionStart hook은 startup 시점에 cwd 마커가 없으면 현재 sid로 마커를 bootstrap한다. 본 변경 적용 직후의 기존 sidecar 사용자(아직 Stop hook이 한 번도 실행되지 않은 상태)와 새 cwd 첫 진입 모두에서 startup 직후 `/clear`/`/branch`가 발생해도 lineage 복원이 끊기지 않도록 보장한다.
 
-Retention 30일은 `~/.claude/lib/session-state.sh`의 `SESSION_ARTIFACT_RETENTION_DAYS` 단일 상수가 status JSON / memo / 마커 세 종류에 동일 적용한다. 마커도 같은 retention의 대상이므로 cwd 활동이 끊긴 후 30일 지나면 자동 청소되어 orphaned cwd가 무한 누적되지 않는다.
+아카이빙 우선 정책으로 자동 정리 로직은 없다. sidecar/메모/마커는 사용자가 명시적으로 정리하기 전까지 그대로 보존된다. storage 누적이 부담이 되면 별도 도구나 수동 정리로 처리한다.
 
 ## 자주 발생하는 문제
 

@@ -13,10 +13,8 @@
 #   부재할 때, 같은 cwd 마커의 sid에서 sidecar/memo를 deep clone 복원한다.
 # - 글로벌 mtime 기반 탐색은 cross-cwd 누수를 일으키므로 사용하지 않는다.
 #
-# Retention 정책:
-# - SESSION_ARTIFACT_RETENTION_DAYS=30 (lib/session-state.sh의 단일 상수):
-#   status-icons JSON, memo MD, marker 파일에 동일 적용. 변경 시 storage 누적
-#   영향 검토.
+# Retention 정책: 없음. 아카이빙 우선 — sidecar/memo/marker는 자동 삭제하지
+# 않는다. 사용자가 명시적으로 정리하거나 별도 도구로 처리.
 
 set -euo pipefail
 umask 077
@@ -177,17 +175,11 @@ case "$SOURCE" in
       fi
     fi
 
-    # 30일 초과 파일 정리 (status-icons + memos + lineage 마커).
-    # -maxdepth 1 -type f: 디렉토리/심볼릭링크는 정리 대상 외(사용자가 명시적으로
-    # 둔 외부 관리 자원 보호).
-    find "$SESSION_STATE_DIR" -maxdepth 1 -type f -name '*.json' \
-      -mtime "+${SESSION_ARTIFACT_RETENTION_DAYS}" -delete 2>/dev/null || true
-    find "$SESSION_STATE_DIR" -maxdepth 1 -type f -name "${SESSION_MARKER_PREFIX}*" \
-      -mtime "+${SESSION_ARTIFACT_RETENTION_DAYS}" -delete 2>/dev/null || true
-    find "$SESSION_MEMO_DIR" -maxdepth 1 -type f -name '*.md' \
-      -mtime "+${SESSION_ARTIFACT_RETENTION_DAYS}" -delete 2>/dev/null || true
+    # Retention 정리 없음 — 아카이빙 우선 정책. sidecar/memo/marker는 사용자가
+    # 명시적으로 정리하기 전까지 보존된다. 도입 이유 없이 박혀 있던 30일 자동
+    # 삭제는 제거 (PR #263 본문/CIR 어디에도 30일 정당화 없음).
 
-    if [ -f "$STATE_FILE" ]; then
+if [ -f "$STATE_FILE" ]; then
       ACTIVE_ICONS=$(jq -r 'keys | join(", ")' "$STATE_FILE" 2>/dev/null) || ACTIVE_ICONS=""
       [ -z "$ACTIVE_ICONS" ] && ACTIVE_ICONS="없음"
     else

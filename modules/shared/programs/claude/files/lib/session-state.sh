@@ -14,10 +14,8 @@
 #   상수:
 #     SESSION_STATE_DIR              — `~/.claude/status-icons`. status JSON + 마커 위치.
 #     SESSION_MEMO_DIR               — `~/.claude/memos`. 세션 메모 위치.
-#     SESSION_LOG_DIR                — `~/.claude/logs`. 디버그 로그 위치(retention
-#                                       정리 대상 아님 — single append-only file 모델).
+#     SESSION_LOG_DIR                — `~/.claude/logs`. 디버그 로그 위치.
 #     SESSION_MARKER_PREFIX          — `.last-session-`. cwd 마커 파일명 prefix.
-#     SESSION_ARTIFACT_RETENTION_DAYS=30 — status JSON / memo / 마커 공통 retention.
 #   함수:
 #     hash_cwd <path>                — cwd → sha1 hex(macOS shasum 우선, Linux sha1sum
 #                                       fallback). 둘 다 부재 시 빈 문자열 반환.
@@ -38,11 +36,13 @@
 # 공유 상수
 SESSION_STATE_DIR="$HOME/.claude/status-icons"
 SESSION_MEMO_DIR="$HOME/.claude/memos"
-# SESSION_LOG_DIR은 retention 정리 대상이 아니다 — append-only single file이라
-# mtime 기반 정리 모델이 부적합. 누적 우려 시 size-based rotation은 별도 follow-up.
+# SESSION_LOG_DIR은 append-only single file. size-based rotation은 별도 follow-up.
 SESSION_LOG_DIR="$HOME/.claude/logs"
 SESSION_MARKER_PREFIX=".last-session-"
-SESSION_ARTIFACT_RETENTION_DAYS=30
+# Retention 정책 없음 — 명확한 도입 이유가 PR #263 본문/code/CIR 어디에도
+# 기록되지 않은 임의의 30일 정리는 제거. 사용자 의도는 "아카이빙 우선" —
+# sidecar/memo/marker는 사용자가 명시적으로 정리하기 전까지 보존. storage 누적
+# 우려 시 별도 도구로 처리 (이 hook은 자동 삭제하지 않는다).
 
 # cwd → sha1 hex. shasum 우선, sha1sum fallback. 둘 다 부재 시 빈 문자열
 # (호출부에서 lineage 복원/마커 기록을 graceful skip).
