@@ -50,6 +50,7 @@ SSOT taxonomy 7개와 각 카테고리 정의 또는 답글 템플릿의 단일 
 - `VERIFIED_FALSE_POSITIVE`
 - `DESIGN_TRADEOFF`
 - `TECHNICAL_DISAGREEMENT`
+
 본 스킬의 6분류는 requirement가 문서 대비 어떤 상태인가를 나타낸다.
 
 두 축은 혼용하지 않는다. 동일 이슈가 양쪽에서 보이면:
