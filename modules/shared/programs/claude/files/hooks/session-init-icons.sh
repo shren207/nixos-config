@@ -149,22 +149,29 @@ case "$SOURCE" in
     [ ! -f "$MEMO_FILE" ] && : > "$MEMO_FILE"
     chmod 600 "$STATE_FILE" "$MEMO_FILE" 2>/dev/null || true
 
-    # Migration: 기존 sidecar 사용자에게 cwd 마커가 없으면 1회 seed.
-    # legacy(ls -t | head -1) fallback을 제거했기 때문에, 본 PR 적용 직후
-    # 사용자가 첫 /clear/branch를 하면 마커가 아직 없어 lineage 복원이
-    # silently 끊긴다 (Stop hook이 한 번이라도 실행되어야 마커 생성). startup
-    # 시점에 STATE_FILE이 이미 있고 마커가 없으면 현재 sid를 marker에 즉시
-    # 기록해 첫 lineage 복원도 정상 동작하도록 한다.
-    if [ -n "$CWD" ] && [ -f "$STATE_FILE" ]; then
-      MIGRATION_MARKER=$(marker_path_for_cwd "$CWD" 2>/dev/null) || MIGRATION_MARKER=""
-      if [ -n "$MIGRATION_MARKER" ] && [ ! -f "$MIGRATION_MARKER" ]; then
+    # Bootstrap marker: cwd 마커가 없으면 현재 sid로 즉시 기록.
+    #
+    # 적용 대상은 두 갈래로 모두 의도된 동작이다:
+    # 1) 본 PR 업그레이드 직후의 기존 sidecar 사용자 — Stop hook이 한 번이라도
+    #    실행되어야 마커가 생성되므로, startup 직후 /clear/branch가 발생하면
+    #    lineage 복원이 silently 끊긴다. legacy(`ls -t | head -1`) fallback을
+    #    제거한 결과 발생하는 migration window를 즉시 닫는다.
+    # 2) 새 cwd 첫 진입 — 같은 turn 안에서 /clear/branch가 발생하면 Stop hook이
+    #    아직 안 돌았을 수 있다. 미리 marker를 seed해두면 첫 lineage 복원이
+    #    빈 객체로 시작해 일관된 동작을 보인다. Stop hook이 곧 같은 sid로 덮어
+    #    쓰므로 부작용 없다.
+    #
+    # 즉 본 블록은 "marker bootstrap" — 두 경우 모두 동일하게 처리.
+    if [ -n "$CWD" ]; then
+      BOOTSTRAP_MARKER=$(marker_path_for_cwd "$CWD" 2>/dev/null) || BOOTSTRAP_MARKER=""
+      if [ -n "$BOOTSTRAP_MARKER" ] && [ ! -f "$BOOTSTRAP_MARKER" ]; then
         # atomic write — record-last-session.sh와 동일 패턴
-        _migration_tmp=$(mktemp "$SESSION_STATE_DIR/${SESSION_MARKER_PREFIX}XXXXXX" 2>/dev/null) || _migration_tmp=""
-        if [ -n "$_migration_tmp" ]; then
-          printf '%s\n' "$SESSION_ID" > "$_migration_tmp"
-          mv "$_migration_tmp" "$MIGRATION_MARKER" 2>/dev/null || rm -f "$_migration_tmp"
-          chmod 600 "$MIGRATION_MARKER" 2>/dev/null || true
-          session_hook_log session-start "migration-seed-marker sid=$SESSION_ID cwd=$CWD"
+        _bootstrap_tmp=$(mktemp "$SESSION_STATE_DIR/${SESSION_MARKER_PREFIX}XXXXXX" 2>/dev/null) || _bootstrap_tmp=""
+        if [ -n "$_bootstrap_tmp" ]; then
+          printf '%s\n' "$SESSION_ID" > "$_bootstrap_tmp"
+          mv "$_bootstrap_tmp" "$BOOTSTRAP_MARKER" 2>/dev/null || rm -f "$_bootstrap_tmp"
+          chmod 600 "$BOOTSTRAP_MARKER" 2>/dev/null || true
+          session_hook_log session-start "bootstrap-marker sid=$SESSION_ID cwd=$CWD"
         fi
       fi
     fi

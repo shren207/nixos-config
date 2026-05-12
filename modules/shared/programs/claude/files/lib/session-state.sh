@@ -82,20 +82,22 @@ is_safe_session_id() {
 # - 두 번째 인자는 단일 message 문자열. 호출자가 `k=v k=v` 형태를 그대로 넘긴다.
 #   reader 측에서 `awk '{ts=$1; ev=$2; rest=$0}'` 형태로 파싱하면 첫 두 토큰만
 #   고정 필드, rest는 free-form. 값에 공백이 들어가도 단일 인자라면 한 줄로 기록.
-# - unsafe sid 진단 로그처럼 message에 control 문자(특히 newline, ESC, CSI)가
-#   포함될 가능성이 있는 호출을 대비해 message를 sanitize한다 — C0(0x00-0x1F)
-#   + DEL(0x7F) + C1(0x80-0x9F) 전체를 `?`로 치환해 단일 라인 invariant 및
-#   terminal escape 차단을 동시에 강제한다. UTF-8 multi-byte의 continuation
-#   byte(0x80-0xBF 일부)도 함께 치환되어 한글 등 UTF-8 cwd 일부가 깨질 수
-#   있으나, unsafe message는 비정상 입력이므로 수용 가능 trade-off다.
+# - 본 함수는 정상 session-start/stop 로그(cwd=$CWD 포함)에도 사용되므로
+#   sanitize 범위는 단일 라인 invariant 유지에 필요한 최소(C0 + DEL)로 한정한다.
+#   ESC(0x1B)는 C0에 포함되어 차단된다. raw C1 byte(0x80-0x9F)는 정상 UTF-8
+#   sequence에서 *단독* 등장이 invalid하므로 정상 cwd에선 발생하지 않는다.
+#   UTF-8 continuation byte는 보존되어 한글 등 cwd가 그대로 기록된다.
+#   unsafe sid 입력처럼 raw C1이 들어올 가능성이 있는 호출자는 자체적으로
+#   추가 sanitize를 적용할 수 있으나, debug 로그를 terminal cat보다 grep/awk
+#   reader로 보는 일반 사용 케이스에선 본 sanitize로 충분하다.
 session_hook_log() {
   [ "${CLAUDE_HOOK_DEBUG:-0}" = "1" ] || return 0
   mkdir -p "$SESSION_LOG_DIR" 2>/dev/null || return 0
   chmod 700 "$SESSION_LOG_DIR" 2>/dev/null || true
   local msg
-  # LC_ALL=C로 byte-mode tr. C0 + DEL + C1 모두 처리해 raw CSI(0x9B)나
-  # ESC([(0x1B [) 시퀀스가 terminal에 그대로 노출되지 않도록 한다.
-  msg=$(printf '%s' "$2" | LC_ALL=C tr '\000-\037\177\200-\237' '?')
+  # LC_ALL=C로 byte-mode tr. C0(0x00-0x1F) + DEL(0x7F)만 치환 — UTF-8 continuation
+  # byte(0x80-0xBF)는 보존해 정상 한글/UTF-8 cwd가 깨지지 않게 한다.
+  msg=$(printf '%s' "$2" | LC_ALL=C tr '\000-\037\177' '?')
   printf '%s %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" "$msg" \
     >> "$SESSION_LOG_DIR/session-hooks.log" 2>/dev/null || true
 }

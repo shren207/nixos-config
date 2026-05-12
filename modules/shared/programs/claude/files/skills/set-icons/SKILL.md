@@ -158,6 +158,8 @@ tmp=$(mktemp) && jq --arg path "$MEMO_FILE" \
 
 Stop hook(`record-last-session.sh`)이 매 턴 종료에 `~/.claude/status-icons/.last-session-<sha1(cwd)>` 마커 파일에 `session_id`를 atomic write한다. SessionStart hook은 새 sid에 sidecar가 없을 때 **같은 cwd의 마커**만 조회하므로, 동시에 진행 중인 다른 워크트리/프로젝트 세션과 아이콘이 섞이지 않는다.
 
+SessionStart hook은 startup 시점에 cwd 마커가 없으면 현재 sid로 마커를 bootstrap한다. 본 변경 적용 직후의 기존 sidecar 사용자(아직 Stop hook이 한 번도 실행되지 않은 상태)와 새 cwd 첫 진입 모두에서 startup 직후 `/clear`/`/branch`가 발생해도 lineage 복원이 끊기지 않도록 보장한다.
+
 Retention 30일은 `~/.claude/lib/session-state.sh`의 `SESSION_ARTIFACT_RETENTION_DAYS` 단일 상수가 status JSON / memo / 마커 세 종류에 동일 적용한다. 마커도 같은 retention의 대상이므로 cwd 활동이 끊긴 후 30일 지나면 자동 청소되어 orphaned cwd가 무한 누적되지 않는다.
 
 ## 자주 발생하는 문제
