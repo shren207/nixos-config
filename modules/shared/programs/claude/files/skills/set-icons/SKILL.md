@@ -148,7 +148,7 @@ tmp=$(mktemp) && jq --arg path "$MEMO_FILE" \
 
 | 상황 | 동작 |
 |------|------|
-| 새 세션 (cwd 첫 진입) | 빈 상태 파일 + 메모 파일 생성, 아이콘 없음 |
+| 새 세션 (cwd 첫 진입 또는 종료 후 재시작) | 빈 상태로 시작, 아이콘 없음. 같은 cwd의 이전 세션 아이콘은 상속하지 않는다. |
 | `/clear` | 같은 cwd 마커의 직전 sid에서 sidecar/memo deep clone 복원 |
 | `--resume` / `--continue` | 기존 상태 파일 읽기, 모든 아이콘 유지 |
 | `compact` | 동일하게 상태 재주입 |
@@ -177,10 +177,11 @@ Retention 30일은 `~/.claude/lib/session-state.sh`의 `SESSION_ARTIFACT_RETENTI
    - **L_M (heavy state 그룹)**: Plan (📝) → Memory (🧠) → Cache TTL (⏱). Memo는 L1으로 이동, Plan/Memory는 L_M 유지
    - **L_N**: 5h/7d Rate Limits
 5. **SessionStart hook 동작 (source별)**:
-   - 모든 source 분기에서 **STATE_FILE이 이미 존재하면 그대로 보존**. 어떤 source로 라벨이 오더라도 기존 아이콘이 사라지지 않는다.
-   - STATE_FILE이 부재할 때만 다음 순서로 복원 시도: ① 같은 cwd 마커의 직전 sid sidecar에서 deep clone → ② 실패 시 빈 객체 `{}`로 시작.
-   - 마커는 Stop hook이 매 턴 종료에 cwd-sha1로 인코딩된 파일에 sid를 기록해 누적한다. **글로벌 mtime 기반 탐색은 사용하지 않으므로** 동시 실행 중인 다른 cwd 세션과 아이콘이 섞이지 않는다.
-   - 실제 source 라벨링이 의심되면 `CLAUDE_HOOK_DEBUG=1`로 hook을 재기동해 `~/.claude/logs/session-hooks.log` 채집.
+   - 지원 source는 `startup`, `clear`, `resume`, `compact` 네 가지. 그 외 source는 hook이 즉시 `exit 0`로 skip한다 (sidecar/memo는 생성하지 않음).
+   - **startup**: STATE_FILE이 부재하면 빈 객체 `{}`로 시작. 동일 sid로 startup이 재발화되면 STATE_FILE을 보존(아이콘 유실 방지). lineage 복원은 시도하지 않으므로 같은 cwd에서 새 세션을 열면 빈 상태로 시작한다.
+   - **clear / resume / compact**: STATE_FILE이 부재하면 ① 같은 cwd 마커의 직전 sid sidecar에서 deep clone → ② 실패 시 빈 객체 `{}`. STATE_FILE이 이미 존재하면 그대로 사용.
+   - 마커는 Stop hook이 매 턴 종료에 cwd-sha1로 인코딩된 파일에 sid를 기록해 누적한다. startup 시점에도 마커가 없으면 현재 sid로 bootstrap한다(첫 `/clear`에 lineage 복원이 동작하도록). **글로벌 mtime 기반 탐색은 사용하지 않으므로** 동시 실행 중인 다른 cwd 세션과 아이콘이 섞이지 않는다.
+   - 실제 source 라벨링이 의심되면(예: `/clear` 후 아이콘이 사라지는 증상이 재현되면) `CLAUDE_HOOK_DEBUG=1`로 hook을 재기동해 `~/.claude/logs/session-hooks.log`를 채집한 뒤 source 매핑을 확인한다.
 6. **OSC 8 hyperlink 클릭 UX (macOS Ghostty + Claude Code fullscreen)**:
    - **일반 Cmd+클릭** — Plan/Memo/Memory 같은 `file://` link는 Ghostty plain-text URL fallback detector로 동작 (Jira/Slack/Figma 같은 `https://`도 동작)
    - **Cmd+Shift+클릭** — Claude Code TUI(`CLAUDE_CODE_NO_FLICKER` fullscreen 모드)가 mouse capture로 일반 Cmd+클릭을 가로채는 영역에서 escape hatch. cwd (`vscode://file/<path>/`) 처럼 fallback detector가 인식 못 하는 scheme은 **Cmd+Shift+클릭으로만 동작**

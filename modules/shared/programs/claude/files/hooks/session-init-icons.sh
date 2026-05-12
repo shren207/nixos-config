@@ -138,40 +138,41 @@ session_hook_log session-start "src=$SOURCE sid=$SESSION_ID cwd=$CWD state_exist
 
 case "$SOURCE" in
   startup)
-    # STATE_FILE 존재 시 보존 (어떤 source가 startup으로 라벨되어도 기존 아이콘
-    # 유실 방지). 부재 시에만 lineage 복원을 시도하고, 실패하면 빈 객체로 시작.
+    # 새 세션은 빈 상태로 시작 — 같은 cwd의 이전 sid 상태를 자동 상속하지 않는다.
+    # STATE_FILE이 이미 존재하면 보존(동일 sid로 startup이 재발화되는 케이스
+    # 방어). 부재면 빈 객체로 시작. lineage 복원은 clear|resume|compact 분기로
+    # 한정 — startup에서 복원하면 새 독립 세션도 이전 세션의 아이콘/메모를
+    # 상속해 "새 세션 = 빈 상태" 관례를 깨뜨린다.
+    #
+    # 만약 Claude Code가 `/clear`를 source=startup으로 라벨링하는 빌드가
+    # 발견되면 CLAUDE_HOOK_DEBUG=1로 채집해 source 라벨 매핑을 확인한 뒤
+    # 별도 follow-up에서 startup-labeled-clear 식별 방법을 도입한다.
     if [ ! -f "$STATE_FILE" ]; then
-      if ! restore_from_cwd_lineage; then
-        echo '{}' > "$STATE_FILE"
-        [ ! -f "$MEMO_FILE" ] && : > "$MEMO_FILE"
-      fi
+      echo '{}' > "$STATE_FILE"
+      [ ! -f "$MEMO_FILE" ] && : > "$MEMO_FILE"
     fi
     [ ! -f "$MEMO_FILE" ] && : > "$MEMO_FILE"
     chmod 600 "$STATE_FILE" "$MEMO_FILE" 2>/dev/null || true
 
-    # Bootstrap marker: cwd 마커가 없으면 현재 sid로 즉시 기록.
+    # Marker reset: startup 시점에 cwd 마커를 항상 현재 sid로 갱신.
     #
-    # 적용 대상은 두 갈래로 모두 의도된 동작이다:
-    # 1) 본 PR 업그레이드 직후의 기존 sidecar 사용자 — Stop hook이 한 번이라도
-    #    실행되어야 마커가 생성되므로, startup 직후 /clear/branch가 발생하면
-    #    lineage 복원이 silently 끊긴다. legacy(`ls -t | head -1`) fallback을
-    #    제거한 결과 발생하는 migration window를 즉시 닫는다.
-    # 2) 새 cwd 첫 진입 — 같은 turn 안에서 /clear/branch가 발생하면 Stop hook이
-    #    아직 안 돌았을 수 있다. 미리 marker를 seed해두면 첫 lineage 복원이
-    #    빈 객체로 시작해 일관된 동작을 보인다. Stop hook이 곧 같은 sid로 덮어
-    #    쓰므로 부작용 없다.
-    #
-    # 즉 본 블록은 "marker bootstrap" — 두 경우 모두 동일하게 처리.
+    # 의도: "새 세션 = 빈 상태" 정책의 일관성 보장. 같은 cwd에서 며칠 전 작업
+    # 마커가 남아 있다고 해도, 새 세션의 첫 /clear가 그 옛 sid sidecar를
+    # 복원하면 사용자 의도(새 세션 = 빈 상태)가 우회로로 깨진다. startup 시점에
+    # marker를 자기 sid로 reset해 두면 첫 /clear가 자기(빈) sidecar에서 복원
+    # 시도해 결과적으로 빈 상태가 유지된다. Stop hook이 매 턴 marker를
+    # last-writer-wins로 덮어쓰는 정책과 동일선상.
     if [ -n "$CWD" ]; then
       BOOTSTRAP_MARKER=$(marker_path_for_cwd "$CWD" 2>/dev/null) || BOOTSTRAP_MARKER=""
-      if [ -n "$BOOTSTRAP_MARKER" ] && [ ! -f "$BOOTSTRAP_MARKER" ]; then
-        # atomic write — record-last-session.sh와 동일 패턴
+      if [ -n "$BOOTSTRAP_MARKER" ]; then
         _bootstrap_tmp=$(mktemp "$SESSION_STATE_DIR/${SESSION_MARKER_PREFIX}XXXXXX" 2>/dev/null) || _bootstrap_tmp=""
         if [ -n "$_bootstrap_tmp" ]; then
           printf '%s\n' "$SESSION_ID" > "$_bootstrap_tmp"
+          # atomic last-writer-wins. 동시 startup 발생 시 마지막에 도달한 sid가
+          # marker를 갖는다. Stop hook의 갱신 정책과 일치.
           mv "$_bootstrap_tmp" "$BOOTSTRAP_MARKER" 2>/dev/null || rm -f "$_bootstrap_tmp"
           chmod 600 "$BOOTSTRAP_MARKER" 2>/dev/null || true
-          session_hook_log session-start "bootstrap-marker sid=$SESSION_ID cwd=$CWD"
+          session_hook_log session-start "reset-marker sid=$SESSION_ID cwd=$CWD"
         fi
       fi
     fi
