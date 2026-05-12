@@ -158,7 +158,11 @@ tmp=$(mktemp) && jq --arg path "$MEMO_FILE" \
 1. **아이콘 미표시**: 상태 파일이 없거나 JSON 파싱 오류 → `cat "$STATE_FILE" | jq .`로 검증
 2. **상태 파일 경로 불명**: SessionStart hook의 `additionalContext`에서 `상태 파일:` 뒤의 경로 확인
 3. **memo 키 소실**: `jq -n`으로 새 JSON 생성 시 기존 키가 사라짐 → 반드시 기존 파일을 입력으로 사용
-4. **아이콘 순서 변경 불가**: 순서는 `statusline.sh`에 하드코딩 (Jira → Slack → Figma → Plan → Memo → Memory)
+4. **아이콘 순서/라인 변경 불가**: 순서와 라인 배치는 `statusline.sh`에 하드코딩
+   - **L1 (link icons 그룹)**: Jira → Slack → Figma → Memo. 조건부 라인 (모두 미설정 시 라인 자체 생략)
+   - **L2/L3 (context 라인)**: cwd (📁) → (git 시) branch (🌿) + session-id (🆔). 워크트리는 L2=cwd 단독, L3=branch+session-id 분리
+   - **L_M (heavy state 그룹)**: Plan (📝) → Memory (🧠) → Cache TTL (⏱). Memo는 L1으로 이동, Plan/Memory는 L_M 유지
+   - **L_N**: 5h/7d Rate Limits
 
 ## 주의사항
 
