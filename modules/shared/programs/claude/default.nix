@@ -156,6 +156,8 @@ in
       config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/hooks/worktree-path-guard.sh";
     ".claude/hooks/session-init-icons.sh".source =
       config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/hooks/session-init-icons.sh";
+    ".claude/hooks/record-last-session.sh".source =
+      config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/hooks/record-last-session.sh";
     ".claude/hooks/log-skill.sh".source =
       config.lib.file.mkOutOfStoreSymlink "${claudeFilesPath}/hooks/log-skill.sh";
     ".claude/hooks/fragile-hardcoding-guard.sh".source =

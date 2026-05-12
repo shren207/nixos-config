@@ -148,10 +148,15 @@ tmp=$(mktemp) && jq --arg path "$MEMO_FILE" \
 
 | 상황 | 동작 |
 |------|------|
-| 새 세션 / `/clear` | 빈 상태 파일 + 메모 파일 생성, 아이콘 없음 |
+| 새 세션 (cwd 첫 진입) | 빈 상태 파일 + 메모 파일 생성, 아이콘 없음 |
+| `/clear` | 같은 cwd 마커의 직전 sid에서 sidecar/memo deep clone 복원 |
 | `--resume` / `--continue` | 기존 상태 파일 읽기, 모든 아이콘 유지 |
 | `compact` | 동일하게 상태 재주입 |
-| 30일 초과 | 상태 파일 + 메모 파일 자동 정리 |
+| 30일 초과 | 상태 파일·메모·마커 파일 자동 정리 |
+
+### Lineage 복원 (cwd 격리)
+
+Stop hook(`record-last-session.sh`)이 매 턴 종료에 `~/.claude/status-icons/.last-session-<sha1(cwd)>` 마커 파일에 `session_id`를 atomic write한다. SessionStart hook은 새 sid에 sidecar가 없을 때 **같은 cwd의 마커**만 조회하므로, 동시에 진행 중인 다른 워크트리/프로젝트 세션과 아이콘이 섞이지 않는다.
 
 ## 자주 발생하는 문제
 
@@ -168,8 +173,10 @@ tmp=$(mktemp) && jq --arg path "$MEMO_FILE" \
    - **L_M (heavy state 그룹)**: Plan (📝) → Memory (🧠) → Cache TTL (⏱). Memo는 L1으로 이동, Plan/Memory는 L_M 유지
    - **L_N**: 5h/7d Rate Limits
 5. **SessionStart hook 동작 (source별)**:
-   - `startup` (새 세션): 빈 상태 파일 + 메모 파일 생성. 아이콘 없음
-   - `clear` / `resume` / `compact` (기존 세션 재진입): 상태 파일 없으면 가장 최근 상태 파일을 복사하여 아이콘/메모 경로 보존
+   - 모든 source 분기에서 **STATE_FILE이 이미 존재하면 그대로 보존**. 어떤 source로 라벨이 오더라도 기존 아이콘이 사라지지 않는다.
+   - STATE_FILE이 부재할 때만 다음 순서로 복원 시도: ① 같은 cwd 마커의 직전 sid sidecar에서 deep clone → ② 실패 시 빈 객체 `{}`로 시작.
+   - 마커는 Stop hook이 매 턴 종료에 cwd-sha1로 인코딩된 파일에 sid를 기록해 누적한다. **글로벌 mtime 기반 탐색은 사용하지 않으므로** 동시 실행 중인 다른 cwd 세션과 아이콘이 섞이지 않는다.
+   - 실제 source 라벨링이 의심되면 `CLAUDE_HOOK_DEBUG=1`로 hook을 재기동해 `~/.claude/logs/session-hooks.log` 채집.
 6. **OSC 8 hyperlink 클릭 UX (macOS Ghostty + Claude Code fullscreen)**:
    - **일반 Cmd+클릭** — Plan/Memo/Memory 같은 `file://` link는 Ghostty plain-text URL fallback detector로 동작 (Jira/Slack/Figma 같은 `https://`도 동작)
    - **Cmd+Shift+클릭** — Claude Code TUI(`CLAUDE_CODE_NO_FLICKER` fullscreen 모드)가 mouse capture로 일반 Cmd+클릭을 가로채는 영역에서 escape hatch. cwd (`vscode://file/<path>/`) 처럼 fallback detector가 인식 못 하는 scheme은 **Cmd+Shift+클릭으로만 동작**
