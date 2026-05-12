@@ -758,7 +758,7 @@ require_contract_text \
 
 require_contract_text \
   "modules/shared/programs/claude/files/skills/plan-with-questions/references/fanout-fanin.md" \
-  "delegation-denied fallback 이 아니다" \
+  "delegation-denied fallback이 아니다" \
   "plan-with-questions Step 3.5 consult is not fallback"
 
 require_contract_text \

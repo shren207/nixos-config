@@ -52,7 +52,7 @@ Step 5/6 진행 중에는 [`plan-file-template.md`](./plan-file-template.md#da-s
 
 ### for_prd
 
-`for_prd` 는 plan-with-questions 가 P1-P5 와 P6-P7 을 거친 뒤 PRD 규약을 따라 `.claude/prds/prd-<feature>.md` 에 직접 작성한다. `for_action` 의 Step 4.5 plan 파일 초기화는 적용하지 않는다. PRD 작성 이후의 phase 진행 상태는 PRD master 파일의 Document Status 가 SSOT 이며 본 enum 은 사용되지 않는다. plan-with-questions 가 추적하는 enum 은 PRD 작성 직전까지로 한정한다:
+`for_prd` 는 plan-with-questions가 P1-P5와 P6-P7을 거친 뒤 PRD 규약을 따라 `.claude/prds/prd-<feature>.md` 에 직접 작성한다. `for_action` 의 Step 4.5 plan 파일 초기화는 적용하지 않는다. PRD 작성 이후의 phase 진행 상태는 PRD master 파일의 Document Status가 SSOT이며 본 enum은 사용되지 않는다. plan-with-questions가 추적하는 enum은 PRD 작성 직전까지로 한정한다:
 
 | Resume From | 진입 조건 |
 |-------------|----------|
@@ -159,7 +159,7 @@ echo "branch=$BRANCH, HEAD=$HEAD_ANCHOR, dirty=$DIRTY"
 다음 세션에서 사용자가 다음 중 하나로 시작하면 재개:
 
 - 명시적: `"`.claude/plans/<path>.md` Resume From부터 이어가자"`
-- plan 파일 path 만: `".claude/plans/<path>.md"` (메인 LLM 이 Status 와 Resume From 을 읽고 판단)
+- plan 파일 path만: `".claude/plans/<path>.md"` (메인 LLM이 Status와 Resume From을 읽고 판단)
 - plan-with-questions 직접 재호출 + 같은 이슈 ref: 동일 ref면 기존 plan 발견 후 재개 모드
 
 메인 LLM은 plan 파일 상단 `Document Status` 표를 먼저 읽고, Baseline drift 검증 → Resume From 점프 순으로 진행한다.

@@ -41,7 +41,7 @@
 
 `review-pr-feedback` 의 기각 분류는 **리뷰어의 지적이 왜 기각되는가** 를 나타낸다.
 
-SSOT taxonomy 7개와 각 카테고리 정의 또는 답글 템플릿의 단일 SSOT 는 [`../../../review-pr-feedback/references/rejection-taxonomy.md`](../../../review-pr-feedback/references/rejection-taxonomy.md) 다. 7개 분류는 다음과 같다:
+SSOT taxonomy 7개와 각 카테고리 정의 또는 답글 템플릿의 단일 SSOT는 [`../../../review-pr-feedback/references/rejection-taxonomy.md`](../../../review-pr-feedback/references/rejection-taxonomy.md) 다. 7개 분류는 다음과 같다:
 
 - `HALLUCINATION`
 - `STALE_REVIEW`
@@ -89,4 +89,4 @@ Evidence 라벨은 별개 축이다 (상세: [체크리스트 라벨 체계](../
 
 ## main-agent-only 경계
 
-본 reference (6-classification + overbuilt overlay) 는 read-only 다. 라벨링과 우선 분류 결과는 보고만 산출한다. 구현 추가, 제거, 체크박스 전환, PRD 정정 같은 tracked write 는 메인 에이전트가 사용자 승인된 remediation 단계에서 수행한다. 상세 경계의 단일 SSOT 는 [`../../../run-da/references/hardening-contract.md`](../../../run-da/references/hardening-contract.md) 의 "Codex 세션 하드닝 계약" 절이다.
+본 reference (6-classification + overbuilt overlay) 는 read-only 다. 라벨링과 우선 분류 결과는 보고만 산출한다. 구현 추가, 제거, 체크박스 전환, PRD 정정 같은 tracked write는 메인 에이전트가 사용자 승인된 remediation 단계에서 수행한다. 상세 경계의 단일 SSOT는 [`../../../run-da/references/hardening-contract.md`](../../../run-da/references/hardening-contract.md) 의 "Codex 세션 하드닝 계약" 절이다.

@@ -5,7 +5,7 @@
 ## 적용 범위
 
 - **for_action**: 14필드를 모두 작성한다. PRD 전용 필드(`Current Phase`, `Phase Progress`, `Active Phase File`)는 `N/A`로 명시한다.
-- **for_prd 모드** — 본 template 은 **미적용**한다. PRD 의 단일 SSOT 는 for_prd 모드가 [`./prd/prd-master-template.md`](./prd/prd-master-template.md) 를 따라 `.claude/prds/` 에 직접 작성하는 것이다 (두 SSOT 병존 회피). Resume From enum (`for_prd.*`) 은 PRD 작성 직전까지의 진행 단계 추적 용도로만 쓴다.
+- **for_prd 모드** — 본 template은 **미적용**한다. PRD의 단일 SSOT는 for_prd 모드가 [`./prd/prd-master-template.md`](./prd/prd-master-template.md) 를 따라 `.claude/prds/` 에 직접 작성하는 것이다 (두 SSOT 병존 회피). Resume From enum (`for_prd.*`) 은 PRD 작성 직전까지의 진행 단계 추적 용도로만 쓴다.
 - **for_issue**: 산출물이 이슈이므로 본 template 미적용. plan 파일이 없으므로 Resume From 메커니즘은 issue body에 inline (write-handoff가 처리).
 
 ## 14 Metadata 필드 (plan 상단 — Document Status 표)
@@ -66,7 +66,7 @@
 
 ### Mode 값
 
-`for_action` 전용. `for_prd` 는 본 template 미적용이며, PRD 의 단일 SSOT 는 [`./prd/prd-master-template.md`](./prd/prd-master-template.md) 다. for_prd 자동 트리거 시 plan-with-questions 는 `.claude/prds/` 에 직접 작성하고 본 template 산출물은 만들지 않는다.
+`for_action` 전용. `for_prd` 는 본 template 미적용이며, PRD의 단일 SSOT는 [`./prd/prd-master-template.md`](./prd/prd-master-template.md) 다. for_prd 자동 트리거 시 plan-with-questions는 `.claude/prds/` 에 직접 작성하고 본 template 산출물은 만들지 않는다.
 
 ### Resume From / Last Completed Step
 
