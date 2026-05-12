@@ -81,8 +81,13 @@ chmod 700 "$SESSION_STATE_DIR" "$SESSION_MEMO_DIR" 2>/dev/null || true
 # - return 0: STATE_FILE은 valid JSON, MEMO_FILE은 last_memo의 정확한 사본 또는
 #   정상 빈 파일(last_memo 부재 시). 둘 다 자기 sid 경로에 있고 호출부는 그대로
 #   사용할 수 있다.
-# - return 1: STATE_FILE도 MEMO_FILE도 부분 쓰기 흔적 없이 제거되어, 호출부
-#   fallback(`echo '{}' > STATE_FILE`)이 깨끗하게 덮을 수 있다.
+# - return 1:
+#   · 쓰기 시작 전 실패(marker_path_for_cwd 실패, 마커 부재, unsafe last_sid,
+#     last_state 부재, last_sid==SESSION_ID): STATE_FILE/MEMO_FILE은 함수 진입
+#     이전 상태 그대로 — 손대지 않는다.
+#   · 복사/생성 시작 후 실패(cp/truncate/jq 실패): 부분 쓰기 흔적을 명시적
+#     rm -f으로 제거한 뒤 return 1. 호출부 fallback(`echo '{}' > STATE_FILE`)이
+#     깨끗하게 덮을 수 있다.
 # - `if ! restore_from_cwd_lineage` 호출 컨텍스트에서 set -e가 함수 내부에서
 #   비활성화되므로(POSIX/bash 동작) 매 단계의 실패를 명시적으로 처리한다.
 #
@@ -143,6 +148,26 @@ case "$SOURCE" in
     fi
     [ ! -f "$MEMO_FILE" ] && : > "$MEMO_FILE"
     chmod 600 "$STATE_FILE" "$MEMO_FILE" 2>/dev/null || true
+
+    # Migration: 기존 sidecar 사용자에게 cwd 마커가 없으면 1회 seed.
+    # legacy(ls -t | head -1) fallback을 제거했기 때문에, 본 PR 적용 직후
+    # 사용자가 첫 /clear/branch를 하면 마커가 아직 없어 lineage 복원이
+    # silently 끊긴다 (Stop hook이 한 번이라도 실행되어야 마커 생성). startup
+    # 시점에 STATE_FILE이 이미 있고 마커가 없으면 현재 sid를 marker에 즉시
+    # 기록해 첫 lineage 복원도 정상 동작하도록 한다.
+    if [ -n "$CWD" ] && [ -f "$STATE_FILE" ]; then
+      MIGRATION_MARKER=$(marker_path_for_cwd "$CWD" 2>/dev/null) || MIGRATION_MARKER=""
+      if [ -n "$MIGRATION_MARKER" ] && [ ! -f "$MIGRATION_MARKER" ]; then
+        # atomic write — record-last-session.sh와 동일 패턴
+        _migration_tmp=$(mktemp "$SESSION_STATE_DIR/${SESSION_MARKER_PREFIX}XXXXXX" 2>/dev/null) || _migration_tmp=""
+        if [ -n "$_migration_tmp" ]; then
+          printf '%s\n' "$SESSION_ID" > "$_migration_tmp"
+          mv "$_migration_tmp" "$MIGRATION_MARKER" 2>/dev/null || rm -f "$_migration_tmp"
+          chmod 600 "$MIGRATION_MARKER" 2>/dev/null || true
+          session_hook_log session-start "migration-seed-marker sid=$SESSION_ID cwd=$CWD"
+        fi
+      fi
+    fi
 
     # 30일 초과 파일 정리 (status-icons + memos + lineage 마커).
     # -maxdepth 1 -type f: 디렉토리/심볼릭링크는 정리 대상 외(사용자가 명시적으로
