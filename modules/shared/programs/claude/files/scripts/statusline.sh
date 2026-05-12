@@ -515,13 +515,11 @@ if [ -n "$CWD_CANONICAL" ]; then
   CWD_URL=""
   if ! $IS_SSH; then
     CWD_URL_PATH=$(percent_encode_segment "$CWD_CANONICAL")
-    # CWD URL은 file:// (실측 — Ghostty 1.3.1이 vscode:// OSC 8 click을 silently drop.
-    # file://는 Plan/Memory와 동일하게 정상 dispatch).
-    # macOS LaunchServices가 폴더(public.folder) default app으로 dispatch.
-    # 폴더 default를 VSCode로 등록(duti -s com.microsoft.VSCode public.folder all)하면
-    # cwd 클릭 → VSCode 폴더 열기 (D-2 의도 충족).
-    # nix-darwin home-manager에 duti activation script로 영구 등록.
-    CWD_URL="file://${CWD_URL_PATH}"
+    # CWD URL — vscode://file/<path>/ 진단 검증용 임시 복귀.
+    # 가설: Claude Code TUI(CLAUDE_CODE_NO_FLICKER fullscreen 모드)가 mouse capture로
+    # 일반 Cmd+클릭을 가로챔. Cmd+Shift+클릭이 escape hatch → Ghostty가 OSC 8 dispatch.
+    # 사용자 Cmd+Shift+클릭 시 VSCode 열리면 가설 확정 → Fix A/B 결정.
+    CWD_URL="vscode://file${CWD_URL_PATH}/"
   fi
 else
   # 검증 실패: 텍스트만 표시. control 문자가 들어와 fallback으로 escape 주입되는 것 방지
