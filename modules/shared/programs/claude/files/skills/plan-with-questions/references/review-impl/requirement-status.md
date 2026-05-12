@@ -39,8 +39,17 @@
 
 ## `review-pr-feedback` 기각 라벨과의 축 구분
 
-`review-pr-feedback`의 기각 분류는 **리뷰어의 지적이 왜 기각되는가**를 나타낸다.
-정본 taxonomy 7개(`HALLUCINATION`, `STALE_REVIEW`, `WRONG_REFERENCE`, `SCOPE_DEFERRAL`, `VERIFIED_FALSE_POSITIVE`, `DESIGN_TRADEOFF`, `TECHNICAL_DISAGREEMENT`)와 각 카테고리 정의/답글 템플릿은 [review-pr-feedback/references/rejection-taxonomy.md](../../../review-pr-feedback/references/rejection-taxonomy.md)를 따른다.
+`review-pr-feedback` 의 기각 분류는 **리뷰어의 지적이 왜 기각되는가** 를 나타낸다.
+
+SSOT taxonomy 7개와 각 카테고리 정의 또는 답글 템플릿의 단일 SSOT 는 [`../../../review-pr-feedback/references/rejection-taxonomy.md`](../../../review-pr-feedback/references/rejection-taxonomy.md) 다. 7개 분류는 다음과 같다:
+
+- `HALLUCINATION`
+- `STALE_REVIEW`
+- `WRONG_REFERENCE`
+- `SCOPE_DEFERRAL`
+- `VERIFIED_FALSE_POSITIVE`
+- `DESIGN_TRADEOFF`
+- `TECHNICAL_DISAGREEMENT`
 본 스킬의 6분류는 **requirement가 문서 대비 어떤 상태인가**를 나타낸다.
 
 두 축은 혼용하지 않는다. 동일 이슈가 양쪽에서 보이면:
@@ -80,4 +89,4 @@ Evidence 라벨은 별개 축이다 (상세: [체크리스트 라벨 체계](../
 
 ## main-agent-only 경계
 
-본 reference (6-classification + overbuilt overlay)는 read-only다. 라벨링·우선 분류 결과는 보고만 산출하며, 구현 추가/제거/체크박스 전환/PRD 정정 같은 tracked write는 메인 에이전트가 사용자 승인된 remediation 단계에서 수행한다. 상세 경계는 [`../../../run-da/references/hardening-contract.md`](../../../run-da/references/hardening-contract.md) `Codex 세션 하드닝 계약` SSOT를 따른다.
+본 reference (6-classification + overbuilt overlay) 는 read-only 다. 라벨링과 우선 분류 결과는 보고만 산출한다. 구현 추가, 제거, 체크박스 전환, PRD 정정 같은 tracked write 는 메인 에이전트가 사용자 승인된 remediation 단계에서 수행한다. 상세 경계의 단일 SSOT 는 [`../../../run-da/references/hardening-contract.md`](../../../run-da/references/hardening-contract.md) 의 "Codex 세션 하드닝 계약" 절이다.
