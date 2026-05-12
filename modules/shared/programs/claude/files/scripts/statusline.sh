@@ -499,7 +499,11 @@ if [ -n "$CWD_CANONICAL" ]; then
   CWD_URL=""
   if ! $IS_SSH; then
     CWD_URL_PATH=$(percent_encode_segment "$CWD_CANONICAL")
-    CWD_URL="vscode://file${CWD_URL_PATH}/"
+    # CWD URL은 file:// 로 단일화 (Plan/Memory와 동일 패턴).
+    # vscode://file/<path>/ scheme은 Ghostty OSC 8 hyperlink dispatch에서 클릭 동작 안 함이
+    # 실측 확인되어 file://로 변경. macOS LaunchServices가 폴더(public.folder) default app을
+    # 호출 — VSCode가 폴더 default면 VSCode 열림, Finder면 Finder 열림.
+    CWD_URL="file://${CWD_URL_PATH}"
   fi
 else
   # 검증 실패: 텍스트만 표시. control 문자가 들어와 fallback으로 escape 주입되는 것 방지
