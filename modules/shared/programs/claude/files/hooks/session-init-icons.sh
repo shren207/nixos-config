@@ -25,9 +25,15 @@ TRANSCRIPT=$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/nul
 SOURCE=$(printf '%s' "$INPUT" | jq -r '.source // empty' 2>/dev/null) || true
 
 # session_id resolution — statusline.sh와 동일 fallback (D-8)
-# stdin.session_id 우선, 비어있으면 transcript basename
+# stdin.session_id 우선, 비어있으면 transcript basename — 단, transcript는
+# .jsonl 확장자 + $HOME/.claude/projects/ 하위에 있을 때만 fallback 허용
+# (audit Edge Cases-3: non-jsonl/outside transcript basename으로 sidecar 생성 방지)
 if [ -z "$SESSION_ID" ] && [ -n "$TRANSCRIPT" ]; then
-  SESSION_ID=$(basename "$TRANSCRIPT" .jsonl)
+  case "$TRANSCRIPT" in
+    "$HOME"/.claude/projects/*/*.jsonl)
+      SESSION_ID=$(basename "$TRANSCRIPT" .jsonl)
+      ;;
+  esac
 fi
 # 패턴 검증 — sidecar 파일명에 사용되므로 safe filename 보장
 case "$SESSION_ID" in

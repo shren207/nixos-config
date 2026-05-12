@@ -30,24 +30,28 @@ sanitize_osc8_url() {
 }
 
 # path segment 내부 공백/control/예약 문자만 percent-encode (`/` separator 유지)
+# byte-aware encoder: UTF-8 multi-byte 문자도 RFC 3986 octet 기준으로 인코딩
+# `jq @uri`는 byte 단위 percent-encoding이고 ASCII unreserved를 그대로 둔다.
+# `/`는 @uri가 `%2F`로 인코딩하므로 path separator 보존을 위해 다시 복원한다.
 percent_encode_segment() {
   local input=$1
-  local i char hex
-  local output=""
-  local len=${#input}
-  for (( i=0; i<len; i++ )); do
-    char="${input:$i:1}"
-    case "$char" in
-      [a-zA-Z0-9._~/-])
-        output+="$char"
-        ;;
-      *)
-        printf -v hex '%%%02X' "'$char"
-        output+="$hex"
-        ;;
-    esac
-  done
-  printf '%s' "$output"
+  [ -z "$input" ] && return
+  if command -v jq >/dev/null 2>&1; then
+    printf '%s' "$input" | jq -sRr '@uri | gsub("%2F"; "/")'
+  else
+    # fallback (jq 미가용 시): char-level encoder. ASCII만 안전, 비ASCII는 깨질 수 있음
+    local i char hex
+    local output=""
+    local len=${#input}
+    for (( i=0; i<len; i++ )); do
+      char="${input:$i:1}"
+      case "$char" in
+        [a-zA-Z0-9._~/-]) output+="$char" ;;
+        *) printf -v hex '%%%02X' "'$char"; output+="$hex" ;;
+      esac
+    done
+    printf '%s' "$output"
+  fi
 }
 
 # 디렉토리를 canonical absolute path로 변환. 미존재 시 빈 문자열
@@ -103,16 +107,29 @@ validate_session_id() {
   return 0
 }
 
-# cwd validation (D-2 보강: 절대경로 + control 문자 없음 + canonical 디렉토리)
+# cwd validation (D-2 보강: control 문자 거부 우선, 그 다음 절대경로 + canonical 디렉토리)
+# control 문자 검사를 절대경로 검사보다 먼저 — 상대경로 형태 cwd에 control 문자가 있으면
+# 검증 실패 fallback에서 raw display로 escape 주입되는 것을 방지
 # 통과 시 canonical cwd 반환, 미통과 시 빈 문자열
 canonicalize_cwd_check() {
   local cwd=$1
   [ -z "$cwd" ] && return
-  case "$cwd" in /*) ;; *) return ;; esac
   if printf '%s' "$cwd" | LC_ALL=C grep -q '[[:cntrl:]]'; then
     return
   fi
+  case "$cwd" in /*) ;; *) return ;; esac
   canonicalize_dir "$cwd"
+}
+
+# Display sanitize: control 문자가 라벨로 직접 흘러가지 않도록 거부
+# 미통과 시 빈 문자열 반환 (호출부는 빈 문자열을 표시 skip으로 처리)
+sanitize_display_text() {
+  local t=$1
+  [ -z "$t" ] && return
+  if printf '%s' "$t" | LC_ALL=C grep -q '[[:cntrl:]]'; then
+    return
+  fi
+  printf '%s' "$t"
 }
 
 # $HOME 접두사를 `~`로 치환
@@ -126,27 +143,34 @@ tilde_shorten() {
 }
 
 # ============================================================
-# Section 1: transcript_path 추출 + canonical validation (D-10 진입 직후)
+# Section 1-2 (통합): stdin JSON 필드 단일 jq 호출로 추출
+#   audit Performance-1: 매초 fork 비용 절감 (4회 → 1회)
+#   추출 후 transcript canonical validation 및 session_id resolution 수행
 # ============================================================
 
-TRANSCRIPT=$(printf '%s' "$input" | jq -r '.transcript_path // empty' 2>/dev/null) || true
-if [ -z "$TRANSCRIPT" ]; then
+if command -v jq >/dev/null 2>&1; then
+  eval "$(printf '%s' "$input" | jq -r '
+    @sh "TRANSCRIPT=\(.transcript_path // "")",
+    @sh "STDIN_SESSION_ID=\(.session_id // "")",
+    @sh "CWD=\(.cwd // "")",
+    @sh "WS_WORKTREE=\(.workspace.git_worktree // "")",
+    @sh "WORKTREE_BRANCH=\(.worktree.branch // "")"
+  ' 2>/dev/null)" 2>/dev/null || true
+fi
+
+if [ -z "${TRANSCRIPT:-}" ]; then
   exit 0
 fi
 
+# transcript canonical validation (D-10)
 CANONICAL_TRANSCRIPT_DIR=$(validate_transcript_path "$TRANSCRIPT")
 TRANSCRIPT_VALID=false
 if [ -n "$CANONICAL_TRANSCRIPT_DIR" ]; then
   TRANSCRIPT_VALID=true
 fi
 
-# ============================================================
-# Section 2: session_id resolution (D-8)
-#   Single resolution: stdin.session_id // basename(transcript .jsonl)
-#   + pattern validation. statusline과 SessionStart hook 동일 resolution
-# ============================================================
-
-SESSION_ID=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null) || true
+# session_id resolution (D-8): stdin.session_id // basename(transcript .jsonl) + 패턴 검증
+SESSION_ID="${STDIN_SESSION_ID:-}"
 if [ -z "$SESSION_ID" ]; then
   SESSION_ID=$(basename "$TRANSCRIPT" .jsonl)
 fi
@@ -164,17 +188,24 @@ SESSION_ID_SHORT=""
 NOW=$(date +%s)
 HEAVY_CACHE_DIR="${XDG_RUNTIME_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/claude-statusline}"
 mkdir -p "$HEAVY_CACHE_DIR"
+
+# Sidecar identity guard (D-8 + audit Edge Cases-1/2):
+#   SESSION_ID 비어있거나 TRANSCRIPT_VALID=false면 sidecar I/O 전체 비활성
+#   HEAVY_STATE, ICONS_FILE, LAST_STOP_FILE 모두 같은 guard로 묶음
+SIDECAR_IO_ENABLED=false
 HEAVY_STATE=""
-[ -n "$SESSION_ID" ] && HEAVY_STATE="${HEAVY_CACHE_DIR}/heavy-${SESSION_ID}"
+if [ -n "$SESSION_ID" ] && $TRANSCRIPT_VALID; then
+  SIDECAR_IO_ENABLED=true
+  HEAVY_STATE="${HEAVY_CACHE_DIR}/heavy-${SESSION_ID}"
+fi
 HEAVY_INTERVAL=10
 DO_HEAVY=true
 
-# cwd 추출 (DO_HEAVY 판정에 필요)
-CWD=$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null) || true
+# cwd 정규화 (위 jq 통합 추출에서 받음. 빈 문자열이면 $PWD fallback)
 CWD=${CWD:-$PWD}
 
 # Cached CWD 비교 → cwd 변경 시 timestamp 무관 DO_HEAVY=true
-if [ -n "$HEAVY_STATE" ] && [ -f "$HEAVY_STATE" ]; then
+if $SIDECAR_IO_ENABLED && [ -f "$HEAVY_STATE" ]; then
   last_heavy=$(head -1 "$HEAVY_STATE" 2>/dev/null || echo 0)
   CACHED_CWD=""
   if [ -f "${HEAVY_STATE}.vars" ]; then
@@ -211,6 +242,18 @@ GIT_BRANCH=""
 if $DO_HEAVY; then
 
 # -- Plan 파일 감지 (transcript valid 시에만)
+#
+# === Change Intent Record ===
+# v1 (초기): 세션별 state file (.statusline-plan-<session_id>)로 격리.
+#    resume/compact 시 동일 session_id로 fallback 정상 작동.
+# v2: /clear 시 Claude Code가 새 transcript(= 새 session_id)를 생성하여
+#    이전 session_id의 state file을 찾지 못하는 문제 발견.
+#    프로젝트 단위 fallback (.statusline-plan-current) 추가.
+#    우선순위: transcript 감지 > 세션별 state > 프로젝트 단위 state.
+# v3: 프로젝트 단위 fallback 사용 시 plan 파일 복사본 생성.
+#    원본과의 편집 충돌 방지. 복사본 이름: <원본>-<session_id 8자>.md.
+# v4 (이번): TRANSCRIPT_VALID 조건 추가. canonical transcript dir에 state 파일 조립.
+#    raw `dirname "$TRANSCRIPT"` 대신 canonical 경로 사용으로 path traversal 차단.
 PLAN_STATE_FILE=""
 PROJECT_PLAN_STATE=""
 if $TRANSCRIPT_VALID; then
@@ -245,6 +288,23 @@ elif [ -z "$PLAN_FILE" ] && [ -n "$PROJECT_PLAN_STATE" ] && [ -f "$PROJECT_PLAN_
 fi
 
 # -- Memory 감지 (canonical transcript dir 기반)
+#
+# === Change Intent Record ===
+# v1 (PR #264): dirname(transcript_path)/memory/로 경로 유도.
+#    main repo에서는 정상 동작하나 worktree 세션에서 아이콘 미표시 버그 발견.
+#    원인: Claude Code는 findCanonicalGitRoot(.git → gitdir → commondir)로
+#    worktree에서도 main repo의 memory를 사용하지만, transcript_path는
+#    worktree별 프로젝트 디렉토리(~/.claude/projects/<worktree-encoded>/)에
+#    저장되어 memory 경로와 불일치.
+# v2: cwd + git rev-parse --git-common-dir로 canonical root를 해석.
+#    transcript 경로에 memory/가 없으면 cwd에서 git common dir를 찾아
+#    main repo 경로를 유도하고 ~/.claude/projects/<main-repo-encoded>/memory/를 구성.
+#    trade-off: worktree 세션에서 git rev-parse 1~2회 추가 실행되지만,
+#              main repo와 동일한 memory를 정확히 표시.
+# v3 (orphan 감지): MEMORY.md에 등록되지 않은 파일은 Claude가 접근 불가
+#    (getMemoryFiles는 MEMORY.md만 읽고 디렉토리를 스캔하지 않음).
+#    orphan 존재 시 ⚠ 표시. 평소엔 깔끔하고 orphan 존재 시에만 시각적 신호.
+# v4 (이번): canonical transcript dir 기반으로 변경. URL은 universal sanitize 적용.
 if $TRANSCRIPT_VALID; then
   PROJECT_MEMORY_DIR="$CANONICAL_TRANSCRIPT_DIR/memory"
   GLOBAL_MEMORY_DIR="$HOME/.claude/memory"
@@ -291,7 +351,20 @@ if $TRANSCRIPT_VALID; then
   fi
 fi
 
-# -- Cache TTL detection (기존 로직 유지, transcript valid 시에만)
+# -- Cache TTL detection
+#
+# === Change Intent Record ===
+# v1 (PR #444): CACHE_TTL=300 하드코딩 (5분 전용).
+# v2: Max 구독자 1시간 TTL 대응. transcript에서 assistant usage의
+#   cache_creation.ephemeral_1h_input_tokens를 jq로 파싱하여 감지.
+#   grep 대신 jq: user 메시지에 포함된 필드명 텍스트 오탐 방지 (DA Regression-F2).
+#   sticky: 이전 heavy에서 감지한 CACHE_TTL을 vars에서 복원.
+#     pure cache hit(cache_creation 없음)에서는 이전 값을 유지한다.
+#     실측: 매 턴 새 메시지 추가로 cache_creation > 0 (최솟값 ~120 tokens),
+#     ephemeral 상세도 항상 존재하므로 pure hit에 의한 stale은 발생하지 않음.
+#   다운그레이드 감지: 마지막 cache_creation이 5m이면 300으로 복귀.
+# v3 (이번): SIDECAR_IO_ENABLED 가드 추가. canonical transcript dir 기반.
+# 우선순위: CLAUDE_CACHE_TTL env > transcript 감지 > vars 캐시 > 기본값 300
 if [ -f "${HEAVY_STATE}.vars" ]; then
   eval "$(grep '^CACHE_TTL=' "${HEAVY_STATE}.vars" 2>/dev/null)" 2>/dev/null || true
 fi
@@ -306,10 +379,9 @@ if $TRANSCRIPT_VALID && [ -f "$TRANSCRIPT" ]; then
 fi
 
 # -- Worktree detection (D-14)
-#    Primary: stdin.workspace.git_worktree (linked worktree에만 제공)
+#    Primary: stdin.workspace.git_worktree (위 jq 통합에서 추출)
 #    Fallback: git rev-parse --path-format=absolute --git-dir/--git-common-dir
-WS_WORKTREE=$(printf '%s' "$input" | jq -r '.workspace.git_worktree // empty' 2>/dev/null) || true
-if [ -n "$WS_WORKTREE" ]; then
+if [ -n "${WS_WORKTREE:-}" ]; then
   IS_WORKTREE=true
 elif [ -d "$CWD" ]; then
   GIT_DIR_ABS=$(git -C "$CWD" rev-parse --path-format=absolute --git-dir 2>/dev/null) || true
@@ -320,21 +392,25 @@ elif [ -d "$CWD" ]; then
 fi
 
 # -- Branch 추출 (D-14: worktree.branch || git branch --show-current)
-GIT_BRANCH=$(printf '%s' "$input" | jq -r '.worktree.branch // empty' 2>/dev/null) || true
+GIT_BRANCH="${WORKTREE_BRANCH:-}"
 if [ -z "$GIT_BRANCH" ] && [ -d "$CWD" ]; then
   GIT_BRANCH=$(git -C "$CWD" branch --show-current 2>/dev/null) || true
 fi
 
-# -- Heavy 결과 저장 (D-15: CACHED_CWD 포함)
-printf 'PLAN_FILE=%q\nMEMORY_LINK=%q\nMEMORY_LABEL=%q\nCACHE_TTL=%q\nIS_WORKTREE=%q\nGIT_BRANCH=%q\nCACHED_CWD=%q\n' \
-  "$PLAN_FILE" "$MEMORY_LINK" "$MEMORY_LABEL" "$CACHE_TTL" "$IS_WORKTREE" "$GIT_BRANCH" "$CWD" \
-  > "${HEAVY_STATE}.vars"
-echo "$NOW" > "$HEAVY_STATE"
+# -- Heavy 결과 저장 (D-15: CACHED_CWD 포함). SIDECAR_IO_ENABLED 가드
+if $SIDECAR_IO_ENABLED; then
+  printf 'PLAN_FILE=%q\nMEMORY_LINK=%q\nMEMORY_LABEL=%q\nCACHE_TTL=%q\nIS_WORKTREE=%q\nGIT_BRANCH=%q\nCACHED_CWD=%q\n' \
+    "$PLAN_FILE" "$MEMORY_LINK" "$MEMORY_LABEL" "$CACHE_TTL" "$IS_WORKTREE" "$GIT_BRANCH" "$CWD" \
+    > "${HEAVY_STATE}.vars"
+  echo "$NOW" > "$HEAVY_STATE"
+fi
 
 else
-  # Light run: 캐시된 변수 복원
-  # shellcheck source=/dev/null
-  source "${HEAVY_STATE}.vars" 2>/dev/null || true
+  # Light run: 캐시된 변수 복원. SIDECAR_IO_ENABLED 시에만
+  if $SIDECAR_IO_ENABLED && [ -f "${HEAVY_STATE}.vars" ]; then
+    # shellcheck source=/dev/null
+    source "${HEAVY_STATE}.vars" 2>/dev/null || true
+  fi
   # bash bool 변수 복원 (eval 결과 string이라 '$IS_WORKTREE' 평가가 문자열일 수 있음)
   [ "$IS_WORKTREE" = "true" ] && IS_WORKTREE=true || IS_WORKTREE=false
 fi
@@ -349,7 +425,7 @@ fi
 #   SESSION_ID 검증 통과 시에만 sidecar I/O
 # ============================================================
 ICONS_FILE=""
-[ -n "$SESSION_ID" ] && ICONS_FILE="$HOME/.claude/status-icons/$SESSION_ID.json"
+$SIDECAR_IO_ENABLED && ICONS_FILE="$HOME/.claude/status-icons/$SESSION_ID.json"
 
 JIRA_URL="" JIRA_LABEL=""
 SLACK_URL="" SLACK_LABEL=""
@@ -426,8 +502,8 @@ if [ -n "$CWD_CANONICAL" ]; then
     CWD_URL="vscode://file${CWD_URL_PATH}/"
   fi
 else
-  # 검증 실패: 텍스트만 표시
-  CWD_DISPLAY=$(tilde_shorten "$CWD")
+  # 검증 실패: 텍스트만 표시. control 문자가 들어와 fallback으로 escape 주입되는 것 방지
+  CWD_DISPLAY=$(sanitize_display_text "$(tilde_shorten "$CWD")")
   CWD_URL=""
 fi
 
@@ -571,7 +647,7 @@ render_rate_window() {
 }
 
 # ============================================================
-# Output: 라인별 출력 (D-13: render_line 헬퍼만, context_lines 추상화 없음)
+# Output: 라인별 출력 (D-13: begin_line/end_line 헬퍼만, context_lines 추상화 없음)
 # ============================================================
 
 # L1: /set-icons (Jira → Slack → Figma → Memo) — 조건부 라인
@@ -635,7 +711,7 @@ fi
 # Cache TTL (기존 로직 유지, SESSION_ID 검증 통과 시에만)
 CACHE_TTL_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/claude-hooks"
 LAST_STOP_FILE=""
-[ -n "$SESSION_ID" ] && LAST_STOP_FILE="${CACHE_TTL_DIR}/last-stop-${SESSION_ID}"
+$SIDECAR_IO_ENABLED && LAST_STOP_FILE="${CACHE_TTL_DIR}/last-stop-${SESSION_ID}"
 if [ -n "$LAST_STOP_FILE" ] && [ -f "$LAST_STOP_FILE" ]; then
   last_stop=$(cat "$LAST_STOP_FILE" 2>/dev/null)
   if [ -n "$last_stop" ] 2>/dev/null; then
