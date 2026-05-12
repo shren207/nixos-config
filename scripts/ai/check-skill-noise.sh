@@ -3,7 +3,8 @@
 #
 # 검증 대상 (PR #732 정책):
 # - bold (`**X**`) 잔존: 0 건이어야 함 (코드 블록 / inline code 외).
-# - excessive empty lines (3+ consecutive empty lines, 즉 4+ \n): 0 건이어야 함 (코드 블록 외).
+# - excessive empty lines: 0 건이어야 함 (코드 블록 외). 정의는 "3+ consecutive newlines" (`\n{3,}`) —
+#   markdown paragraph break (`\n\n`, 2 consecutive newlines) 는 보존하고, 그 이상은 정규화.
 #
 # 보존 대상 (변경 없음):
 # - 코드 블록 (` ``` ... ``` `) 안 모든 syntax.
@@ -30,12 +31,15 @@ from pathlib import Path
 base = Path(sys.argv[1])
 
 def tokenize_fences(text):
+    # CommonMark fenced code block: opening fence 가 있으면 같은 character + 같거나 더 긴 length 의
+    # closing fence 만 닫는다. 다른 fence 문자 (예: ``` 안 ~~~ 또는 ~~~ 안 ```) 는 content 로 취급.
+    # 단일 open fence 상태만 유지 — nested fence 가정 금지.
     spans = []
     lines = text.split('\n')
     line_starts = [0]
     for line in lines[:-1]:
         line_starts.append(line_starts[-1] + len(line) + 1)
-    fence_stack = []
+    open_fence = None  # (char, length, start_pos) 또는 None
     for i, line in enumerate(lines):
         stripped = line.lstrip()
         indent = len(line) - len(stripped)
@@ -48,16 +52,18 @@ def tokenize_fences(text):
         char = fence_str[0]
         length = len(fence_str)
         after = stripped[length:]
-        if fence_stack:
-            top_char, top_len, top_start = fence_stack[-1]
+        if open_fence is not None:
+            top_char, top_len, top_start = open_fence
             if char == top_char and length >= top_len and after.strip() == '':
                 end_pos = line_starts[i] + len(line)
                 spans.append((top_start, end_pos))
-                fence_stack.pop()
-                continue
-        fence_stack.append((char, length, line_starts[i]))
-    while fence_stack:
-        char, length, start = fence_stack.pop()
+                open_fence = None
+            # else: content 줄로 간주 (다른 fence 문자거나 closing 매칭 실패)
+            continue
+        # 열린 fence 가 없을 때만 새 opening fence 인식
+        open_fence = (char, length, line_starts[i])
+    if open_fence is not None:
+        char, length, start = open_fence
         spans.append((start, len(text)))
     return sorted(spans)
 
@@ -124,8 +130,8 @@ def count_excessive_empty_outside(text):
     spans = protected_spans(text)
     count = 0
     locations = []
-    # 4+ consecutive newlines = 3+ empty lines
-    for m in re.finditer(r'\n{4,}', text):
+    # 3+ consecutive newlines (= 2+ empty lines 이상). markdown paragraph break (\n\n, 2 newlines) 는 보존.
+    for m in re.finditer(r'\n{3,}', text):
         if not any(s <= m.start() < e for s, e in spans):
             count += 1
             lineno = text[:m.start()].count('\n') + 1
