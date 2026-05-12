@@ -515,10 +515,13 @@ if [ -n "$CWD_CANONICAL" ]; then
   CWD_URL=""
   if ! $IS_SSH; then
     CWD_URL_PATH=$(percent_encode_segment "$CWD_CANONICAL")
-    # CWD URL은 vscode://file/<path>/ (D-2).
-    # Ghostty source 분석상 OSC 8 scheme 필터 없음 — macOS NSWorkspace.open이 dispatch.
-    # 사용자 검증: hover tooltip `vscode://file/...` 정상, `open vscode://...` VSCode 정상 동작.
-    CWD_URL="vscode://file${CWD_URL_PATH}/"
+    # CWD URL은 file:// (실측 — Ghostty 1.3.1이 vscode:// OSC 8 click을 silently drop.
+    # file://는 Plan/Memory와 동일하게 정상 dispatch).
+    # macOS LaunchServices가 폴더(public.folder) default app으로 dispatch.
+    # 폴더 default를 VSCode로 등록(duti -s com.microsoft.VSCode public.folder all)하면
+    # cwd 클릭 → VSCode 폴더 열기 (D-2 의도 충족).
+    # nix-darwin home-manager에 duti activation script로 영구 등록.
+    CWD_URL="file://${CWD_URL_PATH}"
   fi
 else
   # 검증 실패: 텍스트만 표시. control 문자가 들어와 fallback으로 escape 주입되는 것 방지
