@@ -136,15 +136,15 @@ session_hook_log session-start "src=$SOURCE sid=$SESSION_ID cwd=$CWD state_exist
 
 case "$SOURCE" in
   startup)
-    # 새 세션은 빈 상태로 시작 — 같은 cwd의 이전 sid 상태를 자동 상속하지 않는다.
-    # STATE_FILE이 이미 존재하면 보존(동일 sid로 startup이 재발화되는 케이스
-    # 방어). 부재면 빈 객체로 시작. lineage 복원은 clear|resume|compact 분기로
-    # 한정 — startup에서 복원하면 새 독립 세션도 이전 세션의 아이콘/메모를
-    # 상속해 "새 세션 = 빈 상태" 관례를 깨뜨린다.
+    # 새 세션 startup은 빈 sidecar로 시작하되 cwd 마커는 건드리지 않는다.
+    # marker 관리는 전적으로 Stop hook(record-last-session.sh)의 책임이며,
+    # 결과적으로 같은 cwd에서 동시에 두 인스턴스가 떠 있어도 startup이 다른
+    # 인스턴스의 active marker를 덮어쓰지 않는다.
     #
-    # 만약 Claude Code가 `/clear`를 source=startup으로 라벨링하는 빌드가
-    # 발견되면 CLAUDE_HOOK_DEBUG=1로 채집해 source 라벨 매핑을 확인한 뒤
-    # 별도 follow-up에서 startup-labeled-clear 식별 방법을 도입한다.
+    # STATE_FILE이 이미 존재하면 보존(동일 sid로 startup이 재발화되는 케이스
+    # 방어). 부재면 빈 객체로 시작. lineage 복원은 clear|resume|compact 분기에서만
+    # 수행되며, 사용자 의도("아카이빙 우선")에 따라 같은 cwd 재방문 시 직전
+    # 세션의 jira/slack/figma/memo가 /clear 시점에 자동 복원된다.
     if [ ! -f "$STATE_FILE" ]; then
       echo '{}' > "$STATE_FILE"
       [ ! -f "$MEMO_FILE" ] && : > "$MEMO_FILE"
@@ -152,34 +152,7 @@ case "$SOURCE" in
     [ ! -f "$MEMO_FILE" ] && : > "$MEMO_FILE"
     chmod 600 "$STATE_FILE" "$MEMO_FILE" 2>/dev/null || true
 
-    # Marker reset: startup 시점에 cwd 마커를 항상 현재 sid로 갱신.
-    #
-    # 의도: "새 세션 = 빈 상태" 정책의 일관성 보장. 같은 cwd에서 며칠 전 작업
-    # 마커가 남아 있다고 해도, 새 세션의 첫 /clear가 그 옛 sid sidecar를
-    # 복원하면 사용자 의도(새 세션 = 빈 상태)가 우회로로 깨진다. startup 시점에
-    # marker를 자기 sid로 reset해 두면 첫 /clear가 자기(빈) sidecar에서 복원
-    # 시도해 결과적으로 빈 상태가 유지된다. Stop hook이 매 턴 marker를
-    # last-writer-wins로 덮어쓰는 정책과 동일선상.
-    if [ -n "$CWD" ]; then
-      BOOTSTRAP_MARKER=$(marker_path_for_cwd "$CWD" 2>/dev/null) || BOOTSTRAP_MARKER=""
-      if [ -n "$BOOTSTRAP_MARKER" ]; then
-        _bootstrap_tmp=$(mktemp "$SESSION_STATE_DIR/${SESSION_MARKER_PREFIX}XXXXXX" 2>/dev/null) || _bootstrap_tmp=""
-        if [ -n "$_bootstrap_tmp" ]; then
-          printf '%s\n' "$SESSION_ID" > "$_bootstrap_tmp"
-          # atomic last-writer-wins. 동시 startup 발생 시 마지막에 도달한 sid가
-          # marker를 갖는다. Stop hook의 갱신 정책과 일치.
-          mv "$_bootstrap_tmp" "$BOOTSTRAP_MARKER" 2>/dev/null || rm -f "$_bootstrap_tmp"
-          chmod 600 "$BOOTSTRAP_MARKER" 2>/dev/null || true
-          session_hook_log session-start "reset-marker sid=$SESSION_ID cwd=$CWD"
-        fi
-      fi
-    fi
-
-    # Retention 정리 없음 — 아카이빙 우선 정책. sidecar/memo/marker는 사용자가
-    # 명시적으로 정리하기 전까지 보존된다. 도입 이유 없이 박혀 있던 30일 자동
-    # 삭제는 제거 (PR #263 본문/CIR 어디에도 30일 정당화 없음).
-
-if [ -f "$STATE_FILE" ]; then
+    if [ -f "$STATE_FILE" ]; then
       ACTIVE_ICONS=$(jq -r 'keys | join(", ")' "$STATE_FILE" 2>/dev/null) || ACTIVE_ICONS=""
       [ -z "$ACTIVE_ICONS" ] && ACTIVE_ICONS="없음"
     else
