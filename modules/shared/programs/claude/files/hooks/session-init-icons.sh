@@ -63,6 +63,9 @@ if [ -z "$SESSION_ID" ] && [ -n "$TRANSCRIPT" ]; then
   esac
 fi
 if ! is_safe_session_id "$SESSION_ID"; then
+  # unsafe sid는 sidecar/marker 파일명에 사용할 수 없어 hook을 즉시 종료한다.
+  # 운영자가 "왜 sidecar가 부재한가"를 추적할 수 있도록 진단 로그를 남긴다.
+  session_hook_log session-start-unsafe "src=$SOURCE sid=$SESSION_ID cwd=$CWD"
   exit 0
 fi
 
@@ -74,10 +77,14 @@ chmod 700 "$SESSION_STATE_DIR" "$SESSION_MEMO_DIR" 2>/dev/null || true
 
 # 같은 cwd의 직전 sid sidecar를 deep clone 복원.
 #
-# Invariant:
-# - 성공 시(return 0): STATE_FILE과 MEMO_FILE이 둘 다 valid 상태로 생성.
-# - 실패 시(return 1): STATE_FILE/MEMO_FILE은 부분 쓰기 흔적까지 모두 제거되어
-#   호출부 fallback(`echo '{}' > STATE_FILE`)이 깨끗하게 덮을 수 있다.
+# Invariant (정확히):
+# - return 0: STATE_FILE은 valid JSON, MEMO_FILE은 last_memo의 정확한 사본 또는
+#   정상 빈 파일(last_memo 부재 시). 둘 다 자기 sid 경로에 있고 호출부는 그대로
+#   사용할 수 있다.
+# - return 1: STATE_FILE도 MEMO_FILE도 부분 쓰기 흔적 없이 제거되어, 호출부
+#   fallback(`echo '{}' > STATE_FILE`)이 깨끗하게 덮을 수 있다.
+# - `if ! restore_from_cwd_lineage` 호출 컨텍스트에서 set -e가 함수 내부에서
+#   비활성화되므로(POSIX/bash 동작) 매 단계의 실패를 명시적으로 처리한다.
 #
 # 보안 정책:
 # - last_state JSON의 .memo.path는 set-icons 스킬을 통해 LLM이 임의로 설정 가능한
@@ -99,9 +106,15 @@ restore_from_cwd_lineage() {
   # memo 경로는 sid로 결정적 재구성 — last_state의 .memo.path 신뢰 안 함.
   last_memo="$SESSION_MEMO_DIR/${last_sid}.md"
   if [ -f "$last_memo" ]; then
-    cp "$last_memo" "$MEMO_FILE"
-  else
-    : > "$MEMO_FILE"
+    # cp 실패(rofs/quota/permission)도 명시적 처리. 부분 쓰기 흔적을 정리하고
+    # return 1으로 호출부 fallback에 위임.
+    if ! cp "$last_memo" "$MEMO_FILE" 2>/dev/null; then
+      rm -f "$MEMO_FILE"
+      return 1
+    fi
+  elif ! : > "$MEMO_FILE" 2>/dev/null; then
+    rm -f "$MEMO_FILE"
+    return 1
   fi
   # status JSON 복사 + .memo.path를 새 sid 경로로 rewrite. jq 실패는 명시적
   # 처리 — 부분 쓰기 STATE_FILE과 새로 만든 MEMO_FILE을 모두 제거하고 return 1.
@@ -114,6 +127,8 @@ restore_from_cwd_lineage() {
   return 0
 }
 
+# 모든 source(unknown 포함)에 대해 진단 로그를 남긴다 — 디버그 활성 시
+# unknown source 라벨의 실측 채집이 본 인프라의 본연 목적.
 session_hook_log session-start "src=$SOURCE sid=$SESSION_ID cwd=$CWD state_exists=$([ -f "$STATE_FILE" ] && echo y || echo n)"
 
 case "$SOURCE" in

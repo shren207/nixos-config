@@ -62,6 +62,6 @@ printf '%s\n' "$SESSION_ID" > "$tmp"
 mv "$tmp" "$MARKER_FILE"
 chmod 600 "$MARKER_FILE" 2>/dev/null || true
 
-session_hook_log stop "sid=$SESSION_ID cwd=$CWD"
+session_hook_log stop "sid=$SESSION_ID cwd=$CWD marker=$MARKER_FILE"
 
 exit 0
