@@ -119,8 +119,9 @@ def tokenize_inline_code(text, fence_spans):
             m_open = queue.pop(0)
             between = text[m_open.end():start]
             if '\n\n' in between:
-                # blank-line 사이에 끼인 opener 는 만료 (R-1 / M-1 정정).
-                # 현재 run 은 opening delimiter 후보로 재시도 — escape 검사 필요.
+                # blank-line 을 사이에 둔 opener 는 만료한다. 그대로 큐에 두면 뒤쪽 문단의
+                # 정상 backtick pair 가 늘 같은 만료 opener 와 매칭되어 inline code span 으로
+                # 등록되지 않는다. 따라서 현재 run 은 새 opening delimiter 후보로 재평가한다.
                 if not queue:
                     del open_runs[run_len]
                 if not is_escaped(start):
