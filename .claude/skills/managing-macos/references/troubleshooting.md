@@ -42,7 +42,7 @@ sudo --preserve-env=SSH_AUTH_SOCK darwin-rebuild switch --flake .
 ## darwin-rebuild: command not found (부트스트랩 전)
 
 에러 메시지:
-```
+```text
 zsh: command not found: darwin-rebuild
 ```
 
@@ -102,7 +102,7 @@ sudo --preserve-env=SSH_AUTH_SOCK nix run nix-darwin -- switch --flake .
 ## primary user does not exist
 
 에러 메시지:
-```
+```text
 error: primary user `username` does not exist, aborting activation
 Please ensure that `system.primaryUser` is set to the name of an existing user.
 ```

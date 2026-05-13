@@ -127,7 +127,7 @@ end)
 
 증상: `[FA]Get Compressed Video` 같은 폴더에서 실행 시 에러
 
-```
+```text
 zsh: no matches found: /Users/green/FolderActions/[FA]Get
 ```
 
@@ -149,7 +149,7 @@ hs.eventtap.keyStrokes('cd "' .. path .. '" && clear')
 
 증상: `hs -c 'hs.notify...'` 실행 시 오류 발생
 
-```
+```text
 error: can't access Hammerspoon message port Hammerspoon; is it running with the ipc module loaded?
 ```
 
@@ -164,7 +164,7 @@ require("hs.ipc")
 
 추가 문제: IPC 포트 불안정 (장시간 실행 후)
 
-```
+```text
 ipc port is no longer valid (early)
 stack overflow
 ```

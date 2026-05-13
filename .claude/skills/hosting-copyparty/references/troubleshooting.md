@@ -98,7 +98,7 @@ sudo cat /var/lib/docker-data/copyparty/config/copyparty.conf | cat -A
 ## 6. "multiple filesystem-paths" 에러
 
 증상: 컨테이너 로그에 다음 에러 출력 후 즉시 종료
-```
+```text
 CRIT: multiple filesystem-paths mounted at [/immich]:
   [/data/immich]
   [/data/immich]
@@ -122,7 +122,7 @@ Copyparty에서 하위 경로에 다른 ACL을 적용하려면 루트 볼륨과 
 ## 7. initcfg 루트 볼륨 충돌
 
 증상: 컨테이너 로그에 다음 에러 출력 후 즉시 종료
-```
+```text
 CRIT: multiple filesystem-paths mounted at [/]:
   [/data]
   [/data]

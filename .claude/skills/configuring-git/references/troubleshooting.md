@@ -20,7 +20,7 @@ Git 관련 문제와 해결 방법을 정리합니다.
 
 원인: delta의 우선순위 구조 때문.
 
-```
+```text
 우선순위 (높→낮):
 1. [delta] 기본 섹션 (gitconfig)
 2. 환경변수 (DELTA_FEATURES)
@@ -114,7 +114,7 @@ export DELTA_FEATURES=""
 
 증상: lazygit 실행 시 `permission denied` 에러
 
-```
+```text
 While attempting to write back migrated user config to
 .../lazygit/config.yml, an error occurred:
 open .../lazygit/config.yml: permission denied
