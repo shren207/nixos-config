@@ -21,7 +21,9 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-SKILLS_DIR="${SKILLS_DIR:-$REPO_ROOT/modules/shared/programs/claude/files/skills}"
+# 첫 positional arg 가 SKILLS_DIR override (PoC / 테스트 전용). 미지정 시 canonical repo 경로.
+# pre-commit hook 은 인자 없이 호출하여 ambient env 와 무관하게 canonical corpus 만 검사한다.
+SKILLS_DIR="${1:-$REPO_ROOT/modules/shared/programs/claude/files/skills}"
 
 if [ ! -d "$SKILLS_DIR" ]; then
   echo "[FAIL] Skills directory not found: $SKILLS_DIR" >&2
@@ -90,38 +92,47 @@ def tokenize_inline_code(text, fence_spans):
     # 같은 길이의 backtick run 두 개로 둘러싸인 inline code span을 paired matching.
     # CommonMark: 같은 길이 backtick run delimiter, between text 에 두 개 이상의 연속 newline (`\n\n`)
     # 있으면 inline code 미성립.
-    # Escaped backtick: backtick run 시작 직전 backslash 가 홀수 개면 literal 로 간주하고 delimiter 아닌
-    # 것으로 처리한다. 단 fenced code block 내부에서는 backslash escape 가 적용되지 않으므로 fence_spans
-    # 안 backtick 은 그냥 skip (delimiter 아님으로 처리).
+    # Escaped backtick: opening delimiter 후보일 때만 escape literal 처리 (backslash 홀수 개면 skip).
+    # closing delimiter 후보 (open queue 에 같은 길이 entry 존재) 일 때는 escape 검사하지 않는다.
+    # CommonMark code span 내부에서는 backslash escape 가 동작하지 않기 때문이다 (Example 338).
+    # Fenced code block 안 backtick 은 fence_spans 로 미리 걸러진다.
     fence_starts = [s for s, e in fence_spans]
     spans = []
     open_runs = {}  # length -> [Match, ...] (FIFO queue per length)
+
+    def is_escaped(pos):
+        backslashes = 0
+        i = pos - 1
+        while i >= 0 and text[i] == '\\':
+            backslashes += 1
+            i -= 1
+        return backslashes % 2 == 1
+
     for m in re.finditer(r'`+', text):
         start = m.start()
         if _in_span(start, fence_spans, fence_starts):
             continue
-        # escape 처리 (fence 밖에서만)
-        backslashes = 0
-        i = start - 1
-        while i >= 0 and text[i] == '\\':
-            backslashes += 1
-            i -= 1
-        if backslashes % 2 == 1:
-            continue
         run_len = len(m.group())
         queue = open_runs.get(run_len)
         if queue:
+            # closing delimiter 후보 — escape 검사 안 함 (code span 내부 escape 미동작)
             m_open = queue.pop(0)
             between = text[m_open.end():start]
             if '\n\n' in between:
-                # multi-line — pairing 미성립. 두 run 모두 다시 open 으로 처리 (FIFO 위치 유지).
-                queue.insert(0, m_open)
-                queue.append(m)
+                # blank-line 사이에 끼인 opener 는 만료 (R-1 / M-1 정정).
+                # 현재 run 은 opening delimiter 후보로 재시도 — escape 검사 필요.
+                if not queue:
+                    del open_runs[run_len]
+                if not is_escaped(start):
+                    open_runs.setdefault(run_len, []).append(m)
             else:
                 spans.append((m_open.start(), m.end()))
-            if not queue:
-                del open_runs[run_len]
+                if not queue:
+                    del open_runs[run_len]
         else:
+            # opening delimiter 후보 — escape 검사
+            if is_escaped(start):
+                continue
             open_runs.setdefault(run_len, []).append(m)
     return sorted(spans)
 
