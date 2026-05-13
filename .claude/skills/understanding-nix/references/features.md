@@ -107,7 +107,7 @@ lefthook을 사용하여 커밋 전 자동 검사를 수행합니다. 민감 정
 
 상세 hook 정책은 repo 루트 `README.md`와 `lefthook.yml`을 기준으로 한다. 직접 스크립트 실행은 installed pre-commit staged snapshot 경로와 동일하지 않다.
 
-**사용법:**
+사용법:
 
 ```bash
 # devShell 진입 (lefthook 자동 설치)

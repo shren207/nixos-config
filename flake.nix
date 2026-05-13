@@ -220,7 +220,8 @@
 
       # test/verifier 래핑용 tomlkit 포함 python3.
       # pre-push hook(lefthook.yml)과 verify-ai-compat이 `nix shell .#pythonWithTomlkit --command`로
-      # 호출한다. devShell은 건드리지 않아 direnv/bare python3 해석에는 영향 없음.
+      # 호출한다. devShell에도 포함되어 있어 install-lefthook-hooks.sh가 shellHook에서 같은
+      # interpreter를 사용하고, direnv 환경의 python3도 tomlkit 포함 버전으로 resolve된다.
       # 정의는 `libraries/python-runtimes.nix` 단일 소스이며, activation(`codex/default.nix`)도
       # 같은 파일을 import해 동일 store path를 공유한다.
       packages = nixpkgs.lib.genAttrs [ systems.darwin systems.linux ] (

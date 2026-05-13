@@ -52,15 +52,27 @@ staged_added_paths() {
     while IFS= read -r -d '' status; do
       case "$status" in
         A)
-          IFS= read -r -d '' path || true
+          if ! IFS= read -r -d '' path; then
+            err "malformed staged name-status metadata: missing path for added entry"
+            return 1
+          fi
           printf '%s\n' "$path"
           ;;
         R* | C*)
-          IFS= read -r -d '' path || true
-          IFS= read -r -d '' path || true
+          if ! IFS= read -r -d '' path; then
+            err "malformed staged name-status metadata: missing source path for $status entry"
+            return 1
+          fi
+          if ! IFS= read -r -d '' path; then
+            err "malformed staged name-status metadata: missing target path for $status entry"
+            return 1
+          fi
           ;;
         *)
-          IFS= read -r -d '' path || true
+          if ! IFS= read -r -d '' path; then
+            err "malformed staged name-status metadata: missing path for $status entry"
+            return 1
+          fi
           ;;
       esac
     done < "$STAGED_SNAPSHOT_STAGED_NAME_STATUS_NUL_FILE"
@@ -68,6 +80,17 @@ staged_added_paths() {
   fi
 
   git -C "$REPO_ROOT" diff --name-only --cached --diff-filter=A
+}
+
+staged_added_shared_skill_markdowns() {
+  local added_paths path
+  added_paths="$(staged_added_paths)" || return 1
+  while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    if [[ "$path" =~ ^modules/shared/programs/claude/files/skills/[^/]+/SKILL\.md$ ]]; then
+      printf '%s\n' "$path"
+    fi
+  done <<< "$added_paths"
 }
 
 should_enforce_fail=0
@@ -157,6 +180,7 @@ SHARED_CLAUDE_NIX="$REPO_ROOT/modules/shared/programs/claude/default.nix"
 SHARED_CODEX_NIX="$REPO_ROOT/modules/shared/programs/codex/default.nix"
 
 if [ -f "$SHARED_CLAUDE_NIX" ] && { has_staged_snapshot_input || git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1; }; then
+  shared_skill_markdowns="$(staged_added_shared_skill_markdowns)"
   while IFS= read -r shared_skill_md; do
     [ -n "$shared_skill_md" ] || continue
     skill_name="$(basename "$(dirname "$shared_skill_md")")"
@@ -170,7 +194,7 @@ if [ -f "$SHARED_CLAUDE_NIX" ] && { has_staged_snapshot_input || git -C "$REPO_R
       warnings=$((warnings + 1))
       should_enforce_fail=1
     fi
-  done < <(staged_added_paths | grep -E '^modules/shared/programs/claude/files/skills/[^/]+/SKILL\.md$' || true)
+  done <<< "$shared_skill_markdowns"
 fi
 
 if [ "$warnings" -eq 0 ]; then

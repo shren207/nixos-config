@@ -173,6 +173,16 @@ test_ai_skills_consistency_without_git_metadata() {
     bash "$snapshot/scripts/ai/warn-skill-consistency.sh"
 }
 
+test_ai_skills_consistency_rejects_malformed_name_status_metadata() {
+  local dir name_status
+  dir="$(make_repo)"
+  name_status="$dir/bad-name-status.nul"
+  printf 'A\0' > "$name_status"
+  assert_fail_contains "malformed staged name-status metadata" env \
+    STAGED_SNAPSHOT_STAGED_NAME_STATUS_NUL_FILE="$name_status" \
+    bash "$dir/scripts/ai/warn-skill-consistency.sh"
+}
+
 test_skill_noise_same_file_partial_staging() {
   local dir skill
   dir="$(make_repo)"
@@ -248,6 +258,31 @@ test_gitleaks_rejects_policy_symlink() {
   assert_fail_contains ".gitleaks.toml" lefthook_in "$dir" run pre-commit --job gitleaks
 }
 
+test_gitleaks_validator_tomlkit_fallback_unwraps_extend() {
+  python3 - "$REPO_ROOT/scripts/ai/validate-gitleaks-staged-policy.py" <<'PY'
+import importlib.util
+import sys
+import tempfile
+from pathlib import Path
+
+module_path = Path(sys.argv[1])
+spec = importlib.util.spec_from_file_location("validator", module_path)
+module = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
+spec.loader.exec_module(module)
+module.tomllib = None
+if module.tomlkit is None:
+    raise SystemExit(0)
+
+with tempfile.TemporaryDirectory() as tmp:
+    config = Path(tmp) / "config.toml"
+    config.write_text('[extend]\npath = "child.toml"\n', encoding="utf-8")
+    data = module.parse_toml(config)
+    assert isinstance(data, dict)
+    assert isinstance(data.get("extend"), dict)
+PY
+}
+
 test_installed_guard_rejects_lefthook_drift_and_env() {
   local dir
   dir="$(make_repo)"
@@ -294,12 +329,14 @@ test_installer_idempotent_and_worktree_local() {
 
 test_ai_skills_consistency_cross_file
 test_ai_skills_consistency_without_git_metadata
+test_ai_skills_consistency_rejects_malformed_name_status_metadata
 test_skill_noise_same_file_partial_staging
 test_local_skill_noise_same_file_partial_staging
 test_gitleaks_unstaged_policy_masking
 test_gitleaks_rejects_unstaged_validator_edit
 test_gitleaks_rejects_extend_escape
 test_gitleaks_rejects_policy_symlink
+test_gitleaks_validator_tomlkit_fallback_unwraps_extend
 test_installed_guard_rejects_lefthook_drift_and_env
 test_guard_rejects_unsupported_command_shape
 test_installer_idempotent_and_worktree_local

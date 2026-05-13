@@ -32,7 +32,7 @@ def parse_toml(path: Path) -> dict[str, Any]:
         if tomllib is not None:
             return tomllib.loads(text)
         if tomlkit is not None:
-            return tomlkit.loads(text)
+            return tomlkit.loads(text).unwrap()
     except Exception as exc:  # noqa: BLE001 - fail closed with parser detail
         die(f"invalid TOML in {path}: {exc}")
     die("tomllib/tomlkit is not available")
