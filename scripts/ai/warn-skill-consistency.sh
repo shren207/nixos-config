@@ -30,8 +30,48 @@ is_true() {
   [ "$val" = "1" ] || [ "$val" = "true" ] || [ "$val" = "yes" ]
 }
 
+has_staged_snapshot_input() {
+  [ -n "${STAGED_SNAPSHOT_STAGED_FILES_NUL_FILE:-}" ] || [ -n "${STAGED_SNAPSHOT_STAGED_NAME_STATUS_NUL_FILE:-}" ]
+}
+
+staged_paths() {
+  if [ -n "${STAGED_SNAPSHOT_STAGED_FILES_NUL_FILE:-}" ]; then
+    while IFS= read -r -d '' path; do
+      printf '%s\n' "$path"
+    done < "$STAGED_SNAPSHOT_STAGED_FILES_NUL_FILE"
+    return 0
+  fi
+
+  git -C "$REPO_ROOT" diff --name-only --cached
+}
+
+staged_added_paths() {
+  local status path
+
+  if [ -n "${STAGED_SNAPSHOT_STAGED_NAME_STATUS_NUL_FILE:-}" ]; then
+    while IFS= read -r -d '' status; do
+      case "$status" in
+        A)
+          IFS= read -r -d '' path || true
+          printf '%s\n' "$path"
+          ;;
+        R* | C*)
+          IFS= read -r -d '' path || true
+          IFS= read -r -d '' path || true
+          ;;
+        *)
+          IFS= read -r -d '' path || true
+          ;;
+      esac
+    done < "$STAGED_SNAPSHOT_STAGED_NAME_STATUS_NUL_FILE"
+    return 0
+  fi
+
+  git -C "$REPO_ROOT" diff --name-only --cached --diff-filter=A
+}
+
 should_enforce_fail=0
-if git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+if has_staged_snapshot_input || git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
   while IFS= read -r path; do
     case "$path" in
       .claude/skills/* | \
@@ -49,8 +89,8 @@ if git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
         should_enforce_fail=1
         break
         ;;
-    esac
-  done < <(git -C "$REPO_ROOT" diff --name-only --cached)
+      esac
+  done < <(staged_paths)
 fi
 
 warnings=0
@@ -116,7 +156,7 @@ fi
 SHARED_CLAUDE_NIX="$REPO_ROOT/modules/shared/programs/claude/default.nix"
 SHARED_CODEX_NIX="$REPO_ROOT/modules/shared/programs/codex/default.nix"
 
-if git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1 && [ -f "$SHARED_CLAUDE_NIX" ]; then
+if [ -f "$SHARED_CLAUDE_NIX" ] && { has_staged_snapshot_input || git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1; }; then
   while IFS= read -r shared_skill_md; do
     [ -n "$shared_skill_md" ] || continue
     skill_name="$(basename "$(dirname "$shared_skill_md")")"
@@ -130,8 +170,7 @@ if git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1 && [ -f "$SHARED_CLAU
       warnings=$((warnings + 1))
       should_enforce_fail=1
     fi
-  done < <(git -C "$REPO_ROOT" diff --name-only --cached --diff-filter=A \
-    -- "modules/shared/programs/claude/files/skills/*/SKILL.md" 2>/dev/null || true)
+  done < <(staged_added_paths | grep -E '^modules/shared/programs/claude/files/skills/[^/]+/SKILL\.md$' || true)
 fi
 
 if [ "$warnings" -eq 0 ]; then
