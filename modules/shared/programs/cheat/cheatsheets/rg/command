@@ -13,7 +13,7 @@ rg — ripgrep recursive search (gitignore/숨김/바이너리 자동 제외)
                                 $ rg fn modules/
                                 modules/foo.nix:5:  fn = ...
 
-  -i                            강제 대소문자 무시
+  -i                            대소문자 무시 (=ignore case)
                                 $ rg -i todo
                                 src/foo.ts:14:// TODO
                                 src/bar.ts:3:// todo done
@@ -34,7 +34,7 @@ rg — ripgrep recursive search (gitignore/숨김/바이너리 자동 제외)
 
 [파일/디렉토리 범위]
 
-  -t TYPE                       특정 타입만 (rg --type-list 로 목록 확인)
+  -t TYPE                       특정 확장자만 (rg --type-list 로 목록 확인)
                                 $ rg fn -t nix
                                 modules/foo.nix:5:  fn = ...
 
@@ -83,4 +83,4 @@ rg — ripgrep recursive search (gitignore/숨김/바이너리 자동 제외)
 Tip
 - gitignore/숨김/바이너리는 기본 제외 — 누락되면 --hidden 또는 -uu 시도
 - 복잡한 정규식/멀티라인은 LLM에게 위임이 빠를 수 있음
-- --max-columns-preview 는 -M 과 함께 써야 효과 (단독 사용 무의미)
+- --max-columns-preview 는 -M 과 함께 써야 효과 (rg --help: "If the -M/--max-columns flag is not set, then this has no effect.")
