@@ -14,6 +14,9 @@
     font-family = JetBrainsMono Nerd Font
     font-family = D2Coding
 
+    # cmux가 system light appearance에서 밝은 fallback 색상을 선택하지 않도록 dark theme를 명시한다.
+    theme = Ghostty Default Style Dark
+
     # macOS Option 키를 Alt로 사용 (왼쪽만)
     macos-option-as-alt = left
 
