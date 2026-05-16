@@ -47,18 +47,26 @@ run_statusline() {
   printf '%s' "$MOCK_JSON" | env -u CLAUDE_STATUSLINE_COLUMNS -u COLUMNS "$@" bash "$STATUSLINE" 2>/dev/null
 }
 
+# ANSI escape sequence 제거 (색 코드, OSC 8 hyperlink 분리). statusline.sh 출력은
+# 토큰 사이에 escape 가 끼어 있어 grep 패턴이 직접 매치하지 못한다.
+strip_ansi() {
+  sed -E $'s/\x1b\\[[0-9;]*m//g; s/\x1b\\][0-9]*;[^\x07]*\x07//g'
+}
+
 @test "env override 200 enables full detail + full UUID" {
   run run_statusline CLAUDE_STATUSLINE_COLUMNS=200
   [ "$status" -eq 0 ]
+  local plain
+  plain=$(echo "$output" | strip_ansi)
   # full UUID = 36 자 UUID 형식. session_id 의 long form 이 통째로 나와야 한다.
-  echo "$output" | grep -q "abc12345-def6-7890-abcd-ef1234567890" \
-    || { echo "expected full UUID from env=200 path; got: $output" >&2; false; }
+  echo "$plain" | grep -q "abc12345-def6-7890-abcd-ef1234567890" \
+    || { echo "expected full UUID from env=200 path; got: $plain" >&2; false; }
   # detail=4 시 reset_date 가 `(MM/DD HH:MM)` 형식으로 두 window 모두 표시.
-  reset_count=$(echo "$output" | grep -oE '\([0-9]{2}/[0-9]{2} [0-9]{2}:[0-9]{2}\)' | wc -l)
+  reset_count=$(echo "$plain" | grep -oE '\([0-9]{2}/[0-9]{2} [0-9]{2}:[0-9]{2}\)' | wc -l)
   [ "$reset_count" -eq 2 ] \
     || { echo "expected detail=4 (2 reset_date) from env=200; got count=$reset_count" >&2; false; }
   # detail=3 부터 `→ remaining` 도 양 window 모두 표시. detail=4 의 핵심 마커.
-  remaining_count=$(echo "$output" | grep -oE '→ [0-9]+[dhm]' | wc -l)
+  remaining_count=$(echo "$plain" | grep -oE '→ [0-9]+[dhm]' | wc -l)
   [ "$remaining_count" -ge 2 ] \
     || { echo "expected → remaining (≥2) from env=200; got count=$remaining_count" >&2; false; }
 }
@@ -69,21 +77,24 @@ run_statusline() {
   # (bar + pct + window, → remaining/reset_date 없음).
   run run_statusline CLAUDE_STATUSLINE_COLUMNS=50
   [ "$status" -eq 0 ]
+  local plain
+  plain=$(echo "$output" | strip_ansi)
   # short prefix = 처음 8 자.
-  echo "$output" | grep -qE 'abc12345[^-]' \
-    || { echo "expected short UUID prefix from env=50; got: $output" >&2; false; }
-  if echo "$output" | grep -q "abc12345-def6"; then
-    echo "expected short UUID, but full UUID leaked from env=50; got: $output" >&2
+  echo "$plain" | grep -q "abc12345" \
+    || { echo "expected short UUID prefix from env=50; got: $plain" >&2; false; }
+  # full UUID dash 확장이 없어야 short prefix 확정.
+  if echo "$plain" | grep -q "abc12345-"; then
+    echo "expected short UUID, but full UUID leaked from env=50; got: $plain" >&2
     false
   fi
   # detail=2 → reset_date 없음.
-  if echo "$output" | grep -qE '\([0-9]{2}/[0-9]{2} [0-9]{2}:[0-9]{2}\)'; then
-    echo "expected no reset_date from env=50 (detail=2); got: $output" >&2
+  if echo "$plain" | grep -qE '\([0-9]{2}/[0-9]{2} [0-9]{2}:[0-9]{2}\)'; then
+    echo "expected no reset_date from env=50 (detail=2); got: $plain" >&2
     false
   fi
   # detail=2 → → remaining 도 없음 (detail≥3 부터 출력).
-  if echo "$output" | grep -qE '→ [0-9]+[dhm]'; then
-    echo "expected no → remaining from env=50 (detail=2); got: $output" >&2
+  if echo "$plain" | grep -qE '→ [0-9]+[dhm]'; then
+    echo "expected no → remaining from env=50 (detail=2); got: $plain" >&2
     false
   fi
 }
