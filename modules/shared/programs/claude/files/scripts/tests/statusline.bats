@@ -12,23 +12,33 @@
 
 setup() {
   STATUSLINE="${BATS_TEST_DIRNAME}/../statusline.sh"
-  MOCK_JSON='{
-    "session_id": "abc12345-def6-7890-abcd-ef1234567890",
-    "transcript_path": "/tmp/nonexistent.jsonl",
-    "cwd": "/tmp",
-    "model": {"display_name": "test"},
-    "workspace": {"current_dir": "/tmp"},
-    "rate_limits": {
-      "five_hour": {"used_percentage": 6, "resets_at": 1747400000},
-      "seven_day": {"used_percentage": 82, "resets_at": 1747900000}
-    },
-    "context_window": {
-      "current_usage": {
-        "cache_read_input_tokens": 8000,
-        "cache_creation_input_tokens": 2000
-      }
+  # resets_at 을 실행 시점 기준 미래로 동적 생성. 절대값 timestamp 를 박으면 시간이
+  # 지나며 stale 되어 statusline.sh 의 `remaining > 0` 가드가 `→ remaining` 출력을
+  # 건너뛰고 SC-1 의 detail=4 검증이 무력화된다.
+  local now five_h seven_d
+  now=$(date +%s)
+  five_h=$((now + 5 * 3600))
+  seven_d=$((now + 5 * 86400))
+  MOCK_JSON=$(cat <<EOF
+{
+  "session_id": "abc12345-def6-7890-abcd-ef1234567890",
+  "transcript_path": "/tmp/nonexistent.jsonl",
+  "cwd": "/tmp",
+  "model": {"display_name": "test"},
+  "workspace": {"current_dir": "/tmp"},
+  "rate_limits": {
+    "five_hour": {"used_percentage": 6, "resets_at": $five_h},
+    "seven_day": {"used_percentage": 82, "resets_at": $seven_d}
+  },
+  "context_window": {
+    "current_usage": {
+      "cache_read_input_tokens": 8000,
+      "cache_creation_input_tokens": 2000
     }
-  }'
+  }
+}
+EOF
+)
 }
 
 run_statusline() {
@@ -47,22 +57,33 @@ run_statusline() {
   reset_count=$(echo "$output" | grep -oE '\([0-9]{2}/[0-9]{2} [0-9]{2}:[0-9]{2}\)' | wc -l)
   [ "$reset_count" -eq 2 ] \
     || { echo "expected detail=4 (2 reset_date) from env=200; got count=$reset_count" >&2; false; }
+  # detail=3 부터 `→ remaining` 도 양 window 모두 표시. detail=4 의 핵심 마커.
+  remaining_count=$(echo "$output" | grep -oE '→ [0-9]+[dhm]' | wc -l)
+  [ "$remaining_count" -ge 2 ] \
+    || { echo "expected → remaining (≥2) from env=200; got count=$remaining_count" >&2; false; }
 }
 
-@test "env override 50 collapses to compact output (short UUID, no reset_date)" {
+@test "env override 50 collapses to compact output (short UUID, detail=2)" {
+  # raw 50 → COLS<80 piecewise: EFF_COLS=50. EFF_COLS<100 → short prefix.
+  # EFF_COLS=50 은 RATE_DETAIL 임계값 (88/58/40) 중 ≥40 만 통과 → detail=2
+  # (bar + pct + window, → remaining/reset_date 없음).
   run run_statusline CLAUDE_STATUSLINE_COLUMNS=50
   [ "$status" -eq 0 ]
-  # short prefix = 처음 8 자 + space. EFF_COLS=50 < 100 → short.
+  # short prefix = 처음 8 자.
   echo "$output" | grep -qE 'abc12345[^-]' \
     || { echo "expected short UUID prefix from env=50; got: $output" >&2; false; }
-  # full UUID 가 나오면 실패. 추가 확인.
   if echo "$output" | grep -q "abc12345-def6"; then
     echo "expected short UUID, but full UUID leaked from env=50; got: $output" >&2
     false
   fi
-  # detail<3 시 reset_date 형식이 없어야 함.
+  # detail=2 → reset_date 없음.
   if echo "$output" | grep -qE '\([0-9]{2}/[0-9]{2} [0-9]{2}:[0-9]{2}\)'; then
-    echo "expected no reset_date from env=50 (detail<3); got: $output" >&2
+    echo "expected no reset_date from env=50 (detail=2); got: $output" >&2
+    false
+  fi
+  # detail=2 → → remaining 도 없음 (detail≥3 부터 출력).
+  if echo "$output" | grep -qE '→ [0-9]+[dhm]'; then
+    echo "expected no → remaining from env=50 (detail=2); got: $output" >&2
     false
   fi
 }
