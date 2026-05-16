@@ -32,13 +32,23 @@ statusline.sh 는 아래 순서로 폭을 결정한다. 한 단계가 양수 값
 
 ### 임계값 매트릭스
 
-| EFF_COLS 범위 | rate_limits 표시 | session-id 표시 |
-|---------------|------------------|-----------------|
-| ≥100 | bar + pct + window + → remaining + reset_date (detail=4 또는 3) | full UUID |
-| 88-99 | bar + pct + window + → remaining + reset_date (detail=4) | short prefix (8자) |
-| 58-87 | bar + pct + window + → remaining (detail=3) | short prefix |
-| 40-57 | bar + pct + window (detail=2) | short prefix |
-| <40 | pct + window (detail=1) | short prefix |
+rate_limits detail 단계와 session-id 표시는 서로 다른 임계값에 의존한다.
+
+rate_limits progressive disclosure (`statusline.sh` 의 `RATE_DETAIL` 임계값):
+
+| EFF_COLS 범위 | rate_limits 표시 |
+|---------------|------------------|
+| ≥88 | bar + pct + window + → remaining + reset_date (detail=4) |
+| 58-87 | bar + pct + window + → remaining (detail=3) |
+| 40-57 | bar + pct + window (detail=2) |
+| <40 | pct + window (detail=1) |
+
+session-id 표시 (별도 임계값):
+
+| EFF_COLS 범위 | session-id 표시 |
+|---------------|-----------------|
+| ≥100 | full UUID |
+| <100 | short prefix (8자) |
 
 raw COLS 입력값 기준으로는 위 EFF_COLS 에 40 을 더한 값이다 (`COLS≥80` 일 때).
 

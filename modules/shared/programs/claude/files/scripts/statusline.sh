@@ -519,6 +519,10 @@ fi
 #    아래 산식 그대로 유지한다.
 #    상세 결정 근거는 .claude/plans/statusline-width-fallback.md 참조.
 resolve_raw_terminal_cols() {
+  # raw cols default → EFF_COLS=COLS-40=100 → detail=4 임계값(EFF_COLS>=88) 통과
+  #   + session-id full UUID 임계값(EFF_COLS>=100) 도달. 기본값을 조정할 때
+  #   docs/임계값 매트릭스와 bats assertion 메시지도 함께 갱신한다.
+  local DEFAULT_RAW_COLS=140
   local v
 
   # (1) CLAUDE_STATUSLINE_COLUMNS env — 명시 override, 항상 우선
@@ -553,7 +557,7 @@ resolve_raw_terminal_cols() {
   fi
 
   # (5) 정적 기본값
-  printf '140'
+  printf '%s' "$DEFAULT_RAW_COLS"
 }
 
 COLS=$(resolve_raw_terminal_cols)
