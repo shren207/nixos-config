@@ -163,11 +163,11 @@ playwright-cli video-start video.webm
 playwright-cli video-chapter "Chapter Title" --description="Details" --duration=2000
 playwright-cli video-stop
 
-# launch the dashboard for UI review / design feedback — user annotates the page, you receive the annotated screenshot, snapshot, and notes
+# launch the dashboard for UI review / design feedback — see "Example: Interactive session" below
 playwright-cli show --annotate
 
 # generate a Playwright locator for an element from its ref or selector
-playwright-cli generate-locator e5 --raw
+playwright-cli --raw generate-locator e5
 
 # show a persistent highlight overlay for an element, optionally with a custom style
 playwright-cli highlight e5
@@ -335,21 +335,7 @@ npm install -g @playwright/cli
 npm install --save-dev @playwright/cli
 ```
 
-Global installation in this repo is declaration-managed for macOS (nix-darwin Homebrew: `brews = [ "playwright-cli" ]` in `modules/darwin/programs/homebrew.nix`); the Homebrew formula resolves to `@playwright/cli`.
-
-## 런타임 환경 전제
-
-이 스킬은 global `playwright-cli` 또는 `@playwright/cli` 기반 npx 호출 중 하나가 동작하는 호스트 환경에서만 실행 가능하다. 본 repo의 global `playwright-cli`는 nix-darwin Homebrew(`brews = [ "playwright-cli" ]` in `modules/darwin/programs/homebrew.nix`, formula는 `@playwright/cli` 기반)로 설치되므로 macOS 호스트에서만 PATH에 노출된다.
-
-NixOS 또는 다른 호스트에서는 다음 단계를 따른다:
-
-1. Cache-only 경로 (에이전트가 사용) — `npx --offline --package=@playwright/cli playwright-cli`를 prefix로 사용. `@playwright/cli`가 local npm cache에 있을 때만 동작하며, 캐시 hit 외에는 즉시 실패한다 (네트워크 미사용). 이 경로는 frontmatter `allowed-tools: Bash(npx:*)` 권한 안에서 안전하게 동작한다.
-2. Bootstrap / Install (사용자가 직접 셋업) — cache-only가 실패하면 사용자가 본 스킬 frontmatter의 일상 사용 권한 범위 *밖*에서 한 번 셋업한다. 에이전트는 이 명령들을 자동 실행하지 말 것:
-   - `npx --package=@playwright/cli --yes playwright-cli --version` — registry fetch 후 cache 채우고 1단계로 복귀
-   - `npm install -g @playwright/cli` — global 설치 (NixOS 호스트에서 빈번한 사용 시 권장, deterministic)
-   - `npm install --save-dev @playwright/cli` — per-project 설치
-
-AI 에이전트 세션 종류(Claude Code · Codex CLI · headless)와 무관하게, 본 스킬의 cache-only 경로(1단계)가 활성화되어 있어야 일상 명령이 동작한다. 단순 `npx playwright-cli`(scope 미지정)는 npm registry의 deprecated 동명 패키지로 resolve돼 의도와 다른 동작을 하거나 실패하므로 절대 사용 금지.
+Global installation in this repo is declaration-managed for macOS (nix-darwin Homebrew: `brews = [ "playwright-cli" ]` in `modules/darwin/programs/homebrew.nix`); the Homebrew formula resolves to `@playwright/cli`. macOS 호스트에서만 PATH에 노출되며, NixOS/기타 호스트에서는 위 cache-only `npx --offline` 경로가 활성화되어 있어야 동작한다. 단순 `npx playwright-cli`(scope 미지정)는 deprecated 동명 패키지로 resolve되므로 절대 사용 금지.
 
 ## Example: Form submission
 
@@ -410,7 +396,6 @@ playwright-cli show --annotate
 * Request mocking [references/request-mocking.md](references/request-mocking.md)
 * Running Playwright code [references/running-code.md](references/running-code.md)
 * Browser session management [references/session-management.md](references/session-management.md)
-* Spec-driven testing (plan / generate / heal) [references/spec-driven-testing.md](references/spec-driven-testing.md)
 * Storage state (cookies, localStorage) [references/storage-state.md](references/storage-state.md)
 * Test generation [references/test-generation.md](references/test-generation.md)
 * Tracing [references/tracing.md](references/tracing.md)

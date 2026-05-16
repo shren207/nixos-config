@@ -146,7 +146,7 @@ playwright-cli attach --cdp=http://localhost:9222
 Connect to a browser with the Playwright extension installed:
 
 ```bash
-playwright-cli attach --extension
+playwright-cli attach --extension=chrome
 ```
 
 ### Detach
