@@ -171,7 +171,8 @@ if command -v jq >/dev/null 2>&1; then
     @sh "STDIN_SESSION_ID=\(.session_id // "")",
     @sh "CWD=\(.cwd // "")",
     @sh "WS_WORKTREE=\(.workspace.git_worktree // "")",
-    @sh "WORKTREE_BRANCH=\(.worktree.branch // "")"
+    @sh "WORKTREE_BRANCH=\(.worktree.branch // "")",
+    @sh "STDIN_COLS=\(.terminal.columns // "")"
   ' 2>/dev/null)" 2>/dev/null || true
 fi
 
@@ -500,9 +501,62 @@ fi
 # ============================================================
 # Section 8: 폭/임계값 + display values (D-5: 정적 threshold)
 # ============================================================
+#
+# === Change Intent Record ===
+# v1 (초기): `stty size </dev/tty` → terminfo 80 fallback. controlling tty가
+#    있는 환경에서는 정상 동작.
+# v5 (이번): Claude Code v2.1.139부터 hook/statusline 자식에서 controlling tty가
+#    제거되어 stty가 항상 실패. RATE_DETAIL과 session-id display가 항상 가장
+#    좁은 fallback으로 떨어지는 회귀 발생. 폭 측정을 raw cols resolver
+#    `resolve_raw_terminal_cols`로 위임하여 5단계 chain으로 회복한다:
+#      (1) CLAUDE_STATUSLINE_COLUMNS env (사용자 명시 override, 항상 우선)
+#      (2) stdin .terminal.columns (forward-compat for upstream columns 요청 이슈)
+#      (3) $COLUMNS env (interactive parent shell이 export 한 경우)
+#      (4) stty size </dev/tty (pre-2.1.139 compatibility branch — v2.1.139+에서
+#          항상 실패하지만 1회 fork 비용 미미. 사용자 명시 결정으로 유지.)
+#      (5) 정적 기본값 140 cols (EFF_COLS=100 → detail=4 + full UUID 보장)
+#    함수는 raw cols만 반환한다. EFF_COLS 보정 (`COLS - 40`)은 호출자 책임이며
+#    아래 산식 그대로 유지한다.
+#    상세 결정 근거는 .claude/plans/statusline-width-fallback.md 참조.
+resolve_raw_terminal_cols() {
+  local v
 
-COLS=$(stty size </dev/tty 2>/dev/null | awk '{print $2}')
-[ "${COLS:-0}" -gt 0 ] 2>/dev/null || COLS=80
+  # (1) CLAUDE_STATUSLINE_COLUMNS env — 명시 override, 항상 우선
+  v=${CLAUDE_STATUSLINE_COLUMNS:-}
+  if [ -n "$v" ] && [ "$v" -gt 0 ] 2>/dev/null; then
+    printf '%s' "$v"
+    return
+  fi
+
+  # (2) stdin .terminal.columns (Section 1-2의 jq 추출 결과)
+  v=${STDIN_COLS:-}
+  if [ -n "$v" ] && [ "$v" -gt 0 ] 2>/dev/null; then
+    printf '%s' "$v"
+    return
+  fi
+
+  # (3) $COLUMNS env (interactive parent shell이 export 한 경우)
+  v=${COLUMNS:-}
+  if [ -n "$v" ] && [ "$v" -gt 0 ] 2>/dev/null; then
+    printf '%s' "$v"
+    return
+  fi
+
+  # (4) stty size </dev/tty (pre-2.1.139 compatibility branch, dead in v2.1.139+)
+  # /dev/tty 가 stat-level 에서는 readable 이지만 controlling tty 부재 시 open이
+  # ENXIO로 실패하면서 shell 이 직접 stderr를 낸다. command group 의 stderr 까지
+  # 리다이렉트해서 noise 를 막는다.
+  v=$({ stty size </dev/tty | awk '{print $2}'; } 2>/dev/null)
+  if [ -n "$v" ] && [ "$v" -gt 0 ] 2>/dev/null; then
+    printf '%s' "$v"
+    return
+  fi
+
+  # (5) 정적 기본값
+  printf '140'
+}
+
+COLS=$(resolve_raw_terminal_cols)
 if [ "$COLS" -lt 80 ]; then
   EFF_COLS=$COLS
 else
