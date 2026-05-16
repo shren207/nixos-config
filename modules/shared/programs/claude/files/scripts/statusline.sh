@@ -525,10 +525,11 @@ resolve_raw_terminal_cols() {
   local DEFAULT_RAW_COLS=140
   local v
   # decimal-only 가드: `0140` 같은 leading-zero 입력은 호출부의 `$((COLS - 40))`
-  # 에서 bash 가 octal로 해석한다. canonical decimal (1-9 leading) 만 통과시키고
-  # 그 외는 다음 fallback 단계로 fallthrough. 다중 자리 0140 / single 0 모두 차단.
+  # 에서 bash 가 octal로 해석한다. canonical decimal (1-9 leading) 1-4자리 (1..9999)
+  # 만 통과시킨다. 1자리: 단일 terminal cols 후보 거의 없으나 fallthrough 가능.
+  # 4자리 상한: 99999+ overflow 입력으로 bash 정수 연산이 오염되는 것을 차단한다.
   _is_decimal() {
-    [[ "$1" =~ ^[1-9][0-9]*$ ]]
+    [[ "$1" =~ ^[1-9][0-9]{0,3}$ ]]
   }
 
   # (1) CLAUDE_STATUSLINE_COLUMNS env — 명시 override, 항상 우선
