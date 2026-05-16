@@ -526,8 +526,8 @@ resolve_raw_terminal_cols() {
   local v
   # decimal-only 가드: `0140` 같은 leading-zero 입력은 호출부의 `$((COLS - 40))`
   # 에서 bash 가 octal로 해석한다. canonical decimal (1-9 leading) 1-4자리 (1..9999)
-  # 만 통과시킨다. 1자리: 단일 terminal cols 후보 거의 없으나 fallthrough 가능.
-  # 4자리 상한: 99999+ overflow 입력으로 bash 정수 연산이 오염되는 것을 차단한다.
+  # 만 통과시킨다. 4자리 상한: 10000 이상 5자리+ 입력으로 bash 정수 연산이
+  # 오염되는 것을 차단한다 (정상 터미널 폭 80-300 범위 충분히 포함).
   _is_decimal() {
     [[ "$1" =~ ^[1-9][0-9]{0,3}$ ]]
   }

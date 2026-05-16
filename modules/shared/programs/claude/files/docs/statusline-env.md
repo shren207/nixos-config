@@ -79,12 +79,14 @@ raw COLS 입력값과 EFF_COLS 사이는 piecewise 보정이다:
 ### 잘못된 값 처리
 
 비숫자, 음수, 0, **leading-zero 값 (`070`, `0140` 등)**, 5자리 이상 (10000+) 입력은
-모두 invalid 로 간주하고 다음 fallback 단계로 fallthrough 한다. `CLAUDE_CACHE_TTL`
-동일 패턴.
+모두 invalid 로 간주하고 다음 fallback 단계로 fallthrough 한다.
 
 leading-zero 차단 사유: bash 산술 (`$((COLS - 40))`) 이 `0NNN` 형식을 octal 로
 해석한다 (`0140` → 96). canonical decimal 만 허용해 호출부 정수 연산 오염을
 방지한다. 폭으로 `70` 을 명시하려면 leading-zero 없이 `70` 으로 입력하라.
+
+(`CLAUDE_CACHE_TTL` 의 가드는 `[ -gt 0 ]` 만 적용되어 본 폭 가드보다 느슨하다.
+폭과 TTL 의 입력 신뢰 모델이 다르기 때문이다.)
 
 ## 관련 환경 변수
 
