@@ -90,7 +90,7 @@ leading-zero 차단 사유: bash 산술 (`$((COLS - 40))`) 이 `0NNN` 형식을 
 
 ## 관련 환경 변수
 
-- `CLAUDE_CACHE_TTL` — cache TTL 강제 (`cache-guide.md` 참조).
+- `CLAUDE_CACHE_TTL` — cache TTL 강제. 자세한 내용은 [`cache-guide.md`](./cache-guide.md) 참조.
 
 ## 레퍼런스
 
