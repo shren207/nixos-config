@@ -29,7 +29,7 @@ PATTERN_B='\b(Correctness|CORRECTNESS|Design|DESIGN|Regression|REGRESSION|Mainta
 # - volatile sub-pattern: round counter / feedback / numbered reviewer label /
 #   parallel-audit follow-up action tokens. These remain hard-fail everywhere.
 PINNING_PATTERN_C_WORKFLOW='\bDA (for_pr|for_plan)\b'
-PINNING_PATTERN_C_VOLATILE='\bDA (피드백|[Rr]ound)\b|\bAuditor [A-Za-z_]+-[0-9]|\bparallel-audit (반영|결과|finding)\b'
+PINNING_PATTERN_C_VOLATILE='\bDA (피드백|[Rr]ound)\b|\bAuditor [A-Za-z_]+-[0-9][A-Za-z0-9-]*\b|\bparallel-audit (반영|결과|finding)\b'
 
 # Combined PATTERN_C preserves backward-compat for `verify-ai-compat.sh`'s
 # exported-var inventory check. `pinning_findings_records` now grep's the
@@ -208,14 +208,16 @@ _pinning_canonical_policy_path_fail_closed() {
 
 # Body temp paths used as durable bodies (e.g. PR / issue body file references).
 # Matches both the raw `/tmp` and `/var/folders/.../T` forms, plus the macOS
-# canonical aliases under `/private`. Fail-closed on traversal so a body-temp
-# raw path cannot be smuggled into the workflow allow predicate.
+# canonical aliases under `/private`. The dash-prefix `*-body*` glob is narrower
+# than a bare `*body*` substring so unrelated paths like `/tmp/everybody.md`
+# stay outside the workflow allow scope. Fail-closed on traversal so a
+# body-temp raw path cannot be smuggled into the workflow allow predicate.
 pinning_is_body_temp_path() {
   local path
   path="$(_pinning_canonical_policy_path_fail_closed "$1")" || return 1
   case "$path" in
-    /tmp/*body* | /var/folders/*/T/*body*) return 0 ;;
-    /private/tmp/*body* | /private/var/folders/*/T/*body*) return 0 ;;
+    /tmp/*-body* | /var/folders/*/T/*-body*) return 0 ;;
+    /private/tmp/*-body* | /private/var/folders/*/T/*-body*) return 0 ;;
   esac
   return 1
 }
