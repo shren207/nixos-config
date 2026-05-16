@@ -31,7 +31,7 @@ find "${1:-.claude/plans}" -maxdepth 1 -type f \
 
 ## DoD 실행 컨텍스트
 
-이슈 #756 P0의 DoD 두 번째 검증 명령 (코드블록 marker는 일부러 ```text — README의 첫 ```bash 블록은 위 snippet 단 하나여야 DoD awk 추출 + bash 실행이 self-reference 없이 통과한다):
+이슈 `#756` P0의 DoD 두 번째 검증 명령 (코드블록 marker는 일부러 `` ```text `` — README의 첫 `` ```bash `` 블록은 위 snippet 단 하나여야 DoD awk 추출 + bash 실행이 self-reference 없이 통과한다):
 
 ```text
 test -f .claude/plans/README.md && \
