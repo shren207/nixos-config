@@ -54,8 +54,9 @@ pre-push:
     flake-check:
       run: nix flake check --no-build --all-systems
     statusline-bats:
-      # statusline.sh 폭 측정 fallback chain 회귀 검증. bats 는 flake.nix devShell
-      # buildInputs 에 포함되어 있어 PATH 직접 호출이 가능하다 (nixfmt/shellcheck 등과
-      # 동일 패턴). pre-push 단계라 push 마다 1회 실행 — bats 4 케이스가 ~1초로 짧아
-      # 비용 미미. pre-commit allowlist guard 우회를 위해 pre-push 에 배치.
-      run: bats modules/shared/programs/claude/files/scripts/tests/statusline.bats
+      # statusline.sh 폭 측정 fallback chain 회귀 검증. git hook PATH 는 devShell
+      # buildInputs 를 보장하지 않으므로 `nix shell nixpkgs#bats --command` 로 wrap
+      # 하여 hook 실행 환경 PATH 와 무관하게 동작하게 한다 (pre-push 의
+      # `nix shell .#pythonWithTomlkit` 패턴과 일관). pre-commit allowlist guard
+      # 우회를 위해 pre-push 에 배치. bats 4 케이스가 ~1초로 짧아 비용 미미.
+      run: nix shell nixpkgs#bats --command bats modules/shared/programs/claude/files/scripts/tests/statusline.bats

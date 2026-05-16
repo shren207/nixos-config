@@ -86,3 +86,16 @@ run_statusline() {
   [ "$reset_count" -eq 2 ] \
     || { echo "expected detail=4 from static default 140; got count=$reset_count" >&2; false; }
 }
+
+@test "leading-zero env value falls through to default (octal regression guard)" {
+  # 가드 부재 시 0140 은 bash 산술에서 octal 96으로 해석되어 EFF_COLS=56 → short
+  # prefix 가 됐다. decimal-only 가드가 0140 을 거부하고 default 140 으로
+  # fallthrough 하면 EFF_COLS=100 → full UUID + detail=4.
+  run run_statusline CLAUDE_STATUSLINE_COLUMNS=0140
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q "abc12345-def6-7890-abcd-ef1234567890" \
+    || { echo "expected default-140 fallthrough on octal-looking input; got: $output" >&2; false; }
+  reset_count=$(echo "$output" | grep -oE '\([0-9]{2}/[0-9]{2} [0-9]{2}:[0-9]{2}\)' | wc -l)
+  [ "$reset_count" -eq 2 ] \
+    || { echo "expected detail=4 from default-140 fallthrough; got count=$reset_count" >&2; false; }
+}

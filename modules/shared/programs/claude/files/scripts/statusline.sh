@@ -524,24 +524,30 @@ resolve_raw_terminal_cols() {
   #   docs/임계값 매트릭스와 bats assertion 메시지도 함께 갱신한다.
   local DEFAULT_RAW_COLS=140
   local v
+  # decimal-only 가드: `0140` 같은 leading-zero 입력은 호출부의 `$((COLS - 40))`
+  # 에서 bash 가 octal로 해석한다. canonical decimal (1-9 leading) 만 통과시키고
+  # 그 외는 다음 fallback 단계로 fallthrough. 다중 자리 0140 / single 0 모두 차단.
+  _is_decimal() {
+    [[ "$1" =~ ^[1-9][0-9]*$ ]]
+  }
 
   # (1) CLAUDE_STATUSLINE_COLUMNS env — 명시 override, 항상 우선
   v=${CLAUDE_STATUSLINE_COLUMNS:-}
-  if [ -n "$v" ] && [ "$v" -gt 0 ] 2>/dev/null; then
+  if _is_decimal "$v"; then
     printf '%s' "$v"
     return
   fi
 
   # (2) stdin .terminal.columns (Section 1-2의 jq 추출 결과)
   v=${STDIN_COLS:-}
-  if [ -n "$v" ] && [ "$v" -gt 0 ] 2>/dev/null; then
+  if _is_decimal "$v"; then
     printf '%s' "$v"
     return
   fi
 
   # (3) $COLUMNS env (interactive parent shell이 export 한 경우)
   v=${COLUMNS:-}
-  if [ -n "$v" ] && [ "$v" -gt 0 ] 2>/dev/null; then
+  if _is_decimal "$v"; then
     printf '%s' "$v"
     return
   fi
@@ -551,7 +557,7 @@ resolve_raw_terminal_cols() {
   # ENXIO로 실패하면서 shell 이 직접 stderr를 낸다. command group 의 stderr 까지
   # 리다이렉트해서 noise 를 막는다.
   v=$({ stty size </dev/tty | awk '{print $2}'; } 2>/dev/null)
-  if [ -n "$v" ] && [ "$v" -gt 0 ] 2>/dev/null; then
+  if _is_decimal "$v"; then
     printf '%s' "$v"
     return
   fi

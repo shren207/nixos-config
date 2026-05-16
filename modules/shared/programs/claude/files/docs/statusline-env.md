@@ -50,7 +50,23 @@ session-id 표시 (별도 임계값):
 | ≥100 | full UUID |
 | <100 | short prefix (8자) |
 
-raw COLS 입력값 기준으로는 위 EFF_COLS 에 40 을 더한 값이다 (`COLS≥80` 일 때).
+raw COLS 입력값과 EFF_COLS 사이는 piecewise 보정이다:
+
+| raw COLS | EFF_COLS |
+|----------|----------|
+| < 80 | EFF_COLS = COLS (보정 없음) |
+| ≥ 80 | EFF_COLS = COLS - 40 |
+
+자주 쓰는 raw 값과 변환 결과:
+
+| raw COLS | EFF_COLS | rate_limits detail | session-id |
+|----------|----------|-------------------|------------|
+| 50 | 50 | detail=2 | short |
+| 80 | 40 | detail=2 | short |
+| 100 | 60 | detail=3 | short |
+| 128 | 88 | detail=4 | short |
+| 140 (default) | 100 | detail=4 | full UUID |
+| 200 | 160 | detail=4 | full UUID |
 
 ### 권장 설정
 
