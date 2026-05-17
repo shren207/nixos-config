@@ -302,8 +302,18 @@ EOF
 )
   # HOME override 로 lib 의 SESSION_STATE_DIR (=\$HOME/.claude/status-icons) 와
   # statusline.sh 의 transcript canonical 경계(\$HOME/.claude/projects) 를 fake HOME
-  # 으로 redirect. XDG_* 도 fake HOME 안에서 자동 생성.
-  run run_statusline_with_input "$stdin_json" HOME="$fake_home"
+  # 으로 redirect. statusline.sh 는 HEAVY_CACHE_DIR 와 CACHE_TTL_DIR 에서 XDG_*
+  # 변수를 직접 참조하므로(`${XDG_RUNTIME_DIR:-${XDG_STATE_HOME:-\$HOME/.local/state}/...}`,
+  # `${XDG_DATA_HOME:-\$HOME/.local/share}/...`), 부모 shell 의 XDG_* 가 set 이면
+  # 실제 시스템 경로로 leak 되어 테스트 부산물이 host 에 남고 다음 run 의 cached
+  # vars 가 오염될 수 있다. 4 개 모두 fake_home 하위로 pin.
+  run run_statusline_with_input "$stdin_json" \
+    HOME="$fake_home" \
+    XDG_CONFIG_HOME="$fake_home/.config" \
+    XDG_CACHE_HOME="$fake_home/.cache" \
+    XDG_STATE_HOME="$fake_home/.local/state" \
+    XDG_DATA_HOME="$fake_home/.local/share" \
+    XDG_RUNTIME_DIR="$fake_home/.run"
   [ "$status" -eq 0 ]
   local plain
   plain=$(echo "$output" | strip_ansi)
@@ -322,8 +332,10 @@ EOF
   [ "$status" -eq 0 ]
   local plain
   plain=$(echo "$output" | strip_ansi)
-  if echo "$plain" | grep -q '▏'; then
-    echo "expected no vertical bracket in non-SSH branch; leaked: $plain" >&2
+  # 좌측 `▏` (U+258F) + 우측 `▕` (U+2595) 양쪽 모두 leak 가드. 한쪽만 검사하면
+  # 부분 회귀 (예: 한쪽 bracket 만 비-SSH 분기로 흘러나오는 경우)를 놓친다.
+  if echo "$plain" | grep -qE '▏|▕'; then
+    echo "expected no vertical bracket (▏ or ▕) in non-SSH branch; leaked: $plain" >&2
     false
   fi
   # 5h 6% → minimum-fill 보정으로 filled=1 → `█░░░░░░░░░ 6%`. 보정 회귀 시 fail.
