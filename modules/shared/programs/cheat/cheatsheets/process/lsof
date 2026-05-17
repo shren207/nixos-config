@@ -1,5 +1,5 @@
 ---
-tags: [ lsof, port, file, network, personal ]
+tags: [ lsof, process, port, file, network, personal ]
 ---
 lsof — 열린 파일/소켓/포트를 누가 잡고 있는지 조회. "이 포트 누가 쓰지?" 의 표준 답.
 
