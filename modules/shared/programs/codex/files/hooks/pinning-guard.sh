@@ -40,7 +40,7 @@ fi
 # shellcheck source=../../../claude/files/lib/pinning-patterns.sh
 . "$PINNING_LIB"
 
-SCAN_DIR=$(hook_init_scan_dir pinning-guard) || exit 0
+SCAN_DIR=$(hook_init_scan_dir pinning-guard) || _deny_with_reason "[pinning-guard] failed to initialize scan workspace; denying by fail-closed policy."
 trap 'rm -rf "$SCAN_DIR"' EXIT
 
 _deny() {

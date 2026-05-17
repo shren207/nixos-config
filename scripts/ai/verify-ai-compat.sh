@@ -1614,7 +1614,7 @@ verify_used_by_oracle() {
     # 변수 할당 + source 호출 패턴 둘 다 있어야 진짜 후보.
     if grep -qE "^[[:space:]]*[A-Z_]+_LIB=.*${_lib_basename_re}" "$_candidate" \
       && grep -qE "(\.[[:space:]]+|source[[:space:]]+)\"\\\$[A-Z_]+_LIB\"" "$_candidate"; then
-      _candidate_abs_rel="${_candidate#$REPO_ROOT/}"
+      _candidate_abs_rel="${_candidate#"$REPO_ROOT"/}"
       _candidate_rel="${_candidate_abs_rel#modules/shared/programs/}"
       if ! printf '%s' "$_declared_list" | grep -Fxq "$_candidate_rel" \
         && ! printf '%s' "$_declared_list" | grep -Fxq "$_candidate_abs_rel"; then
