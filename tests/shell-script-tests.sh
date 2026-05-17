@@ -878,10 +878,16 @@ test_install_lefthook_concurrent_install_serializes() {
     export GIT_CONFIG_GLOBAL=/dev/null
     export GIT_CONFIG_NOSYSTEM=1
     export PATH="$stub_dir:$PATH"
-    bash "$REPO_ROOT/scripts/ai/install-lefthook-hooks.sh" >/dev/null 2>&1; printf '%s\n' "$?" >> "$rc_file" &
-    bash "$REPO_ROOT/scripts/ai/install-lefthook-hooks.sh" >/dev/null 2>&1; printf '%s\n' "$?" >> "$rc_file" &
-    bash "$REPO_ROOT/scripts/ai/install-lefthook-hooks.sh" >/dev/null 2>&1; printf '%s\n' "$?" >> "$rc_file" &
-    bash "$REPO_ROOT/scripts/ai/install-lefthook-hooks.sh" >/dev/null 2>&1; printf '%s\n' "$?" >> "$rc_file" &
+    # subshell `( ... ) &`로 전체 명령 pipeline을 background 한다. `bash ...; printf ... &`
+    # 형식은 `&`가 마지막 명령(`printf`)에만 적용되어 4개 bash 호출이 sequential 실행 →
+    # lock contention test가 실제로 race를 trigger하지 못한다.
+    for _ in 1 2 3 4; do
+      (
+        rc=0
+        bash "$REPO_ROOT/scripts/ai/install-lefthook-hooks.sh" >/dev/null 2>&1 || rc=$?
+        printf '%s\n' "$rc" >> "$rc_file"
+      ) &
+    done
     wait
   )
 
