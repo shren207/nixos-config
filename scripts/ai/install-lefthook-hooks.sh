@@ -86,10 +86,16 @@ cleanup_main_redundant_hooks_path() {
     current="$(git -C "$repo_root" config "--$scope" --get core.hooksPath 2>/dev/null || true)"
     [ -n "$current" ] || continue
     if [ "$current" = "$default_hooks" ]; then
-      git -C "$repo_root" config "--$scope" --unset-all core.hooksPath
+      # `|| true`: cleanup runs outside the install lock (it must precede the lock so
+      # lefthook install sees the cleaned-up state). On the rare main-vs-main concurrent
+      # install where another process unsets the same key first, the second --unset-all
+      # returns exit 5; idempotency keeps the script from failing.
+      git -C "$repo_root" config "--$scope" --unset-all core.hooksPath 2>/dev/null || true
       echo "install-lefthook-hooks: removed redundant core.hooksPath ($scope). Hooks resolve to ${default_hooks}." >&2
     else
-      echo "install-lefthook-hooks: non-default core.hooksPath ($scope) detected: ${current}. Preserved, but lefthook warnings will persist." >&2
+      echo "install-lefthook-hooks: non-default core.hooksPath ($scope) detected: ${current}." >&2
+      echo "  Preserved. lefthook install will fail in main mode (--force is intentionally not added);" >&2
+      echo "  unset the override or set LEFTHOOK=0 to skip install for the current shell." >&2
     fi
   done
 }

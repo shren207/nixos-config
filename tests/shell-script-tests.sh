@@ -857,11 +857,18 @@ test_install_lefthook_concurrent_install_serializes() {
   # (단일 host에서 한 branch만 검증된다 — 다른 branch는 cross-OS CI matrix가 맡는다).
   # 둘 다 inject_staged_guard를 직렬화해 guard markers가 interleave되지 않아야
   # 다음 호출의 `SystemExit("nested guard marker")`가 발생하지 않는다.
-  local sandbox repo_root stub_dir hook_path begin_count end_count home_dir
+  #
+  # marker count alone은 lock 회귀에 약한 신호다 (inject_staged_guard가 매 호출마다
+  # strip+re-inject하므로 lock이 없어도 hook의 어떤 single writer가 마지막에 쓰면
+  # marker는 1쌍). 강화: 4개 child의 rc를 모두 캡처해서 silent fail이 하나라도
+  # 있으면 fail로 본다 — lock을 끄면 race로 한두 개 child가 nested-marker SystemExit
+  # 또는 다른 path로 fail한다.
+  local sandbox repo_root stub_dir hook_path begin_count end_count home_dir rc_file fail_count total
   sandbox=$(new_sandbox)
   repo_root="$sandbox/repo"
   stub_dir="$sandbox/stubs"
   home_dir="$sandbox/home"
+  rc_file="$sandbox/rc"
   create_install_lefthook_fixture "$repo_root" "$stub_dir"
 
   (
@@ -871,12 +878,17 @@ test_install_lefthook_concurrent_install_serializes() {
     export GIT_CONFIG_GLOBAL=/dev/null
     export GIT_CONFIG_NOSYSTEM=1
     export PATH="$stub_dir:$PATH"
-    bash "$REPO_ROOT/scripts/ai/install-lefthook-hooks.sh" >/dev/null 2>&1 &
-    bash "$REPO_ROOT/scripts/ai/install-lefthook-hooks.sh" >/dev/null 2>&1 &
-    bash "$REPO_ROOT/scripts/ai/install-lefthook-hooks.sh" >/dev/null 2>&1 &
-    bash "$REPO_ROOT/scripts/ai/install-lefthook-hooks.sh" >/dev/null 2>&1 &
+    bash "$REPO_ROOT/scripts/ai/install-lefthook-hooks.sh" >/dev/null 2>&1; printf '%s\n' "$?" >> "$rc_file" &
+    bash "$REPO_ROOT/scripts/ai/install-lefthook-hooks.sh" >/dev/null 2>&1; printf '%s\n' "$?" >> "$rc_file" &
+    bash "$REPO_ROOT/scripts/ai/install-lefthook-hooks.sh" >/dev/null 2>&1; printf '%s\n' "$?" >> "$rc_file" &
+    bash "$REPO_ROOT/scripts/ai/install-lefthook-hooks.sh" >/dev/null 2>&1; printf '%s\n' "$?" >> "$rc_file" &
     wait
   )
+
+  total=$(wc -l < "$rc_file" | tr -d ' ')
+  [[ "$total" == "4" ]] || fail "expected 4 child exit codes captured, got $total"
+  fail_count=$(grep -cv '^0$' "$rc_file" || true)
+  [[ "$fail_count" == "0" ]] || fail "expected all 4 concurrent installs to succeed; $fail_count failed (rcs: $(tr '\n' ',' < "$rc_file"))"
 
   hook_path="$repo_root/.git/hooks/pre-commit"
   [[ -f "$hook_path" ]] || fail "expected pre-commit hook to exist after concurrent install"
@@ -895,12 +907,21 @@ test_install_lefthook_worktree_mode_pins_local_hooks_path() {
   # extensions.worktreeConfig + --worktree core.hooksPath를 설정해 PR #750 worktree-local
   # 격리를 유지한다. 다른 worktree의 lefthook install이 메인 .git/hooks를 덮어써도
   # 본 worktree는 영향 없음을 cross-check.
-  local sandbox main_root worktree_root stub_dir hook_path worktree_hooks main_hooks
+  local sandbox main_root worktree_root stub_dir hook_path worktree_hooks main_hooks sentinel
   sandbox=$(new_sandbox)
   main_root="$sandbox/main"
   worktree_root="$sandbox/wt"
   stub_dir="$sandbox/stubs"
   create_install_lefthook_worktree_fixture "$main_root" "$worktree_root" "$stub_dir"
+
+  # 메인 hooks 격리 sentinel: 미리 식별 가능한 content를 메인 .git/hooks/pre-commit에
+  # 박아둔다. worktree install 후에도 sentinel content가 그대로면 메인이 영향받지
+  # 않았음을 content level에서 보장한다 (fixture 우연으로 통과하는 약한 검증 회피).
+  main_hooks="$main_root/.git/hooks"
+  mkdir -p "$main_hooks"
+  sentinel="MAIN_SENTINEL_$(date +%s)_$$"
+  printf '#!/bin/sh\n# %s\nexit 0\n' "$sentinel" > "$main_hooks/pre-commit"
+  chmod +x "$main_hooks/pre-commit"
 
   run_install_lefthook_capture "$worktree_root" "$stub_dir"
   [[ "$INSTALL_LEFTHOOK_RC" == "0" ]] || fail "worktree install failed: $INSTALL_LEFTHOOK_OUTPUT"
@@ -918,11 +939,8 @@ test_install_lefthook_worktree_mode_pins_local_hooks_path() {
   [[ -f "$hook_path" ]] || fail "expected worktree-local pre-commit hook at $hook_path"
   grep -Fq "$LEFTHOOK_GUARD_BEGIN_MARKER" "$hook_path" || fail "expected guard begin marker in worktree-local hook"
 
-  # 격리 확인: 메인 .git/hooks/pre-commit은 우리 worktree의 install로 영향받지 않음
-  main_hooks="$main_root/.git/hooks"
-  if [[ -f "$main_hooks/pre-commit" ]]; then
-    fail "main repo hooks should be isolated from worktree install; found $main_hooks/pre-commit"
-  fi
+  # 격리 검증 (content level): 메인 pre-commit의 sentinel이 그대로 보존되어야 함
+  grep -Fq "$sentinel" "$main_hooks/pre-commit" || fail "main repo hooks should be isolated from worktree install; sentinel '$sentinel' missing from $main_hooks/pre-commit"
 }
 
 # ─── codex-config fixture helpers ───

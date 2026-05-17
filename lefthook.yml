@@ -48,6 +48,19 @@ pre-commit:
 
 commit-msg:
   commands:
+    lefthook-guard-self-check:
+      # pre-commit의 guard-self-check 복제. lefthook 2.x는 staged files이 0인 commit
+      # (예: `git commit --allow-empty`)에서 pre-commit command를 "(skip) no matching
+      # staged files"로 무력화한다. commit-msg hook은 staged files와 무관하게 항상
+      # 실행되므로, 이 layer가 staged-files-가-0인 경로의 우회 시나리오까지 차단한다.
+      run: |
+        hook_path="$(git rev-parse --path-format=absolute --git-path hooks/pre-commit)"
+        if [ ! -f "$hook_path" ] || ! grep -Fq "# BEGIN nixos-config lefthook staged-config guard" "$hook_path"; then
+          echo "lefthook-guard-self-check (commit-msg): staged-config guard missing from $hook_path." >&2
+          echo "  Cause: another worktree's 'lefthook install' likely overwrote the shared hook." >&2
+          echo "  Fix:   re-run 'direnv reload' or 'bash scripts/ai/install-lefthook-hooks.sh' in the current worktree." >&2
+          exit 1
+        fi
     pinning:
       # 워크트리/cherry-pick 시나리오에서 lefthook.yml만 받고 스크립트 미동반 시
       # 차단 회피용 방어 가드 (silent skip).
