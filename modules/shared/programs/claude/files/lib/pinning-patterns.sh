@@ -181,6 +181,13 @@ pinning_should_check_path() {
 # enumeration for the workflow-allow path taxonomy. Path helpers + the
 # raw-shape classifier delegate to this so the supported policy categories
 # (PRD/plan, body temp, issue-draft) stay in lockstep.
+#
+# Args:
+#   $1 path     — already canonicalized (or raw, for the D-1 classifier) path
+#   $2 category — one of "prd_or_plan", "body_temp", "issue_draft"
+#   $3 root     — required only for category="prd_or_plan" (project root for
+#                 the `.claude/{prds,plans}/*` glob). Ignored by the other
+#                 categories; caller may omit the argument or pass "".
 _pinning_path_category_glob_match() {
   local path="$1" category="$2" root="${3:-}"
   case "$category" in
@@ -271,16 +278,15 @@ pinning_is_issue_draft_path() {
   _pinning_path_category_glob_match "$path" "issue_draft"
 }
 
-# Workflow allow predicate for PreToolUse hard-fail. Returns 0 when the
-# canonicalized path is one of the policy categories (PRD / plan / body temp /
-# issue-draft). Traversal raw paths are fail-closed so this never opens a
-# bypass for volatile metadata.
 # Raw-tolerant workflow policy shape classifier. Distinct from the fail-closed
 # allow predicate (pinning_allows_workflow_pattern_c_for_path): this helper
 # runs on the raw input string so the D-1 token-delta branch can route
 # traversal raw paths whose shape would have matched a workflow policy
 # category if they had been canonical. Shares the path-category glob source
-# via _pinning_path_category_glob_match. Used by D-1 only.
+# via _pinning_path_category_glob_match. The helper is intentionally kept
+# separate from the allow predicate (single caller is OK) so the two
+# opposite responsibilities — fail-closed allow vs traversal-tolerant shape —
+# never share an interface. Used by D-1 only.
 _pinning_raw_path_is_workflow_policy_shape() {
   local raw="$1"
   local root
@@ -293,6 +299,13 @@ _pinning_raw_path_is_workflow_policy_shape() {
   return 1
 }
 
+# Workflow allow predicate for PreToolUse hard-fail. Returns 0 when the
+# canonicalized path is one of the policy categories (PRD / plan / body temp /
+# issue-draft). Traversal raw paths are fail-closed so this never opens a
+# bypass for volatile metadata. The body re-checks traversal after
+# canonicalize because `realpath -m` does not always collapse `../` (e.g.
+# when an intermediate symlink escapes the policy directory), so the second
+# pass keeps the fail-closed contract under all canonicalize paths.
 pinning_allows_workflow_pattern_c_for_path() {
   local raw="$1"
   if _pinning_raw_path_has_traversal "$raw"; then
@@ -375,23 +388,19 @@ pinning_apply_patch_section_lines_for_path() {
   ' "$sections_file"
 }
 
-# Generic raw matcher for A/B/C — emits TSV records.
-# Optional 5th argument `sub` carries a stable sub-category tag (e.g.
-# "workflow" / "volatile") so consumers can branch on PATTERN_C sub-patterns
-# without re-parsing the matched token text. When empty, the 4-th column is
-# omitted so legacy 3-column consumers keep working.
+# Generic raw matcher for A/B — emits 3-column TSV records.
+# PATTERN_C sub-pattern handling lives in `_pinning_pattern_c_records_sorted`,
+# which emits the optional 4-th `sub_tag` column (workflow / volatile) so
+# consumers can branch on the sub-pattern without re-parsing the matched
+# token text.
 _pinning_simple_records() {
-  local scan_file="$1" code="$2" pattern="$3" label="$4" sub_tag="${5:-}"
+  local scan_file="$1" code="$2" pattern="$3" label="$4"
   grep -noE "$pattern" "$scan_file" 2>/dev/null \
-    | awk -F: -v code="$code" -v label="$label" -v sub_tag="$sub_tag" '
+    | awk -F: -v code="$code" -v label="$label" '
         {
           lineno = $1
           tok = substr($0, length(lineno) + 2)
-          if (sub_tag != "") {
-            print code "\t" label "\t" lineno ": " tok "\t" sub_tag
-          } else {
-            print code "\t" label "\t" lineno ": " tok
-          }
+          print code "\t" label "\t" lineno ": " tok
         }
       ' || true
 }
@@ -406,27 +415,23 @@ _pinning_simple_records() {
 # sort-key columns before yielding the canonical TSV record format.
 _pinning_pattern_c_records_sorted() {
   local scan_file="$1"
+  # awk script body — single-quoted on purpose so awk vars ($1/$2/$0) are not
+  # expanded by the shell. label / sub_tag are injected via `awk -v` below.
+  # shellcheck disable=SC2016
+  local _awk_emit='
+        {
+          lineno = $1
+          byteoff = $2
+          prefix_len = length(lineno) + length(byteoff) + 2
+          tok = substr($0, prefix_len + 1)
+          printf "%d\t%d\tC\t%s\t%d: %s\t%s\n", lineno, byteoff, label, lineno, tok, sub_tag
+        }
+      '
   {
     grep -bnoE "$PINNING_PATTERN_C_WORKFLOW" "$scan_file" 2>/dev/null \
-      | awk -F: -v label="$PINNING_PATTERN_C_LABEL" '
-          {
-            lineno = $1
-            byteoff = $2
-            prefix_len = length(lineno) + length(byteoff) + 2
-            tok = substr($0, prefix_len + 1)
-            printf "%d\t%d\tC\t%s\t%d: %s\tworkflow\n", lineno, byteoff, label, lineno, tok
-          }
-        ' || true
+      | awk -F: -v label="$PINNING_PATTERN_C_LABEL" -v sub_tag="workflow" "$_awk_emit" || true
     grep -bnoE "$PINNING_PATTERN_C_VOLATILE" "$scan_file" 2>/dev/null \
-      | awk -F: -v label="$PINNING_PATTERN_C_LABEL" '
-          {
-            lineno = $1
-            byteoff = $2
-            prefix_len = length(lineno) + length(byteoff) + 2
-            tok = substr($0, prefix_len + 1)
-            printf "%d\t%d\tC\t%s\t%d: %s\tvolatile\n", lineno, byteoff, label, lineno, tok
-          }
-        ' || true
+      | awk -F: -v label="$PINNING_PATTERN_C_LABEL" -v sub_tag="volatile" "$_awk_emit" || true
   } | sort -t$'\t' -k1,1n -k2,2n \
     | cut -f3-
 }
@@ -624,6 +629,9 @@ pinning_guard_findings_records_for_path() {
 
   if _pinning_raw_path_has_traversal "$path" \
      && _pinning_raw_path_is_workflow_policy_shape "$path"; then
+    # is_prd_or_plan="" + allows_workflow="" — traversal raw paths must keep
+    # the workflow deny contract (no PATTERN_A suppression, no workflow
+    # suppression) so the token-delta surfaces the smuggled workflow token.
     _pinning_new_findings_records_for_state \
       "$old_scan_file" "$new_scan_file" "" ""
     return
