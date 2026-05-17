@@ -1,15 +1,42 @@
 #!/usr/bin/env bash
-# Install Lefthook into the worktree-default hooks path and inject the staged-config guard.
+# Install Lefthook (worktree-local in worktrees, default in main) and inject the staged-config guard.
 #
-# Source-of-truth scope: this script is the single source of truth for lefthook install
-# and staged-config guard injection in the main repo and every worktree whose flake.nix
-# shellHook delegates here (`bash ./scripts/ai/install-lefthook-hooks.sh`). Worktrees
-# with inline shellHook implementations (`.claude/worktrees/issue_732/flake.nix` 등) are
-# outside this scope and are tracked as a follow-up consolidation candidate.
+# Design split — main repo vs. worktree (preserves PR #750's worktree-local design):
+#
+# * Main repo (git-common-dir == git-dir): the previous version of this script wrote
+#   `extensions.worktreeConfig=true` + `--worktree core.hooksPath=<git-dir>/hooks` on every
+#   direnv reload. In the main repo this points to the same `.git/hooks` git already
+#   resolves by default, so it was redundant — but it tripped lefthook 2.1+'s
+#   "core.hooksPath is set locally" guard, forcing `--force` and two warning lines on
+#   every reload. We now unset that redundant value (only when it matches the default,
+#   preserving any deliberate user override) and call `lefthook install` without --force.
+#
+# * Worktree (git-common-dir != git-dir): PR #750 deliberately installs hooks under
+#   the worktree-local `.git/worktrees/<name>/hooks/` directory via
+#   `--worktree core.hooksPath`. That is *not* git's default resolution — git would
+#   otherwise route every worktree through the shared `.git/hooks/` and let any
+#   nearby worktree's `lefthook install` silently overwrite the staged-config guard
+#   we inject below. We preserve that worktree-local design here and keep `--force`
+#   because lefthook's guard fires on the (intentional) core.hooksPath override.
+#
+# Source-of-truth scope: this script governs lefthook install + guard injection for
+# the main repo and every worktree whose flake.nix shellHook calls
+# `bash ./scripts/ai/install-lefthook-hooks.sh`. Worktrees with inline shellHook
+# implementations (`.claude/worktrees/issue_587/flake.nix` 등 8개) are outside this
+# scope and tracked as NG-1 (follow-up consolidation candidate). The lefthook.yml
+# `lefthook-guard-self-check` job is a second-layer regression defense that catches
+# silent guard removal by any worktree at commit-time.
 set -euo pipefail
 
+# Marker constants — kept on dedicated lines so tests/shell-script-tests.sh can
+# sed-extract them and avoid hard-coding the literal in a second place.
 BEGIN_MARKER="# BEGIN nixos-config lefthook staged-config guard"
 END_MARKER="# END nixos-config lefthook staged-config guard"
+
+# 30 minutes — install itself runs in ~150ms; this guards against hung child
+# processes (NFS lock issues, OS bugs) rather than normal contention. Matches the
+# convention from modules/shared/scripts/lib/rebuild/locks.sh:198.
+LOCK_TIMEOUT_SECONDS=1800
 
 fail() {
   echo "install-lefthook-hooks: $*" >&2
@@ -28,74 +55,113 @@ command -v lefthook >/dev/null 2>&1 || fail "lefthook not found"
 command -v python3 >/dev/null 2>&1 || fail "python3 not found"
 
 repo_root="$(git rev-parse --show-toplevel)"
-worktree_git_dir="$(git -C "$repo_root" rev-parse --path-format=absolute --git-dir)"
-hooks_dir="$worktree_git_dir/hooks"
+git_dir="$(git -C "$repo_root" rev-parse --path-format=absolute --git-dir)"
+git_common_dir="$(git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir)"
+hooks_dir="$git_dir/hooks"
 mkdir -p "$hooks_dir"
 
-cleanup_redundant_hooks_path() {
-  # lefthook 2.1.0+ refuses to install when core.hooksPath is set; --force used to bypass
-  # the guard and emitted two warning lines on every direnv reload. The previous version
-  # of this script wrote core.hooksPath to the same value git would resolve by default,
-  # so the setting was functionally redundant. Unset only when the recorded value matches
-  # the scope-appropriate default — if a user (or another tool) pointed it somewhere else,
-  # leave it alone and surface a warning so the user can decide.
+is_main_repo() {
+  # In the main repo, git-dir and git-common-dir are the same path. In a worktree
+  # they diverge (git-dir = .git/worktrees/<name>, git-common-dir = .git).
+  [ "$git_dir" = "$git_common_dir" ]
+}
+
+cleanup_main_redundant_hooks_path() {
+  # Main repo only. Unset core.hooksPath if (and only if) it points to git's
+  # default resolution location — i.e., it was set by a prior version of this
+  # script and is now redundant. If a user (or another tool) pointed it
+  # elsewhere, leave it alone and surface a warning so the user can decide.
   #
-  # Each scope is compared against its own default because `git rev-parse --git-path hooks`
-  # honors core.hooksPath itself (so it can't be used as a stable baseline):
-  #   - local scope lives in the main repo, so its default is <git-common-dir>/hooks.
-  #   - worktree scope lives in the current worktree, so its default is <git-dir>/hooks
-  #     (which equals git-common-dir/hooks in the main repo).
-  local main_default_hooks worktree_default_hooks current_local current_worktree
-  main_default_hooks="$(git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir)/hooks"
-  worktree_default_hooks="$(git -C "$repo_root" rev-parse --path-format=absolute --git-dir)/hooks"
+  # We deliberately do not use `lefthook install --reset-hooks-path` here:
+  # that flag unsets the value unconditionally, which would wipe user-intended
+  # overrides too. Our scope-aware comparison preserves them.
+  local default_hooks current scope
+  default_hooks="$git_common_dir/hooks"
 
-  current_local="$(git -C "$repo_root" config --local --get core.hooksPath 2>/dev/null || true)"
-  if [ -n "$current_local" ]; then
-    if [ "$current_local" = "$main_default_hooks" ]; then
-      git -C "$repo_root" config --local --unset-all core.hooksPath
-      echo "install-lefthook-hooks: removed redundant core.hooksPath (local); default resolution preserved" >&2
+  for scope in local worktree; do
+    if [ "$scope" = "worktree" ] && \
+       [ "$(git -C "$repo_root" config --get extensions.worktreeConfig 2>/dev/null || echo false)" != "true" ]; then
+      continue
+    fi
+    current="$(git -C "$repo_root" config "--$scope" --get core.hooksPath 2>/dev/null || true)"
+    [ -n "$current" ] || continue
+    if [ "$current" = "$default_hooks" ]; then
+      git -C "$repo_root" config "--$scope" --unset-all core.hooksPath
+      echo "install-lefthook-hooks: removed redundant core.hooksPath ($scope). Hooks resolve to ${default_hooks}." >&2
     else
-      echo "install-lefthook-hooks: non-default core.hooksPath (local) detected: $current_local — preserved, but lefthook warnings will persist" >&2
+      echo "install-lefthook-hooks: non-default core.hooksPath ($scope) detected: ${current}. Preserved, but lefthook warnings will persist." >&2
     fi
-  fi
+  done
+}
 
-  if [ "$(git -C "$repo_root" config --get extensions.worktreeConfig 2>/dev/null || echo false)" = "true" ]; then
-    current_worktree="$(git -C "$repo_root" config --worktree --get core.hooksPath 2>/dev/null || true)"
-    if [ -n "$current_worktree" ]; then
-      if [ "$current_worktree" = "$worktree_default_hooks" ]; then
-        git -C "$repo_root" config --worktree --unset-all core.hooksPath
-        echo "install-lefthook-hooks: removed redundant core.hooksPath (worktree); default resolution preserved" >&2
-      else
-        echo "install-lefthook-hooks: non-default core.hooksPath (worktree) detected: $current_worktree — preserved, but lefthook warnings will persist" >&2
-      fi
-    fi
-  fi
+apply_worktree_local_hooks_config() {
+  # Worktree only. Pin core.hooksPath to this worktree's git-dir so that another
+  # worktree's `lefthook install` cannot silently overwrite our staged-config
+  # guard. This is the PR #750 worktree-local design (idempotent + isolated).
+  # lefthook 2.1+ refuses to install when core.hooksPath is set, so we accept
+  # the trade-off and pass --force in run_lefthook_install.
+  git -C "$repo_root" config extensions.worktreeConfig true
+  git -C "$repo_root" config --worktree core.hooksPath "$hooks_dir"
 }
 
 acquire_install_lock() {
-  # Concurrent direnv activations (e.g., several VSCode terminals reloading at once) race
-  # on the same hook file: lefthook rewrites it and the Python block below re-reads and
-  # re-writes it to inject the staged-config guard. Without serialization the guard can
-  # appear twice and the next run aborts with "nested guard marker". The lock pins both
-  # operations into a single critical section.
+  # Critical section: lefthook rewrites the hook file and the Python block
+  # below re-reads + re-writes it to inject the staged-config guard. Without
+  # serialization a "nested guard marker" SystemExit can fire when two direnv
+  # reloads race. The lock pins both operations into one critical section.
   #
-  # Lock path lives under the main repo's .git/info — every worktree shares this directory
-  # via `git rev-parse --git-common-dir`, so this single lock serializes installs from any
-  # worktree as well. .git/info already exists in the main repo (lefthook.checksum lives
-  # there), so no mkdir is required.
-  local lock_file
-  lock_file="$(git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir)/info/lefthook-install.lock"
+  # Lock path lives under the main repo's .git/info — every worktree shares
+  # this directory via `git rev-parse --git-common-dir`, so installs from the
+  # main repo and any worktree all serialize on the same lock. .git/info
+  # already exists in the main repo (lefthook.checksum lives there), so no
+  # mkdir is required.
+  #
+  # fd 200: outside stdin/stdout/stderr (0-2) and shell-builtin reserved range
+  # (3-9); matches the convention from locks.sh:202. Closed explicitly in
+  # children of run_lefthook_install / inject_staged_guard so they cannot
+  # extend the lock's lifetime past this script.
+  local lock_file lock_dir
+  lock_file="$git_common_dir/info/lefthook-install.lock"
+  lock_dir="$(dirname "$lock_file")"
+  # .git/info is normally created by git init, but fresh-clone or fixture environments
+  # can miss it; create on demand so the lock file open below cannot fail with ENOENT.
+  [ -d "$lock_dir" ] || mkdir -p "$lock_dir"
 
   exec 200>"$lock_file"
 
   if command -v flock >/dev/null 2>&1; then
     # Linux (NixOS): fd-based, auto-released when the fd closes.
-    flock -x 200
+    flock --timeout "$LOCK_TIMEOUT_SECONDS" 200 \
+      || fail "lefthook install lock timed out after ${LOCK_TIMEOUT_SECONDS}s (flock)"
   elif command -v lockf >/dev/null 2>&1; then
     # macOS (Darwin): fd-based BSD flock(2) wrapper, auto-released when the fd closes.
-    lockf -s 200
+    lockf -s -t "$LOCK_TIMEOUT_SECONDS" 200 \
+      || fail "lefthook install lock timed out after ${LOCK_TIMEOUT_SECONDS}s (lockf)"
   else
     fail "neither flock nor lockf available; cannot serialize lefthook install"
+  fi
+}
+
+run_lefthook_install() {
+  # lefthook 2.x has no --quiet flag and prints "sync hooks: ✔️ ..." on every
+  # install, plus two "core.hooksPath is set locally" + "Installing hooks
+  # anyway" lines when --force is used in worktree mode. Suppress that normal
+  # output so direnv reloads stay silent (SC-1) but re-emit captured output on
+  # failure so the user still sees error context.
+  #
+  # 200>&-: explicitly close fd 200 in the lefthook child so it cannot extend
+  # the lock's lifetime if it ever spawns a background process.
+  local install_output rc=0
+  if is_main_repo; then
+    install_output="$(lefthook install 200>&- 2>&1)" || rc=$?
+  else
+    install_output="$(lefthook install --force 200>&- 2>&1)" || rc=$?
+  fi
+  if [ "$rc" -ne 0 ]; then
+    if [ -n "$install_output" ]; then
+      printf '%s\n' "$install_output" >&2
+    fi
+    fail "lefthook install failed (exit $rc)"
   fi
 }
 
@@ -104,7 +170,8 @@ inject_staged_guard() {
   hook_path="$(git -C "$repo_root" rev-parse --path-format=absolute --git-path hooks/pre-commit)"
   [ -f "$hook_path" ] || fail "generated pre-commit hook not found: $hook_path"
 
-  python3 - "$hook_path" "$BEGIN_MARKER" "$END_MARKER" <<'PY'
+  # 200>&- closes the lock fd in the python child for the same reason as run_lefthook_install.
+  python3 - "$hook_path" "$BEGIN_MARKER" "$END_MARKER" 200>&- <<'PY'
 from __future__ import annotations
 
 from pathlib import Path
@@ -207,24 +274,20 @@ PY
 
   chmod +x "$hook_path"
   bash -n "$hook_path"
-}
 
-run_lefthook_install() {
-  # lefthook 2.x has no --quiet flag and prints "sync hooks: ✔️ ..." on every install.
-  # Suppress the success output so direnv reloads stay silent (SC-1) but re-emit captured
-  # output on failure so the user still sees error context (e.g., remaining non-default
-  # core.hooksPath warnings, missing hooks, etc.).
-  local install_output rc=0
-  install_output="$(lefthook install 2>&1)" || rc=$?
-  if [ "$rc" -ne 0 ]; then
-    if [ -n "$install_output" ]; then
-      printf '%s\n' "$install_output" >&2
-    fi
-    fail "lefthook install failed (exit $rc)"
+  # Defense in depth: confirm the marker pair really landed before returning.
+  # Catches any future regression in inject_staged_guard itself (the python
+  # block above) before the user attempts to commit and trips the guard.
+  if ! grep -Fq "$BEGIN_MARKER" "$hook_path" || ! grep -Fq "$END_MARKER" "$hook_path"; then
+    fail "guard injection verification failed: marker pair missing from $hook_path"
   fi
 }
 
-cleanup_redundant_hooks_path
+if is_main_repo; then
+  cleanup_main_redundant_hooks_path
+else
+  apply_worktree_local_hooks_config
+fi
 acquire_install_lock
 run_lefthook_install
 inject_staged_guard
