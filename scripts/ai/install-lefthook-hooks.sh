@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
-# Install Lefthook using a worktree-local hooks path and inject the staged config guard.
+# Install Lefthook into the worktree-default hooks path and inject the staged-config guard.
+#
+# Source-of-truth scope: this script is the single source of truth for lefthook install
+# and staged-config guard injection in the main repo and every worktree whose flake.nix
+# shellHook delegates here (`bash ./scripts/ai/install-lefthook-hooks.sh`). Worktrees
+# with inline shellHook implementations (`.claude/worktrees/issue_732/flake.nix` 등) are
+# outside this scope and are tracked as a follow-up consolidation candidate.
 set -euo pipefail
 
 BEGIN_MARKER="# BEGIN nixos-config lefthook staged-config guard"
@@ -26,15 +32,79 @@ worktree_git_dir="$(git -C "$repo_root" rev-parse --path-format=absolute --git-d
 hooks_dir="$worktree_git_dir/hooks"
 mkdir -p "$hooks_dir"
 
-git -C "$repo_root" config extensions.worktreeConfig true
-git -C "$repo_root" config --worktree core.hooksPath "$hooks_dir"
+cleanup_redundant_hooks_path() {
+  # lefthook 2.1.0+ refuses to install when core.hooksPath is set; --force used to bypass
+  # the guard and emitted two warning lines on every direnv reload. The previous version
+  # of this script wrote core.hooksPath to the same value git would resolve by default,
+  # so the setting was functionally redundant. Unset only when the recorded value matches
+  # the scope-appropriate default — if a user (or another tool) pointed it somewhere else,
+  # leave it alone and surface a warning so the user can decide.
+  #
+  # Each scope is compared against its own default because `git rev-parse --git-path hooks`
+  # honors core.hooksPath itself (so it can't be used as a stable baseline):
+  #   - local scope lives in the main repo, so its default is <git-common-dir>/hooks.
+  #   - worktree scope lives in the current worktree, so its default is <git-dir>/hooks
+  #     (which equals git-common-dir/hooks in the main repo).
+  local main_default_hooks worktree_default_hooks current_local current_worktree
+  main_default_hooks="$(git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir)/hooks"
+  worktree_default_hooks="$(git -C "$repo_root" rev-parse --path-format=absolute --git-dir)/hooks"
 
-lefthook install --force
+  current_local="$(git -C "$repo_root" config --local --get core.hooksPath 2>/dev/null || true)"
+  if [ -n "$current_local" ]; then
+    if [ "$current_local" = "$main_default_hooks" ]; then
+      git -C "$repo_root" config --local --unset-all core.hooksPath
+      echo "install-lefthook-hooks: removed redundant core.hooksPath (local); default resolution preserved" >&2
+    else
+      echo "install-lefthook-hooks: non-default core.hooksPath (local) detected: $current_local — preserved, but lefthook warnings will persist" >&2
+    fi
+  fi
 
-hook_path="$(git -C "$repo_root" rev-parse --path-format=absolute --git-path hooks/pre-commit)"
-[ -f "$hook_path" ] || fail "generated pre-commit hook not found: $hook_path"
+  if [ "$(git -C "$repo_root" config --get extensions.worktreeConfig 2>/dev/null || echo false)" = "true" ]; then
+    current_worktree="$(git -C "$repo_root" config --worktree --get core.hooksPath 2>/dev/null || true)"
+    if [ -n "$current_worktree" ]; then
+      if [ "$current_worktree" = "$worktree_default_hooks" ]; then
+        git -C "$repo_root" config --worktree --unset-all core.hooksPath
+        echo "install-lefthook-hooks: removed redundant core.hooksPath (worktree); default resolution preserved" >&2
+      else
+        echo "install-lefthook-hooks: non-default core.hooksPath (worktree) detected: $current_worktree — preserved, but lefthook warnings will persist" >&2
+      fi
+    fi
+  fi
+}
 
-python3 - "$hook_path" "$BEGIN_MARKER" "$END_MARKER" <<'PY'
+acquire_install_lock() {
+  # Concurrent direnv activations (e.g., several VSCode terminals reloading at once) race
+  # on the same hook file: lefthook rewrites it and the Python block below re-reads and
+  # re-writes it to inject the staged-config guard. Without serialization the guard can
+  # appear twice and the next run aborts with "nested guard marker". The lock pins both
+  # operations into a single critical section.
+  #
+  # Lock path lives under the main repo's .git/info — every worktree shares this directory
+  # via `git rev-parse --git-common-dir`, so this single lock serializes installs from any
+  # worktree as well. .git/info already exists in the main repo (lefthook.checksum lives
+  # there), so no mkdir is required.
+  local lock_file
+  lock_file="$(git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir)/info/lefthook-install.lock"
+
+  exec 200>"$lock_file"
+
+  if command -v flock >/dev/null 2>&1; then
+    # Linux (NixOS): fd-based, auto-released when the fd closes.
+    flock -x 200
+  elif command -v lockf >/dev/null 2>&1; then
+    # macOS (Darwin): fd-based BSD flock(2) wrapper, auto-released when the fd closes.
+    lockf -s 200
+  else
+    fail "neither flock nor lockf available; cannot serialize lefthook install"
+  fi
+}
+
+inject_staged_guard() {
+  local hook_path
+  hook_path="$(git -C "$repo_root" rev-parse --path-format=absolute --git-path hooks/pre-commit)"
+  [ -f "$hook_path" ] || fail "generated pre-commit hook not found: $hook_path"
+
+  python3 - "$hook_path" "$BEGIN_MARKER" "$END_MARKER" <<'PY'
 from __future__ import annotations
 
 from pathlib import Path
@@ -135,5 +205,26 @@ updated = stripped[:insert_at] + guard + stripped[insert_at:]
 hook_path.write_text("\n".join(updated) + "\n", encoding="utf-8")
 PY
 
-chmod +x "$hook_path"
-bash -n "$hook_path"
+  chmod +x "$hook_path"
+  bash -n "$hook_path"
+}
+
+run_lefthook_install() {
+  # lefthook 2.x has no --quiet flag and prints "sync hooks: ✔️ ..." on every install.
+  # Suppress the success output so direnv reloads stay silent (SC-1) but re-emit captured
+  # output on failure so the user still sees error context (e.g., remaining non-default
+  # core.hooksPath warnings, missing hooks, etc.).
+  local install_output rc=0
+  install_output="$(lefthook install 2>&1)" || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    if [ -n "$install_output" ]; then
+      printf '%s\n' "$install_output" >&2
+    fi
+    fail "lefthook install failed (exit $rc)"
+  fi
+}
+
+cleanup_redundant_hooks_path
+acquire_install_lock
+run_lefthook_install
+inject_staged_guard

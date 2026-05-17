@@ -640,6 +640,168 @@ run_test() {
   "$@"
 }
 
+# ─── install-lefthook-hooks fixture helpers ───
+# 실제 lefthook은 stub으로 대체한다. 우리 검증 대상은 install-lefthook-hooks.sh의
+# cleanup_redundant_hooks_path + acquire_install_lock + inject_staged_guard 동작이고,
+# lefthook 자체의 install 로직은 별도 신뢰 영역이다. stub은 install 명령 호출 시
+# `call_lefthook run "pre-commit" "$@"` 라인을 포함한 minimal pre-commit 파일만 작성한다.
+
+create_install_lefthook_fixture() {
+  local repo_root="$1" stub_dir="$2"
+  mkdir -p "$repo_root" "$stub_dir"
+  (
+    cd "$repo_root"
+    export GIT_CONFIG_GLOBAL=/dev/null
+    export GIT_CONFIG_NOSYSTEM=1
+    git init >/dev/null 2>&1
+    git config user.name "Test User"
+    git config user.email "test@example.com"
+    cat > lefthook.yml <<'YML'
+pre-commit:
+  jobs:
+    - name: noop
+      run: "true"
+YML
+    git add lefthook.yml
+    git commit -m "initial" >/dev/null 2>&1
+  )
+
+  cat > "$stub_dir/lefthook" <<'STUB'
+#!/usr/bin/env bash
+# stub for install-lefthook-hooks shell tests: emulate `lefthook install` by writing
+# a minimal pre-commit hook that contains the `call_lefthook run "pre-commit" "$@"`
+# marker expected by inject_staged_guard. Silent on success to mirror the real CLI
+# output we strip in install-lefthook-hooks.sh.
+set -euo pipefail
+case "${1:-}" in
+  install)
+    cd "$(git rev-parse --show-toplevel)"
+    hooks_dir="$(git rev-parse --path-format=absolute --git-path hooks)"
+    mkdir -p "$hooks_dir"
+    cat > "$hooks_dir/pre-commit" <<'HOOK'
+#!/bin/sh
+call_lefthook run "pre-commit" "$@"
+HOOK
+    chmod +x "$hooks_dir/pre-commit"
+    ;;
+  *)
+    echo "stub lefthook: unsupported command: ${1:-}" >&2
+    exit 1
+    ;;
+esac
+STUB
+  chmod +x "$stub_dir/lefthook"
+}
+
+run_install_lefthook_capture() {
+  # Args: repo_root stub_dir [extra env vars passed via name=value before bash invocation].
+  # Captures combined stdout/stderr into INSTALL_LEFTHOOK_OUTPUT and exit code into
+  # INSTALL_LEFTHOOK_RC so callers can assert without tripping set -e in the runner.
+  local repo_root="$1" stub_dir="$2"
+  INSTALL_LEFTHOOK_RC=0
+  INSTALL_LEFTHOOK_OUTPUT=$(
+    cd "$repo_root"
+    export GIT_CONFIG_GLOBAL=/dev/null
+    export GIT_CONFIG_NOSYSTEM=1
+    export PATH="$stub_dir:$PATH"
+    bash "$REPO_ROOT/scripts/ai/install-lefthook-hooks.sh" 2>&1
+  ) || INSTALL_LEFTHOOK_RC=$?
+}
+
+test_install_lefthook_cleanup_local_redundant() {
+  local sandbox repo_root stub_dir default_hooks
+  sandbox=$(new_sandbox)
+  repo_root="$sandbox/repo"
+  stub_dir="$sandbox/stubs"
+  create_install_lefthook_fixture "$repo_root" "$stub_dir"
+
+  default_hooks=$(GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
+    git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir)/hooks
+  GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
+    git -C "$repo_root" config --local core.hooksPath "$default_hooks"
+
+  run_install_lefthook_capture "$repo_root" "$stub_dir"
+  [[ "$INSTALL_LEFTHOOK_RC" == "0" ]] || fail "expected exit 0, got $INSTALL_LEFTHOOK_RC; output: $INSTALL_LEFTHOOK_OUTPUT"
+  assert_contains "$INSTALL_LEFTHOOK_OUTPUT" "removed redundant core.hooksPath (local)"
+
+  local after
+  after=$(GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
+    git -C "$repo_root" config --local --get core.hooksPath 2>/dev/null || echo "")
+  [[ -z "$after" ]] || fail "expected local core.hooksPath to be unset, got: $after"
+}
+
+test_install_lefthook_preserves_custom_local() {
+  local sandbox repo_root stub_dir custom_path after
+  sandbox=$(new_sandbox)
+  repo_root="$sandbox/repo"
+  stub_dir="$sandbox/stubs"
+  custom_path="$sandbox/custom-hooks"
+  create_install_lefthook_fixture "$repo_root" "$stub_dir"
+  mkdir -p "$custom_path"
+  GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
+    git -C "$repo_root" config --local core.hooksPath "$custom_path"
+
+  run_install_lefthook_capture "$repo_root" "$stub_dir"
+  [[ "$INSTALL_LEFTHOOK_RC" == "0" ]] || fail "stub install must succeed; got rc=$INSTALL_LEFTHOOK_RC, output: $INSTALL_LEFTHOOK_OUTPUT"
+  assert_contains "$INSTALL_LEFTHOOK_OUTPUT" "non-default core.hooksPath (local) detected: $custom_path"
+
+  after=$(GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
+    git -C "$repo_root" config --local --get core.hooksPath)
+  [[ "$after" == "$custom_path" ]] || fail "expected custom local core.hooksPath preserved, got: $after"
+}
+
+test_install_lefthook_silent_on_clean_state() {
+  local sandbox repo_root stub_dir
+  sandbox=$(new_sandbox)
+  repo_root="$sandbox/repo"
+  stub_dir="$sandbox/stubs"
+  create_install_lefthook_fixture "$repo_root" "$stub_dir"
+
+  # Warm-up run: ensures hook + guard are in place. May emit cleanup messages if
+  # the fixture happens to start with a stale core.hooksPath; here it doesn't.
+  run_install_lefthook_capture "$repo_root" "$stub_dir"
+  [[ "$INSTALL_LEFTHOOK_RC" == "0" ]] || fail "warm-up failed: $INSTALL_LEFTHOOK_OUTPUT"
+
+  # Subsequent run: nothing to clean up, lefthook stub is silent, guard re-inject is silent.
+  run_install_lefthook_capture "$repo_root" "$stub_dir"
+  [[ "$INSTALL_LEFTHOOK_RC" == "0" ]] || fail "silent run failed: $INSTALL_LEFTHOOK_OUTPUT"
+  [[ -z "$INSTALL_LEFTHOOK_OUTPUT" ]] || fail "expected silent rerun, got: [$INSTALL_LEFTHOOK_OUTPUT]"
+}
+
+test_install_lefthook_concurrent_install_serializes() {
+  local sandbox repo_root stub_dir hook_path begin_count end_count
+  sandbox=$(new_sandbox)
+  repo_root="$sandbox/repo"
+  stub_dir="$sandbox/stubs"
+  create_install_lefthook_fixture "$repo_root" "$stub_dir"
+
+  # Four concurrent install invocations. The host picks flock or lockf automatically;
+  # both branches must serialize inject_staged_guard so the guard markers don't
+  # interleave (which would re-trip `SystemExit("nested guard marker")` on next run).
+  (
+    cd "$repo_root"
+    export GIT_CONFIG_GLOBAL=/dev/null
+    export GIT_CONFIG_NOSYSTEM=1
+    export PATH="$stub_dir:$PATH"
+    bash "$REPO_ROOT/scripts/ai/install-lefthook-hooks.sh" >/dev/null 2>&1 &
+    bash "$REPO_ROOT/scripts/ai/install-lefthook-hooks.sh" >/dev/null 2>&1 &
+    bash "$REPO_ROOT/scripts/ai/install-lefthook-hooks.sh" >/dev/null 2>&1 &
+    bash "$REPO_ROOT/scripts/ai/install-lefthook-hooks.sh" >/dev/null 2>&1 &
+    wait
+  )
+
+  hook_path="$repo_root/.git/hooks/pre-commit"
+  [[ -f "$hook_path" ]] || fail "expected pre-commit hook to exist after concurrent install"
+  begin_count=$(grep -Fxc "# BEGIN nixos-config lefthook staged-config guard" "$hook_path" || true)
+  end_count=$(grep -Fxc "# END nixos-config lefthook staged-config guard" "$hook_path" || true)
+  [[ "$begin_count" == "1" ]] || fail "expected exactly 1 begin marker after serialized install, got $begin_count"
+  [[ "$end_count" == "1" ]] || fail "expected exactly 1 end marker after serialized install, got $end_count"
+
+  # Sanity rerun: nested-marker error would surface here if a prior race left duplicates.
+  run_install_lefthook_capture "$repo_root" "$stub_dir"
+  [[ "$INSTALL_LEFTHOOK_RC" == "0" ]] || fail "post-race rerun failed: $INSTALL_LEFTHOOK_OUTPUT"
+}
+
 # ─── codex-config fixture helpers ───
 # sync-codex-config.py의 sync/check 계약을 fixture 기반으로 고정.
 # tomlkit 의존이 필요하므로 lefthook 밖 직접 실행 시에는 tomlkit import 가능 여부에 따라
@@ -1892,6 +2054,10 @@ run_test "check-skill-noise follows symlink skill projection" test_check_skill_n
 run_test "check-skill-noise rejects external symlink skill projection" test_check_skill_noise_worktree_rejects_external_symlink
 run_test "darwin nrs offline force smoke" test_darwin_nrs_offline_force_smoke
 run_test "darwin nrs no-change releases worktree lock" test_darwin_nrs_no_changes_releases_worktree_lock
+run_test "install-lefthook cleans up redundant local core.hooksPath" test_install_lefthook_cleanup_local_redundant
+run_test "install-lefthook preserves custom local core.hooksPath" test_install_lefthook_preserves_custom_local
+run_test "install-lefthook is silent on clean state" test_install_lefthook_silent_on_clean_state
+run_test "install-lefthook serializes concurrent invocations" test_install_lefthook_concurrent_install_serializes
 
 # codex-config fixture는 tomlkit이 필요하다. lefthook pre-push는 `nix shell` wrap으로
 # 항상 tomlkit을 제공하지만, 사용자가 직접 실행할 때는 미가용일 수 있다. 미가용이면
