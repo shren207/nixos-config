@@ -62,6 +62,18 @@ pinning_canonicalize_path() {
   printf '%s\n' "$canon"
 }
 
+# Raw traversal segment matcher. Consolidates the
+# `*'/../'* | '../'* | *'/..' | '..'` glob check used across path-aware
+# helpers and the D-1 token-delta trigger so a future tweak only updates
+# this single shape. Returns 0 when the input contains a true traversal
+# segment, non-zero otherwise.
+_pinning_raw_path_has_traversal() {
+  case "$1" in
+    *'/../'* | '../'* | *'/..' | '..' ) return 0 ;;
+  esac
+  return 1
+}
+
 pinning_canonicalize_existing_parent_path() {
   local raw="$1"
   local abs dir suffix parent
@@ -89,9 +101,9 @@ pinning_project_root_path() {
   local root="${PINNING_PROJECT_ROOT:-}"
   local canon
   if [ -n "$root" ]; then
-    case "$root" in
-      *'/../'* | '../'* | *'/..' | '..' ) return 1 ;;
-    esac
+    if _pinning_raw_path_has_traversal "$root"; then
+      return 1
+    fi
   elif command -v git >/dev/null 2>&1; then
     root="$(git rev-parse --show-toplevel 2>/dev/null)" || root=""
   fi
@@ -103,9 +115,9 @@ pinning_project_root_path() {
     canon="$(pinning_canonicalize_existing_parent_path "$root")"
   fi
   [ -n "$canon" ] || return 1
-  case "$canon" in
-    *'/../'* | '../'* | *'/..' | '..' ) return 1 ;;
-  esac
+  if _pinning_raw_path_has_traversal "$canon"; then
+    return 1
+  fi
   printf '%s\n' "$canon"
 }
 
@@ -116,9 +128,9 @@ pinning_should_check_path() {
   # Match only true segment traversal patterns (`/../`, leading `../`,
   # trailing `/..`) instead of any literal `..` so files whose name happens
   # to contain `..` (e.g. `README..md`) keep the existing exempt contract.
-  case "$raw" in
-    *'/../'* | '../'* | *'/..' | '..' ) return 0 ;;
-  esac
+  if _pinning_raw_path_has_traversal "$raw"; then
+    return 0
+  fi
   local path
   path="$(pinning_canonicalize_path "$raw")"
   if [ -z "$path" ] && [ ! -L "$raw" ]; then
@@ -130,9 +142,9 @@ pinning_should_check_path() {
     # that we cannot trust.
     return 0
   fi
-  case "$path" in
-    *'/../'* | '../'* | *'/..' | '..' ) return 0 ;;
-  esac
+  if _pinning_raw_path_has_traversal "$path"; then
+    return 0
+  fi
 
   # Eligibility taxonomy goes through helper composition so canonical aliases
   # and issue-draft staging stay in lockstep with the workflow allow predicate.
@@ -165,13 +177,41 @@ pinning_should_check_path() {
   return 0
 }
 
+# Workflow policy path category glob source. Single owner of the glob
+# enumeration for the workflow-allow path taxonomy. Path helpers + the
+# raw-shape classifier delegate to this so the supported policy categories
+# (PRD/plan, body temp, issue-draft) stay in lockstep.
+_pinning_path_category_glob_match() {
+  local path="$1" category="$2" root="${3:-}"
+  case "$category" in
+    prd_or_plan)
+      [ -n "$root" ] || return 1
+      case "$path" in
+        "$root"/.claude/prds/* | "$root"/.claude/plans/*) return 0 ;;
+      esac
+      ;;
+    body_temp)
+      case "$path" in
+        /tmp/*-body* | /var/folders/*/T/*-body*) return 0 ;;
+        /private/tmp/*-body* | /private/var/folders/*/T/*-body*) return 0 ;;
+      esac
+      ;;
+    issue_draft)
+      case "$path" in
+        /tmp/issue-draft/* | /private/tmp/issue-draft/*) return 0 ;;
+      esac
+      ;;
+  esac
+  return 1
+}
+
 pinning_is_prd_or_plan_path() {
   local raw="$1"
   # Keep this helper fail-closed. It grants a narrow category skip, so path
   # traversal must not be normalized into an allowed PRD/plan segment.
-  case "$raw" in
-    *'/../'* | '../'* | *'/..' | '..' ) return 1 ;;
-  esac
+  if _pinning_raw_path_has_traversal "$raw"; then
+    return 1
+  fi
 
   local path root
   path="$(pinning_canonicalize_path "$raw")"
@@ -179,17 +219,14 @@ pinning_is_prd_or_plan_path() {
     path="$(pinning_canonicalize_existing_parent_path "$raw")"
   fi
   [ -n "$path" ] || return 1
-  case "$path" in
-    *'/../'* | '../'* | *'/..' | '..' ) return 1 ;;
-  esac
+  if _pinning_raw_path_has_traversal "$path"; then
+    return 1
+  fi
 
   root="$(pinning_project_root_path)" || return 1
   [ -n "$root" ] || return 1
 
-  case "$path" in
-    "$root"/.claude/prds/* | "$root"/.claude/plans/*) return 0 ;;
-    *) return 1 ;;
-  esac
+  _pinning_path_category_glob_match "$path" "prd_or_plan" "$root"
 }
 
 # Canonicalize a raw path for policy-category matching with fail-closed
@@ -198,18 +235,18 @@ pinning_is_prd_or_plan_path() {
 # non-zero exit as "this path is outside any policy category" and bail.
 _pinning_canonical_policy_path_fail_closed() {
   local raw="$1"
-  case "$raw" in
-    *'/../'* | '../'* | *'/..' | '..' ) return 1 ;;
-  esac
+  if _pinning_raw_path_has_traversal "$raw"; then
+    return 1
+  fi
   local path
   path="$(pinning_canonicalize_path "$raw")"
   if [ -z "$path" ] && [ ! -L "$raw" ]; then
     path="$(pinning_canonicalize_existing_parent_path "$raw")"
   fi
   [ -n "$path" ] || return 1
-  case "$path" in
-    *'/../'* | '../'* | *'/..' | '..' ) return 1 ;;
-  esac
+  if _pinning_raw_path_has_traversal "$path"; then
+    return 1
+  fi
   printf '%s\n' "$path"
 }
 
@@ -222,11 +259,7 @@ _pinning_canonical_policy_path_fail_closed() {
 pinning_is_body_temp_path() {
   local path
   path="$(_pinning_canonical_policy_path_fail_closed "$1")" || return 1
-  case "$path" in
-    /tmp/*-body* | /var/folders/*/T/*-body*) return 0 ;;
-    /private/tmp/*-body* | /private/var/folders/*/T/*-body*) return 0 ;;
-  esac
-  return 1
+  _pinning_path_category_glob_match "$path" "body_temp"
 }
 
 # Issue / PR body draft staging directory. Separate from body_temp so the
@@ -235,24 +268,49 @@ pinning_is_body_temp_path() {
 pinning_is_issue_draft_path() {
   local path
   path="$(_pinning_canonical_policy_path_fail_closed "$1")" || return 1
-  case "$path" in
-    /tmp/issue-draft/* | /private/tmp/issue-draft/*) return 0 ;;
-  esac
-  return 1
+  _pinning_path_category_glob_match "$path" "issue_draft"
 }
 
 # Workflow allow predicate for PreToolUse hard-fail. Returns 0 when the
 # canonicalized path is one of the policy categories (PRD / plan / body temp /
 # issue-draft). Traversal raw paths are fail-closed so this never opens a
 # bypass for volatile metadata.
+# Raw-tolerant workflow policy shape classifier. Distinct from the fail-closed
+# allow predicate (pinning_allows_workflow_pattern_c_for_path): this helper
+# runs on the raw input string so the D-1 token-delta branch can route
+# traversal raw paths whose shape would have matched a workflow policy
+# category if they had been canonical. Shares the path-category glob source
+# via _pinning_path_category_glob_match. Used by D-1 only.
+_pinning_raw_path_is_workflow_policy_shape() {
+  local raw="$1"
+  local root
+  root="$(pinning_project_root_path 2>/dev/null)" || root=""
+  if _pinning_path_category_glob_match "$raw" "prd_or_plan" "$root" \
+     || _pinning_path_category_glob_match "$raw" "body_temp" \
+     || _pinning_path_category_glob_match "$raw" "issue_draft"; then
+    return 0
+  fi
+  return 1
+}
+
 pinning_allows_workflow_pattern_c_for_path() {
   local raw="$1"
-  case "$raw" in
-    *'/../'* | '../'* | *'/..' | '..' ) return 1 ;;
-  esac
-  if pinning_is_prd_or_plan_path "$raw" \
-     || pinning_is_body_temp_path "$raw" \
-     || pinning_is_issue_draft_path "$raw"; then
+  if _pinning_raw_path_has_traversal "$raw"; then
+    return 1
+  fi
+  local path root
+  path="$(pinning_canonicalize_path "$raw")"
+  if [ -z "$path" ] && [ ! -L "$raw" ]; then
+    path="$(pinning_canonicalize_existing_parent_path "$raw")"
+  fi
+  [ -n "$path" ] || return 1
+  if _pinning_raw_path_has_traversal "$path"; then
+    return 1
+  fi
+  root="$(pinning_project_root_path 2>/dev/null)" || root=""
+  if _pinning_path_category_glob_match "$path" "prd_or_plan" "$root" \
+     || _pinning_path_category_glob_match "$path" "body_temp" \
+     || _pinning_path_category_glob_match "$path" "issue_draft"; then
     return 0
   fi
   return 1
@@ -338,6 +396,41 @@ _pinning_simple_records() {
       ' || true
 }
 
+# Category C emitter that interleaves the workflow + volatile sub-pattern
+# hits by line and same-line byte offset so the rendered record order
+# matches the file's left-to-right scan order (the order a single combined
+# grep would have produced). Without this, two separate sub-pattern grep
+# calls would emit all workflow records before any volatile record even when
+# the volatile token comes earlier in the file. Uses `grep -bno` to expose
+# the byte offset for tie-breaking inside the same line and strips the
+# sort-key columns before yielding the canonical TSV record format.
+_pinning_pattern_c_records_sorted() {
+  local scan_file="$1"
+  {
+    grep -bnoE "$PINNING_PATTERN_C_WORKFLOW" "$scan_file" 2>/dev/null \
+      | awk -F: -v label="$PINNING_PATTERN_C_LABEL" '
+          {
+            lineno = $1
+            byteoff = $2
+            prefix_len = length(lineno) + length(byteoff) + 2
+            tok = substr($0, prefix_len + 1)
+            printf "%d\t%d\tC\t%s\t%d: %s\tworkflow\n", lineno, byteoff, label, lineno, tok
+          }
+        ' || true
+    grep -bnoE "$PINNING_PATTERN_C_VOLATILE" "$scan_file" 2>/dev/null \
+      | awk -F: -v label="$PINNING_PATTERN_C_LABEL" '
+          {
+            lineno = $1
+            byteoff = $2
+            prefix_len = length(lineno) + length(byteoff) + 2
+            tok = substr($0, prefix_len + 1)
+            printf "%d\t%d\tC\t%s\t%d: %s\tvolatile\n", lineno, byteoff, label, lineno, tok
+          }
+        ' || true
+  } | sort -t$'\t' -k1,1n -k2,2n \
+    | cut -f3-
+}
+
 # Structured findings API. Output: TSV records, one per match.
 # Format: <category_code>\t<label>\t<line>:<token>[\t<sub>]
 # - category_code: stable identifier (A/B/C) — callers branch on this
@@ -353,8 +446,7 @@ pinning_findings_records() {
 
   _pinning_simple_records "$scan_file" "A" "$PATTERN_A" "$PINNING_PATTERN_A_LABEL"
   _pinning_simple_records "$scan_file" "B" "$PATTERN_B" "$PINNING_PATTERN_B_LABEL"
-  _pinning_simple_records "$scan_file" "C" "$PINNING_PATTERN_C_WORKFLOW" "$PINNING_PATTERN_C_LABEL" "workflow"
-  _pinning_simple_records "$scan_file" "C" "$PINNING_PATTERN_C_VOLATILE" "$PINNING_PATTERN_C_LABEL" "volatile"
+  _pinning_pattern_c_records_sorted "$scan_file"
 }
 
 _pinning_findings_records_for_prd_or_plan_state() {
@@ -497,9 +589,23 @@ _pinning_new_findings_records_for_state() {
 # PreToolUse hard-fail records API (delta-aware). Used by Edit/Write/NotebookEdit
 # branches where old + new scan files are both available. Path-aware semantics:
 # - PRD/plan path: token delta (consistent with existing PRD/plan behavior).
-# - non-PRD/plan path: outside count-gate — emit records only when the
+# - traversal raw path whose shape matches a workflow policy category
+#   (body temp / issue-draft / PRD-plan canonical alias): token delta with
+#   allows_workflow="" so workflow tokens are not suppressed. The
+#   workflow allow predicate fail-closes on traversal raw paths, so without
+#   this branch an equal-count `category-B token → category-C workflow token`
+#   replacement at a traversal raw path would slip past the outside
+#   count-gate (new_count == old_count) and pin a workflow token into a
+#   durably-shared body. The split helpers separate the trigger
+#   (_pinning_raw_path_has_traversal + _pinning_raw_path_is_workflow_policy_shape)
+#   from the fail-closed allow predicate so each helper keeps a single
+#   responsibility. Token-delta applies to the full delta surface — equal-count
+#   replacements and `old_count > new_count` edits that introduce a new token
+#   are both denied, matching the security intent.
+# - other non-PRD/plan path: outside count-gate — emit records only when the
 #   workflow-suppressed new-count strictly exceeds the workflow-suppressed
-#   old-count. This preserves the existing outside equal-count clean contract.
+#   old-count. This preserves the existing outside equal-count clean contract
+#   for plain markdown / shell / notebook edits.
 pinning_guard_findings_records_for_path() {
   local old_scan_file="$1"
   local new_scan_file="$2"
@@ -513,6 +619,13 @@ pinning_guard_findings_records_for_path() {
   if [ -n "$is_prd_or_plan" ]; then
     _pinning_new_findings_records_for_state \
       "$old_scan_file" "$new_scan_file" "$is_prd_or_plan" "$allows_workflow"
+    return
+  fi
+
+  if _pinning_raw_path_has_traversal "$path" \
+     && _pinning_raw_path_is_workflow_policy_shape "$path"; then
+    _pinning_new_findings_records_for_state \
+      "$old_scan_file" "$new_scan_file" "" ""
     return
   fi
 
