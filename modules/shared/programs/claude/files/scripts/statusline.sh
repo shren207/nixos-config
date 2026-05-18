@@ -803,8 +803,10 @@ fi
 end_line
 
 # L3 (worktree만): branch
-# L2의 "<메인 repo>:<폴더명>" 표기와 GIT_BRANCH가 exact match면 동일 토큰 중복이라 라인째 생략.
-# CWD_CANONICAL 부재 시 L2가 ":<폴더명>" 포맷을 못 쓰므로 가드 비활성.
+# basename(CWD_CANONICAL) == GIT_BRANCH면 L2가 이미 동일 토큰을 담고 있어 L3 라인째 생략.
+#   L2 표시: $IS_WORKTREE && MAIN_REPO_DIR 분기는 "<repo>:<폴더명>", else는 풀 경로 끝에 폴더명.
+#   어느 쪽이든 폴더명 토큰이 L2에 포함되므로 L3은 정보 손실 없이 생략 가능.
+# CWD_CANONICAL 부재 시 basename 결과가 ""라 GIT_BRANCH와 일치 불가 → 가드 자연스럽게 비활성.
 if $IS_WORKTREE; then
   begin_line
   WORKTREE_BASENAME=""
