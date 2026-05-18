@@ -414,3 +414,41 @@ EOF
   echo "$plain" | grep -qF 'feat-foo' \
     || { echo "expected branch label 'feat-foo' in output; got: $plain" >&2; false; }
 }
+
+# CWD_CANONICAL 부재 회귀 가드: canonicalize_cwd_check가 실패해 CWD_CANONICAL=""
+# 이면 WORKTREE_BASENAME=""이라 GIT_BRANCH와 일치할 수 없어 가드가 자연스럽게
+# 비활성된다. L3 가드 블록 주석이 약속한 동작을 박제해 L3가 의도치 않게
+# 숨겨지는 회귀를 막는다. cwd를 상대경로(="tmp")로 보내면
+# canonicalize_cwd_check 의 절대경로 가드(case "$cwd" in /*) ;; *) return ;; esac)에
+# 걸려 CWD_CANONICAL="" 이 자연 유도된다.
+@test "worktree with non-canonical cwd keeps L3 branch line (guard disabled)" {
+  local now five_h seven_d
+  now=$(date +%s)
+  five_h=$((now + 5 * 3600))
+  seven_d=$((now + 5 * 86400))
+  local stdin_json
+  stdin_json=$(cat <<EOF
+{
+  "session_id": "abc12345-def6-7890-abcd-ef1234567890",
+  "transcript_path": "/tmp/nonexistent.jsonl",
+  "cwd": "tmp",
+  "model": {"display_name": "test"},
+  "workspace": {"current_dir": "tmp", "git_worktree": "tmp"},
+  "worktree": {"branch": "tmp"},
+  "rate_limits": {
+    "five_hour": {"used_percentage": 6, "resets_at": $five_h},
+    "seven_day": {"used_percentage": 82, "resets_at": $seven_d}
+  }
+}
+EOF
+)
+  run run_statusline_with_input "$stdin_json"
+  [ "$status" -eq 0 ]
+  local plain
+  plain=$(echo "$output" | strip_ansi)
+  branch_count=$(echo "$plain" | grep -oF '🌿' | wc -l | tr -d ' ')
+  [ "$branch_count" -eq 1 ] \
+    || { echo "expected exactly 1 🌿 (L3 branch) when CWD_CANONICAL=\"\" (guard disabled); got count=$branch_count plain=$plain" >&2; false; }
+  echo "$plain" | grep -qF 'tmp' \
+    || { echo "expected branch label 'tmp' in output; got: $plain" >&2; false; }
+}
