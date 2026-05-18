@@ -287,6 +287,16 @@ pinning_is_issue_draft_path() {
 # separate from the allow predicate (single caller is OK) so the two
 # opposite responsibilities — fail-closed allow vs traversal-tolerant shape —
 # never share an interface. Used by D-1 only.
+#
+# Path lookup order:
+#   1. Raw input — catches absolute traversal like `/tmp/<x>-body/../escape.md`
+#      whose absolute prefix already matches a category glob.
+#   2. Canonicalized input — catches relative traversal like
+#      `./.claude/prds/../plans/foo.md` where the raw string cannot match
+#      an absolute glob anchor but the canonical result does. Mirrors the
+#      canonicalize pattern in pinning_allows_workflow_pattern_c_for_path so
+#      the D-1 branch stays in lockstep with which paths the allow predicate
+#      considers part of a workflow policy category.
 _pinning_raw_path_is_workflow_policy_shape() {
   local raw="$1"
   local root
@@ -294,6 +304,17 @@ _pinning_raw_path_is_workflow_policy_shape() {
   if _pinning_path_category_glob_match "$raw" "prd_or_plan" "$root" \
      || _pinning_path_category_glob_match "$raw" "body_temp" \
      || _pinning_path_category_glob_match "$raw" "issue_draft"; then
+    return 0
+  fi
+  local path
+  path="$(pinning_canonicalize_path "$raw")"
+  if [ -z "$path" ] && [ ! -L "$raw" ]; then
+    path="$(pinning_canonicalize_existing_parent_path "$raw")"
+  fi
+  [ -n "$path" ] || return 1
+  if _pinning_path_category_glob_match "$path" "prd_or_plan" "$root" \
+     || _pinning_path_category_glob_match "$path" "body_temp" \
+     || _pinning_path_category_glob_match "$path" "issue_draft"; then
     return 0
   fi
   return 1
