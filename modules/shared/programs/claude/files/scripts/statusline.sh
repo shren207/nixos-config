@@ -803,9 +803,13 @@ fi
 end_line
 
 # L3 (worktree만): branch
+# L2의 "<메인 repo>:<폴더명>" 표기와 GIT_BRANCH가 exact match면 동일 토큰 중복이라 라인째 생략.
+# CWD_CANONICAL 부재 시 L2가 ":<폴더명>" 포맷을 못 쓰므로 가드 비활성.
 if $IS_WORKTREE; then
   begin_line
-  if [ -n "$GIT_BRANCH" ]; then
+  WORKTREE_BASENAME=""
+  [ -n "$CWD_CANONICAL" ] && WORKTREE_BASENAME=$(basename "$CWD_CANONICAL")
+  if [ -n "$GIT_BRANCH" ] && [ "$WORKTREE_BASENAME" != "$GIT_BRANCH" ]; then
     print_icon "32" "" "\xf0\x9f\x8c\xbf" "$GIT_BRANCH"
   fi
   end_line

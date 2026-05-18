@@ -345,3 +345,72 @@ EOF
   echo "$plain" | grep -q '████████░░ 82%' \
     || { echo "expected filled=8 bar '████████░░ 82%' for 7d in non-SSH; got: $plain" >&2; false; }
 }
+
+# L3 worktree branch line: 폴더명 basename 과 branch 가 exact match 면 L2 의
+# "<메인 repo>:<폴더명>" 표기가 이미 같은 토큰을 담고 있어 동일 토큰 중복이라
+# L3 라인째 생략한다. cwd=/tmp (basename=tmp) + worktree.branch=tmp fixture.
+# macOS 에서 /tmp 는 /private/tmp symlink 지만 basename 은 동일하게 tmp.
+@test "worktree dir==branch hides L3 branch line" {
+  local now five_h seven_d
+  now=$(date +%s)
+  five_h=$((now + 5 * 3600))
+  seven_d=$((now + 5 * 86400))
+  local stdin_json
+  stdin_json=$(cat <<EOF
+{
+  "session_id": "abc12345-def6-7890-abcd-ef1234567890",
+  "transcript_path": "/tmp/nonexistent.jsonl",
+  "cwd": "/tmp",
+  "model": {"display_name": "test"},
+  "workspace": {"current_dir": "/tmp", "git_worktree": "/tmp"},
+  "worktree": {"branch": "tmp"},
+  "rate_limits": {
+    "five_hour": {"used_percentage": 6, "resets_at": $five_h},
+    "seven_day": {"used_percentage": 82, "resets_at": $seven_d}
+  }
+}
+EOF
+)
+  run run_statusline_with_input "$stdin_json"
+  [ "$status" -eq 0 ]
+  local plain
+  plain=$(echo "$output" | strip_ansi)
+  if echo "$plain" | grep -qF '🌿'; then
+    echo "expected no 🌿 branch icon when worktree dir==branch (tmp); leaked: $plain" >&2
+    false
+  fi
+}
+
+# Negative: dir!=branch 면 L3 가 살아 있어 🌿 가 정확히 1번 + branch 라벨 출력.
+# 새 가드가 mismatch 케이스까지 잘못 차단하면 fail.
+@test "worktree dir!=branch keeps L3 branch line" {
+  local now five_h seven_d
+  now=$(date +%s)
+  five_h=$((now + 5 * 3600))
+  seven_d=$((now + 5 * 86400))
+  local stdin_json
+  stdin_json=$(cat <<EOF
+{
+  "session_id": "abc12345-def6-7890-abcd-ef1234567890",
+  "transcript_path": "/tmp/nonexistent.jsonl",
+  "cwd": "/tmp",
+  "model": {"display_name": "test"},
+  "workspace": {"current_dir": "/tmp", "git_worktree": "/tmp"},
+  "worktree": {"branch": "feat-foo"},
+  "rate_limits": {
+    "five_hour": {"used_percentage": 6, "resets_at": $five_h},
+    "seven_day": {"used_percentage": 82, "resets_at": $seven_d}
+  }
+}
+EOF
+)
+  run run_statusline_with_input "$stdin_json"
+  [ "$status" -eq 0 ]
+  local plain
+  plain=$(echo "$output" | strip_ansi)
+  branch_count=$(echo "$plain" | grep -oF '🌿' | wc -l | tr -d ' ')
+  [ "$branch_count" -eq 1 ] \
+    || { echo "expected exactly 1 🌿 (L3 branch) when dir!=branch; got count=$branch_count plain=$plain" >&2; false; }
+  echo "$plain" | grep -qF 'feat-foo' \
+    || { echo "expected branch label 'feat-foo' in output; got: $plain" >&2; false; }
+}
