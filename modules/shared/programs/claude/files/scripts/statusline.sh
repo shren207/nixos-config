@@ -274,15 +274,20 @@ if $DO_HEAVY; then
 #    유발했다 (하나의 plan이 장기간 다수의 새 세션에 전염되고, 세션마다
 #    복사본을 양산해 plans 디렉토리를 오염시켰다).
 #    이제 우선순위는 (1) transcript 직접 감지 (2) 세션별 state 뿐이다.
-#    세션별 state는 transcript에서 plan을 감지했을 때만 기록되므로 (아래
-#    첫 분기), 같은 session_id의 resume/compact 복원에만 쓰이고 교차 세션
-#    누출이 없다.
+#    세션별 state는 유효한 SESSION_ID가 있고(SIDECAR_IO_ENABLED) transcript에서
+#    plan을 감지했을 때만 기록되므로 (아래 첫 분기), 같은 session_id의
+#    resume/compact 복원에만 쓰이고 교차 세션 누출이 없다. SESSION_ID 검증
+#    실패(빈 값) 시 다른 sidecar I/O와 동일하게 state를 만들지 않는다 —
+#    `.statusline-plan-${SESSION_ID:-unknown}`의 unknown fallback을 그대로 두면
+#    같은 transcript dir의 모든 invalid identity가 `.statusline-plan-unknown`을
+#    공유해 false positive가 축소 재발하므로, SIDECAR_IO_ENABLED 가드로 막는다.
 #    trade-off: /clear로 session_id가 바뀐 직후 세션은 plan 아이콘이 사라진다.
 #    의도적 컨텍스트 리셋이라 '잘못된 plan 표시'보다 안전한 실패 모드이며,
 #    plan을 다시 보려면 사용자가 직접 열거나 plan mode를 재진입한다.
 PLAN_STATE_FILE=""
-if $TRANSCRIPT_VALID; then
-  PLAN_STATE_FILE="$CANONICAL_TRANSCRIPT_DIR/.statusline-plan-${SESSION_ID:-unknown}"
+if $SIDECAR_IO_ENABLED; then
+  # SIDECAR_IO_ENABLED = 유효 SESSION_ID + TRANSCRIPT_VALID (Section 3). unknown fallback 불필요.
+  PLAN_STATE_FILE="$CANONICAL_TRANSCRIPT_DIR/.statusline-plan-${SESSION_ID}"
 fi
 
 if $TRANSCRIPT_VALID && [ -f "$TRANSCRIPT" ]; then

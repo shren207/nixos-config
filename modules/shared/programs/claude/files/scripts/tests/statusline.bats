@@ -537,3 +537,29 @@ EOF
   echo "$plain" | grep -qF 'Plan' \
     || { echo "expected Plan icon restored from session-level state; got: $plain" >&2; false; }
 }
+
+@test "plan: invalid session_id does NOT restore shared unknown state" {
+  # stdin session_id가 validate_session_id 실패('..' 포함)면 SESSION_ID="" →
+  # SIDECAR_IO_ENABLED=false → PLAN_STATE_FILE 미생성. 따라서 같은 transcript dir의
+  # 다른 invalid identity가 남긴 .statusline-plan-unknown 공유 state를 복원하지 않아야 한다.
+  # (가드 부재 시: .statusline-plan-${SESSION_ID:-unknown} = .statusline-plan-unknown 복원 → false positive)
+  local sid="bad..sid"
+  local validname="abcd1234-0000-1111-2222-333344445555"
+  PLAN_HOME="$BATS_TEST_TMPDIR/h-invalidsid"
+  PLAN_TDIR="$PLAN_HOME/.claude/projects/test-proj"
+  local leak_md="$PLAN_HOME/.claude/plans/leaked.md"
+  mkdir -p "$PLAN_TDIR" "$(dirname "$leak_md")"
+  printf '# leaked\n' > "$leak_md"
+  printf '%s\n' '{"type":"user","message":{"role":"user"}}' > "$PLAN_TDIR/$validname.jsonl"
+  # unknown 공유 state가 실재 plan을 가리켜도 복원되면 안 된다
+  printf '%s' "$leak_md" > "$PLAN_TDIR/.statusline-plan-unknown"
+
+  run run_statusline_with_input "$(_plan_json "$sid" "$PLAN_TDIR/$validname.jsonl")" HOME="$PLAN_HOME"
+  [ "$status" -eq 0 ]
+  local plain
+  plain=$(echo "$output" | strip_ansi)
+  if echo "$plain" | grep -qF 'Plan'; then
+    echo "expected NO Plan icon with invalid session_id (unknown state must not be restored); got: $plain" >&2
+    false
+  fi
+}
