@@ -488,6 +488,22 @@ _plan_json() {
 EOF
 }
 
+# plan fixture 실행 helper: HOME + XDG_* 를 모두 PLAN_HOME 하위로 pin 한다.
+# statusline.sh 는 HEAVY_CACHE_DIR/CACHE_TTL_DIR 에서 XDG_* 를 직접 참조하므로
+# (sidecar test 와 동일 사유), HOME 만 override 하면 부모 shell 의 XDG_* 가 set 일 때
+# heavy/cache 파일이 실제 시스템 경로로 leak 되어 호스트를 오염시키고 다음 run 의
+# cached vars 가 stale 해져 비결정적이 된다. PLAN_HOME 은 BATS_TEST_TMPDIR 하위라
+# 케이스마다 새로 생성된다.
+_run_plan() {
+  run run_statusline_with_input "$1" \
+    HOME="$PLAN_HOME" \
+    XDG_CONFIG_HOME="$PLAN_HOME/.config" \
+    XDG_CACHE_HOME="$PLAN_HOME/.cache" \
+    XDG_STATE_HOME="$PLAN_HOME/.local/state" \
+    XDG_DATA_HOME="$PLAN_HOME/.local/share" \
+    XDG_RUNTIME_DIR="$PLAN_HOME/.run"
+}
+
 @test "plan: project-level state alone does NOT show Plan (v5 false-positive guard)" {
   local sid="planfp01-1111-2222-3333-444455556666"
   _setup_plan_home "$sid"
@@ -496,7 +512,7 @@ EOF
   # 다른 세션이 남긴 프로젝트 단위 state만 존재 (v5 이전엔 이게 상속됐다)
   printf '%s' "$PLAN_MD" > "$PLAN_TDIR/.statusline-plan-current"
 
-  run run_statusline_with_input "$(_plan_json "$sid" "$PLAN_TRANSCRIPT")" HOME="$PLAN_HOME"
+  _run_plan "$(_plan_json "$sid" "$PLAN_TRANSCRIPT")"
   [ "$status" -eq 0 ]
   local plain
   plain=$(echo "$output" | strip_ansi)
@@ -515,7 +531,7 @@ EOF
   _setup_plan_home "$sid"
   printf '%s\n' "{\"type\":\"assistant\",\"planFilePath\":\"$PLAN_MD\"}" > "$PLAN_TRANSCRIPT"
 
-  run run_statusline_with_input "$(_plan_json "$sid" "$PLAN_TRANSCRIPT")" HOME="$PLAN_HOME"
+  _run_plan "$(_plan_json "$sid" "$PLAN_TRANSCRIPT")"
   [ "$status" -eq 0 ]
   local plain
   plain=$(echo "$output" | strip_ansi)
@@ -530,7 +546,7 @@ EOF
   # 같은 session_id가 과거에 감지해 남긴 세션별 state (resume/compact 복원 경로)
   printf '%s' "$PLAN_MD" > "$PLAN_TDIR/.statusline-plan-$sid"
 
-  run run_statusline_with_input "$(_plan_json "$sid" "$PLAN_TRANSCRIPT")" HOME="$PLAN_HOME"
+  _run_plan "$(_plan_json "$sid" "$PLAN_TRANSCRIPT")"
   [ "$status" -eq 0 ]
   local plain
   plain=$(echo "$output" | strip_ansi)
@@ -554,7 +570,7 @@ EOF
   # unknown 공유 state가 실재 plan을 가리켜도 복원되면 안 된다
   printf '%s' "$leak_md" > "$PLAN_TDIR/.statusline-plan-unknown"
 
-  run run_statusline_with_input "$(_plan_json "$sid" "$PLAN_TDIR/$validname.jsonl")" HOME="$PLAN_HOME"
+  _run_plan "$(_plan_json "$sid" "$PLAN_TDIR/$validname.jsonl")"
   [ "$status" -eq 0 ]
   local plain
   plain=$(echo "$output" | strip_ansi)
